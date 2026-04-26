@@ -123,9 +123,14 @@ function VideoPlayer({ course, onBack, studentName }) {
             if (document.fullscreenElement || document.webkitFullscreenElement) {
               if (document.exitFullscreen) document.exitFullscreen();
               else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+              if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
             } else {
-              if (el.requestFullscreen) el.requestFullscreen();
-              else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+              const goFS = el.requestFullscreen ? el.requestFullscreen() : el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : Promise.resolve();
+              Promise.resolve(goFS).then(() => {
+                if (screen.orientation && screen.orientation.lock) {
+                  screen.orientation.lock('landscape').catch(() => {});
+                }
+              }).catch(() => {});
             }
           },
           style:{ position:'absolute', bottom:'12px', right:'12px', background:'rgba(0,0,0,0.4)', border:'none', borderRadius:'4px', padding:'5px 7px', cursor:'pointer', color:'#fff', fontSize:'14px', zIndex:3, display:'flex', alignItems:'center', justifyContent:'center' }
