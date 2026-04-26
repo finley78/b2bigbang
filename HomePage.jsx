@@ -102,8 +102,8 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
   const ytId = getYoutubeId(s.youtube);
 
   return React.createElement('div', { style: { background:'#f2f0eb', padding: isMobile ? '16px' : '24px 40px', overflow:'hidden' } },
-    React.createElement('div', { style: { maxWidth:'1280px', margin:'0 auto', display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', width:'100%' } },
-      !isMobile && React.createElement('div', { style: { borderRadius:'12px', overflow:'hidden', position:'relative', height:'280px', background: s.bg } },
+    React.createElement('div', { style: { maxWidth:'1280px', margin:'0 auto', display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', width:'100%', alignItems:'stretch' } },
+      !isMobile && React.createElement('div', { style: { borderRadius:'12px', overflow:'hidden', position:'relative', minHeight:'280px', background: s.bg } },
         // 배경 이미지
         s.image && React.createElement('div', { style:{ position:'absolute', inset:0, backgroundImage:`url(${s.image})`, backgroundSize:'cover', backgroundPosition:'center', opacity:0.6 } }),
         // 유튜브 임베드

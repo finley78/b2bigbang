@@ -1,6 +1,6 @@
 // TopNav.jsx — Top utility bar + Main navigation (반응형)
-const NAV_LINKS = ['학원안내', '프로그램', '모집안내', '인강', '문의하기'];
-const PAGE_MAP  = { '학원안내':'about', '프로그램':'service', '모집안내':'recruit', '인강':'portal', '문의하기':'contact' };
+const NAV_LINKS = ['학원안내', '프로그램', '모집안내', '온라인 강의', '문의하기'];
+const PAGE_MAP  = { '학원안내':'about', '프로그램':'service', '모집안내':'recruit', '온라인 강의':'portal', '문의하기':'contact' };
 
 function dDay(targetDateStr) {
   const target = new Date(targetDateStr);
@@ -91,7 +91,7 @@ function MainNav({ page, setPage, user, onLoginClick, onAdminClick, onLogout, ex
               borderBottom: page === PAGE_MAP[label] ? '2px solid #006241' : '2px solid transparent',
             },
             onClick: () => {
-              if (label === '인강') { if (!user) { onLoginClick(); return; } }
+              if (label === '온라인 강의') { if (!user) { onLoginClick(); return; } }
               setPage(PAGE_MAP[label] || 'home');
             }
           }, label)
@@ -149,7 +149,7 @@ function MainNav({ page, setPage, user, onLoginClick, onAdminClick, onLogout, ex
             fontWeight: page === PAGE_MAP[label] ? '700' : '500',
           },
           onClick: () => {
-            if (label === '인강') { if (!user) { onLoginClick(); setMenuOpen(false); return; } }
+            if (label === '온라인 강의') { if (!user) { onLoginClick(); setMenuOpen(false); return; } }
             setPage(PAGE_MAP[label] || 'home');
             setMenuOpen(false);
           }
