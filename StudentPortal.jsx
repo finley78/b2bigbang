@@ -100,8 +100,45 @@ function VideoPlayer({ course, onBack, studentName }) {
     return function() { clearInterval(timerRef.current); };
   }, [playing, seekDragging]);
 
-  // 컨트롤 숨김 타이머 — 재생 중일 때 2초 후 fade out
-  function armHide() {
+  // 전체화면 토글 — 브라우저 fullscreen API로 주소창 숨김
+  function enterFullscreen() {
+    var el = document.documentElement;
+    var go = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+    if (go) {
+      go.call(el).then(function() {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(function(){});
+        }
+      }).catch(function(){});
+    }
+    setIsFullscreen(true);
+    document.body.style.overflow = 'hidden';
+  }
+  function exitFullscreen() {
+    var ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
+    if (ex) ex.call(document).catch(function(){});
+    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+    setIsFullscreen(false);
+    document.body.style.overflow = '';
+  }
+
+  // 브라우저 뒤로가기/ESC로 fullscreen 해제될 때 상태 동기화
+  React.useEffect(function() {
+    function onFsChange() {
+      var fsel = document.fullscreenElement || document.webkitFullscreenElement;
+      if (!fsel) {
+        setIsFullscreen(false);
+        document.body.style.overflow = '';
+        if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+      }
+    }
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    return function() {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+    };
+  }, []);
     clearTimeout(hideRef.current);
     hideRef.current = setTimeout(function() { setShowControls(false); }, 2000);
   }
@@ -263,8 +300,8 @@ function VideoPlayer({ course, onBack, studentName }) {
           React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between' } },
             React.createElement('span', { style:{ fontSize:'12px', fontWeight:'600', color:'#fff', fontFamily:'Manrope, sans-serif' } }, fmt(currentSec) + ' / ' + fmt(TOTAL_SEC)),
             React.createElement('button', {
-              onTouchEnd: function(e) { e.stopPropagation(); setIsFullscreen(function(f) { document.body.style.overflow = f ? '' : 'hidden'; return !f; }); },
-              onClick: function(e) { e.stopPropagation(); setIsFullscreen(function(f) { document.body.style.overflow = f ? '' : 'hidden'; return !f; }); },
+              onTouchEnd: function(e) { e.stopPropagation(); isFullscreen ? exitFullscreen() : enterFullscreen(); },
+              onClick: function(e) { e.stopPropagation(); isFullscreen ? exitFullscreen() : enterFullscreen(); },
               style:{ background:'none', border:'none', cursor:'pointer', padding:'4px', WebkitTapHighlightColor:'transparent' }
             },
               React.createElement('svg', { width:'22', height:'22', viewBox:'0 0 24 24', fill:'#fff' },
@@ -279,17 +316,21 @@ function VideoPlayer({ course, onBack, studentName }) {
     );
   }
 
-  // 전체화면 — 세로 폰에서 가로로 강제 rotate
+  // 전체화면 — 네이티브 fullscreen API 사용 (브라우저 주소창 숨김)
+  // orientation.lock 미지원 시 CSS rotate 폴백
   if (isFullscreen) {
+    var isLandscape = window.innerWidth > window.innerHeight;
     return React.createElement('div', { style:{ position:'fixed', inset:0, zIndex:9999, background:'#000', overflow:'hidden' } },
       React.createElement('div', {
-        style:{
+        style: isLandscape ? {
+          position:'absolute', inset:0
+        } : {
           position:'absolute',
           top:'0', left:'0',
           width:'100vh',
           height:'100vw',
           transformOrigin:'top left',
-          transform:'rotate(90deg) translateY(-100%)',
+          transform:'rotate(90deg) translateY(-100vw)',
         }
       }, renderPlayer())
     );
