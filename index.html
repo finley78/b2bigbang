@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B2빅뱅학원 — Web App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Lora:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; max-width: 100%; }
+  html, body { overflow-x: hidden; width: 100%; }
+  html { font-size: 62.5%; scroll-behavior: smooth; }
+  body { font-family: 'Manrope', sans-serif; background: #f2f0eb; min-height: 100vh; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #f2f0eb; }
+  ::-webkit-scrollbar-thumb { background: #d4e9e2; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="TopNav.jsx"></script>
+<script type="text/babel" src="HomePage.jsx"></script>
+<script type="text/babel" src="Pages.jsx"></script>
+<script type="text/babel" src="StudentPortal.jsx"></script>
+<script type="text/babel" src="AdminPanel.jsx"></script>
+
+<script type="text/babel">
+
+const INITIAL_STATE = {
+  banners: [
+    { id:1, bg:'#1E3932', subtitle:'중간고사 완벽 대비 특강', title:'내신 특강 모집 중', label:'개강 5/5(월)', badge:'기간 한정', active:true, cta:'등록하기' },
+    { id:2, bg:'#006241', subtitle:'목표 대학을 향해', title:'2027 합격이 보인다', label:'개강 4/28(월)', badge:'인기 강좌', active:true, cta:'신청하기' },
+  ],
+  notices: [
+    { id:1, type:'모집', text:'2027 초기 반수반 설명회 – 학습 전략 공개', date:'2026.04.11' },
+    { id:2, type:'강좌', text:'기초부터 탄탄하게, 2027 논술 특강 개강', date:'2026.04.10' },
+    { id:3, type:'이벤트', text:'신규 등록생 첫 달 50% 할인 이벤트', date:'2026.04.08' },
+  ],
+  announcements: [
+    { id:1, title:'2027학년도 6월 평가원 모의고사 이부생 접수 안내', date:'2026.03.17' },
+    { id:2, title:'2027 재수정규 시즌2 강좌 및 수강신청 안내', date:'2026.03.17' },
+    { id:3, title:'2027 B2빅뱅학원 2차 등교 인원 안내', date:'2026.04.11' },
+    { id:4, title:'수능 D-208 특별 학습 관리 프로그램 시작', date:'2026.04.09' },
+  ],
+  courses: [
+    { id:1, subject:'수학', grade:'고3', name:'수능 수학 완성반', days:3, duration:90, teacher:'김민준 강사', price:'280,000원', badge:'인기', color:'#006241' },
+    { id:2, subject:'영어', grade:'고2·3', name:'수능 영어 1등급반', days:2, duration:100, teacher:'이수진 강사', price:'250,000원', badge:'신규', color:'#00754A' },
+    { id:3, subject:'국어', grade:'고1·2·3', name:'수능 국어 독서·문학', days:2, duration:90, teacher:'박지영 강사', price:'240,000원', badge:null, color:'#2b5148' },
+    { id:4, subject:'과학', grade:'고1·2', name:'물리·화학 내신 특강', days:2, duration:80, teacher:'정서연 강사', price:'200,000원', badge:'특강', color:'#1E3932' },
+    { id:5, subject:'수학', grade:'중3·고1', name:'중·고 연계 수학 심화', days:3, duration:80, teacher:'최민호 강사', price:'220,000원', badge:'추천', color:'#006241' },
+    { id:6, subject:'영어', grade:'중2·3', name:'중등 영어 기초·심화', days:2, duration:70, teacher:'오현주 강사', price:'180,000원', badge:null, color:'#33433d' },
+  ],
+  students: [
+    { id:'google_demo', name:'김학생', email:'student@gmail.com', provider:'google', grade:'고2', subjects:['수학','영어'], enrolledCourses:[1,2] },
+    { id:'kakao_demo', name:'이수강', email:'student@kakao.com', provider:'kakao', grade:'중3', subjects:['국어','과학'], enrolledCourses:[3,4] },
+  ],
+  slides: [
+    { bg:'#1E3932', text1:'최고의 결과를 만든다', text2:'B2빅뱅 학습 시스템', accent:'2027 합격이 보인다', image:'', youtube:'' },
+    { bg:'#006241', text1:'체계적인 커리큘럼', text2:'전문 강사진의 1:1 관리', accent:'목표 대학을 향해', image:'', youtube:'' },
+  ],
+  content: {
+    featureEyebrow:'지금 등록하면',
+    featureTitle:'첫 달 수강료\n50% 할인',
+    featureBody:'신규 등록생 한정 · 선착순 마감\n지금 바로 문의해 주세요',
+    featureCta1:'지금 문의하기',
+    featureCta2:'프로그램 보기',
+  },
+};
+
+const EXAM_DATE = '2026-11-12';
+
+function App() {
+  const [page, setPage] = React.useState('home');
+  const [user, setUser] = React.useState(null);
+  const [showLogin, setShowLogin] = React.useState(false);
+  const [isAdmin, setIsAdmin] = React.useState(false);
+  const [adminAuthed, setAdminAuthed] = React.useState(false); // 관리자 로그인 유지
+  const [state, setState] = React.useState(INITIAL_STATE);
+
+  // 브라우저 뒤로가기 지원
+  React.useEffect(() => {
+    function handlePopState(e) {
+      const p = e.state?.page || 'home';
+      setPage(p);
+    }
+    window.addEventListener('popstate', handlePopState);
+    // 초기 상태 설정
+    window.history.replaceState({ page: 'home' }, '', '');
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  function navigate(p) {
+    setPage(p);
+    window.history.pushState({ page: p }, '', '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleLogin(u) {
+    setUser(u);
+    setShowLogin(false);
+    navigate('portal');
+  }
+
+  function handleLogout() {
+    setUser(null);
+    setIsAdmin(false);
+    navigate('home');
+  }
+
+  function handleAdminClick() {
+    navigate('admin');
+  }
+
+  return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
+
+    // 로그인 모달
+    showLogin && React.createElement(LoginModal, { onLogin: handleLogin, onClose: ()=>setShowLogin(false) }),
+
+    // 상단 네비
+    React.createElement(TopBar, {
+      user,
+      onLoginClick: ()=>setShowLogin(true),
+      onLogout: handleLogout,
+      onAdminClick: handleAdminClick,
+      examDate: EXAM_DATE,
+    }),
+    React.createElement(MainNav, {
+      page,
+      setPage: navigate,
+      user,
+      onLoginClick: ()=>setShowLogin(true),
+      onAdminClick: handleAdminClick,
+      onLogout: handleLogout,
+      examDate: EXAM_DATE,
+    }),
+
+    // 메인 콘텐츠
+    React.createElement('main', { style:{ flex:1 } },
+
+      page === 'home' && React.createElement(HomePage, {
+        banners: state.banners,
+        slides: state.slides,
+        categories: [
+          { emoji:'📐', label:'수학', page:'service', highlight:false },
+          { emoji:'📖', label:'영어', page:'service', highlight:false },
+          { emoji:'✏️', label:'국어', page:'service', highlight:false },
+          { emoji:'🔬', label:'과학', page:'service', highlight:false },
+          { emoji:'📋', label:'내신 대비', page:'service', highlight:false },
+          { emoji:'🎯', label:'수능 특강', page:'service', highlight:true },
+        ],
+        notices: state.notices,
+        announcements: state.announcements,
+        setPage: navigate,
+        isAdmin,
+        content: state.content,
+        onAdminAction: ()=>{},
+      }),
+
+      page === 'service' && React.createElement(ServicePage, { setPage: navigate, courses: state.courses }),
+      page === 'contact' && React.createElement(ContactPage),
+
+      page === 'portal' && React.createElement(StudentPortal, {
+        user,
+        courses: state.courses,
+        students: state.students,
+        onLoginClick: ()=>setShowLogin(true),
+      }),
+
+      page === 'admin' && React.createElement(AdminPanel, {
+        state,
+        setState,
+        adminAuthed,
+        setAdminAuthed,
+        onLogout: ()=>{ setIsAdmin(false); setAdminAuthed(false); navigate('home'); },
+      }),
+    ),
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
