@@ -9,6 +9,7 @@
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; max-width: 100%; }
   html, body { overflow-x: hidden; width: 100%; }
@@ -27,6 +28,13 @@
 <script type="text/babel" src="Pages.jsx"></script>
 <script type="text/babel" src="StudentPortal.jsx"></script>
 <script type="text/babel" src="AdminPanel.jsx"></script>
+
+<script>
+  // Supabase 클라이언트 초기화
+  const SUPABASE_URL = 'https://ldsjysjawvssadheeiog.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_5HcgE_EKTCIzjOaCGcauXQ_k8ZBBDRI';
+  window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
 
 <script type="text/babel">
 
@@ -97,6 +105,51 @@ function App() {
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [adminAuthed, setAdminAuthed] = React.useState(false); // 관리자 로그인 유지
   const [state, setState] = React.useState(INITIAL_STATE);
+  const [dbLoaded, setDbLoaded] = React.useState(false);
+
+  // Supabase에서 subjects, courses, videos 로드
+  React.useEffect(() => {
+    async function loadFromDB() {
+      try {
+        // subjects 로드
+        const { data: subjects } = await window.supabase
+          .from('subjects').select('*').order('sort_order');
+
+        // courses + videos 로드
+        const { data: courses } = await window.supabase
+          .from('courses').select(`*, subjects(name, color), videos(*)`)
+          .eq('is_active', true).order('sort_order');
+
+        if (courses && courses.length > 0) {
+          const mapped = courses.map(c => ({
+            id: c.id,
+            subject: c.subjects?.name || '',
+            color: c.subjects?.color || '#006241',
+            name: c.title,
+            description: c.description,
+            grade: '',
+            days: 0,
+            duration: 0,
+            teacher: '',
+            price: '',
+            badge: null,
+            lectures: (c.videos || []).sort((a,b) => a.sort_order - b.sort_order).map(v => ({
+              id: v.id,
+              title: v.title,
+              videoUrl: v.youtube_id ? `https://www.youtube.com/watch?v=${v.youtube_id}` : '',
+              youtubeId: v.youtube_id,
+            })),
+          }));
+          setState(prev => ({ ...prev, courses: mapped }));
+        }
+        setDbLoaded(true);
+      } catch(e) {
+        console.error('DB 로드 실패:', e);
+        setDbLoaded(true);
+      }
+    }
+    loadFromDB();
+  }, []);
 
   // 브라우저 뒤로가기 지원
   React.useEffect(() => {

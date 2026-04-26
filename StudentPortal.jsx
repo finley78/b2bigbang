@@ -13,10 +13,44 @@ function LoginModal({ onLogin, onClose }) {
   const [name, setName] = React.useState('');
 
   function handleProvider(provider) {
+    // 데모: mock 유저로 students 테이블에 upsert 후 enrollments 조회
     const mockUser = provider === 'google'
-      ? { id:'google_demo', name:'김학생', email:'student@gmail.com', provider:'google', enrolledCourses:[1,2] }
-      : { id:'kakao_demo', name:'이수강', email:'student@kakao.com', provider:'kakao', enrolledCourses:[3,4] };
-    onLogin(mockUser);
+      ? { name:'김학생', email:'student@gmail.com', provider:'google' }
+      : { name:'이수강', email:'student@kakao.com', provider:'kakao' };
+
+    async function loginWithDB() {
+      try {
+        // 1. students 테이블에 upsert (없으면 생성, 있으면 유지)
+        const { data: student, error } = await window.supabase
+          .from('students')
+          .upsert({ email: mockUser.email, name: mockUser.name, login_provider: provider }, { onConflict: 'email' })
+          .select().single();
+
+        if (error) throw error;
+
+        // 2. enrollments에서 수강 중인 course_id 목록 조회
+        const { data: enrollments } = await window.supabase
+          .from('enrollments')
+          .select('course_id')
+          .eq('student_id', student.id)
+          .eq('is_active', true);
+
+        const enrolledCourses = (enrollments || []).map(e => e.course_id);
+
+        onLogin({
+          id: student.id,
+          name: student.name,
+          email: student.email,
+          provider: student.login_provider,
+          enrolledCourses,
+        });
+      } catch(e) {
+        console.error('로그인 오류:', e);
+        // DB 실패시 fallback
+        onLogin({ id: provider+'_demo', name: mockUser.name, email: mockUser.email, provider, enrolledCourses: [] });
+      }
+    }
+    loginWithDB();
   }
 
   return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }, onClick:onClose },
@@ -428,15 +462,22 @@ function StudentPortal({ user, courses, students, onLoginClick }) {
     );
   }
 
-  var student = students.find(function(s) { return s.id === user.id; });
-  var studentGrade = student ? student.grade : null;
-  var studentSubjects = student ? student.subjects : [];
-  var enrolledIds = student ? student.enrolledCourses : [];
+  var enrolledIds = user ? (user.enrolledCourses || []) : [];
+  var studentGrade = user ? (user.grade || '') : '';
+  var studentSubjects = React.useMemo(() => {
+    // enrolledIds에 해당하는 courses의 subject 목록 추출
+    var subjectsSet = new Set(
+      courses.filter(c => enrolledIds.includes(c.id)).map(c => c.subject)
+    );
+    return Array.from(subjectsSet);
+  }, [courses, enrolledIds]);
 
-  var coursesBySubject = studentSubjects.reduce(function(acc, sub) {
-    acc[sub] = courses.filter(function(c) { return c.subject === sub && enrolledIds.includes(c.id); });
-    return acc;
-  }, {});
+  var coursesBySubject = React.useMemo(() => {
+    return studentSubjects.reduce(function(acc, sub) {
+      acc[sub] = courses.filter(function(c) { return c.subject === sub && enrolledIds.includes(c.id); });
+      return acc;
+    }, {});
+  }, [studentSubjects, courses, enrolledIds]);
 
   // 상단 헤더 공통
   function renderHeader(small) {
