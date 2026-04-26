@@ -47,12 +47,29 @@ const INITIAL_STATE = {
     { id:4, title:'수능 D-208 특별 학습 관리 프로그램 시작', date:'2026.04.09' },
   ],
   courses: [
-    { id:1, subject:'수학', grade:'고3', name:'수능 수학 완성반', days:3, duration:90, teacher:'김민준 강사', price:'280,000원', badge:'인기', color:'#006241' },
-    { id:2, subject:'영어', grade:'고2·3', name:'수능 영어 1등급반', days:2, duration:100, teacher:'이수진 강사', price:'250,000원', badge:'신규', color:'#00754A' },
-    { id:3, subject:'국어', grade:'고1·2·3', name:'수능 국어 독서·문학', days:2, duration:90, teacher:'박지영 강사', price:'240,000원', badge:null, color:'#2b5148' },
-    { id:4, subject:'과학', grade:'고1·2', name:'물리·화학 내신 특강', days:2, duration:80, teacher:'정서연 강사', price:'200,000원', badge:'특강', color:'#1E3932' },
-    { id:5, subject:'수학', grade:'중3·고1', name:'중·고 연계 수학 심화', days:3, duration:80, teacher:'최민호 강사', price:'220,000원', badge:'추천', color:'#006241' },
-    { id:6, subject:'영어', grade:'중2·3', name:'중등 영어 기초·심화', days:2, duration:70, teacher:'오현주 강사', price:'180,000원', badge:null, color:'#33433d' },
+    { id:1, subject:'수학', grade:'고3', name:'수능 수학 완성반', days:3, duration:90, teacher:'김민준 강사', price:'280,000원', badge:'인기', color:'#006241', lectures:[
+      { id:101, title:'1강: 오리엔테이션 및 강좌 소개', videoUrl:'' },
+      { id:102, title:'2강: 수열의 개념과 원리', videoUrl:'' },
+      { id:103, title:'3강: 극한의 이해', videoUrl:'' },
+    ]},
+    { id:2, subject:'영어', grade:'고2·3', name:'수능 영어 1등급반', days:2, duration:100, teacher:'이수진 강사', price:'250,000원', badge:'신규', color:'#00754A', lectures:[
+      { id:201, title:'1강: 오리엔테이션 및 강좌 소개', videoUrl:'' },
+      { id:202, title:'2강: 독해 전략 기초', videoUrl:'' },
+    ]},
+    { id:3, subject:'국어', grade:'고1·2·3', name:'수능 국어 독서·문학', days:2, duration:90, teacher:'박지영 강사', price:'240,000원', badge:null, color:'#2b5148', lectures:[
+      { id:301, title:'1강: 오리엔테이션 및 강좌 소개', videoUrl:'' },
+      { id:302, title:'2강: 독서 지문 분석법', videoUrl:'' },
+    ]},
+    { id:4, subject:'과학', grade:'고1·2', name:'물리·화학 내신 특강', days:2, duration:80, teacher:'정서연 강사', price:'200,000원', badge:'특강', color:'#1E3932', lectures:[
+      { id:401, title:'1강: 오리엔테이션 및 강좌 소개', videoUrl:'' },
+      { id:402, title:'2강: 물리 기초 개념', videoUrl:'' },
+    ]},
+    { id:5, subject:'수학', grade:'중3·고1', name:'중·고 연계 수학 심화', days:3, duration:80, teacher:'최민호 강사', price:'220,000원', badge:'추천', color:'#006241', lectures:[
+      { id:501, title:'1강: 오리엔테이션 및 강좌 소개', videoUrl:'' },
+    ]},
+    { id:6, subject:'영어', grade:'중2·3', name:'중등 영어 기초·심화', days:2, duration:70, teacher:'오현주 강사', price:'180,000원', badge:null, color:'#33433d', lectures:[
+      { id:601, title:'1강: 오리엔테이션 및 강좌 소개', videoUrl:'' },
+    ]},
   ],
   students: [
     { id:'google_demo', name:'김학생', email:'student@gmail.com', provider:'google', grade:'고2', subjects:['수학','영어'], enrolledCourses:[1,2] },

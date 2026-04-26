@@ -327,6 +327,53 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                 React.createElement('div', null,
                   React.createElement('label',{style:labelS},'미리보기 유튜브 링크 (선택)'),
                   React.createElement('input',{value:c.youtube||'',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,youtube:e.target.value}:x)})),placeholder:'https://youtube.com/watch?v=...',style:inputS})
+                ),
+
+                // 강의 목록 관리
+                React.createElement('div', { style:{ borderTop:'2px solid #d4e9e2', paddingTop:'14px', marginTop:'4px' } },
+                  React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' } },
+                    React.createElement('label', { style:{ fontSize:'13px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '온라인 강의 목록'),
+                    React.createElement('button', {
+                      onClick: function() {
+                        var newLec = { id: Date.now(), title: (((c.lectures||[]).length)+1) + '강: 새 강의', videoUrl: '' };
+                        setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures:[...(x.lectures||[]),newLec]} : x; })}; });
+                      },
+                      style: btnS()
+                    }, '+ 강의 추가')
+                  ),
+                  (c.lectures||[]).length === 0
+                    ? React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '아직 강의가 없습니다. 강의를 추가해주세요.')
+                    : (c.lectures||[]).map(function(lec, idx) {
+                        return React.createElement('div', { key: lec.id, style:{ background:'#f9f9f9', borderRadius:'8px', padding:'10px 12px', marginBottom:'8px', display:'flex', flexDirection:'column', gap:'6px' } },
+                          React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' } },
+                            React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#006241', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (idx+1) + '강'),
+                            React.createElement('input', {
+                              value: lec.title||'',
+                              onChange: function(e) {
+                                var val = e.target.value;
+                                setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures: x.lectures.map(function(l) { return l.id===lec.id ? {...l, title:val} : l; })} : x; })}; });
+                              },
+                              placeholder: '강의 제목',
+                              style: {...inputS, marginBottom:0, flex:1}
+                            }),
+                            React.createElement('button', {
+                              onClick: function() {
+                                setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures: x.lectures.filter(function(l) { return l.id!==lec.id; })} : x; })}; });
+                              },
+                              style: {...btnOutS, padding:'4px 10px', fontSize:'12px'}
+                            }, '삭제')
+                          ),
+                          React.createElement('input', {
+                            value: lec.videoUrl||'',
+                            onChange: function(e) {
+                              var val = e.target.value;
+                              setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures: x.lectures.map(function(l) { return l.id===lec.id ? {...l, videoUrl:val} : l; })} : x; })}; });
+                            },
+                            placeholder: '시놀로지 영상 URL (예: https://nas.xxx.com/video/1강.mp4)',
+                            style: {...inputS, marginBottom:0, fontSize:'12px'}
+                          })
+                        );
+                      })
                 )
               )
             )
