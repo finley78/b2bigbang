@@ -23,20 +23,21 @@ function LoginModal({ onLogin, onClose }) {
     React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', width:'400px', padding:'36px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', position:'relative' }, onClick:e=>e.stopPropagation() },
       React.createElement('button', { onClick:onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'24px' } },
-        React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily':'Manrope, sans-serif' } }, 'B2'),
-        React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'#006241', fontFamily':'Manrope, sans-serif' } }, '빅뱅학원')
+        React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, 'B2'),
+        React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '빅뱅학원')
       ),
       React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'24px' } },
         ['login','signup'].map(t =>
-          React.createElement('button', { key:t, onClick:()=>setTab(t), style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t ? '2px solid #006241' : '2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t ? '#006241' : 'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily':'Manrope, sans-serif', transition:'all 0.2s ease' } }, t==='login'?'로그인':'회원가입')
+          React.createElement('button', { key:t, onClick:()=>setTab(t), style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t ? '2px solid #006241' : '2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t ? '#006241' : 'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, t==='login'?'로그인':'회원가입')
         )
       ),
       tab === 'signup' && React.createElement('div', { style:{ marginBottom:'16px', position:'relative', background:'#f9f9f9', borderRadius:'4px', border:'1px solid #d6dbde', padding:'14px 12px 10px' } },
-        React.createElement('div', { style:{ position:'absolute', top:'-9px', left:'10px', background:'#f9f9f9', padding:'0 4px', fontSize:'10px', fontWeight:'700', color:'rgba(0,0,0,0.87)', letterSpacing:'0.04em', textTransform:'uppercase', fontFamily':'Manrope, sans-serif' } }, '이름'),
-        React.createElement('input', { placeholder:'홍길동', value:name, onChange:e=>setName(e.target.value), style:{ width:'100%', border:'none', outline:'none', background:'transparent', fontSize:'14px', fontFamily':'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', boxSizing:'border-box' } })
+        React.createElement('div', { style:{ position:'absolute', top:'-9px', left:'10px', background:'#f9f9f9', padding:'0 4px', fontSize:'10px', fontWeight:'700', color:'rgba(0,0,0,0.87)', letterSpacing:'0.04em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' } }, '이름'),
+        React.createElement('input', { placeholder:'홍길동', value:name, onChange:e=>setName(e.target.value), style:{ width:'100%', border:'none', outline:'none', background:'transparent', fontSize:'14px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', boxSizing:'border-box' } })
       ),
       React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
-        React.createElement('button', { onClick:()=>handleProvider('google'), style:{ display:'flex', alignItems:'center', justifyContent:'center', gap:'12px', width:'100%', padding:'14px', borderRadius:'8px', border:'1px solid rgba(0,0,0,0.2)', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'rgba(0,0,0,0.87)', fontFamily':'Manrope, sans-serif', letterSpacing:'-0.01em', transition:'all 0.2s ease' },
+        // Google
+        React.createElement('button', { onClick:()=>handleProvider('google'), style:{ display:'flex', alignItems:'center', justifyContent:'center', gap:'12px', width:'100%', padding:'14px', borderRadius:'8px', border:'1px solid rgba(0,0,0,0.2)', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em', transition:'all 0.2s ease' },
           onMouseDown:e=>e.currentTarget.style.transform='scale(0.98)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)',
           onMouseEnter:e=>e.currentTarget.style.background='#f9f9f9', onMouseLeave:e=>e.currentTarget.style.background='#fff' },
           React.createElement('svg', { width:'20', height:'20', viewBox:'0 0 24 24' },
@@ -47,7 +48,8 @@ function LoginModal({ onLogin, onClose }) {
           ),
           tab==='login' ? 'Google로 로그인' : 'Google로 가입하기'
         ),
-        React.createElement('button', { onClick:()=>handleProvider('kakao'), style:{ display:'flex', alignItems:'center', justifyContent:'center', gap:'12px', width:'100%', padding:'14px', borderRadius:'8px', border:'none', background:'#FEE500', cursor:'pointer', fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.85)', fontFamily':'Manrope, sans-serif', letterSpacing:'-0.01em', transition:'all 0.2s ease' },
+        // Kakao
+        React.createElement('button', { onClick:()=>handleProvider('kakao'), style:{ display:'flex', alignItems:'center', justifyContent:'center', gap:'12px', width:'100%', padding:'14px', borderRadius:'8px', border:'none', background:'#FEE500', cursor:'pointer', fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.85)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em', transition:'all 0.2s ease' },
           onMouseDown:e=>e.currentTarget.style.transform='scale(0.98)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)',
           onMouseEnter:e=>e.currentTarget.style.background='#f0d800', onMouseLeave:e=>e.currentTarget.style.background='#FEE500' },
           React.createElement('svg', { width:'20', height:'20', viewBox:'0 0 24 24' },
@@ -56,7 +58,7 @@ function LoginModal({ onLogin, onClose }) {
           tab==='login' ? '카카오톡으로 로그인' : '카카오톡으로 가입하기'
         )
       ),
-      React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'16px', fontFamily':'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.\n*데모 버전: 실제 로그인 없이 테스트 계정으로 진행됩니다')
+      React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'16px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.\n*데모 버전: 실제 로그인 없이 테스트 계정으로 진행됩니다')
     )
   );
 }
@@ -64,20 +66,18 @@ function LoginModal({ onLogin, onClose }) {
 /* ── Video Player ─────────────────────────────── */
 function VideoPlayer({ course, onBack, studentName }) {
   const [playing, setPlaying] = React.useState(false);
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const playerRef = React.useRef(null);
   const [progress, setProgress] = React.useState(
-    parseFloat(localStorage.getItem('progress_' + course.id) || '0')
+    parseFloat(localStorage.getItem(`progress_${course.id}`) || '0')
   );
   const timerRef = React.useRef(null);
-  const playerRef = React.useRef(null);
 
-  // 진행률 타이머
   React.useEffect(() => {
     if (playing) {
       timerRef.current = setInterval(() => {
         setProgress(p => {
           const next = Math.min(p + 0.5, 100);
-          localStorage.setItem('progress_' + course.id, next);
+          localStorage.setItem(`progress_${course.id}`, next);
           return next;
         });
       }, 300);
@@ -87,183 +87,140 @@ function VideoPlayer({ course, onBack, studentName }) {
     return () => clearInterval(timerRef.current);
   }, [playing, course.id]);
 
-  // 전체화면 상태 감지
-  React.useEffect(() => {
-    function onFsChange() {
-      setIsFullscreen(!!document.fullscreenElement);
-    }
-    document.addEventListener('fullscreenchange', onFsChange);
-    document.addEventListener('webkitfullscreenchange', onFsChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', onFsChange);
-      document.removeEventListener('webkitfullscreenchange', onFsChange);
-    };
-  }, []);
-
-  // 폰 가로 전환 시 자동 전체화면
-  React.useEffect(() => {
-    function onOrientationChange() {
-      const angle = screen.orientation ? screen.orientation.angle : window.orientation;
-      if (angle === 90 || angle === -90 || angle === 270) {
-        const el = playerRef.current;
-        if (el && !document.fullscreenElement) {
-          if (el.requestFullscreen) el.requestFullscreen();
-          else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-        }
-      } else {
-        if (document.fullscreenElement) {
-          if (document.exitFullscreen) document.exitFullscreen();
-          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        }
-      }
-    }
-    window.addEventListener('orientationchange', onOrientationChange);
-    if (screen.orientation) screen.orientation.addEventListener('change', onOrientationChange);
-    return () => {
-      window.removeEventListener('orientationchange', onOrientationChange);
-      if (screen.orientation) screen.orientation.removeEventListener('change', onOrientationChange);
-    };
-  }, []);
-
-  function toggleFullscreen() {
-    const el = playerRef.current;
-    if (!el) return;
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-      if (document.exitFullscreen) document.exitFullscreen();
-      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-    } else {
-      if (el.requestFullscreen) el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    }
-  }
+  const lectures = [
+    { n:1, title:'오리엔테이션 및 강좌 소개', duration:'25:00', done: progress > 20 },
+    { n:2, title:'1단원: 개념 완성', duration:'45:00', done: progress > 40 },
+    { n:3, title:'2단원: 유형 정리', duration:'50:00', done: progress > 60 },
+    { n:4, title:'3단원: 실전 문제풀이', duration:'55:00', done: progress > 80 },
+    { n:5, title:'모의고사 풀이 및 해설', duration:'60:00', done: progress > 95 },
+  ];
 
   const today = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }).replace(/\. /g,'.').replace('.','');
 
-  // 유튜브 전체화면 SVG 아이콘
-  const FullscreenIcon = () => React.createElement('svg', { width:'20', height:'20', viewBox:'0 0 24 24', fill:'#fff' },
-    isFullscreen
-      ? React.createElement('path', { d:'M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z' })
-      : React.createElement('path', { d:'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z' })
-  );
-
   return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+    // Back button bar
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px', display:'flex', alignItems:'center', gap:'12px' } },
-      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#006241', fontFamily':'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } }, '← 강의 목록으로'),
+      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#006241', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } }, '← 강의 목록으로'),
       React.createElement('span', { style:{ color:'rgba(0,0,0,0.2)' } }, '|'),
-      React.createElement('span', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.55)', fontFamily':'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, course.name)
+      React.createElement('span', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, course.name)
     ),
     React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'20px 16px' } },
       // 영상 플레이어
-      React.createElement('div', {
-        ref: playerRef,
-        style:{ background:'#1E3932', borderRadius:'12px', aspectRatio:'16/9', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden', marginBottom:'12px', width:'100%' }
-      },
-        React.createElement('div', { style:{ position:'absolute', fontSize:'80px', fontWeight:'800', color:'rgba(255,255,255,0.05)', fontFamily':'Manrope, sans-serif' } }, course.subject),
-        // 재생 버튼
+      React.createElement('div', { ref: playerRef, style:{ background:'#1E3932', borderRadius:'12px', aspectRatio:'16/9', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden', marginBottom:'12px', width:'100%' } },
+        React.createElement('div', { style:{ position:'absolute', fontSize:'80px', fontWeight:'800', color:'rgba(255,255,255,0.05)', fontFamily:'Manrope, sans-serif' } }, course.subject),
         React.createElement('button', { onClick:()=>setPlaying(!playing), style:{ width:'64px', height:'64px', borderRadius:'50%', background: playing?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.9)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s ease', position:'relative', zIndex:2 } },
           React.createElement('span', { style:{ fontSize:'24px', marginLeft: playing?0:'4px', color: playing?'#fff':'#006241' } }, playing?'⏸':'▶')
         ),
         // 워터마크
-        React.createElement('div', { style:{ position:'absolute', bottom:'44px', right:'16px', fontSize:'12px', fontWeight:'600', color:'rgba(255,255,255,0.25)', fontFamily':'Manrope, sans-serif', pointerEvents:'none', userSelect:'none', zIndex:3 } },
-          studentName + ' · ' + today
+        React.createElement('div', { style:{ position:'absolute', bottom:'16px', right:'16px', fontSize:'12px', fontWeight:'600', color:'rgba(255,255,255,0.25)', fontFamily:'Manrope, sans-serif', pointerEvents:'none', userSelect:'none', zIndex:3 } },
+          `${studentName} · ${today}`
         ),
-        // 하단 컨트롤바
-        React.createElement('div', { style:{ position:'absolute', bottom:0, left:0, right:0, background:'linear-gradient(transparent, rgba(0,0,0,0.6))', padding:'8px 12px', display:'flex', alignItems:'center', justifyContent:'flex-end', zIndex:3 } },
-          // 전체화면 버튼 (유튜브 스타일)
-          React.createElement('button', {
-            onClick: toggleFullscreen,
-            style:{ background:'none', border:'none', cursor:'pointer', padding:'4px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'4px' }
-          }, React.createElement(FullscreenIcon))
+        // 전체화면 버튼 (유튜브 스타일)
+        React.createElement('button', {
+          onClick: () => {
+            const el = playerRef.current;
+            if (!el) return;
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+              if (document.exitFullscreen) document.exitFullscreen();
+              else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            } else {
+              if (el.requestFullscreen) el.requestFullscreen();
+              else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            }
+          },
+          style:{ position:'absolute', bottom:'12px', right:'12px', background:'rgba(0,0,0,0.4)', border:'none', borderRadius:'4px', padding:'5px 7px', cursor:'pointer', color:'#fff', fontSize:'14px', zIndex:3, display:'flex', alignItems:'center', justifyContent:'center' }
+        },
+          React.createElement('svg', { width:'18', height:'18', viewBox:'0 0 24 24', fill:'#fff' },
+            React.createElement('path', { d:'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z' })
+          )
         ),
-        // 재생 중 표시
         playing && React.createElement('div', { style:{ position:'absolute', top:'16px', left:'16px', background:'rgba(192,18,20,0.9)', borderRadius:'8px', padding:'4px 12px', display:'flex', alignItems:'center', gap:'6px' } },
           React.createElement('div', { style:{ width:'6px', height:'6px', borderRadius:'50%', background:'#fff' } }),
-          React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#fff', fontFamily':'Manrope, sans-serif' } }, '재생 중')
+          React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, '재생 중')
         )
       ),
       // 진행률 바
       React.createElement('div', { style:{ background:'#fff', borderRadius:'8px', padding:'12px 16px', marginBottom:'12px', display:'flex', alignItems:'center', gap:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14)' } },
-        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', fontFamily':'Manrope, sans-serif', flexShrink:0 } }, '학습 진도'),
+        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, '학습 진도'),
         React.createElement('div', { style:{ flex:1, height:'6px', background:'#f2f0eb', borderRadius:'3px', overflow:'hidden' } },
-          React.createElement('div', { style:{ height:'100%', background:'#006241', borderRadius:'3px', width: progress + '%', transition:'width 0.3s ease' } })
+          React.createElement('div', { style:{ height:'100%', background:'#006241', borderRadius:'3px', width:`${progress}%`, transition:'width 0.3s ease' } })
         ),
-        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#006241', fontFamily':'Manrope, sans-serif', flexShrink:0 } }, Math.round(progress) + '%')
+        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#006241', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, `${Math.round(progress)}%`)
       )
     )
   );
 }
 
+
 /* ── Subject Select ───────────────────────────── */
 function SubjectSelect({ studentSubjects, coursesBySubject, onSelect }) {
-  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'60vh' } },
-    React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'32px 16px' } },
-      React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily':'Manrope, sans-serif', marginBottom:'16px' } }, '수강 과목 선택'),
-      React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
-        studentSubjects.map(sub => {
-          const count = coursesBySubject[sub]?.length || 0;
-          const color = SUBJECT_COLORS[sub] || '#006241';
-          return React.createElement('div', {
-            key: sub,
-            onClick: () => onSelect(sub),
-            style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'center', transition:'transform 0.15s ease' },
-            onMouseEnter: e => e.currentTarget.style.transform='translateX(3px)',
-            onMouseLeave: e => e.currentTarget.style.transform='translateX(0)',
-          },
-            React.createElement('div', { style:{ width:'6px', alignSelf:'stretch', background: color, flexShrink:0 } }),
-            React.createElement('div', { style:{ flex:1, padding:'18px 16px' } },
-              React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily':'Manrope, sans-serif' } }, sub),
-              React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily':'Manrope, sans-serif', marginTop:'2px' } }, '강좌 ' + count + '개')
-            ),
-            React.createElement('div', { style:{ padding:'0 20px', fontSize:'22px', color:'rgba(0,0,0,0.2)' } }, '›')
-          );
-        })
-      )
+  return React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'32px 16px' } },
+    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } }, '수강 과목 선택'),
+    React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+      studentSubjects.map(function(sub) {
+        var count = (coursesBySubject[sub] && coursesBySubject[sub].length) || 0;
+        var color = SUBJECT_COLORS[sub] || '#006241';
+        return React.createElement('div', {
+          key: sub,
+          onClick: function() { onSelect(sub); },
+          style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'center', transition:'transform 0.15s ease' },
+          onMouseEnter: function(e) { e.currentTarget.style.transform='translateX(3px)'; },
+          onMouseLeave: function(e) { e.currentTarget.style.transform='translateX(0)'; },
+        },
+          React.createElement('div', { style:{ width:'6px', alignSelf:'stretch', background: color, flexShrink:0 } }),
+          React.createElement('div', { style:{ flex:1, padding:'18px 16px' } },
+            React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, sub),
+            React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, '강좌 ' + count + '개')
+          ),
+          React.createElement('div', { style:{ padding:'0 20px', fontSize:'22px', color:'rgba(0,0,0,0.2)' } }, '\u203a')
+        );
+      })
     )
   );
 }
 
 /* ── Course List ──────────────────────────────── */
 function CourseList({ subject, courses, studentGrade, enrolledIds, onSelectCourse, onBack }) {
-  const subjectCourses = courses.filter(c => c.subject === subject && enrolledIds.includes(c.id));
-  const color = SUBJECT_COLORS[subject] || '#006241';
+  var subjectCourses = courses.filter(function(c) { return c.subject === subject && enrolledIds.includes(c.id); });
+  var color = SUBJECT_COLORS[subject] || '#006241';
+  var now = new Date();
 
   return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'60vh' } },
-    // 뒤로가기
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
-      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#006241', fontFamily':'Manrope, sans-serif' } }, '← 과목 선택으로')
+      React.createElement('button', { onClick: onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '\u2190 과목 선택으로')
     ),
     React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
-      React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily':'Manrope, sans-serif', marginBottom:'16px' } },
-        new Date().getFullYear() + '년 ' + (new Date().getMonth()+1) + '월 ' + subject + ' 강의'
+      React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } },
+        now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + subject + ' 강의'
       ),
       subjectCourses.length === 0
         ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'40px', textAlign:'center' } },
-            React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.45)', fontFamily':'Manrope, sans-serif' } }, '배정된 강좌가 없습니다.')
+            React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '배정된 강좌가 없습니다.')
           )
         : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
-            subjectCourses.map((course, idx) => {
-              const progress = Math.round(parseFloat(localStorage.getItem('progress_' + course.id) || 0));
+            subjectCourses.map(function(course, idx) {
+              var progress = Math.round(parseFloat(localStorage.getItem('progress_' + course.id) || 0));
               return React.createElement('div', {
                 key: course.id,
-                onClick: () => onSelectCourse(course),
+                onClick: function() { onSelectCourse(course); },
                 style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'center', transition:'transform 0.15s ease' },
-                onMouseEnter: e => e.currentTarget.style.transform='translateX(3px)',
-                onMouseLeave: e => e.currentTarget.style.transform='translateX(0)',
+                onMouseEnter: function(e) { e.currentTarget.style.transform='translateX(3px)'; },
+                onMouseLeave: function(e) { e.currentTarget.style.transform='translateX(0)'; },
               },
                 React.createElement('div', { style:{ width:'5px', alignSelf:'stretch', background: color, flexShrink:0 } }),
-                React.createElement('div', { style:{ width:'40px', textAlign:'center', fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.2)', fontFamily':'Manrope, sans-serif', flexShrink:0 } }, idx+1),
+                React.createElement('div', { style:{ width:'40px', textAlign:'center', fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, idx+1),
                 React.createElement('div', { style:{ flex:1, padding:'16px 12px', minWidth:0 } },
-                  React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily':'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } },
+                  React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } },
                     (studentGrade || course.grade) + ' ' + course.name
                   )
                 ),
                 React.createElement('div', { style:{ padding:'0 16px', flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:'4px' } },
-                  React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color: progress > 0 ? color : 'rgba(0,0,0,0.25)', fontFamily':'Manrope, sans-serif' } }, progress + '%'),
+                  React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color: progress > 0 ? color : 'rgba(0,0,0,0.25)', fontFamily:'Manrope, sans-serif' } }, progress + '%'),
                   React.createElement('div', { style:{ width:'40px', height:'4px', background:'#f2f0eb', borderRadius:'2px', overflow:'hidden' } },
                     React.createElement('div', { style:{ height:'100%', background: color, borderRadius:'2px', width: progress + '%', transition:'width 0.3s ease' } })
                   )
                 ),
-                React.createElement('div', { style:{ padding:'0 14px 0 4px', fontSize:'20px', color:'rgba(0,0,0,0.2)', flexShrink:0 } }, '›')
+                React.createElement('div', { style:{ padding:'0 14px 0 4px', fontSize:'20px', color:'rgba(0,0,0,0.2)', flexShrink:0 } }, '\u203a')
               );
             })
           )
@@ -280,9 +237,9 @@ function StudentPortal({ user, courses, students, onLoginClick }) {
   if (!user) {
     return React.createElement('div', { style:{ minHeight:'60vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'20px', background:'#f2f0eb', padding:'40px' } },
       React.createElement('div', { style:{ width:'72px', height:'72px', borderRadius:'50%', background:'#d4e9e2', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'32px' } }, '🎓'),
-      React.createElement('h2', { style:{ fontSize:'28px', fontWeight:'800', color:'#006241', fontFamily':'Manrope, sans-serif', letterSpacing:'-0.16px' } }, '로그인이 필요합니다'),
-      React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.55)', fontFamily':'Manrope, sans-serif', textAlign:'center', lineHeight:'1.7' } }, '수강 중인 강의를 보려면 로그인해 주세요.\nGoogle 또는 카카오톡으로 간편하게 로그인할 수 있습니다.'),
-      React.createElement('button', { onClick:onLoginClick, style:{ background:'#00754A', color:'#fff', border:'none', borderRadius:'8px', padding:'14px 32px', fontSize:'15px', fontWeight:'700', cursor:'pointer', fontFamily':'Manrope, sans-serif', transition:'all 0.2s ease' },
+      React.createElement('h2', { style:{ fontSize:'28px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px' } }, '로그인이 필요합니다'),
+      React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', textAlign:'center', lineHeight:'1.7' } }, '수강 중인 강의를 보려면 로그인해 주세요.\nGoogle 또는 카카오톡으로 간편하게 로그인할 수 있습니다.'),
+      React.createElement('button', { onClick:onLoginClick, style:{ background:'#00754A', color:'#fff', border:'none', borderRadius:'8px', padding:'14px 32px', fontSize:'15px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
         onMouseDown:e=>e.currentTarget.style.transform='scale(0.95)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' }, '로그인하기')
     );
   }
@@ -293,6 +250,7 @@ function StudentPortal({ user, courses, students, onLoginClick }) {
   const studentSubjects = student?.subjects || [];
   const enrolledIds = student?.enrolledCourses || [];
 
+  // 과목별 수강 강좌
   const coursesBySubject = studentSubjects.reduce((acc, sub) => {
     acc[sub] = courses.filter(c => c.subject === sub && enrolledIds.includes(c.id));
     return acc;
@@ -309,11 +267,11 @@ function StudentPortal({ user, courses, students, onLoginClick }) {
       React.createElement('div', { style:{ background:'#1E3932', padding:'28px 16px' } },
         React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between' } },
           React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
-            React.createElement('div', { style:{ width:'44px', height:'44px', borderRadius:'50%', background:'#00754A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily':'Manrope, sans-serif' } }, user.name[0]),
-            React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily':'Manrope, sans-serif' } }, user.name + '님')
+            React.createElement('div', { style:{ width:'44px', height:'44px', borderRadius:'50%', background:'#00754A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, user.name[0]),
+            React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, user.name + '님')
           ),
           studentGrade && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding:'6px 16px' } },
-            React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#fff', fontFamily':'Manrope, sans-serif' } }, studentGrade)
+            React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, studentGrade)
           )
         )
       ),
@@ -330,28 +288,77 @@ function StudentPortal({ user, courses, students, onLoginClick }) {
 
   // 과목 선택 화면
   return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+
+    // 상단 헤더
     React.createElement('div', { style:{ background:'#1E3932', padding:'28px 16px' } },
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between' } },
-        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
-          React.createElement('div', { style:{ width:'44px', height:'44px', borderRadius:'50%', background:'#00754A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily':'Manrope, sans-serif' } }, user.name[0]),
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'16px' } },
+          React.createElement('div', { style:{ width:'52px', height:'52px', borderRadius:'50%', background:'#00754A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'22px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, user.name[0]),
           React.createElement('div', null,
-            React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.6)', fontFamily':'Manrope, sans-serif' } }, (user.provider === 'google' ? 'Google' : '카카오') + ' 계정'),
-            React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily':'Manrope, sans-serif' } }, user.name + '님, 안녕하세요!')
+            React.createElement('div', { style:{ fontSize:'14px', color:'rgba(255,255,255,0.6)', fontFamily:'Manrope, sans-serif', marginBottom:'2px' } }, `${user.provider === 'google' ? 'Google' : '카카오'} 계정`),
+            React.createElement('div', { style:{ fontSize:'22px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px' } }, `${user.name}님, 안녕하세요!`)
           )
         ),
-        studentGrade && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding:'6px 16px' } },
-          React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#fff', fontFamily':'Manrope, sans-serif' } }, studentGrade)
+        // 학년 뱃지
+        studentGrade && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding:'8px 20px' } },
+          React.createElement('span', { style:{ fontSize:'14px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, studentGrade)
         )
       )
     ),
-    studentSubjects.length === 0
-      ? React.createElement('div', { style:{ maxWidth:'960px', margin:'40px auto', padding:'0 16px' } },
-          React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'48px', textAlign:'center' } },
+
+    React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
+
+      // 수강 강좌가 없는 경우
+      enrolledIds.length === 0
+        ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'48px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)' } },
             React.createElement('div', { style:{ fontSize:'40px', marginBottom:'12px' } }, '📚'),
-            React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.45)', fontFamily':'Manrope, sans-serif' } }, '배정된 과목이 없습니다. 관리자에게 문의해 주세요.')
+            React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '배정된 강좌가 없습니다. 관리자에게 문의해 주세요.')
           )
-        )
-      : React.createElement(SubjectSelect, { studentSubjects, coursesBySubject, onSelect: setSelectedSubject })
+        : React.createElement('div', null,
+
+            // 이번 달 강의 헤더
+            React.createElement('div', { style:{ marginBottom:'16px' } },
+              React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' } },
+                `${new Date().getFullYear()}년 ${new Date().getMonth()+1}월 강의`
+              )
+            ),
+
+            // 강좌 목록 — 가로형 카드
+            React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
+              courses.filter(c => enrolledIds.includes(c.id)).map((course, idx) => {
+                const progress = Math.round(parseFloat(localStorage.getItem(`progress_${course.id}`) || 0));
+                const color = SUBJECT_COLORS[course.subject] || '#006241';
+                return React.createElement('div', {
+                  key: course.id,
+                  onClick: () => setSelectedCourse(course),
+                  style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'center', transition:'transform 0.15s ease' },
+                  onMouseEnter: e => e.currentTarget.style.transform='translateX(3px)',
+                  onMouseLeave: e => e.currentTarget.style.transform='translateX(0)',
+                },
+                  // 왼쪽 색상 바
+                  React.createElement('div', { style:{ width:'5px', alignSelf:'stretch', background: color, flexShrink:0 } }),
+                  // 순서 번호
+                  React.createElement('div', { style:{ width:'40px', textAlign:'center', fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, idx+1),
+                  // 강좌 정보
+                  React.createElement('div', { style:{ flex:1, padding:'16px 12px', minWidth:0 } },
+                    React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } },
+                      `${studentGrade || course.grade} ${course.name}`
+                    )
+                  ),
+                  // 진행률
+                  React.createElement('div', { style:{ padding:'0 16px', flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:'4px' } },
+                    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color: progress > 0 ? color : 'rgba(0,0,0,0.25)', fontFamily:'Manrope, sans-serif' } }, `${progress}%`),
+                    React.createElement('div', { style:{ width:'40px', height:'4px', background:'#f2f0eb', borderRadius:'2px', overflow:'hidden' } },
+                      React.createElement('div', { style:{ height:'100%', background: color, borderRadius:'2px', width:`${progress}%`, transition:'width 0.3s ease' } })
+                    )
+                  ),
+                  // 화살표
+                  React.createElement('div', { style:{ padding:'0 14px 0 4px', fontSize:'20px', color:'rgba(0,0,0,0.2)', flexShrink:0 } }, '›')
+                );
+              })
+            )
+          )
+    )
   );
 }
 
