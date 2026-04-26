@@ -202,9 +202,23 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
     ),
     React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'20px 16px' } },
       React.createElement('div', {
-        style:{ position:'relative', width:'100%', aspectRatio:'16/9', borderRadius:'12px', overflow:'hidden', background:'#1E3932', marginBottom:'12px' },
+        style:{ position:'relative', width:'100%', aspectRatio:'16/9', borderRadius:'12px', overflow:'hidden', background:'#1E3932', marginBottom:'12px', cursor:'pointer' },
         onTouchStart: onPlayerTouchStart,
         onTouchEnd: onPlayerTouchEnd,
+        onMouseMove: showThenHide,
+        onClick: function(e) {
+          // PC: 컨트롤 영역 클릭이 아닌 경우 컨트롤 토글
+          if (e.target === e.currentTarget || e.target.tagName === 'VIDEO') {
+            if (playing) {
+              setShowControls(function(s) {
+                if (s) { clearTimeout(hideRef.current); return false; }
+                armHide(); return true;
+              });
+            } else {
+              setShowControls(true);
+            }
+          }
+        },
       },
         React.createElement('video', {
           ref: videoRef,
@@ -212,8 +226,10 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
           style:{ width:'100%', height:'100%', objectFit:'contain', display:'block' },
           playsInline: true,
           preload: 'metadata',
-          controlsList: 'nodownload',
+          controlsList: 'nodownload nofullscreen',
+          disablePictureInPicture: true,
           onContextMenu: function(e) { e.preventDefault(); },
+          onError: function(e) { console.log('video error', e); },
         }),
         !lecture.videoUrl && React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' } },
           React.createElement('div', { style:{ fontSize:'50px', fontWeight:'800', color:'rgba(255,255,255,0.07)', fontFamily:'Manrope, sans-serif' } }, course.subject),
@@ -232,7 +248,11 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
             })
           ),
           React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'center', flex:1 } },
-            React.createElement('button', { onTouchEnd:function(e){e.stopPropagation();togglePlay();}, onClick:function(e){e.stopPropagation();togglePlay();}, style:{ width:'68px', height:'68px', borderRadius:'50%', background:playing?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.92)', border:'2px solid rgba(255,255,255,0.4)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', WebkitTapHighlightColor:'transparent' } },
+            React.createElement('button', {
+              onTouchEnd: function(e) { e.stopPropagation(); togglePlay(); },
+              onClick: function(e) { e.stopPropagation(); togglePlay(); showThenHide(); },
+              style:{ width:'68px', height:'68px', borderRadius:'50%', background:playing?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.92)', border:'2px solid rgba(255,255,255,0.4)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', WebkitTapHighlightColor:'transparent' }
+            },
               React.createElement('span', { style:{ fontSize:'28px', marginLeft:playing?0:'4px', color:playing?'#fff':'#1E3932', lineHeight:1 } }, playing?'\u275a\u275a':'\u25b6')
             )
           ),
