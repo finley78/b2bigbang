@@ -84,7 +84,6 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
   var speeds = [1, 1.2, 1.5, 1.8, 2];
   var color = SUBJECT_COLORS[course.subject] || '#006241';
 
-  // video 이벤트
   React.useEffect(function() {
     var v = videoRef.current;
     if (!v) return;
@@ -196,16 +195,12 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
   var today = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }).replace(/\. /g,'.').replace(/\.$/,'');
 
   return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
-    // 상단 바
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px', display:'flex', alignItems:'center', gap:'12px' } },
       React.createElement('button', { onClick: onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '\u2190 강의 목록으로'),
       React.createElement('span', { style:{ color:'rgba(0,0,0,0.2)' } }, '|'),
       React.createElement('span', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, lecture.title)
     ),
-
     React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'20px 16px' } },
-
-      // 플레이어
       React.createElement('div', {
         style:{ position:'relative', width:'100%', aspectRatio:'16/9', borderRadius:'12px', overflow:'hidden', background:'#1E3932', marginBottom:'12px' },
         onTouchStart: onPlayerTouchStart,
@@ -220,358 +215,36 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
           controlsList: 'nodownload',
           onContextMenu: function(e) { e.preventDefault(); },
         }),
-
-        // 영상 없을 때
-        !lecture.videoUrl && React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', pointerEvents:'none' } },
+        !lecture.videoUrl && React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' } },
           React.createElement('div', { style:{ fontSize:'50px', fontWeight:'800', color:'rgba(255,255,255,0.07)', fontFamily:'Manrope, sans-serif' } }, course.subject),
-          React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.35)', fontFamily:'Manrope, sans-serif' } }, '영상 준비 중입니다')
+          React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.35)', fontFamily:'Manrope, sans-serif', marginTop:'8px' } }, '영상 준비 중입니다')
         ),
-
-        // 워터마크
         React.createElement('div', { style:{ position:'absolute', bottom:'52px', right:'12px', fontSize:'11px', fontWeight:'600', color:'rgba(255,255,255,0.2)', fontFamily:'Manrope, sans-serif', pointerEvents:'none', userSelect:'none', zIndex:4 } },
-          studentName + ' · ' + today
+          studentName + ' \u00b7 ' + today
         ),
-
-        // 스킵 표시
-        skipAnim ? React.createElement('div', {
-          style:{ position:'absolute', top:'50%', transform:'translateY(-50%)',
-            left: skipAnim === 'left' ? '8%' : 'auto',
-            right: skipAnim === 'right' ? '8%' : 'auto',
-            background:'rgba(0,0,0,0.55)', borderRadius:'8px', padding:'8px 14px', pointerEvents:'none', zIndex:6 }
-        }, React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, skipAnim === 'left' ? '-10초' : '+10초')) : null,
-
-        // 컨트롤 오버레이
-        React.createElement('div', {
-          style:{ position:'absolute', inset:0, zIndex:3,
-            opacity: showControls ? 1 : 0,
-            transition: showControls ? 'opacity 0.15s ease' : 'opacity 0.6s ease',
-            background:'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 28%, transparent 62%, rgba(0,0,0,0.65) 100%)',
-            display:'flex', flexDirection:'column', justifyContent:'space-between',
-            pointerEvents: showControls ? 'auto' : 'none',
-          }
-        },
-          // 상단: 배속
-          React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', padding:'10px 12px', gap:'5px' } },
-            speeds.map(function(s) {
-              return React.createElement('button', {
-                key: s,
-                onTouchEnd: function(e) { e.stopPropagation(); setSpeed(s); if (playing) showThenHide(); },
-                onClick: function(e) { e.stopPropagation(); setSpeed(s); if (playing) showThenHide(); },
-                style:{ background: speed===s ? '#fff' : 'rgba(0,0,0,0.5)', border:'none', borderRadius:'4px', padding:'5px 9px', fontSize:'12px', fontWeight:'700', color: speed===s ? '#1E3932' : '#fff', cursor:'pointer', fontFamily:'Manrope, sans-serif', WebkitTapHighlightColor:'transparent' }
-              }, s === 1 ? '1x' : s + 'x');
-            })
-          ),
-
-          // 중앙: 재생
-          React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'center', flex:1 } },
-            React.createElement('button', {
-              onTouchEnd: function(e) { e.stopPropagation(); togglePlay(); },
-              onClick: function(e) { e.stopPropagation(); togglePlay(); },
-              style:{ width:'68px', height:'68px', borderRadius:'50%', background: playing ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.92)', border:'2px solid rgba(255,255,255,0.4)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', WebkitTapHighlightColor:'transparent' }
-            },
-              React.createElement('span', { style:{ fontSize:'28px', marginLeft: playing ? 0 : '4px', color: playing ? '#fff' : '#1E3932', lineHeight:1 } }, playing ? '\u275A\u275A' : '\u25B6')
-            )
-          ),
-
-          // 하단: 시크바 + 시간 + 전체화면
-          React.createElement('div', { style:{ padding:'0 14px 12px' } },
-            React.createElement('div', {
-              ref: seekBarRef,
-              style:{ position:'relative', height:'28px', display:'flex', alignItems:'center', marginBottom:'4px' },
-              onTouchStart: onSeekStart, onTouchMove: onSeekMove, onTouchEnd: onSeekEnd,
-              onMouseDown: onSeekStart, onMouseMove: onSeekMove, onMouseUp: onSeekEnd,
-            },
-              React.createElement('div', { style:{ position:'absolute', left:0, right:0, height:'3px', background:'rgba(255,255,255,0.25)', borderRadius:'2px' } }),
-              React.createElement('div', { style:{ position:'absolute', left:0, height:'3px', background:'#ff0000', borderRadius:'2px', width: progress + '%' } }),
-              React.createElement('div', { style:{ position:'absolute', left: progress + '%', transform:'translateX(-50%)', width:'14px', height:'14px', borderRadius:'50%', background:'#ff0000' } })
-            ),
-            React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between' } },
-              React.createElement('span', { style:{ fontSize:'12px', fontWeight:'600', color:'#fff', fontFamily:'Manrope, sans-serif' } }, fmt(currentSec) + ' / ' + fmt(duration)),
-              React.createElement('button', {
-                onTouchEnd: function(e) { e.stopPropagation(); var v=videoRef.current; if(v){var go=v.requestFullscreen||v.webkitRequestFullscreen; if(go)go.call(v);} },
-                onClick: function(e) { e.stopPropagation(); var v=videoRef.current; if(v){var go=v.requestFullscreen||v.webkitRequestFullscreen; if(go)go.call(v);} },
-                style:{ background:'none', border:'none', cursor:'pointer', padding:'4px', WebkitTapHighlightColor:'transparent' }
-              },
-                React.createElement('svg', { width:'22', height:'22', viewBox:'0 0 24 24', fill:'#fff' },
-                  React.createElement('path', { d:'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z' })
-                )
-              )
-            )
-          )
-        )
-      ),
-
-      // 학습 진도
-      React.createElement('div', { style:{ background:'#fff', borderRadius:'8px', padding:'12px 16px', display:'flex', alignItems:'center', gap:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14)' } },
-        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, '학습 진도'),
-        React.createElement('div', { style:{ flex:1, height:'6px', background:'#f2f0eb', borderRadius:'3px', overflow:'hidden' } },
-          React.createElement('div', { style:{ height:'100%', background: color, borderRadius:'3px', width: progress + '%', transition:'width 0.3s ease' } })
-        ),
-        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color: color, fontFamily:'Manrope, sans-serif', flexShrink:0 } }, Math.round(progress) + '%')
-      )
-    )
-  );
-}
-  var videoRef = React.useRef(null);
-  var seekBarRef = React.useRef(null);
-  var hideRef = React.useRef(null);
-  var tapRef = React.useRef({ count: 0, timer: null });
-  var touchStartRef = React.useRef({ x: 0, y: 0, time: 0 });
-
-  var [duration, setDuration] = React.useState(0);
-  var [currentSec, setCurrentSec] = React.useState(0);
-  var [playing, setPlaying] = React.useState(false);
-  var [speed, setSpeed] = React.useState(1);
-  var [showControls, setShowControls] = React.useState(true);
-  var [seekDragging, setSeekDragging] = React.useState(false);
-  var [skipAnim, setSkipAnim] = React.useState(null);
-
-  var progress = duration > 0 ? Math.min((currentSec / duration) * 100, 100) : 0;
-  var speeds = [1, 1.2, 1.5, 1.8, 2];
-
-  // video 이벤트 연결
-  React.useEffect(function() {
-    var v = videoRef.current;
-    if (!v) return;
-    // 이전 진도 복원
-    var saved = parseFloat(localStorage.getItem('progress_' + course.id) || '0');
-    function onLoaded() {
-      if (saved > 0 && v.duration) v.currentTime = (saved / 100) * v.duration;
-      setDuration(v.duration || 0);
-    }
-    function onTimeUpdate() {
-      setCurrentSec(v.currentTime);
-      if (v.duration) localStorage.setItem('progress_' + course.id, (v.currentTime / v.duration * 100).toFixed(2));
-    }
-    function onPlay() { setPlaying(true); }
-    function onPause() { setPlaying(false); }
-    function onEnded() { setPlaying(false); }
-    v.addEventListener('loadedmetadata', onLoaded);
-    v.addEventListener('timeupdate', onTimeUpdate);
-    v.addEventListener('play', onPlay);
-    v.addEventListener('pause', onPause);
-    v.addEventListener('ended', onEnded);
-    return function() {
-      v.removeEventListener('loadedmetadata', onLoaded);
-      v.removeEventListener('timeupdate', onTimeUpdate);
-      v.removeEventListener('play', onPlay);
-      v.removeEventListener('pause', onPause);
-      v.removeEventListener('ended', onEnded);
-    };
-  }, [course.id]);
-
-  // 배속 적용
-  React.useEffect(function() {
-    var v = videoRef.current;
-    if (v) v.playbackRate = speed;
-  }, [speed]);
-
-  // 컨트롤 숨김
-  function armHide() {
-    clearTimeout(hideRef.current);
-    hideRef.current = setTimeout(function() { setShowControls(false); }, 2500);
-  }
-  function showThenHide() { setShowControls(true); armHide(); }
-  React.useEffect(function() {
-    if (playing) armHide();
-    else { clearTimeout(hideRef.current); setShowControls(true); }
-  }, [playing]);
-  React.useEffect(function() {
-    return function() { clearTimeout(hideRef.current); };
-  }, []);
-
-  function fmt(s) {
-    if (!s || isNaN(s)) return '0:00';
-    var m = Math.floor(s / 60), sec = Math.floor(s % 60);
-    return m + ':' + (sec < 10 ? '0' : '') + sec;
-  }
-
-  function togglePlay() {
-    var v = videoRef.current;
-    if (!v) return;
-    if (v.paused) v.play(); else v.pause();
-  }
-
-  // 시크바
-  function getSeekPct(e) {
-    var bar = seekBarRef.current;
-    if (!bar) return null;
-    var rect = bar.getBoundingClientRect();
-    var cx = e.touches ? e.touches[0].clientX : e.clientX;
-    return Math.max(0, Math.min(1, (cx - rect.left) / rect.width));
-  }
-  function onSeekStart(e) {
-    e.stopPropagation();
-    setSeekDragging(true);
-    var p = getSeekPct(e);
-    if (p !== null && videoRef.current && videoRef.current.duration) {
-      videoRef.current.currentTime = p * videoRef.current.duration;
-    }
-  }
-  function onSeekMove(e) {
-    if (!seekDragging) return;
-    var p = getSeekPct(e);
-    if (p !== null && videoRef.current && videoRef.current.duration) {
-      videoRef.current.currentTime = p * videoRef.current.duration;
-    }
-  }
-  function onSeekEnd(e) { e.stopPropagation(); setSeekDragging(false); }
-
-  // 탭: 싱글=컨트롤토글, 더블=10초이동
-  function onPlayerTouchStart(e) {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
-  }
-  function onPlayerTouchEnd(e) {
-    var dx = Math.abs(e.changedTouches[0].clientX - touchStartRef.current.x);
-    var dy = Math.abs(e.changedTouches[0].clientY - touchStartRef.current.y);
-    var dt = Date.now() - touchStartRef.current.time;
-    if (dx > 10 || dy > 10 || dt > 500) return;
-    var rect = e.currentTarget.getBoundingClientRect();
-    var cx = e.changedTouches[0].clientX;
-    var isLeft = cx < rect.left + rect.width / 2;
-    tapRef.current.count += 1;
-    clearTimeout(tapRef.current.timer);
-    if (tapRef.current.count >= 2) {
-      tapRef.current.count = 0;
-      var v = videoRef.current;
-      if (v) v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + (isLeft ? -10 : 10)));
-      setSkipAnim(isLeft ? 'left' : 'right');
-      setTimeout(function() { setSkipAnim(null); }, 500);
-      if (playing) showThenHide();
-    } else {
-      tapRef.current.timer = setTimeout(function() {
-        tapRef.current.count = 0;
-        if (playing) {
-          setShowControls(function(s) {
-            if (s) { clearTimeout(hideRef.current); return false; }
-            else { armHide(); return true; }
-          });
-        }
-      }, 200);
-    }
-  }
-
-  var today = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }).replace(/\. /g,'.').replace(/\.$/,'');
-
-  // video URL: course.videoUrl 있으면 사용, 없으면 데모 안내
-  var videoUrl = course.videoUrl || '';
-
-  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
-
-    // 상단 바
-    React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px', display:'flex', alignItems:'center', gap:'12px' } },
-      React.createElement('button', { onClick: onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '\u2190 강의 목록으로'),
-      React.createElement('span', { style:{ color:'rgba(0,0,0,0.2)' } }, '|'),
-      React.createElement('span', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, course.name)
-    ),
-
-    React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'20px 16px' } },
-
-      // 플레이어 래퍼
-      React.createElement('div', {
-        style:{ position:'relative', width:'100%', aspectRatio:'16/9', borderRadius:'12px', overflow:'hidden', background:'#1E3932', marginBottom:'12px' },
-        onTouchStart: onPlayerTouchStart,
-        onTouchEnd: onPlayerTouchEnd,
-      },
-
-        // video 태그
-        React.createElement('video', {
-          ref: videoRef,
-          src: videoUrl,
-          style:{ width:'100%', height:'100%', objectFit:'contain', display:'block' },
-          playsInline: true,
-          preload: 'metadata',
-          controlsList: 'nodownload',
-          onContextMenu: function(e) { e.preventDefault(); },
-        }),
-
-        // 영상 없을 때 배경
-        !videoUrl && React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px', pointerEvents:'none' } },
-          React.createElement('div', { style:{ fontSize:'60px', fontWeight:'800', color:'rgba(255,255,255,0.06)', fontFamily:'Manrope, sans-serif' } }, course.subject),
-          React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.3)', fontFamily:'Manrope, sans-serif' } }, '영상 URL을 관리자에서 설정해주세요')
-        ),
-
-        // 워터마크 (항상 표시)
-        React.createElement('div', { style:{ position:'absolute', bottom:'52px', right:'12px', fontSize:'11px', fontWeight:'600', color:'rgba(255,255,255,0.25)', fontFamily:'Manrope, sans-serif', pointerEvents:'none', userSelect:'none', zIndex:4 } },
-          studentName + ' · ' + today
-        ),
-
-        // 스킵 애니메이션
-        skipAnim ? React.createElement('div', {
-          style:{ position:'absolute', top:'50%', transform:'translateY(-50%)',
-            left: skipAnim === 'left' ? '8%' : 'auto',
-            right: skipAnim === 'right' ? '8%' : 'auto',
-            background:'rgba(0,0,0,0.55)', borderRadius:'8px', padding:'8px 14px', pointerEvents:'none', zIndex:6 }
-        },
-          React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, skipAnim === 'left' ? '-10초' : '+10초')
+        skipAnim ? React.createElement('div', { style:{ position:'absolute', top:'50%', transform:'translateY(-50%)', left: skipAnim==='left'?'8%':'auto', right: skipAnim==='right'?'8%':'auto', background:'rgba(0,0,0,0.55)', borderRadius:'8px', padding:'8px 14px', pointerEvents:'none', zIndex:6 } },
+          React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, skipAnim==='left'?'-10\ucd08':'+10\ucd08')
         ) : null,
-
-        // 컨트롤 오버레이
-        React.createElement('div', {
-          style:{
-            position:'absolute', inset:0, zIndex:3,
-            opacity: showControls ? 1 : 0,
-            transition: showControls ? 'opacity 0.15s ease' : 'opacity 0.6s ease',
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 28%, transparent 62%, rgba(0,0,0,0.65) 100%)',
-            display:'flex', flexDirection:'column', justifyContent:'space-between',
-            pointerEvents: showControls ? 'auto' : 'none',
-          }
-        },
-          // 상단: 배속 버튼
+        React.createElement('div', { style:{ position:'absolute', inset:0, zIndex:3, opacity: showControls?1:0, transition: showControls?'opacity 0.15s ease':'opacity 0.6s ease', background:'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 28%, transparent 62%, rgba(0,0,0,0.65) 100%)', display:'flex', flexDirection:'column', justifyContent:'space-between', pointerEvents: showControls?'auto':'none' } },
           React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', padding:'10px 12px', gap:'5px' } },
             speeds.map(function(s) {
-              return React.createElement('button', {
-                key: s,
-                onTouchEnd: function(e) { e.stopPropagation(); setSpeed(s); if (playing) showThenHide(); },
-                onClick: function(e) { e.stopPropagation(); setSpeed(s); if (playing) showThenHide(); },
-                style:{ background: speed===s ? '#fff' : 'rgba(0,0,0,0.5)', border:'none', borderRadius:'4px', padding:'5px 9px', fontSize:'12px', fontWeight:'700', color: speed===s ? '#1E3932' : '#fff', cursor:'pointer', fontFamily:'Manrope, sans-serif', WebkitTapHighlightColor:'transparent' }
-              }, s === 1 ? '1x' : s + 'x');
+              return React.createElement('button', { key:s, onTouchEnd:function(e){e.stopPropagation();setSpeed(s);if(playing)showThenHide();}, onClick:function(e){e.stopPropagation();setSpeed(s);if(playing)showThenHide();}, style:{ background:speed===s?'#fff':'rgba(0,0,0,0.5)', border:'none', borderRadius:'4px', padding:'5px 9px', fontSize:'12px', fontWeight:'700', color:speed===s?'#1E3932':'#fff', cursor:'pointer', fontFamily:'Manrope, sans-serif', WebkitTapHighlightColor:'transparent' } }, s===1?'1x':s+'x');
             })
           ),
-
-          // 중앙: 재생/일시정지
           React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'center', flex:1 } },
-            React.createElement('button', {
-              onTouchEnd: function(e) { e.stopPropagation(); togglePlay(); if (playing) showThenHide(); },
-              onClick: function(e) { e.stopPropagation(); togglePlay(); },
-              style:{ width:'68px', height:'68px', borderRadius:'50%', background: playing ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.92)', border:'2px solid rgba(255,255,255,0.4)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', WebkitTapHighlightColor:'transparent' }
-            },
-              React.createElement('span', { style:{ fontSize:'28px', marginLeft: playing ? 0 : '4px', color: playing ? '#fff' : '#1E3932', lineHeight:1 } }, playing ? '\u275A\u275A' : '\u25B6')
+            React.createElement('button', { onTouchEnd:function(e){e.stopPropagation();togglePlay();}, onClick:function(e){e.stopPropagation();togglePlay();}, style:{ width:'68px', height:'68px', borderRadius:'50%', background:playing?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.92)', border:'2px solid rgba(255,255,255,0.4)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', WebkitTapHighlightColor:'transparent' } },
+              React.createElement('span', { style:{ fontSize:'28px', marginLeft:playing?0:'4px', color:playing?'#fff':'#1E3932', lineHeight:1 } }, playing?'\u275a\u275a':'\u25b6')
             )
           ),
-
-          // 하단: 시크바 + 시간 + 전체화면
           React.createElement('div', { style:{ padding:'0 14px 12px' } },
-            React.createElement('div', {
-              ref: seekBarRef,
-              style:{ position:'relative', height:'28px', display:'flex', alignItems:'center', marginBottom:'4px' },
-              onTouchStart: onSeekStart, onTouchMove: onSeekMove, onTouchEnd: onSeekEnd,
-              onMouseDown: onSeekStart, onMouseMove: onSeekMove, onMouseUp: onSeekEnd,
-            },
+            React.createElement('div', { ref:seekBarRef, style:{ position:'relative', height:'28px', display:'flex', alignItems:'center', marginBottom:'4px' }, onTouchStart:onSeekStart, onTouchMove:onSeekMove, onTouchEnd:onSeekEnd, onMouseDown:onSeekStart, onMouseMove:onSeekMove, onMouseUp:onSeekEnd },
               React.createElement('div', { style:{ position:'absolute', left:0, right:0, height:'3px', background:'rgba(255,255,255,0.25)', borderRadius:'2px' } }),
-              React.createElement('div', { style:{ position:'absolute', left:0, height:'3px', background:'#ff0000', borderRadius:'2px', width: progress + '%' } }),
-              React.createElement('div', { style:{ position:'absolute', left: progress + '%', transform:'translateX(-50%)', width:'14px', height:'14px', borderRadius:'50%', background:'#ff0000' } })
+              React.createElement('div', { style:{ position:'absolute', left:0, height:'3px', background:'#ff0000', borderRadius:'2px', width:progress+'%' } }),
+              React.createElement('div', { style:{ position:'absolute', left:progress+'%', transform:'translateX(-50%)', width:'14px', height:'14px', borderRadius:'50%', background:'#ff0000' } })
             ),
             React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between' } },
-              React.createElement('span', { style:{ fontSize:'12px', fontWeight:'600', color:'#fff', fontFamily:'Manrope, sans-serif' } }, fmt(currentSec) + ' / ' + fmt(duration)),
-              // 전체화면 버튼 — video 태그 네이티브 fullscreen
-              React.createElement('button', {
-                onTouchEnd: function(e) {
-                  e.stopPropagation();
-                  var v = videoRef.current;
-                  if (!v) return;
-                  var go = v.requestFullscreen || v.webkitRequestFullscreen;
-                  if (go) go.call(v);
-                },
-                onClick: function(e) {
-                  e.stopPropagation();
-                  var v = videoRef.current;
-                  if (!v) return;
-                  var go = v.requestFullscreen || v.webkitRequestFullscreen;
-                  if (go) go.call(v);
-                },
-                style:{ background:'none', border:'none', cursor:'pointer', padding:'4px', WebkitTapHighlightColor:'transparent' }
-              },
+              React.createElement('span', { style:{ fontSize:'12px', fontWeight:'600', color:'#fff', fontFamily:'Manrope, sans-serif' } }, fmt(currentSec)+' / '+fmt(duration)),
+              React.createElement('button', { onTouchEnd:function(e){e.stopPropagation();var v=videoRef.current;if(v){var go=v.requestFullscreen||v.webkitRequestFullscreen;if(go)go.call(v);}}, onClick:function(e){e.stopPropagation();var v=videoRef.current;if(v){var go=v.requestFullscreen||v.webkitRequestFullscreen;if(go)go.call(v);}}, style:{ background:'none', border:'none', cursor:'pointer', padding:'4px', WebkitTapHighlightColor:'transparent' } },
                 React.createElement('svg', { width:'22', height:'22', viewBox:'0 0 24 24', fill:'#fff' },
                   React.createElement('path', { d:'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z' })
                 )
@@ -580,18 +253,17 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
           )
         )
       ),
-
-      // 학습 진도 바
       React.createElement('div', { style:{ background:'#fff', borderRadius:'8px', padding:'12px 16px', display:'flex', alignItems:'center', gap:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14)' } },
-        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, '학습 진도'),
+        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, '\ud559\uc2b5 \uc9c4\ub3c4'),
         React.createElement('div', { style:{ flex:1, height:'6px', background:'#f2f0eb', borderRadius:'3px', overflow:'hidden' } },
-          React.createElement('div', { style:{ height:'100%', background:'#006241', borderRadius:'3px', width: progress + '%', transition:'width 0.3s ease' } })
+          React.createElement('div', { style:{ height:'100%', background:color, borderRadius:'3px', width:progress+'%', transition:'width 0.3s ease' } })
         ),
-        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#006241', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, Math.round(progress) + '%')
+        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:color, fontFamily:'Manrope, sans-serif', flexShrink:0 } }, Math.round(progress)+'%')
       )
     )
   );
 }
+
 
 
 /* ── Subject Select ───────────────────────────── */
