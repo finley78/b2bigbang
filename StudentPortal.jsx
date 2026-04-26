@@ -279,20 +279,17 @@ function VideoPlayer({ course, onBack, studentName }) {
     );
   }
 
-  // 전체화면 — rotate(-90deg)로 반시계 방향 (사진 보고 방향 수정)
+  // 전체화면 — 세로 폰에서 가로로 강제 rotate
   if (isFullscreen) {
-    var sw = window.screen.width;
-    var sh = window.screen.height;
-    var longSide = Math.max(sw, sh);
-    var shortSide = Math.min(sw, sh);
     return React.createElement('div', { style:{ position:'fixed', inset:0, zIndex:9999, background:'#000', overflow:'hidden' } },
       React.createElement('div', {
         style:{
           position:'absolute',
-          top:'50%', left:'50%',
-          width: longSide + 'px',
-          height: shortSide + 'px',
-          transform:'translate(-50%, -50%) rotate(-90deg)',
+          top:'0', left:'0',
+          width:'100vh',
+          height:'100vw',
+          transformOrigin:'top left',
+          transform:'rotate(90deg) translateY(-100%)',
         }
       }, renderPlayer())
     );
