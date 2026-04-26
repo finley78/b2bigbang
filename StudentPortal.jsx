@@ -197,72 +197,56 @@ function StudentPortal({ user, courses, students, onLoginClick }) {
       )
     ),
 
-    React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', padding:'32px 40px' } },
+    React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
 
-      // 수강 과목이 없는 경우
-      studentSubjects.length === 0
+      // 수강 강좌가 없는 경우
+      enrolledIds.length === 0
         ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'48px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)' } },
             React.createElement('div', { style:{ fontSize:'40px', marginBottom:'12px' } }, '📚'),
-            React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '배정된 수강 과목이 없습니다. 관리자에게 문의해 주세요.')
+            React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '배정된 강좌가 없습니다. 관리자에게 문의해 주세요.')
           )
         : React.createElement('div', null,
 
-            // 과목 탭 선택
-            React.createElement('div', { style:{ marginBottom:'28px' } },
-              React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, '수강 과목'),
-              React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap' } },
-                studentSubjects.map(sub =>
-                  React.createElement('button', { key:sub, onClick:()=>setSelectedSubject(selectedSubject===sub?null:sub), style:{ display:'flex', alignItems:'center', gap:'8px', background: selectedSubject===sub?(SUBJECT_COLORS[sub]||'#006241'):'#fff', color: selectedSubject===sub?'#fff':'rgba(0,0,0,0.87)', border: `2px solid ${SUBJECT_COLORS[sub]||'#006241'}`, borderRadius:'8px', padding:'10px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)' } },
-                    React.createElement('span', null, sub),
-                    React.createElement('span', { style:{ background: selectedSubject===sub?'rgba(255,255,255,0.25)':'#d4e9e2', color: selectedSubject===sub?'#fff':'#006241', borderRadius:'8px', padding:'1px 8px', fontSize:'11px', fontWeight:'800' } }, coursesBySubject[sub]?.length || 0)
-                  )
-                )
+            // 이번 달 강의 헤더
+            React.createElement('div', { style:{ marginBottom:'16px' } },
+              React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' } },
+                `${new Date().getFullYear()}년 ${new Date().getMonth()+1}월 강의`
               )
             ),
 
-            // 과목 미선택 안내
-            !selectedSubject && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'40px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)' } },
-              React.createElement('div', { style:{ fontSize:'32px', marginBottom:'10px' } }, '☝️'),
-              React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif' } }, '위에서 과목을 선택하면 강좌 목록이 나타납니다.')
-            ),
-
-            // 선택된 과목의 강좌 목록
-            selectedSubject && React.createElement('div', null,
-              React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px' } },
-                React.createElement('div', { style:{ width:'8px', height:'8px', borderRadius:'50%', background:SUBJECT_COLORS[selectedSubject]||'#006241' } }),
-                React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px' } }, `${selectedSubject} 강좌`),
-                studentGrade && React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, `(${studentGrade})`)
-              ),
-              currentSubjectCourses.length === 0
-                ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'36px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14)' } },
-                    React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '배정된 강좌가 없습니다. 관리자에게 문의해 주세요.')
-                  )
-                : React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px' } },
-                    currentSubjectCourses.map(course =>
-                      React.createElement('div', { key:course.id, style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', transition:'transform 0.2s ease' },
-                        onClick:()=>setSelectedCourse(course),
-                        onMouseEnter:e=>e.currentTarget.style.transform='translateY(-2px)',
-                        onMouseLeave:e=>e.currentTarget.style.transform='translateY(0)' },
-                        // 과목 색상 상단 바
-                        React.createElement('div', { style:{ height:'6px', background:SUBJECT_COLORS[course.subject]||'#006241' } }),
-                        React.createElement('div', { style:{ padding:'16px', position:'relative' } },
-                          React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px' } },
-                            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' } }, `${course.subject} · ${course.grade}`),
-                            // 진행률
-                            React.createElement('div', { style:{ background:'#d4e9e2', color:'#006241', borderRadius:'8px', padding:'2px 8px', fontSize:'10px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } },
-                              `${Math.round(parseFloat(localStorage.getItem(`progress_${course.id}`) || 0))}%`
-                            )
-                          ),
-                          React.createElement('div', { style:{ fontSize:'16px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em', marginBottom:'6px' } }, course.name),
-                          React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, `${course.teacher} · 주 ${course.days}회 · ${course.duration}분`),
-                          // 진행률 바
-                          React.createElement('div', { style:{ height:'4px', background:'#f2f0eb', borderRadius:'2px', overflow:'hidden' } },
-                            React.createElement('div', { style:{ height:'100%', background:SUBJECT_COLORS[course.subject]||'#006241', borderRadius:'2px', width:`${parseFloat(localStorage.getItem(`progress_${course.id}`) || 0)}%`, transition:'width 0.3s ease' } })
-                          )
-                        )
-                      )
+            // 강좌 목록 — 가로형 카드
+            React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
+              courses.filter(c => enrolledIds.includes(c.id)).map((course, idx) => {
+                const progress = Math.round(parseFloat(localStorage.getItem(`progress_${course.id}`) || 0));
+                const color = SUBJECT_COLORS[course.subject] || '#006241';
+                return React.createElement('div', {
+                  key: course.id,
+                  onClick: () => setSelectedCourse(course),
+                  style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'center', transition:'transform 0.15s ease' },
+                  onMouseEnter: e => e.currentTarget.style.transform='translateX(3px)',
+                  onMouseLeave: e => e.currentTarget.style.transform='translateX(0)',
+                },
+                  // 왼쪽 색상 바
+                  React.createElement('div', { style:{ width:'5px', alignSelf:'stretch', background: color, flexShrink:0 } }),
+                  // 순서 번호
+                  React.createElement('div', { style:{ width:'40px', textAlign:'center', fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, idx+1),
+                  // 강좌 정보
+                  React.createElement('div', { style:{ flex:1, padding:'16px 12px', minWidth:0 } },
+                    React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } },
+                      `${studentGrade || course.grade} ${course.name}`
                     )
-                  )
+                  ),
+                  // 진행률
+                  React.createElement('div', { style:{ padding:'0 16px', flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:'4px' } },
+                    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color: progress > 0 ? color : 'rgba(0,0,0,0.25)', fontFamily:'Manrope, sans-serif' } }, `${progress}%`),
+                    React.createElement('div', { style:{ width:'40px', height:'4px', background:'#f2f0eb', borderRadius:'2px', overflow:'hidden' } },
+                      React.createElement('div', { style:{ height:'100%', background: color, borderRadius:'2px', width:`${progress}%`, transition:'width 0.3s ease' } })
+                    )
+                  ),
+                  // 화살표
+                  React.createElement('div', { style:{ padding:'0 14px 0 4px', fontSize:'20px', color:'rgba(0,0,0,0.2)', flexShrink:0 } }, '›')
+                );
+              })
             )
           )
     )
