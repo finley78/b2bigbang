@@ -25,7 +25,7 @@ const tbStyles = {
   divider:{ fontSize:'12px', color:'rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif' },
 };
 
-function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onAdminClick, onLogout, examDate }) {
+function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick, onAdminClick, onLogout, examDate }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   const d = dDay(examDate || '2026-11-12');
@@ -76,12 +76,11 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onAdminClick,
                 React.createElement('div', { style: mnStyles.avatar }, user.name[0]),
                 React.createElement('span', { style: mnStyles.userName }, user.name)
               ),
-
               React.createElement('span', { style: { fontSize:'12px', color:'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif' }, onClick: onLogout }, '로그아웃')
             )
           : React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
               React.createElement('button', { style: mnStyles.ctaBtnOutline, onClick: onLoginClick }, '로그인'),
-              React.createElement('button', { style: mnStyles.ctaBtn, onClick: onLoginClick }, '회원가입')
+              React.createElement('button', { style: mnStyles.ctaBtn, onClick: onSignupClick || onLoginClick }, '회원가입')
             )
       )
     ),
@@ -129,12 +128,11 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onAdminClick,
       React.createElement('div', { style:{ borderTop:'1px solid rgba(0,0,0,0.08)', marginTop:'8px', paddingTop:'8px' } },
         user
           ? React.createElement('div', null,
-
               React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'rgba(0,0,0,0.45)' }, onClick:()=>{ onLogout(); setMenuOpen(false); } }, '로그아웃')
             )
           : React.createElement('div', null,
               React.createElement('div', { style:{ ...mnStyles.mobileMenuItem }, onClick:()=>{ onLoginClick(); setMenuOpen(false); } }, '로그인'),
-              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#006241', fontWeight:'700' }, onClick:()=>{ onLoginClick(); setMenuOpen(false); } }, '회원가입')
+              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#006241', fontWeight:'700' }, onClick:()=>{ (onSignupClick || onLoginClick)(); setMenuOpen(false); } }, '회원가입')
             )
       )
     )
