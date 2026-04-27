@@ -208,13 +208,13 @@ function LoginModal({ onLogin, onClose, onAdminLogin }) {
         )
       ),
 
-      // 역할 선택 (가로 라디오, 배경색 없음)
-      React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', marginBottom:'20px' } },
+      // 역할 선택 (텍스트 ○ 가로 나열)
+      React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' } },
         ROLES.map(r =>
           React.createElement('button', { key:r.key, onClick:()=>selectRole(r.key),
-            style:{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'6px', padding:'8px 4px', border:'none', background:'none', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
-            React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'50%', border: role===r.key ? '5px solid #006241' : '2px solid #d0d0d0', background:'#fff', transition:'all 0.15s ease' } }),
-            React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color: role===r.key ? '#006241' : 'rgba(0,0,0,0.5)' } }, r.label)
+            style:{ display:'flex', alignItems:'center', gap:'5px', padding:'4px 0', border:'none', background:'none', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
+            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'600', color:'rgba(0,0,0,0.75)' } }, r.label),
+            React.createElement('div', { style:{ width:'13px', height:'13px', borderRadius:'50%', border: role===r.key ? '4px solid #000' : '1.5px solid #000', background:'#fff', transition:'all 0.15s ease', flexShrink:0 } })
           )
         )
       ),
@@ -269,7 +269,11 @@ function LoginModal({ onLogin, onClose, onAdminLogin }) {
           ),
           tab==='login' ? '카카오톡으로 로그인' : '카카오톡으로 가입하기'
         ),
-        React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'4px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.')
+        React.createElement('div', { style:{ textAlign:'center', marginTop:'14px' } },
+          React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '아직 회원이 아니신가요? '),
+          React.createElement('span', { onClick:()=>setTab('signup'), style:{ fontSize:'13px', color:'#006241', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '회원가입')
+        ),
+        React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'10px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.')
       )
     )
   );
