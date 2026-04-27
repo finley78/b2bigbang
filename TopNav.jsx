@@ -11,24 +11,7 @@ function dDay(targetDateStr) {
 }
 
 function TopBar({ user, onLoginClick, onLogout, onAdminClick, examDate }) {
-  const d = dDay(examDate);
-  const isMobile = window.innerWidth < 768;
-  if (isMobile) return null; // 모바일에서 상단바 숨김
-
-  return React.createElement('div', { style: tbStyles.wrap },
-    React.createElement('div', { style: tbStyles.inner },
-      React.createElement('div', { style: tbStyles.left },
-        ['본원','이대문','강정'].map((b,i) =>
-          React.createElement('span', { key:i, style: tbStyles.branch }, b)
-        )
-      ),
-      React.createElement('div', { style: tbStyles.right },
-        React.createElement('span', { style: tbStyles.dday }, `2027 수능 D-${d}`)
-        ,
-
-      )
-    )
-  );
+  return null;
 }
 
 const tbStyles = {
