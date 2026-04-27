@@ -447,7 +447,6 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                             },
                             placeholder: 'YouTube 영상 ID (ex: dQw4w9WgXcQ)',
                             style: {...inputS, marginBottom:0, fontSize:'12px'}
-                          })}
                           })
                         );
                       })
