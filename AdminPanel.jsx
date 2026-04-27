@@ -697,6 +697,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
         )
       )
     )
+  )
   );
 }
 
