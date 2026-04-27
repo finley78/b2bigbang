@@ -696,8 +696,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
           React.createElement('p', { style:{ fontSize:'13px', color:'#006241', fontFamily:'Manrope, sans-serif', fontWeight:'600' } }, '✓ 변경사항은 자동으로 저장됩니다. 홈 화면에서 바로 확인하세요.')
         )
       )
-    )
-    );
+      );
 }
 
 Object.assign(window, { AdminPanel });
