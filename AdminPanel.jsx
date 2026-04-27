@@ -107,7 +107,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     const { data: pending } = await sb.from('students').select('*').in('role', ['pending_student','pending_parent']);
     if (pending) setDbPending(pending.map(p => ({
       id: p.id, name: p.name, phone: p.phone, role: p.role,
-      grade: p.grade, school: p.school, address: p.address,
+      grade: p.grade, school: p.school,
     })));
   }
 
@@ -119,7 +119,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
 
   // 선생님 삭제
   async function rejectTeacher(teacherId) {
-    if (!confirm('이 선생님 계정을 삭제할까요?')) return;
+    if (!confirm('이 계정을 삭제할까요?')) return;
     await sb.from('students').delete().eq('id', teacherId);
     setDbTeachers(ts => ts.filter(t => t.id !== teacherId));
   }
@@ -629,7 +629,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
           )
         ),
 
-        // 선생님 대기 중
+        // 대기 중
         React.createElement('div', { style:{ marginBottom:'28px' } },
           React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'14px' } },
             React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '승인 대기'),
