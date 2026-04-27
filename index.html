@@ -76,8 +76,7 @@ function App() {
   const [user, setUser] = React.useState(null);
   const [showLogin, setShowLogin] = React.useState(false);
   const [isAdmin, setIsAdmin] = React.useState(false);
-  const [adminAuthed, setAdminAuthed] = React.useState(false); // 관리자 로그인 유지
-  const [signupRole, setSignupRole] = React.useState(null); // 'student' | 'parent'
+  const [adminAuthed, setAdminAuthed] = React.useState(false);
   const [state, setState] = React.useState(INITIAL_STATE);
   const [dbLoaded, setDbLoaded] = React.useState(false);
 
@@ -85,11 +84,9 @@ function App() {
   React.useEffect(() => {
     async function loadFromDB() {
       try {
-        // subjects 로드
         const { data: subjects } = await window.supabase
           .from('subjects').select('*').order('sort_order');
 
-        // courses + videos 로드
         const { data: courses } = await window.supabase
           .from('courses').select(`*, subjects(name, color), videos(*)`)
           .eq('is_active', true).order('sort_order');
@@ -132,7 +129,6 @@ function App() {
       setPage(p);
     }
     window.addEventListener('popstate', handlePopState);
-    // 초기 상태 설정
     window.history.replaceState({ page: 'home' }, '', '');
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -146,7 +142,6 @@ function App() {
   function handleLogin(u) {
     setUser(u);
     setShowLogin(false);
-    // 현재 페이지 유지 (portal로 강제 이동 안 함)
   }
 
   function handleLogout() {
@@ -159,10 +154,21 @@ function App() {
     navigate('admin');
   }
 
+  // 회원가입 페이지로 바로 이동
+  function handleSignup() {
+    setShowLogin(false);
+    navigate('signup');
+  }
+
   return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
 
     // 로그인 모달
-    showLogin && React.createElement(LoginModal, { onLogin: handleLogin, onClose: ()=>setShowLogin(false), onAdminLogin: ()=>{ setAdminAuthed(true); navigate('admin'); }, onSignup: (role)=>{ setSignupRole(role); setShowLogin(false); navigate('signup'); } }),
+    showLogin && React.createElement(LoginModal, {
+      onLogin: handleLogin,
+      onClose: ()=>setShowLogin(false),
+      onAdminLogin: ()=>{ setAdminAuthed(true); navigate('admin'); },
+      onSignup: handleSignup,
+    }),
 
     // 상단 네비
     React.createElement(TopBar, {
@@ -178,6 +184,7 @@ function App() {
       user,
       adminAuthed,
       onLoginClick: ()=>setShowLogin(true),
+      onSignupClick: handleSignup,
       onAdminClick: handleAdminClick,
       onLogout: handleLogout,
       examDate: EXAM_DATE,
@@ -208,9 +215,9 @@ function App() {
       page === 'service' && React.createElement(ServicePage, { setPage: navigate, courses: state.courses }),
       page === 'contact' && React.createElement(ContactPage),
 
-      page === 'signup' && React.createElement(SignUpPage, {
-        onBack: ()=>navigate('home'),
-        onComplete: ()=>navigate('home'),
+      page === 'signup' && React.createElement(SignupPage, {
+        onBack: ()=>{ navigate('home'); },
+        onComplete: ()=>{ navigate('home'); },
       }),
 
       page === 'portal' && React.createElement(StudentPortal, {
