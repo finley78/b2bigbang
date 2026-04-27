@@ -105,11 +105,11 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
 
     // 학생/학부모 승인 대기
     const { data: pending } = await sb.from('students').select('*').in('role', ['pending_student','pending_parent']);
-    if (pending) setDbPending(pending.map(p => ({
-      id: p.id, name: p.name, phone: p.phone, role: p.role,
-      grade: p.grade, school: p.school,
-    })));
+    if (pending) setDbPending(pending.map(p => ({ id: p.id, name: p.name, phone: p.phone, role: p.role, grade: p.grade, school: p.school })));
   }
+
+  // 수강생 학년 업데이트 (DB)
+  async function updateStudentGrade(studentId, grade) {
 
   // 선생님 승인
   async function approveTeacher(teacherId) {
@@ -132,9 +132,6 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     await sb.from('students').update({ subjects: updated }).eq('id', teacherId);
     setDbTeachers(ts => ts.map(x => x.id === teacherId ? { ...x, subjects: updated } : x));
   }
-
-  // 수강생 학년 업데이트 (DB)
-  async function updateStudentGrade(studentId, grade) {
     await sb.from('students').update({ grade }).eq('id', studentId);
     setDbStudents(s => s.map(st => st.id === studentId ? { ...st, grade } : st));
   }
