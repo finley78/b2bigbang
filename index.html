@@ -145,7 +145,7 @@ function App() {
   function handleLogin(u) {
     setUser(u);
     setShowLogin(false);
-    navigate('portal');
+    // 현재 페이지 유지 (portal로 강제 이동 안 함)
   }
 
   function handleLogout() {

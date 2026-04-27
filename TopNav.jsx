@@ -36,8 +36,7 @@ function TopBar({ user, onLoginClick, onLogout, onAdminClick, examDate }) {
               React.createElement('span', { style: tbStyles.divider }, '|'),
               React.createElement('span', { style: { ...tbStyles.link, cursor:'pointer' }, onClick: onLoginClick }, '회원가입')
             ),
-        React.createElement('span', { style: tbStyles.divider }, '|'),
-        React.createElement('span', { style: { ...tbStyles.link, cursor:'pointer', color:'#cba258', fontWeight:'700' }, onClick: onAdminClick }, '관리자')
+
       )
     )
   );
@@ -105,7 +104,7 @@ function MainNav({ page, setPage, user, onLoginClick, onAdminClick, onLogout, ex
                 React.createElement('div', { style: mnStyles.avatar }, user.name[0]),
                 React.createElement('span', { style: mnStyles.userName }, user.name)
               ),
-              React.createElement('span', { style: { fontSize:'12px', color:'#cba258', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }, onClick: onAdminClick }, '관리자'),
+
               React.createElement('span', { style: { fontSize:'12px', color:'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif' }, onClick: onLogout }, '로그아웃')
             )
           : React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
@@ -158,7 +157,7 @@ function MainNav({ page, setPage, user, onLoginClick, onAdminClick, onLogout, ex
       React.createElement('div', { style:{ borderTop:'1px solid rgba(0,0,0,0.08)', marginTop:'8px', paddingTop:'8px' } },
         user
           ? React.createElement('div', null,
-              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#cba258' }, onClick:()=>{ onAdminClick(); setMenuOpen(false); } }, '관리자'),
+
               React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'rgba(0,0,0,0.45)' }, onClick:()=>{ onLogout(); setMenuOpen(false); } }, '로그아웃')
             )
           : React.createElement('div', null,
