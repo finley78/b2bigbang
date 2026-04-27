@@ -145,10 +145,7 @@ function App() {
   function handleLogin(u) {
     setUser(u);
     setShowLogin(false);
-    // 선생님이면 선생님 포털로 이동
-    if (u.role === 'teacher') {
-      navigate('teacher');
-    }
+    // 현재 페이지 유지 (portal로 강제 이동 안 함)
   }
 
   function handleLogout() {
@@ -164,7 +161,7 @@ function App() {
   return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
 
     // 로그인 모달
-    showLogin && React.createElement(LoginModal, { onLogin: handleLogin, onClose: ()=>setShowLogin(false) }),
+    showLogin && React.createElement(LoginModal, { onLogin: handleLogin, onClose: ()=>setShowLogin(false), onAdminLogin: ()=>{ setAdminAuthed(true); navigate('admin'); } }),
 
     // 상단 네비
     React.createElement(TopBar, {
@@ -214,12 +211,6 @@ function App() {
         courses: state.courses,
         students: state.students,
         onLoginClick: ()=>setShowLogin(true),
-      }),
-
-      page === 'teacher' && React.createElement(TeacherPortal, {
-        user,
-        courses: state.courses,
-        onLogout: handleLogout,
       }),
 
       page === 'admin' && React.createElement(AdminPanel, {
