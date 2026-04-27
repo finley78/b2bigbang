@@ -42,7 +42,7 @@ const tbStyles = {
   divider:{ fontSize:'12px', color:'rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif' },
 };
 
-function MainNav({ page, setPage, user, onLoginClick, onAdminClick, onLogout, examDate }) {
+function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onAdminClick, onLogout, examDate }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   const d = dDay(examDate || '2026-11-12');
@@ -79,7 +79,7 @@ function MainNav({ page, setPage, user, onLoginClick, onAdminClick, onLogout, ex
               borderBottom: page === PAGE_MAP[label] ? '2px solid #006241' : '2px solid transparent',
             },
             onClick: () => {
-              if (label === '온라인 강의') { if (!user) { onLoginClick(); return; } }
+              if (label === '온라인 강의') { if (!user && !adminAuthed) { onLoginClick(); return; } }
               setPage(PAGE_MAP[label] || 'home');
             }
           }, label)
@@ -137,7 +137,7 @@ function MainNav({ page, setPage, user, onLoginClick, onAdminClick, onLogout, ex
             fontWeight: page === PAGE_MAP[label] ? '700' : '500',
           },
           onClick: () => {
-            if (label === '온라인 강의') { if (!user) { onLoginClick(); setMenuOpen(false); return; } }
+            if (label === '온라인 강의') { if (!user && !adminAuthed) { onLoginClick(); setMenuOpen(false); return; } }
             setPage(PAGE_MAP[label] || 'home');
             setMenuOpen(false);
           }
