@@ -156,9 +156,9 @@ function SignupPage({ onBack, onComplete }) {
   const sb = window.supabase;
 
   const ROLE_OPTIONS = [
-    { key:'student', label:'학생', icon:'🎓', desc:'수강 중인 학생' },
-    { key:'parent',  label:'학부모', icon:'👨‍👩‍👧', desc:'학부모님' },
-    { key:'teacher', label:'선생님', icon:'👨‍🏫', desc:'강사 (관리자 승인 필요)' },
+    { key:'student', label:'학생', icon:'', desc:'' },
+    { key:'parent',  label:'학부모님', icon:'', desc:'' },
+    { key:'teacher', label:'선생님', icon:'', desc:'관리자 승인 필요' },
   ];
 
   const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box', background:'#fafafa' };
@@ -231,16 +231,13 @@ function SignupPage({ onBack, onComplete }) {
   if (step === 1) return React.createElement('div', { style:{ minHeight:'100vh', background:'#f2f0eb' } },
     header,
     React.createElement('div', { style:{ maxWidth:'480px', margin:'0 auto', padding:'32px 20px' } },
-      React.createElement('h2', { style:{ fontSize:'20px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '어떤 분이세요?'),
-      React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'28px' } }, '가입 유형을 선택해 주세요.'),
-      React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+      React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px', marginBottom:'0' } },
         ROLE_OPTIONS.map(r =>
           React.createElement('div', { key:r.key, onClick:()=>setRoleType(r.key),
             style:{ background:'#fff', borderRadius:'14px', padding:'20px', display:'flex', alignItems:'center', gap:'16px', cursor:'pointer', border: roleType===r.key ? '2px solid #006241' : '2px solid transparent', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', transition:'all 0.15s' } },
-            React.createElement('div', { style:{ fontSize:'32px', flexShrink:0 } }, r.icon),
             React.createElement('div', { style:{ flex:1 } },
               React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, r.label),
-              React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, r.desc)
+              r.desc && React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, r.desc)
             ),
             React.createElement('div', { style:{ width:'20px', height:'20px', borderRadius:'50%', border: roleType===r.key ? '6px solid #006241' : '2px solid rgba(0,0,0,0.25)', transition:'all 0.15s', flexShrink:0 } })
           )
@@ -257,7 +254,6 @@ function SignupPage({ onBack, onComplete }) {
     React.createElement('div', { style:{ maxWidth:'480px', margin:'0 auto', padding:'32px 20px' } },
       React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', marginBottom:'20px' } },
         React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'20px', paddingBottom:'16px', borderBottom:'1px solid rgba(0,0,0,0.07)' } },
-          React.createElement('div', { style:{ fontSize:'24px' } }, ROLE_OPTIONS.find(r=>r.key===roleType)?.icon),
           React.createElement('div', null,
             React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, ROLE_OPTIONS.find(r=>r.key===roleType)?.label + ' 회원가입'),
             roleType === 'teacher' && React.createElement('div', { style:{ fontSize:'12px', color:'#c87000', fontFamily:'Manrope, sans-serif', marginTop:'2px', fontWeight:'600' } }, '⚠ 관리자 승인 후 이용 가능합니다')
