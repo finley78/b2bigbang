@@ -8,7 +8,7 @@ const SUBJECT_COLORS = {
 };
 
 /* ── Login Modal ──────────────────────────────── */
-function LoginModal({ onLogin, onClose, onAdminLogin }) {
+function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
   const [role, setRole] = React.useState(null); // null | 'student' | 'parent' | 'teacher' | 'admin'
   const [tab, setTab] = React.useState('login'); // 'login' | 'signup'
   const [name, setName] = React.useState('');
@@ -271,7 +271,7 @@ function LoginModal({ onLogin, onClose, onAdminLogin }) {
         ),
         React.createElement('div', { style:{ textAlign:'center', marginTop:'14px' } },
           React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '아직 회원이 아니신가요? '),
-          React.createElement('span', { onClick:()=>setTab('signup'), style:{ fontSize:'13px', color:'#006241', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '회원가입')
+          React.createElement('span', { onClick:()=>onSignup && onSignup(role||'student'), style:{ fontSize:'13px', color:'#006241', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '회원가입')
         ),
         React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'10px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.')
       )
@@ -939,4 +939,92 @@ function TeacherPortal({ user, courses, onLogout }) {
   );
 }
 
-Object.assign(window, { LoginModal, StudentPortal, TeacherPortal });
+/* ── Sign Up Page ─────────────────────────────── */
+function SignUpPage({ role, onBack, onComplete }) {
+  const [form, setForm] = React.useState({ name:'', phone:'', school:'', grade:'', address:'', agree:false });
+  const [msg, setMsg] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const sb = window.supabase;
+  const GRADES = ['중1','중2','중3','고1','고2','고3'];
+  const isStudent = role === 'student';
+  function setF(k, v) { setForm(f => ({...f, [k]:v})); }
+
+  async function handleSubmit() {
+    if (!form.name.trim()) { setMsg('이름을 입력해 주세요.'); return; }
+    if (!form.phone.trim()) { setMsg('전화번호를 입력해 주세요.'); return; }
+    if (isStudent && !form.school.trim()) { setMsg('학교를 입력해 주세요.'); return; }
+    if (isStudent && !form.grade) { setMsg('학년을 선택해 주세요.'); return; }
+    if (!form.address.trim()) { setMsg('주소를 입력해 주세요.'); return; }
+    if (!form.agree) { setMsg('개인정보 수집 및 이용에 동의해 주세요.'); return; }
+    setLoading(true); setMsg('');
+    try {
+      const { error } = await sb.from('students').insert({
+        name: form.name.trim(), phone: form.phone.trim(),
+        school: isStudent ? form.school.trim() : null,
+        grade: isStudent ? form.grade : null,
+        address: form.address.trim(),
+        role: isStudent ? 'student' : 'parent',
+        login_provider: 'form', is_active: true,
+      });
+      if (error) throw error;
+      onComplete();
+    } catch(e) { setMsg('오류가 발생했습니다. 다시 시도해 주세요.'); }
+    setLoading(false);
+  }
+
+  const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'13px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box', background:'#fff' };
+  const labelS = { fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.04em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'6px', display:'block' };
+  const fieldS = { marginBottom:'16px' };
+
+  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh', padding:'40px 16px' } },
+    React.createElement('div', { style:{ maxWidth:'480px', margin:'0 auto' } },
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'28px' } },
+        React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'20px', color:'rgba(0,0,0,0.4)', padding:'4px' } }, '←'),
+        React.createElement('h1', { style:{ fontSize:'22px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, isStudent ? '학생 회원가입' : '학부모 회원가입')
+      ),
+      React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', padding:'28px', boxShadow:'0 1px 4px rgba(0,0,0,0.08)' } },
+        React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '이름 *'),
+          React.createElement('input', { value:form.name, onChange:e=>setF('name',e.target.value), placeholder:'홍길동', style:inputS })
+        ),
+        React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '전화번호 *'),
+          React.createElement('input', { value:form.phone, onChange:e=>setF('phone',e.target.value), placeholder:'010-0000-0000', style:inputS })
+        ),
+        isStudent && React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '학교 *'),
+          React.createElement('input', { value:form.school, onChange:e=>setF('school',e.target.value), placeholder:'OO고등학교', style:inputS })
+        ),
+        isStudent && React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '학년 *'),
+          React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
+            GRADES.map(g =>
+              React.createElement('button', { key:g, onClick:()=>setF('grade',g),
+                style:{ padding:'9px 16px', borderRadius:'8px', border: form.grade===g?'2px solid #006241':'2px solid rgba(0,0,0,0.1)', background: form.grade===g?'#006241':'#fff', color: form.grade===g?'#fff':'rgba(0,0,0,0.6)', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.15s' } }, g)
+            )
+          )
+        ),
+        React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '주소 *'),
+          React.createElement('input', { value:form.address, onChange:e=>setF('address',e.target.value), placeholder:'서울시 마포구 ...', style:inputS })
+        ),
+        React.createElement('div', { style:{ background:'#f9f9f9', borderRadius:'8px', padding:'14px', marginBottom:'20px' } },
+          React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7', marginBottom:'10px', whiteSpace:'pre-line' } },
+            '수집 항목: 이름, 전화번호, 주소' + (isStudent ? ', 학교, 학년' : '') + '\n수집 목적: 수강 관리 및 학원 서비스 제공\n보유 기간: 회원 탈퇴 시까지'
+          ),
+          React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer' } },
+            React.createElement('input', { type:'checkbox', checked:form.agree, onChange:e=>setF('agree',e.target.checked), style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#006241' } }),
+            React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '개인정보 수집 및 이용에 동의합니다 *')
+          )
+        ),
+        msg && React.createElement('div', { style:{ fontSize:'13px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'14px', fontWeight:'600' } }, msg),
+        React.createElement('button', { onClick:handleSubmit, disabled:loading,
+          style:{ width:'100%', background: loading?'#aaa':'#006241', color:'#fff', border:'none', borderRadius:'8px', padding:'15px', fontSize:'15px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } },
+          loading ? '처리 중...' : '회원가입 완료'
+        )
+      )
+    )
+  );
+}
+
+Object.assign(window, { LoginModal, StudentPortal, TeacherPortal, SignUpPage });

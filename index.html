@@ -77,6 +77,7 @@ function App() {
   const [showLogin, setShowLogin] = React.useState(false);
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [adminAuthed, setAdminAuthed] = React.useState(false); // 관리자 로그인 유지
+  const [signupRole, setSignupRole] = React.useState(null); // 'student' | 'parent'
   const [state, setState] = React.useState(INITIAL_STATE);
   const [dbLoaded, setDbLoaded] = React.useState(false);
 
@@ -161,7 +162,7 @@ function App() {
   return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
 
     // 로그인 모달
-    showLogin && React.createElement(LoginModal, { onLogin: handleLogin, onClose: ()=>setShowLogin(false), onAdminLogin: ()=>{ setAdminAuthed(true); navigate('admin'); } }),
+    showLogin && React.createElement(LoginModal, { onLogin: handleLogin, onClose: ()=>setShowLogin(false), onAdminLogin: ()=>{ setAdminAuthed(true); navigate('admin'); }, onSignup: (role)=>{ setSignupRole(role); setShowLogin(false); navigate('signup'); } }),
 
     // 상단 네비
     React.createElement(TopBar, {
@@ -206,6 +207,12 @@ function App() {
 
       page === 'service' && React.createElement(ServicePage, { setPage: navigate, courses: state.courses }),
       page === 'contact' && React.createElement(ContactPage),
+
+      page === 'signup' && React.createElement(SignUpPage, {
+        role: signupRole,
+        onBack: ()=>navigate('home'),
+        onComplete: ()=>{ alert('회원가입이 완료되었습니다!'); navigate('home'); },
+      }),
 
       page === 'portal' && React.createElement(StudentPortal, {
         user,
