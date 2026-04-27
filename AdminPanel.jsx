@@ -105,7 +105,32 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
 
     // 학생/학부모 승인 대기
     const { data: pending } = await sb.from('students').select('*').in('role', ['pending_student','pending_parent']);
-    if (pending) setDbPending(pending.map(p => ({ id: p.id, name: p.name, phone: p.phone, role: p.role, grade: p.grade, school: p.school, address: p.address, createdAt: p.created_at })));
+    if (pending) setDbPending(pending.map(p => ({
+      id: p.id, name: p.name, phone: p.phone, role: p.role,
+      grade: p.grade, school: p.school, address: p.address,
+    })));
+  }
+
+  // 선생님 승인
+  async function approveTeacher(teacherId) {
+    await sb.from('students').update({ role: 'teacher', is_active: true }).eq('id', teacherId);
+    setDbTeachers(ts => ts.map(t => t.id === teacherId ? { ...t, role: 'teacher' } : t));
+  }
+
+  // 선생님 삭제
+  async function rejectTeacher(teacherId) {
+    if (!confirm('이 선생님 계정을 삭제할까요?')) return;
+    await sb.from('students').delete().eq('id', teacherId);
+    setDbTeachers(ts => ts.filter(t => t.id !== teacherId));
+  }
+
+  // 선생님 담당 과목 토글
+  async function toggleTeacherSubject(teacherId, subject) {
+    const t = dbTeachers.find(x => x.id === teacherId);
+    const subjects = t.subjects || [];
+    const updated = subjects.includes(subject) ? subjects.filter(s => s !== subject) : [...subjects, subject];
+    await sb.from('students').update({ subjects: updated }).eq('id', teacherId);
+    setDbTeachers(ts => ts.map(x => x.id === teacherId ? { ...x, subjects: updated } : x));
   }
 
   // 수강생 학년 업데이트 (DB)
@@ -570,7 +595,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       tab==='teacher' && React.createElement('div', null,
 
         // 학생/학부모 승인 대기
-        dbPending.length > 0 && React.createElement('div', { style:{ marginBottom:'32px' } },
+        dbPending.length > 0 && React.createElement('div', { style:{ marginBottom:'28px' } },
           React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'14px' } },
             React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '학생/학부모 승인 대기'),
             React.createElement('span', { style:{ background:'#c82014', color:'#fff', borderRadius:'20px', padding:'2px 10px', fontSize:'12px', fontWeight:'800', fontFamily:'Manrope, sans-serif' } }, dbPending.length)
@@ -592,7 +617,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                   const newRole = p.role === 'pending_student' ? 'student' : 'parent';
                   await sb.from('students').update({ role: newRole, is_active: true }).eq('id', p.id);
                   setDbPending(ps => ps.filter(x => x.id !== p.id));
-                  setDbStudents(prev => [...prev, { id:p.id, name:p.name, phone:p.phone, grade:p.grade||'', subjects:[], enrolledCourses:[] }]);
+                  setDbStudents(prev => [...prev, { id:p.id, name:p.name, phone:p.phone||'', grade:p.grade||'', subjects:[], enrolledCourses:[] }]);
                 }, style:{ background:'#006241', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✓ 승인'),
                 React.createElement('button', { onClick: async ()=>{
                   if (!confirm('이 신청을 거절할까요?')) return;
@@ -603,6 +628,8 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
             )
           )
         ),
+
+        // 선생님 대기 중
         React.createElement('div', { style:{ marginBottom:'28px' } },
           React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'14px' } },
             React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '승인 대기'),
