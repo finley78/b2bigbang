@@ -209,9 +209,8 @@ function App() {
       page === 'contact' && React.createElement(ContactPage),
 
       page === 'signup' && React.createElement(SignUpPage, {
-        role: signupRole,
         onBack: ()=>navigate('home'),
-        onComplete: ()=>{ alert('회원가입이 완료되었습니다!'); navigate('home'); },
+        onComplete: ()=>navigate('home'),
       }),
 
       page === 'portal' && React.createElement(StudentPortal, {

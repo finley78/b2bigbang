@@ -40,6 +40,8 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
   const [editingCourse, setEditingCourse] = React.useState(null);
   const [expandedStudent, setExpandedStudent] = React.useState(null);
   const [dbStudents, setDbStudents] = React.useState([]);
+  const [dbTeachers, setDbTeachers] = React.useState([]);
+  const [dbPending, setDbPending] = React.useState([]);
   const [saving, setSaving] = React.useState(false);
 
   const sb = window.supabase;
@@ -81,7 +83,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     }
 
     // 수강생
-    const { data: students } = await sb.from('students').select('*, enrollments(course_id)').eq('is_active', true);
+    const { data: students } = await sb.from('students').select('*, enrollments(course_id)').eq('is_active', true).eq('role', 'student');
     if (students) {
       const mapped = students.map(st => ({
         id: st.id, name: st.name, email: st.email, provider: st.login_provider,
@@ -91,6 +93,19 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       }));
       setDbStudents(mapped);
     }
+
+    // 선생님 (승인 대기 + 승인됨)
+    const { data: teachers } = await sb.from('students').select('*').in('role', ['teacher','pending_teacher']);
+    if (teachers) {
+      setDbTeachers(teachers.map(t => ({
+        id: t.id, name: t.name, email: t.email, role: t.role,
+        subjects: t.subjects || [], createdAt: t.created_at,
+      })));
+    }
+
+    // 학생/학부모 승인 대기
+    const { data: pending } = await sb.from('students').select('*').in('role', ['pending_student','pending_parent']);
+    if (pending) setDbPending(pending.map(p => ({ id: p.id, name: p.name, phone: p.phone, role: p.role, grade: p.grade, school: p.school, address: p.address, createdAt: p.created_at })));
   }
 
   // 수강생 학년 업데이트 (DB)
@@ -124,6 +139,28 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     }));
   }
 
+  // 선생님 승인
+  async function approveTeacher(teacherId) {
+    await sb.from('students').update({ role: 'teacher' }).eq('id', teacherId);
+    setDbTeachers(ts => ts.map(t => t.id === teacherId ? { ...t, role: 'teacher' } : t));
+  }
+
+  // 선생님 거절/삭제
+  async function rejectTeacher(teacherId) {
+    if (!confirm('이 선생님 계정을 삭제할까요?')) return;
+    await sb.from('students').delete().eq('id', teacherId);
+    setDbTeachers(ts => ts.filter(t => t.id !== teacherId));
+  }
+
+  // 선생님 담당 과목 토글
+  async function toggleTeacherSubject(teacherId, subject) {
+    const t = dbTeachers.find(x => x.id === teacherId);
+    const subjects = t.subjects || [];
+    const updated = subjects.includes(subject) ? subjects.filter(s => s !== subject) : [...subjects, subject];
+    await sb.from('students').update({ subjects: updated }).eq('id', teacherId);
+    setDbTeachers(ts => ts.map(x => x.id === teacherId ? { ...x, subjects: updated } : x));
+  }
+
   if (!authed) return React.createElement(AdminLogin, { onLogin:()=>setAuthed(true) });
 
   const tabs = [
@@ -131,6 +168,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     { id:'notice', label:'공지사항' },
     { id:'course', label:'강좌 관리' },
     { id:'student', label:'회원 관리' },
+    { id:'teacher', label:'👨‍🏫 선생님 관리' },
     { id:'feature', label:'섹션 편집' },
   ];
 
@@ -523,8 +561,109 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                       })
                     )
               )
-            )         
+            )         )
           )
+        )
+      ),
+
+      /* TEACHER TAB */
+      tab==='teacher' && React.createElement('div', null,
+
+        // 학생/학부모 승인 대기
+        dbPending.length > 0 && React.createElement('div', { style:{ marginBottom:'32px' } },
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'14px' } },
+            React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '학생/학부모 승인 대기'),
+            React.createElement('span', { style:{ background:'#c82014', color:'#fff', borderRadius:'20px', padding:'2px 10px', fontSize:'12px', fontWeight:'800', fontFamily:'Manrope, sans-serif' } }, dbPending.length)
+          ),
+          dbPending.map(p =>
+            React.createElement('div', { key:p.id, style:{ background:'#fff', borderRadius:'12px', padding:'16px 18px', marginBottom:'10px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'space-between' } },
+              React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
+                React.createElement('div', { style:{ width:'42px', height:'42px', borderRadius:'50%', background:'#f2f0eb', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px' } }, p.role==='pending_student' ? '🎓' : '👨‍👩‍👧'),
+                React.createElement('div', null,
+                  React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, p.name),
+                  React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
+                    (p.role==='pending_student' ? '학생' : '학부모') + (p.school ? ' · ' + p.school : '') + (p.grade ? ' ' + p.grade : '')
+                  ),
+                  React.createElement('div', { style:{ display:'inline-block', background:'#fff3cd', color:'#856404', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif', marginTop:'4px' } }, '승인 대기 중')
+                )
+              ),
+              React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+                React.createElement('button', { onClick: async ()=>{
+                  const newRole = p.role === 'pending_student' ? 'student' : 'parent';
+                  await sb.from('students').update({ role: newRole, is_active: true }).eq('id', p.id);
+                  setDbPending(ps => ps.filter(x => x.id !== p.id));
+                  setDbStudents(prev => [...prev, { id:p.id, name:p.name, phone:p.phone, grade:p.grade||'', subjects:[], enrolledCourses:[] }]);
+                }, style:{ background:'#006241', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✓ 승인'),
+                React.createElement('button', { onClick: async ()=>{
+                  if (!confirm('이 신청을 거절할까요?')) return;
+                  await sb.from('students').delete().eq('id', p.id);
+                  setDbPending(ps => ps.filter(x => x.id !== p.id));
+                }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✕ 거절')
+              )
+            )
+          )
+        ),
+        React.createElement('div', { style:{ marginBottom:'28px' } },
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'14px' } },
+            React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '승인 대기'),
+            React.createElement('span', { style:{ background:'#c82014', color:'#fff', borderRadius:'20px', padding:'2px 10px', fontSize:'12px', fontWeight:'800', fontFamily:'Manrope, sans-serif' } },
+              dbTeachers.filter(t => t.role === 'pending_teacher').length
+            )
+          ),
+          dbTeachers.filter(t => t.role === 'pending_teacher').length === 0
+            ? React.createElement('div', { style:{ background:'#fff', borderRadius:'10px', padding:'24px', textAlign:'center', fontSize:'14px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '대기 중인 선생님이 없습니다')
+            : dbTeachers.filter(t => t.role === 'pending_teacher').map(t =>
+                React.createElement('div', { key:t.id, style:{ background:'#fff', borderRadius:'12px', padding:'16px 18px', marginBottom:'10px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'space-between' } },
+                  React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
+                    React.createElement('div', { style:{ width:'42px', height:'42px', borderRadius:'50%', background:'#f2f0eb', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px' } }, '👨‍🏫'),
+                    React.createElement('div', null,
+                      React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, t.name),
+                      React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, t.email),
+                      React.createElement('div', { style:{ display:'inline-block', background:'#fff3cd', color:'#856404', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif', marginTop:'4px' } }, '승인 대기 중')
+                    )
+                  ),
+                  React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+                    React.createElement('button', { onClick:()=>approveTeacher(t.id), style:{ background:'#006241', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✓ 승인'),
+                    React.createElement('button', { onClick:()=>rejectTeacher(t.id), style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✕ 거절')
+                  )
+                )
+              )
+        ),
+
+        // 승인된 선생님
+        React.createElement('div', null,
+          React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } },
+            `승인된 선생님 (${dbTeachers.filter(t=>t.role==='teacher').length}명)`
+          ),
+          dbTeachers.filter(t => t.role === 'teacher').length === 0
+            ? React.createElement('div', { style:{ background:'#fff', borderRadius:'10px', padding:'24px', textAlign:'center', fontSize:'14px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '승인된 선생님이 없습니다')
+            : dbTeachers.filter(t => t.role === 'teacher').map(t =>
+                React.createElement('div', { key:t.id, style:{ background:'#fff', borderRadius:'12px', padding:'16px 18px', marginBottom:'10px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
+                  React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px' } },
+                    React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
+                      React.createElement('div', { style:{ width:'42px', height:'42px', borderRadius:'50%', background:'#d4e9e2', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px' } }, '👨‍🏫'),
+                      React.createElement('div', null,
+                        React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, t.name),
+                        React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, t.email)
+                      ),
+                      React.createElement('div', { style:{ display:'inline-block', background:'#d4e9e2', color:'#006241', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '승인됨')
+                    ),
+                    React.createElement('button', { onClick:()=>rejectTeacher(t.id), style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '계정 삭제')
+                  ),
+                  // 담당 과목 배정
+                  React.createElement('div', null,
+                    React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '담당 과목 배정'),
+                    React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
+                      SUBJECTS.map(sub =>
+                        React.createElement('button', { key:sub, onClick:()=>toggleTeacherSubject(t.id, sub),
+                          style:{ background: (t.subjects||[]).includes(sub) ? '#006241' : '#f2f0eb', color: (t.subjects||[]).includes(sub) ? '#fff' : 'rgba(0,0,0,0.55)', border: (t.subjects||[]).includes(sub) ? '2px solid #006241' : '2px solid transparent', borderRadius:'8px', padding:'7px 18px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
+                          sub
+                        )
+                      )
+                    )
+                  )
+                )
+              )
         )
       ),
 
