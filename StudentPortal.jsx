@@ -185,83 +185,75 @@ function LoginModal({ onLogin, onClose, onAdminLogin }) {
         React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '빅뱅학원')
       ),
 
-      // ── 역할 선택 화면 ──
-      !role && React.createElement('div', null,
-        React.createElement('p', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', textAlign:'center', marginBottom:'20px' } }, '해당하는 항목을 선택해 주세요'),
-        React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' } },
-          ROLES.map(r =>
-            React.createElement('button', { key:r.key, onClick:()=>{ setRole(r.key); setMsg(''); setTab('login'); setName(''); setEmail(''); setPassword(''); },
-              style:{ padding:'20px 12px', borderRadius:'12px', border:'2px solid rgba(0,0,0,0.08)', background:'#f9f9f9', cursor:'pointer', textAlign:'center', transition:'all 0.2s ease', fontFamily:'Manrope, sans-serif' },
-              onMouseEnter:e=>{ e.currentTarget.style.border='2px solid #006241'; e.currentTarget.style.background='#f0f7f4'; },
-              onMouseLeave:e=>{ e.currentTarget.style.border='2px solid rgba(0,0,0,0.08)'; e.currentTarget.style.background='#f9f9f9'; } },
-              React.createElement('div', { style:{ fontSize:'32px', marginBottom:'8px' } }, r.emoji),
-              React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'rgba(0,0,0,0.87)' } }, r.label)
-            )
+      // ── 가로 라디오 역할 선택 (항상 표시) ──
+      React.createElement('div', { style:{ display:'flex', gap:'6px', marginBottom:'24px', background:'#f2f0eb', borderRadius:'10px', padding:'4px' } },
+        ROLES.map(r =>
+          React.createElement('button', { key:r.key,
+            onClick:()=>{ setRole(r.key); setMsg(''); setTab('login'); setName(''); setEmail(''); setPassword(''); },
+            style:{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'5px', padding:'10px 4px', borderRadius:'7px', border:'none', background: role===r.key ? '#fff' : 'transparent', cursor:'pointer', transition:'all 0.18s ease', fontFamily:'Manrope, sans-serif', boxShadow: role===r.key ? '0 1px 4px rgba(0,0,0,0.12)' : 'none' } },
+            // 라디오 동그라미
+            React.createElement('div', { style:{ width:'16px', height:'16px', borderRadius:'50%', border: role===r.key ? '5px solid #006241' : '2px solid rgba(0,0,0,0.2)', background:'#fff', transition:'all 0.18s ease', flexShrink:0 } }),
+            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color: role===r.key ? '#006241' : 'rgba(0,0,0,0.45)', whiteSpace:'nowrap' } }, r.label)
           )
         )
       ),
 
-      // ── 역할 선택 후 폼 ──
-      role && React.createElement('div', null,
+      // ── 역할별 폼 ──
 
-        // 뒤로가기 + 역할 표시
-        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'20px' } },
-          React.createElement('button', { onClick:()=>{ setRole(null); setMsg(''); }, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'18px', color:'rgba(0,0,0,0.4)', lineHeight:1, padding:'4px' } }, '←'),
-          React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } },
-            ROLES.find(r=>r.key===role)?.emoji + ' ' + ROLES.find(r=>r.key===role)?.label + (role==='admin' ? ' 로그인' : '')
+      // 역할 미선택 안내
+      !role && React.createElement('div', { style:{ textAlign:'center', padding:'20px 0', color:'rgba(0,0,0,0.35)', fontSize:'14px', fontFamily:'Manrope, sans-serif' } },
+        '위에서 해당하는 항목을 선택해 주세요'
+      ),
+
+      // 학생/학부모: 로그인/가입 탭 + 소셜 버튼
+      (role === 'student' || role === 'parent') && React.createElement('div', null,
+        React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
+          ['login','signup'].map(t =>
+            React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
+              t==='login' ? '로그인' : '회원가입'
+            )
           )
         ),
+        renderSocialButtons(),
+        React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'16px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.')
+      ),
 
-        // 학생/학부모: 로그인/가입 탭 + 소셜 버튼
-        (role === 'student' || role === 'parent') && React.createElement('div', null,
-          React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
-            ['login','signup'].map(t =>
-              React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
-                t==='login' ? '로그인' : '회원가입'
-              )
+      // 선생님: 로그인/가입 탭 + 이메일 폼
+      role === 'teacher' && React.createElement('div', null,
+        React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
+          ['login','signup'].map(t =>
+            React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); setName(''); setEmail(''); setPassword(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
+              t==='login' ? '로그인' : '회원가입'
             )
-          ),
-          renderSocialButtons(),
-          React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'16px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.')
+          )
         ),
-
-        // 선생님: 로그인/가입 탭 + 이메일 폼
-        role === 'teacher' && React.createElement('div', null,
-          React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
-            ['login','signup'].map(t =>
-              React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); setName(''); setEmail(''); setPassword(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
-                t==='login' ? '로그인' : '회원가입'
-              )
-            )
-          ),
-          tab === 'signup' && React.createElement('div', { style:inputFieldStyle },
-            React.createElement('div', { style:floatLabelStyle }, '이름'),
-            React.createElement('input', { placeholder:'홍길동', value:name, onChange:e=>setName(e.target.value), style:inputStyle })
-          ),
-          React.createElement('div', { style:inputFieldStyle },
-            React.createElement('div', { style:floatLabelStyle }, '이메일'),
-            React.createElement('input', { type:'email', placeholder:'teacher@b2bigbang.com', value:email, onChange:e=>setEmail(e.target.value), style:inputStyle })
-          ),
-          React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'16px' } },
-            React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
-            React.createElement('input', { type:'password', placeholder:'비밀번호 입력', value:password, onChange:e=>setPassword(e.target.value), onKeyDown:e=>e.key==='Enter'&&(tab==='login'?handleTeacherLogin():handleTeacherSignup()), style:inputStyle })
-          ),
-          msg && React.createElement('div', { style:{ fontSize:'12px', color: msg.startsWith('✓')?'#006241':'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', whiteSpace:'pre-line' } }, msg),
-          React.createElement('button', { onClick: tab==='login'?handleTeacherLogin:handleTeacherSignup, disabled:loading, style:{ width:'100%', background: loading?'#aaa':'#1E3932', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } },
-            loading ? '처리 중...' : (tab==='login' ? '로그인' : '가입 신청')
-          ),
-          tab==='signup' && React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'12px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '가입 신청 후 관리자 승인이 필요합니다.')
+        tab === 'signup' && React.createElement('div', { style:inputFieldStyle },
+          React.createElement('div', { style:floatLabelStyle }, '이름'),
+          React.createElement('input', { placeholder:'홍길동', value:name, onChange:e=>setName(e.target.value), style:inputStyle })
         ),
+        React.createElement('div', { style:inputFieldStyle },
+          React.createElement('div', { style:floatLabelStyle }, '이메일'),
+          React.createElement('input', { type:'email', placeholder:'teacher@b2bigbang.com', value:email, onChange:e=>setEmail(e.target.value), style:inputStyle })
+        ),
+        React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'16px' } },
+          React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
+          React.createElement('input', { type:'password', placeholder:'비밀번호 입력', value:password, onChange:e=>setPassword(e.target.value), onKeyDown:e=>e.key==='Enter'&&(tab==='login'?handleTeacherLogin():handleTeacherSignup()), style:inputStyle })
+        ),
+        msg && React.createElement('div', { style:{ fontSize:'12px', color: msg.startsWith('✓')?'#006241':'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', whiteSpace:'pre-line' } }, msg),
+        React.createElement('button', { onClick: tab==='login'?handleTeacherLogin:handleTeacherSignup, disabled:loading, style:{ width:'100%', background: loading?'#aaa':'#1E3932', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } },
+          loading ? '처리 중...' : (tab==='login' ? '로그인' : '가입 신청')
+        ),
+        tab==='signup' && React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'12px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '가입 신청 후 관리자 승인이 필요합니다.')
+      ),
 
-        // 관리자: 비밀번호만
-        role === 'admin' && React.createElement('div', null,
-          React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'16px' } },
-            React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
-            React.createElement('input', { type:'password', placeholder:'관리자 비밀번호', value:password, onChange:e=>setPassword(e.target.value), onKeyDown:e=>e.key==='Enter'&&handleAdminLogin(), style:inputStyle, autoFocus:true })
-          ),
-          msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, msg),
-          React.createElement('button', { onClick:handleAdminLogin, style:{ width:'100%', background:'#1E3932', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '관리자 로그인')
-        )
+      // 관리자: 비밀번호만
+      role === 'admin' && React.createElement('div', null,
+        React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'16px' } },
+          React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
+          React.createElement('input', { type:'password', placeholder:'관리자 비밀번호', value:password, onChange:e=>setPassword(e.target.value), onKeyDown:e=>e.key==='Enter'&&handleAdminLogin(), style:inputStyle, autoFocus:true })
+        ),
+        msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, msg),
+        React.createElement('button', { onClick:handleAdminLogin, style:{ width:'100%', background:'#1E3932', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '관리자 로그인')
       )
     )
   );
