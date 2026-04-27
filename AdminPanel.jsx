@@ -697,8 +697,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
         )
       )
     )
-  )
-  );
+    );
 }
 
 Object.assign(window, { AdminPanel });
