@@ -173,6 +173,11 @@ function LoginModal({ onLogin, onClose, onAdminLogin }) {
     );
   }
 
+  // 역할 선택 시 초기화
+  function selectRole(r) { setRole(r); setMsg(''); setTab('login'); setName(''); setEmail(''); setPassword(''); }
+
+  var showSocial = !role || role === 'student' || role === 'parent';
+
   return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }, onClick:onClose },
     React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', width:'400px', padding:'36px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', position:'relative', maxHeight:'90vh', overflowY:'auto' }, onClick:e=>e.stopPropagation() },
 
@@ -185,48 +190,37 @@ function LoginModal({ onLogin, onClose, onAdminLogin }) {
         React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '빅뱅학원')
       ),
 
-      // ── 가로 라디오 역할 선택 (항상 표시) ──
-      React.createElement('div', { style:{ display:'flex', gap:'6px', marginBottom:'24px', background:'#f2f0eb', borderRadius:'10px', padding:'4px' } },
-        ROLES.map(r =>
-          React.createElement('button', { key:r.key,
-            onClick:()=>{ setRole(r.key); setMsg(''); setTab('login'); setName(''); setEmail(''); setPassword(''); },
-            style:{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'5px', padding:'10px 4px', borderRadius:'7px', border:'none', background: role===r.key ? '#fff' : 'transparent', cursor:'pointer', transition:'all 0.18s ease', fontFamily:'Manrope, sans-serif', boxShadow: role===r.key ? '0 1px 4px rgba(0,0,0,0.12)' : 'none' } },
-            // 라디오 동그라미
-            React.createElement('div', { style:{ width:'16px', height:'16px', borderRadius:'50%', border: role===r.key ? '5px solid #006241' : '2px solid rgba(0,0,0,0.2)', background:'#fff', transition:'all 0.18s ease', flexShrink:0 } }),
-            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color: role===r.key ? '#006241' : 'rgba(0,0,0,0.45)', whiteSpace:'nowrap' } }, r.label)
+      // 로그인/회원가입 탭 (학생/학부모일 때만)
+      (role === 'student' || role === 'parent') && React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
+        ['login','signup'].map(t =>
+          React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
+            t==='login' ? '로그인' : '회원가입'
           )
         )
       ),
 
-      // ── 역할별 폼 ──
-
-      // 역할 미선택 안내
-      !role && React.createElement('div', { style:{ textAlign:'center', padding:'20px 0', color:'rgba(0,0,0,0.35)', fontSize:'14px', fontFamily:'Manrope, sans-serif' } },
-        '위에서 해당하는 항목을 선택해 주세요'
+      // 선생님 탭
+      role === 'teacher' && React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
+        ['login','signup'].map(t =>
+          React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); setName(''); setEmail(''); setPassword(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
+            t==='login' ? '로그인' : '회원가입'
+          )
+        )
       ),
 
-      // 학생/학부모: 로그인/가입 탭 + 소셜 버튼
-      (role === 'student' || role === 'parent') && React.createElement('div', null,
-        React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
-          ['login','signup'].map(t =>
-            React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
-              t==='login' ? '로그인' : '회원가입'
-            )
+      // 역할 선택 (가로 라디오, 배경색 없음)
+      React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', marginBottom:'20px' } },
+        ROLES.map(r =>
+          React.createElement('button', { key:r.key, onClick:()=>selectRole(r.key),
+            style:{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'6px', padding:'8px 4px', border:'none', background:'none', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
+            React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'50%', border: role===r.key ? '5px solid #006241' : '2px solid #d0d0d0', background:'#fff', transition:'all 0.15s ease' } }),
+            React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color: role===r.key ? '#006241' : 'rgba(0,0,0,0.5)' } }, r.label)
           )
-        ),
-        renderSocialButtons(),
-        React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'16px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.')
+        )
       ),
 
-      // 선생님: 로그인/가입 탭 + 이메일 폼
-      role === 'teacher' && React.createElement('div', null,
-        React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
-          ['login','signup'].map(t =>
-            React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); setName(''); setEmail(''); setPassword(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
-              t==='login' ? '로그인' : '회원가입'
-            )
-          )
-        ),
+      // 선생님 폼
+      role === 'teacher' && React.createElement('div', { style:{ marginBottom:'16px' } },
         tab === 'signup' && React.createElement('div', { style:inputFieldStyle },
           React.createElement('div', { style:floatLabelStyle }, '이름'),
           React.createElement('input', { placeholder:'홍길동', value:name, onChange:e=>setName(e.target.value), style:inputStyle })
@@ -243,17 +237,39 @@ function LoginModal({ onLogin, onClose, onAdminLogin }) {
         React.createElement('button', { onClick: tab==='login'?handleTeacherLogin:handleTeacherSignup, disabled:loading, style:{ width:'100%', background: loading?'#aaa':'#1E3932', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } },
           loading ? '처리 중...' : (tab==='login' ? '로그인' : '가입 신청')
         ),
-        tab==='signup' && React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'12px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '가입 신청 후 관리자 승인이 필요합니다.')
+        tab==='signup' && React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'12px', fontFamily:'Manrope, sans-serif' } }, '가입 신청 후 관리자 승인이 필요합니다.')
       ),
 
-      // 관리자: 비밀번호만
-      role === 'admin' && React.createElement('div', null,
+      // 관리자 폼
+      role === 'admin' && React.createElement('div', { style:{ marginBottom:'16px' } },
         React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'16px' } },
           React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
           React.createElement('input', { type:'password', placeholder:'관리자 비밀번호', value:password, onChange:e=>setPassword(e.target.value), onKeyDown:e=>e.key==='Enter'&&handleAdminLogin(), style:inputStyle, autoFocus:true })
         ),
         msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, msg),
         React.createElement('button', { onClick:handleAdminLogin, style:{ width:'100%', background:'#1E3932', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '관리자 로그인')
+      ),
+
+      // 구글/카카오 버튼 (학생, 학부모, 미선택일 때)
+      showSocial && React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+        React.createElement('button', { onClick:()=>handleProvider('google'), style:{ display:'flex', alignItems:'center', justifyContent:'center', gap:'12px', width:'100%', padding:'14px', borderRadius:'8px', border:'1px solid rgba(0,0,0,0.2)', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
+          onMouseEnter:e=>e.currentTarget.style.background='#f9f9f9', onMouseLeave:e=>e.currentTarget.style.background='#fff' },
+          React.createElement('svg', { width:'20', height:'20', viewBox:'0 0 24 24' },
+            React.createElement('path', { d:'M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z', fill:'#4285F4' }),
+            React.createElement('path', { d:'M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z', fill:'#34A853' }),
+            React.createElement('path', { d:'M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z', fill:'#FBBC05' }),
+            React.createElement('path', { d:'M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z', fill:'#EA4335' })
+          ),
+          tab==='login' ? 'Google로 로그인' : 'Google로 가입하기'
+        ),
+        React.createElement('button', { onClick:()=>handleProvider('kakao'), style:{ display:'flex', alignItems:'center', justifyContent:'center', gap:'12px', width:'100%', padding:'14px', borderRadius:'8px', border:'none', background:'#FEE500', cursor:'pointer', fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.85)', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
+          onMouseEnter:e=>e.currentTarget.style.background='#f0d800', onMouseLeave:e=>e.currentTarget.style.background='#FEE500' },
+          React.createElement('svg', { width:'20', height:'20', viewBox:'0 0 24 24' },
+            React.createElement('path', { d:'M12 3C6.48 3 2 6.69 2 11.25c0 2.91 1.87 5.47 4.69 6.93l-.97 3.57c-.09.33.28.59.57.4l4.38-2.89c.43.05.87.08 1.33.08 5.52 0 10-3.69 10-8.25C22 6.69 17.52 3 12 3z', fill:'#3C1E1E' })
+          ),
+          tab==='login' ? '카카오톡으로 로그인' : '카카오톡으로 가입하기'
+        ),
+        React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'4px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.')
       )
     )
   );
