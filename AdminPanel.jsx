@@ -39,6 +39,90 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
   const [editingNotice, setEditingNotice] = React.useState(null);
   const [editingCourse, setEditingCourse] = React.useState(null);
   const [expandedStudent, setExpandedStudent] = React.useState(null);
+  const [dbStudents, setDbStudents] = React.useState([]);
+  const [saving, setSaving] = React.useState(false);
+
+  const sb = window.supabase;
+
+  // 관리자 로그인 후 DB에서 데이터 로드
+  React.useEffect(() => {
+    if (!authed) return;
+    loadAllData();
+  }, [authed]);
+
+  async function loadAllData() {
+    // 배너
+    const { data: banners } = await sb.from('banners').select('*').order('sort_order');
+    if (banners && banners.length > 0) setState(s => ({ ...s, banners }));
+
+    // 공지
+    const { data: notices } = await sb.from('notices').select('*').order('created_at', { ascending: false });
+    if (notices) setState(s => ({ ...s, notices }));
+
+    // 발표
+    const { data: announcements } = await sb.from('announcements').select('*').order('created_at', { ascending: false });
+    if (announcements) setState(s => ({ ...s, announcements }));
+
+    // 강좌 + 영상
+    const { data: courses } = await sb.from('courses').select(`*, subjects(name,color), videos(*)`).order('sort_order');
+    if (courses && courses.length > 0) {
+      const mapped = courses.map(c => ({
+        id: c.id, subject: c.subjects?.name || '', color: c.subjects?.color || '#006241',
+        name: c.title, description: c.description, grade: c.grade || '',
+        days: c.days || 0, duration: c.duration || 0, teacher: c.teacher || '',
+        price: c.price || '', badge: c.badge || null, intro: c.intro || '',
+        target: c.target || '', curriculum: c.curriculum || '', teacherDesc: c.teacher_desc || '',
+        youtube: c.youtube || '',
+        lectures: (c.videos || []).sort((a,b) => a.sort_order - b.sort_order).map(v => ({
+          id: v.id, title: v.title, videoUrl: v.youtube_id ? `https://www.youtube.com/watch?v=${v.youtube_id}` : '', youtubeId: v.youtube_id,
+        })),
+      }));
+      setState(s => ({ ...s, courses: mapped }));
+    }
+
+    // 수강생
+    const { data: students } = await sb.from('students').select('*, enrollments(course_id)').eq('is_active', true);
+    if (students) {
+      const mapped = students.map(st => ({
+        id: st.id, name: st.name, email: st.email, provider: st.login_provider,
+        grade: st.grade || '', subjects: st.subjects || [],
+        enrolledCourses: (st.enrollments || []).map(e => e.course_id),
+        phone: st.phone || '',
+      }));
+      setDbStudents(mapped);
+    }
+  }
+
+  // 수강생 학년 업데이트 (DB)
+  async function updateStudentGrade(studentId, grade) {
+    await sb.from('students').update({ grade }).eq('id', studentId);
+    setDbStudents(s => s.map(st => st.id === studentId ? { ...st, grade } : st));
+  }
+
+  // 수강생 과목 토글 (DB)
+  async function toggleSubject(studentId, subject) {
+    const st = dbStudents.find(s => s.id === studentId);
+    const subjects = st.subjects || [];
+    const updated = subjects.includes(subject) ? subjects.filter(s => s !== subject) : [...subjects, subject];
+    await sb.from('students').update({ subjects: updated }).eq('id', studentId);
+    setDbStudents(s => s.map(st => st.id === studentId ? { ...st, subjects: updated } : st));
+  }
+
+  // 강좌 수강 토글 (DB enrollments)
+  async function toggleEnroll(studentId, courseId) {
+    const st = dbStudents.find(s => s.id === studentId);
+    const enrolled = st.enrolledCourses.includes(courseId);
+    if (enrolled) {
+      await sb.from('enrollments').delete().eq('student_id', studentId).eq('course_id', courseId);
+    } else {
+      await sb.from('enrollments').insert({ student_id: studentId, course_id: courseId });
+    }
+    setDbStudents(s => s.map(st => {
+      if (st.id !== studentId) return st;
+      const ec = enrolled ? st.enrolledCourses.filter(c => c !== courseId) : [...st.enrolledCourses, courseId];
+      return { ...st, enrolledCourses: ec };
+    }));
+  }
 
   if (!authed) return React.createElement(AdminLogin, { onLogin:()=>setAuthed(true) });
 
@@ -56,76 +140,39 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
   const btnS = (color='#00754A') => ({ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'7px 16px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' });
   const btnOutS = { background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' };
 
-  // 학생 학년 업데이트
-  function updateStudentGrade(studentId, grade) {
-    setState(s => ({
-      ...s,
-      students: s.students.map(st =>
-        st.id === studentId ? { ...st, grade } : st
-      )
-    }));
-  }
-
-  // 학생 과목 토글
-  function toggleSubject(studentId, subject) {
-    setState(s => ({
-      ...s,
-      students: s.students.map(st => {
-        if (st.id !== studentId) return st;
-        const subjects = st.subjects || [];
-        const updated = subjects.includes(subject)
-          ? subjects.filter(s => s !== subject)
-          : [...subjects, subject];
-        return { ...st, subjects: updated };
-      })
-    }));
-  }
-
-  // 강좌 수강 토글 (기존 방식 유지)
-  function toggleEnroll(studentId, courseId) {
-    setState(s => ({
-      ...s,
-      students: s.students.map(st => {
-        if (st.id !== studentId) return st;
-        const enrolled = st.enrolledCourses.includes(courseId)
-          ? st.enrolledCourses.filter(c => c !== courseId)
-          : [...st.enrolledCourses, courseId];
-        return { ...st, enrolledCourses: enrolled };
-      })
-    }));
-  }
-
-  function updateBanner(id, field, val) {
+  // 배너 업데이트 (DB)
+  async function updateBanner(id, field, val) {
     setState(s => ({ ...s, banners: s.banners.map(b => b.id===id ? {...b,[field]:val} : b) }));
+    await sb.from('banners').update({ [field]: val }).eq('id', id);
   }
-  function addBanner() {
-    const id = Date.now();
-    setState(s => ({ ...s, banners: [...s.banners, { id, bg:'#006241', subtitle:'새 배너 부제목', title:'새 배너 제목', label:'개강 예정', badge:'새로운', active:true, cta:'자세히 보기' }] }));
+  async function addBanner() {
+    const newB = { bg:'#006241', subtitle:'새 배너 부제목', title:'새 배너 제목', label:'개강 예정', badge:'새로운', active:true, cta:'자세히 보기', sort_order: state.banners.length+1 };
+    const { data } = await sb.from('banners').insert(newB).select().single();
+    if (data) setState(s => ({ ...s, banners: [...s.banners, data] }));
   }
-  function deleteBanner(id) {
+  async function deleteBanner(id) {
+    await sb.from('banners').delete().eq('id', id);
     setState(s => ({ ...s, banners: s.banners.filter(b => b.id!==id) }));
     if (editingBanner?.id===id) setEditingBanner(null);
   }
 
-  function updateNotice(id, field, val) {
-    setState(s => ({ ...s, notices: s.notices.map(n => n.id===id ? {...n,[field]:val} : n) }));
+  // 공지 추가/삭제 (DB)
+  async function addNotice() {
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,'.');
+    const { data } = await sb.from('notices').insert({ type:'공지', text:'새 공지사항 제목', date: today }).select().single();
+    if (data) setState(s => ({ ...s, notices: [data, ...s.notices] }));
   }
-  function addNotice() {
-    const id = Date.now();
-    setState(s => ({ ...s, notices: [{id, type:'공지', text:'새 공지사항 제목', date:new Date().toISOString().slice(0,10).replace(/-/g,'.')}, ...s.notices] }));
-  }
-  function deleteNotice(id) {
+  async function deleteNotice(id) {
+    await sb.from('notices').delete().eq('id', id);
     setState(s => ({ ...s, notices: s.notices.filter(n => n.id!==id) }));
   }
-
-  function updateAnnouncement(id, field, val) {
-    setState(s => ({ ...s, announcements: s.announcements.map(a => a.id===id ? {...a,[field]:val} : a) }));
+  async function addAnnouncement() {
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,'.');
+    const { data } = await sb.from('announcements').insert({ title:'새 공지사항', date: today }).select().single();
+    if (data) setState(s => ({ ...s, announcements: [data, ...s.announcements] }));
   }
-  function addAnnouncement() {
-    const id = Date.now();
-    setState(s => ({ ...s, announcements: [{id, title:'새 공지사항', date:new Date().toISOString().slice(0,10).replace(/-/g,'.')}, ...s.announcements] }));
-  }
-  function deleteAnnouncement(id) {
+  async function deleteAnnouncement(id) {
+    await sb.from('announcements').delete().eq('id', id);
     setState(s => ({ ...s, announcements: s.announcements.filter(a => a.id!==id) }));
   }
 
@@ -239,7 +286,14 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                   React.createElement('label', { style:labelS }, '외부 링크 (선택)'),
                   React.createElement('input', { value:editingNotice.link||'', onChange:e=>{ const v=e.target.value; setEditingNotice(n=>({...n,link:v})); setState(s=>({ ...s, notices: s.notices.map(x=>x.id===editingNotice.id?{...x,link:v}:x), announcements: s.announcements.map(x=>x.id===editingNotice.id?{...x,link:v}:x) })); }, placeholder:'https://blog.naver.com/...', style:inputS })
                 ),
-                React.createElement('button', { onClick:()=>setEditingNotice(null), style:{ ...btnS(), alignSelf:'flex-start' } }, '✓ 저장 완료')
+                React.createElement('button', { onClick: async ()=>{
+                  if (editingNotice.type !== undefined) {
+                    await window.supabase.from('notices').update({ type: editingNotice.type, text: editingNotice.text, date: editingNotice.date }).eq('id', editingNotice.id);
+                  } else {
+                    await window.supabase.from('announcements').update({ title: editingNotice.title, date: editingNotice.date }).eq('id', editingNotice.id);
+                  }
+                  setEditingNotice(null);
+                }, style:{ ...btnS(), alignSelf:'flex-start' } }, '✓ 저장 완료')
               )
             )
           : React.createElement('div', null,
@@ -268,7 +322,11 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       tab==='course' && React.createElement('div', null,
         React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' } },
           React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
-          React.createElement('button', { onClick:()=>{ const id=Date.now(); setState(s=>({...s,courses:[...s.courses,{id,subject:'수학',name:'새 강좌',teacher:'강사명',grade:'고1',days:2,duration:80,price:'0원',badge:null,color:'#006241'}]})); }, style:btnS() }, '+ 강좌 추가')
+          React.createElement('button', { onClick: async ()=>{
+            const subj = await window.supabase.from('subjects').select('id').eq('name','수학').single();
+            const { data } = await window.supabase.from('courses').insert({ subject_id: subj.data?.id, title:'새 강좌', teacher:'강사명', grade:'고1', price:'0원', sort_order: state.courses.length+1 }).select('*, subjects(name,color)').single();
+            if (data) setState(s=>({...s, courses:[...s.courses,{ id:data.id, subject:data.subjects?.name||'수학', color:data.subjects?.color||'#006241', name:data.title, teacher:data.teacher||'', grade:data.grade||'', price:data.price||'', badge:null, lectures:[] }]}));
+          }, style:btnS() }, '+ 강좌 추가')
         ),
         state.courses.map(c =>
           React.createElement('div', { key:c.id, style:cardS },
@@ -279,8 +337,18 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                 React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, `${c.teacher} · ${c.grade}`)
               ),
               React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+                editingCourse===c.id && React.createElement('button', { onClick: async ()=>{
+                  const subj = await window.supabase.from('subjects').select('id').eq('name', c.subject).single();
+                  await window.supabase.from('courses').update({
+                    title: c.name, teacher: c.teacher, grade: c.grade, price: c.price, badge: c.badge,
+                    description: c.description, intro: c.intro, target: c.target, curriculum: c.curriculum,
+                    teacher_desc: c.teacherDesc, youtube: c.youtube,
+                    subject_id: subj.data?.id,
+                  }).eq('id', c.id);
+                  alert('저장되었습니다!');
+                }, style:btnS('#cba258') }, '💾 저장'),
                 React.createElement('button', { onClick:()=>setEditingCourse(editingCourse===c.id?null:c.id), style:btnS('#2b5148') }, editingCourse===c.id?'닫기':'편집'),
-                React.createElement('button', { onClick:()=>setState(s=>({...s,courses:s.courses.filter(x=>x.id!==c.id)})), style:btnOutS }, '삭제')
+                React.createElement('button', { onClick: async ()=>{ if(!confirm('정말 삭제할까요?')) return; await window.supabase.from('courses').delete().eq('id',c.id); setState(s=>({...s,courses:s.courses.filter(x=>x.id!==c.id)})); setEditingCourse(null); }, style:btnOutS }, '삭제')
               )
             ),
             editingCourse===c.id && React.createElement('div', { style:{ paddingTop:'12px', borderTop:'1px solid rgba(0,0,0,0.08)' } },
@@ -334,9 +402,10 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                   React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' } },
                     React.createElement('label', { style:{ fontSize:'13px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '온라인 강의 목록'),
                     React.createElement('button', {
-                      onClick: function() {
-                        var newLec = { id: Date.now(), title: (((c.lectures||[]).length)+1) + '강: 새 강의', videoUrl: '' };
-                        setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures:[...(x.lectures||[]),newLec]} : x; })}; });
+                      onClick: async function() {
+                        var newTitle = (((c.lectures||[]).length)+1) + '강: 새 강의';
+                        var { data } = await window.supabase.from('videos').insert({ course_id: c.id, title: newTitle, youtube_id: '', sort_order: (c.lectures||[]).length+1 }).select().single();
+                        if (data) setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures:[...(x.lectures||[]),{id:data.id, title:data.title, videoUrl:'', youtubeId:''}]} : x; })}; });
                       },
                       style: btnS()
                     }, '+ 강의 추가')
@@ -353,24 +422,32 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                                 var val = e.target.value;
                                 setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures: x.lectures.map(function(l) { return l.id===lec.id ? {...l, title:val} : l; })} : x; })}; });
                               },
+                              onBlur: async function(e) {
+                                await window.supabase.from('videos').update({ title: e.target.value }).eq('id', lec.id);
+                              },
                               placeholder: '강의 제목',
                               style: {...inputS, marginBottom:0, flex:1}
                             }),
                             React.createElement('button', {
-                              onClick: function() {
+                              onClick: async function() {
+                                await window.supabase.from('videos').delete().eq('id', lec.id);
                                 setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures: x.lectures.filter(function(l) { return l.id!==lec.id; })} : x; })}; });
                               },
                               style: {...btnOutS, padding:'4px 10px', fontSize:'12px'}
                             }, '삭제')
                           ),
                           React.createElement('input', {
-                            value: lec.videoUrl||'',
+                            value: lec.youtubeId||'',
                             onChange: function(e) {
                               var val = e.target.value;
-                              setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures: x.lectures.map(function(l) { return l.id===lec.id ? {...l, videoUrl:val} : l; })} : x; })}; });
+                              setState(function(s) { return {...s, courses: s.courses.map(function(x) { return x.id===c.id ? {...x, lectures: x.lectures.map(function(l) { return l.id===lec.id ? {...l, youtubeId:val, videoUrl:val?'https://www.youtube.com/watch?v='+val:''} : l; })} : x; })}; });
                             },
-                            placeholder: '시놀로지 영상 URL (예: https://nas.xxx.com/video/1강.mp4)',
+                            onBlur: async function(e) {
+                              await window.supabase.from('videos').update({ youtube_id: e.target.value }).eq('id', lec.id);
+                            },
+                            placeholder: 'YouTube 영상 ID (ex: dQw4w9WgXcQ)',
                             style: {...inputS, marginBottom:0, fontSize:'12px'}
+                          })}
                           })
                         );
                       })
@@ -383,8 +460,8 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
 
       /* STUDENT TAB */
       tab==='student' && React.createElement('div', null,
-        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } }, `회원 목록 (${state.students.length}명)`),
-        state.students.map(st =>
+        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } }, `회원 목록 (${dbStudents.length}명)`),
+        dbStudents.map(st =>
           React.createElement('div', { key:st.id, style:cardS },
             // 학생 기본 정보 헤더
             React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }, onClick:()=>setExpandedStudent(expandedStudent===st.id?null:st.id) },
