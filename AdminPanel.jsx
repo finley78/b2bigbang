@@ -322,10 +322,14 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       tab==='course' && React.createElement('div', null,
         React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' } },
           React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
-          React.createElement('button', { onClick: async ()=>{
-            const subj = await window.supabase.from('subjects').select('id').eq('name','수학').single();
-            const { data } = await window.supabase.from('courses').insert({ subject_id: subj.data?.id, title:'새 강좌', teacher:'강사명', grade:'고1', price:'0원', sort_order: state.courses.length+1 }).select('*, subjects(name,color)').single();
-            if (data) setState(s=>({...s, courses:[...s.courses,{ id:data.id, subject:data.subjects?.name||'수학', color:data.subjects?.color||'#006241', name:data.title, teacher:data.teacher||'', grade:data.grade||'', price:data.price||'', badge:null, lectures:[] }]}));
+          React.createElement('button', { onClick: function() {
+            window.supabase.from('subjects').select('id').eq('name','수학').single().then(function(res) {
+              var subjId = res.data?.id;
+              window.supabase.from('courses').insert({ subject_id: subjId, title:'새 강좌', teacher:'강사명', grade:'고1', price:'0원', sort_order: state.courses.length+1 }).select('*, subjects(name,color)').single().then(function(res2) {
+                var data = res2.data;
+                if (data) setState(function(s) { return {...s, courses:[...s.courses,{ id:data.id, subject:data.subjects?.name||'수학', color:data.subjects?.color||'#006241', name:data.title, teacher:data.teacher||'', grade:data.grade||'', price:data.price||'', badge:null, lectures:[] }]}; });
+              });
+            });
           }, style:btnS() }, '+ 강좌 추가')
         ),
         state.courses.map(c =>
@@ -496,39 +500,30 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                 )
               ),
 
-              // 수강 과목 배정
-              React.createElement('div', { style:{ marginBottom:'16px' } },
-                React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '수강 과목 배정'),
-                React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
-                  SUBJECTS.map(sub =>
-                    React.createElement('button', { key:sub, onClick:()=>toggleSubject(st.id, sub), style:{ background: (st.subjects||[]).includes(sub)?'#006241':'#f2f0eb', color: (st.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.7)', border: (st.subjects||[]).includes(sub)?'2px solid #006241':'2px solid transparent', borderRadius:'8px', padding:'7px 20px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub)
-                  )
-                )
-              ),
-
-              // 수강 강좌 배정 (과목에 맞는 강좌만 표시)
+              // 수강 강좌 배정
               React.createElement('div', null,
                 React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '수강 강좌 배정'),
-                (st.subjects||[]).length === 0
-                  ? React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '과목을 먼저 배정해 주세요')
-                  : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
-                      SUBJECTS.filter(sub=>(st.subjects||[]).includes(sub)).map(sub=>
-                        React.createElement('div', { key:sub },
+                state.courses.length === 0
+                  ? React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '등록된 강좌가 없습니다')
+                  : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+                      SUBJECTS.map(function(sub) {
+                        var subCourses = state.courses.filter(function(c) { return c.subject === sub; });
+                        if (subCourses.length === 0) return null;
+                        return React.createElement('div', { key:sub },
                           React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'#006241', fontFamily:'Manrope, sans-serif', marginBottom:'6px' } }, sub),
                           React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
-                            state.courses.filter(c=>c.subject===sub).length === 0
-                              ? React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '등록된 강좌 없음')
-                              : state.courses.filter(c=>c.subject===sub).map(c=>
-                                  React.createElement('button', { key:c.id, onClick:()=>toggleEnroll(st.id,c.id), style:{ background: st.enrolledCourses.includes(c.id)?'#006241':'#f2f0eb', color: st.enrolledCourses.includes(c.id)?'#fff':'rgba(0,0,0,0.55)', border: st.enrolledCourses.includes(c.id)?'2px solid #006241':'2px solid transparent', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
-                                    `${c.name} (${c.grade})`
-                                  )
-                                )
+                            subCourses.map(function(c) {
+                              return React.createElement('button', { key:c.id, onClick:function(){toggleEnroll(st.id, c.id);},
+                                style:{ background: st.enrolledCourses.includes(c.id)?'#006241':'#f2f0eb', color: st.enrolledCourses.includes(c.id)?'#fff':'rgba(0,0,0,0.55)', border: st.enrolledCourses.includes(c.id)?'2px solid #006241':'2px solid transparent', borderRadius:'8px', padding:'7px 16px', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
+                                c.name + (c.grade ? ' ('+c.grade+')' : '')
+                              );
+                            })
                           )
-                        )
-                      )
+                        );
+                      })
                     )
               )
-            )
+            )         )
           )
         )
       ),
