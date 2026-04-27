@@ -23,19 +23,8 @@ function TopBar({ user, onLoginClick, onLogout, onAdminClick, examDate }) {
         )
       ),
       React.createElement('div', { style: tbStyles.right },
-        React.createElement('span', { style: tbStyles.dday }, `2027 수능 D-${d}`),
-        React.createElement('span', { style: tbStyles.divider }, '|'),
-        user
-          ? React.createElement(React.Fragment, null,
-              React.createElement('span', { style: tbStyles.link }, `${user.name}님`),
-              React.createElement('span', { style: tbStyles.divider }, '|'),
-              React.createElement('span', { style: { ...tbStyles.link, cursor:'pointer' }, onClick: onLogout }, '로그아웃')
-            )
-          : React.createElement(React.Fragment, null,
-              React.createElement('span', { style: { ...tbStyles.link, cursor:'pointer' }, onClick: onLoginClick }, '로그인'),
-              React.createElement('span', { style: tbStyles.divider }, '|'),
-              React.createElement('span', { style: { ...tbStyles.link, cursor:'pointer' }, onClick: onLoginClick }, '회원가입')
-            ),
+        React.createElement('span', { style: tbStyles.dday }, `2027 수능 D-${d}`)
+        ,
 
       )
     )
@@ -109,7 +98,7 @@ function MainNav({ page, setPage, user, onLoginClick, onAdminClick, onLogout, ex
             )
           : React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
               React.createElement('button', { style: mnStyles.ctaBtnOutline, onClick: onLoginClick }, '로그인'),
-              React.createElement('button', { style: mnStyles.ctaBtn, onClick: onLoginClick }, '수강 신청하기')
+              React.createElement('button', { style: mnStyles.ctaBtn, onClick: onLoginClick }, '회원가입')
             )
       )
     ),
@@ -162,7 +151,7 @@ function MainNav({ page, setPage, user, onLoginClick, onAdminClick, onLogout, ex
             )
           : React.createElement('div', null,
               React.createElement('div', { style:{ ...mnStyles.mobileMenuItem }, onClick:()=>{ onLoginClick(); setMenuOpen(false); } }, '로그인'),
-              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#006241', fontWeight:'700' }, onClick:()=>{ onLoginClick(); setMenuOpen(false); } }, '수강 신청하기')
+              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#006241', fontWeight:'700' }, onClick:()=>{ onLoginClick(); setMenuOpen(false); } }, '회원가입')
             )
       )
     )
