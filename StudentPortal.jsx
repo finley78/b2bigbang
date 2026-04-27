@@ -190,24 +190,6 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
         React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '빅뱅학원')
       ),
 
-      // 로그인/회원가입 탭 (학생/학부모일 때만)
-      (role === 'student' || role === 'parent') && React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
-        ['login','signup'].map(t =>
-          React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
-            t==='login' ? '로그인' : '회원가입'
-          )
-        )
-      ),
-
-      // 선생님 탭
-      role === 'teacher' && React.createElement('div', { style:{ display:'flex', borderBottom:'2px solid rgba(0,0,0,0.08)', marginBottom:'20px' } },
-        ['login','signup'].map(t =>
-          React.createElement('button', { key:t, onClick:()=>{ setTab(t); setMsg(''); setName(''); setEmail(''); setPassword(''); }, style:{ flex:1, padding:'10px', background:'none', border:'none', borderBottom: tab===t?'2px solid #006241':'2px solid transparent', marginBottom:'-2px', fontSize:'14px', fontWeight:'700', color: tab===t?'#006241':'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } },
-            t==='login' ? '로그인' : '회원가입'
-          )
-        )
-      ),
-
       // 역할 선택 (텍스트 ○ 가로 나열)
       React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' } },
         ROLES.map(r =>
