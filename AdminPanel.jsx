@@ -2,6 +2,7 @@
 
 const GRADES = ['중1','중2','중3','고1','고2','고3'];
 const SUBJECTS = ['국어','영어','수학','과학'];
+const TEACHER_GRADES = ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'];
 const SCHOOLS = ['전체','은지초','검암초','간재울초','검암중','간재울중','백석중','대인고','서인천고','백석고'];
 const SCHOOL_LEVELS = {
   '초등': { schools:['은지초','검암초','간재울초'], grades:['1학년','2학년','3학년','4학년','5학년','6학년'] },
@@ -137,7 +138,9 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     if (teachers) {
       setDbTeachers(teachers.map(t => ({
         id: t.id, name: t.name, email: t.email, role: t.role,
-        subjects: t.subjects || [], createdAt: t.created_at,
+        subjects: t.subjects || [],
+        teacherGrades: t.teacher_grades || [],
+        createdAt: t.created_at,
       })));
     }
 
@@ -250,6 +253,21 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     const updated = subjects.includes(subject) ? subjects.filter(s => s !== subject) : [...subjects, subject];
     await sb.from('students').update({ subjects: updated }).eq('id', teacherId);
     setDbTeachers(ts => ts.map(x => x.id === teacherId ? { ...x, subjects: updated } : x));
+  }
+
+  async function toggleTeacherGrade(teacherId, grade) {
+    const t = dbTeachers.find(x => x.id === teacherId);
+    const teacherGrades = t.teacherGrades || [];
+    const updated = teacherGrades.includes(grade) ? teacherGrades.filter(g => g !== grade) : [...teacherGrades, grade];
+
+    const { error } = await sb.from('students').update({ teacher_grades: updated }).eq('id', teacherId);
+
+    if (error) {
+      alert('담당 학년 저장 실패: ' + error.message);
+      return;
+    }
+
+    setDbTeachers(ts => ts.map(x => x.id === teacherId ? { ...x, teacherGrades: updated } : x));
   }
 
   async function loadClassStudents(classId) {
@@ -957,7 +975,8 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                           .filter(function(t) {
                             if (t.role !== 'teacher') return false;
                             var teacherSubjects = t.subjects || [];
-                            return teacherSubjects.includes(sub);
+                            var teacherGrades = t.teacherGrades || [];
+                            return teacherSubjects.includes(sub) && teacherGrades.includes(st.grade);
                           })
                           .sort(function(a,b) { return (a.name || '').localeCompare(b.name || ''); });
 
@@ -975,7 +994,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                                   return cls.subject === sub && cls.teacherId === t.id && ((cls.grade || '') === (st.grade || ''));
                                 });
                                 return React.createElement('option', { key:t.id, value:t.id },
-                                  t.name + (existingClass ? ' / ' + existingClass.className : ' / 선택 시 반 자동 생성')
+                                  t.name + ' / ' + ((t.teacherGrades || []).join(', ') || '담당 학년 미설정') + (existingClass ? ' / ' + existingClass.className : ' / 선택 시 반 자동 생성')
                                 );
                               })
                             ),
@@ -983,7 +1002,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                               '현재 배정: ' + (selectedSubjectClass.teacherName || '담당 미지정') + ' · ' + selectedSubjectClass.className
                             ),
                             subjectTeachers.length === 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginTop:'4px' } },
-                              sub + ' 담당 선생님이 없습니다. 선생님 관리에서 담당 과목을 먼저 체크해주세요.'
+                              sub + ' 담당 선생님이 없습니다. 선생님 관리에서 담당 과목과 담당 학년을 먼저 체크해주세요.'
                             )
                           )
                         );
@@ -1327,10 +1346,18 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                   ),
                   React.createElement('div', null,
                     React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '담당 과목 배정'),
-                    React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
+                    React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px' } },
                       SUBJECTS.map(sub =>
                         React.createElement('button', { key:sub, onClick:()=>toggleTeacherSubject(t.id, sub),
                           style:{ background: (t.subjects||[]).includes(sub)?'#006241':'#f2f0eb', color: (t.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.55)', border: (t.subjects||[]).includes(sub)?'2px solid #006241':'2px solid transparent', borderRadius:'8px', padding:'7px 18px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub)
+                      )
+                    ),
+
+                    React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '담당 학년 배정'),
+                    React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
+                      TEACHER_GRADES.map(grade =>
+                        React.createElement('button', { key:grade, onClick:()=>toggleTeacherGrade(t.id, grade),
+                          style:{ background: (t.teacherGrades||[]).includes(grade)?'#1E3932':'#f2f0eb', color: (t.teacherGrades||[]).includes(grade)?'#fff':'rgba(0,0,0,0.55)', border: (t.teacherGrades||[]).includes(grade)?'2px solid #1E3932':'2px solid transparent', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, grade)
                       )
                     )
                   )
