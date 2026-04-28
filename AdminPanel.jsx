@@ -144,21 +144,30 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     if (pending) setDbPending(pending.map(p => ({ id: p.id, name: p.name, phone: p.phone, role: p.role, grade: p.grade, school: p.school })));
 
     // 반 목록
-    const { data: classes } = await sb
+    // teachers 테이블 조인 없이 classes만 먼저 불러옵니다.
+    // 외래키 연결이 없어도 반 목록이 관리자 페이지에 표시되게 하기 위함입니다.
+    const { data: classes, error: classesError } = await sb
       .from('classes')
-      .select('*, teachers(name)')
+      .select('*')
       .order('created_at', { ascending: false });
 
+    if (classesError) {
+      alert('반 목록 불러오기 실패: ' + classesError.message);
+    }
+
     if (classes) {
-      setDbClasses(classes.map(c => ({
-        id: c.id,
-        className: c.class_name || c.name || '',
-        subject: c.subject || '',
-        grade: c.grade || '',
-        teacherId: c.teacher_id || null,
-        teacherName: c.teachers?.name || '',
-        createdAt: c.created_at,
-      })));
+      setDbClasses(classes.map(c => {
+        const matchedTeacher = (teachers || []).find(t => t.id === c.teacher_id);
+        return {
+          id: c.id,
+          className: c.class_name || c.name || '',
+          subject: c.subject || '',
+          grade: c.grade || '',
+          teacherId: c.teacher_id || null,
+          teacherName: matchedTeacher?.name || '',
+          createdAt: c.created_at,
+        };
+      }));
     }
 
   }
