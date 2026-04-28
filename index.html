@@ -139,12 +139,25 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function handleLogin(u) {
-    setUser(u);
-    setShowLogin(false);
-    // 선생님은 선생님 전용 페이지로
-    if (u.role === 'teacher') navigate('teacher');
+ function handleLogin(u) {
+  const role = String(u.role || '').trim();
+
+  setUser({
+    ...u,
+    role,
+  });
+
+  setShowLogin(false);
+
+  if (role === 'teacher') {
+    setIsAdmin(false);
+    setAdminAuthed(false);
+    navigate('teacher');
+    return;
   }
+
+  navigate('portal');
+}
 
   function handleLogout() {
     setUser(null);
