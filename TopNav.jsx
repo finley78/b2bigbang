@@ -93,8 +93,8 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
                   React.createElement('div', { style: mnStyles.avatar }, firstLetter),
                   React.createElement('span', { style: mnStyles.userName }, displayName)
                 ),
-                React.createElement('span', {
-                  style: mnStyles.logoutText,
+                React.createElement('button', {
+                  style: mnStyles.ctaBtnOutline,
                   onClick: onLogout,
                 }, '로그아웃')
               )
