@@ -379,14 +379,26 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       tab==='course' && React.createElement('div', null,
         React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' } },
           React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
-          React.createElement('button', { onClick: function() {
-            window.supabase.from('subjects').select('id').eq('name','수학').single().then(function(res) {
-              var subjId = res.data?.id;
-              window.supabase.from('courses').insert({ subject_id: subjId, title:'새 강좌', teacher:'강사명', grade:'고1', price:'0원', sort_order: state.courses.length+1 }).select('*, subjects(name,color)').single().then(function(res2) {
-                var data = res2.data;
-                if (data) setState(function(s) { return {...s, courses:[...s.courses,{ id:data.id, subject:data.subjects?.name||'수학', color:data.subjects?.color||'#006241', name:data.title, teacher:data.teacher||'', grade:data.grade||'', price:data.price||'', badge:null, lectures:[] }]}; });
-              });
-            });
+          React.createElement('button', { onClick: async function() {
+            try {
+              // subjects 테이블에서 수학 id 조회
+              var subjRes = await window.supabase.from('subjects').select('id,name,color').eq('name','수학').single();
+              var subjId = subjRes.data ? subjRes.data.id : null;
+              var subjName = subjRes.data ? subjRes.data.name : '수학';
+              var subjColor = subjRes.data ? subjRes.data.color : '#006241';
+              // subjects가 없으면 첫 번째 subject 사용
+              if (!subjId) {
+                var allSubj = await window.supabase.from('subjects').select('id,name,color').limit(1).single();
+                if (allSubj.data) { subjId = allSubj.data.id; subjName = allSubj.data.name; subjColor = allSubj.data.color; }
+              }
+              var insertRes = await window.supabase.from('courses').insert({ subject_id: subjId, title:'새 강좌', teacher:'강사명', grade:'고1', price:'0원', sort_order: state.courses.length+1 }).select('*, subjects(name,color)').single();
+              var data = insertRes.data;
+              if (data) {
+                setState(function(s) { return {...s, courses:[...s.courses,{ id:data.id, subject:data.subjects?.name||subjName, color:data.subjects?.color||subjColor, name:data.title, teacher:data.teacher||'', grade:data.grade||'', price:data.price||'', badge:null, lectures:[] }]}; });
+              } else {
+                alert('강좌 추가 실패: ' + JSON.stringify(insertRes.error));
+              }
+            } catch(e) { alert('오류: ' + e.message); }
           }, style:btnS() }, '+ 강좌 추가')
         ),
         state.courses.map(c =>
@@ -466,37 +478,46 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       /* ── 수강생 관리 TAB ── */
       tab==='enrollee' && React.createElement('div', null,
 
-        // 필터 바
+        // 필터 바 — 초/중/고, 학년, 학교 항상 3개 표시. 독립 필터링
         React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'16px' } },
           React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginRight:'8px', flexShrink:0 } },
             `수강생 관리 (${dbStudents.length}명)`),
 
+          // 초/중/고 드롭다운
           React.createElement('select', {
             value: filterLevel,
             onChange: function(e) { setFilterLevel(e.target.value); setFilterGrade('전체'); setFilterSchool('전체'); setSelectedIds([]); },
             style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
           },
-            React.createElement('option', { value:'전체' }, '전체 학교급'),
-            ['초등','중등','고등'].map(function(lv) { return React.createElement('option', { key:lv, value:lv }, lv); })
+            React.createElement('option', { value:'전체' }, '전체'),
+            React.createElement('option', { value:'초등' }, '초'),
+            React.createElement('option', { value:'중등' }, '중'),
+            React.createElement('option', { value:'고등' }, '고')
           ),
 
-          filterLevel !== '전체' && React.createElement('select', {
+          // 학년 드롭다운 — 항상 표시, 초/중/고에 따라 옵션 변경
+          React.createElement('select', {
             value: filterGrade,
             onChange: function(e) { setFilterGrade(e.target.value); setSelectedIds([]); },
             style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
           },
             React.createElement('option', { value:'전체' }, '전체 학년'),
-            SCHOOL_LEVELS[filterLevel].grades.map(function(g) { return React.createElement('option', { key:g, value:g }, g); })
+            filterLevel === '전체'
+              ? ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'].map(function(g){ return React.createElement('option',{key:g,value:g},g); })
+              : SCHOOL_LEVELS[filterLevel].grades.map(function(g){ return React.createElement('option',{key:g,value:g},g); })
           ),
 
+          // 학교 드롭다운 — 항상 표시, 초/중/고에 따라 옵션 변경
           React.createElement('select', {
             value: filterSchool,
             onChange: function(e) { setFilterSchool(e.target.value); setSelectedIds([]); },
             style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
           },
             React.createElement('option', { value:'전체' }, '전체 학교'),
-            (filterLevel === '전체' ? SCHOOLS.filter(function(s){ return s !== '전체'; }) : SCHOOL_LEVELS[filterLevel].schools)
-              .map(function(s) { return React.createElement('option', { key:s, value:s }, s); })
+            (filterLevel === '전체'
+              ? SCHOOLS.filter(function(s){ return s !== '전체'; })
+              : SCHOOL_LEVELS[filterLevel].schools
+            ).map(function(s){ return React.createElement('option',{key:s,value:s},s); })
           )
         ),
 
@@ -565,11 +586,14 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
         // 학생 목록
         (function() {
           var filtered = dbStudents.filter(function(st) {
+            // 학교급(초/중/고) 필터: 학년 기준으로 판단
             if (filterLevel !== '전체') {
-              var lvSchools = SCHOOL_LEVELS[filterLevel].schools;
-              if (st.school && !lvSchools.includes(st.school)) return false;
+              var lvGrades = SCHOOL_LEVELS[filterLevel].grades;
+              if (!lvGrades.includes(st.grade)) return false;
             }
+            // 학교 필터
             if (filterSchool !== '전체' && st.school !== filterSchool) return false;
+            // 학년 필터
             if (filterGrade !== '전체' && st.grade !== filterGrade) return false;
             return true;
           });
