@@ -26,7 +26,7 @@ function TeacherPortal({ user, onLogout }) {
     }
 
     if (!teacher) {
-     setDebug(
+ setDebug(
   "teachers에서 선생님을 못 찾음 / 로그인 이메일: " +
   user.email +
   " / 로그인 이름: " +
