@@ -16,7 +16,7 @@ function TeacherPortal({ user, onLogout }) {
    const { data: teacher, error: teacherError } = await sb
   .from("teachers")
   .select("*")
-  .eq("name", user.name)
+  .eq("email", user.email)
   .maybeSingle();
 
     if (teacherError) {
@@ -26,9 +26,12 @@ function TeacherPortal({ user, onLogout }) {
     }
 
     if (!teacher) {
-      setDebug("teachers에서 선생님을 못 찾음 / 로그인 이름: " + user.name);
-      setLoading(false);
-      return;
+     setDebug(
+  "teachers에서 선생님을 못 찾음 / 로그인 이메일: " +
+  user.email +
+  " / 로그인 이름: " +
+  user.name
+);
     }
 
     setDebug("2. 선생님 찾음: " + teacher.id);
