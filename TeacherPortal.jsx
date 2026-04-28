@@ -28,9 +28,6 @@ function TeacherPortal({ user, onLogout }) {
       return;
     }
 
-    console.log("전체 teachers:", allTeachers);
-    console.log("로그인 user:", user);
-
     const teacher = (allTeachers || []).find(
       (t) => clean(t.email) === clean(user.email)
     );
