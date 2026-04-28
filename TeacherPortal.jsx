@@ -5,6 +5,10 @@ function TeacherPortal({ user, onLogout }) {
 
   const sb = window.supabase;
 
+  console.log("로그인 user 전체:", user);
+console.log("user.email:", user.email);
+console.log("user.name:", user.name);
+  
   React.useEffect(() => {
     loadStudents();
   }, []);
