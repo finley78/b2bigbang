@@ -1,27 +1,26 @@
 function TeacherPortal({ user, onLogout }) {
   const [students, setStudents] = React.useState([]);
+  const [teacherInfo, setTeacherInfo] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [debug, setDebug] = React.useState("");
 
   const sb = window.supabase;
 
-  console.log("로그인 user 전체:", user);
-console.log("user.email:", user.email);
-console.log("user.name:", user.name);
-  
   React.useEffect(() => {
     loadStudents();
   }, []);
+
+  function clean(value) {
+    return String(value || "").trim().toLowerCase();
+  }
 
   async function loadStudents() {
     setLoading(true);
     setDebug("1. 학생 조회 시작");
 
-   const { data: teacher, error: teacherError } = await sb
-  .from("teachers")
-  .select("*")
-  .ilike("email", user.email.trim())
-  .maybeSingle();
+    const { data: allTeachers, error: teacherError } = await sb
+      .from("teachers")
+      .select("*");
 
     if (teacherError) {
       setDebug("teachers 조회 오류: " + teacherError.message);
@@ -29,17 +28,27 @@ console.log("user.name:", user.name);
       return;
     }
 
-  if (!teacher) {
-  setDebug(
-    "teachers에서 선생님을 못 찾음 / 로그인 이메일: " +
-    user.email +
-    " / 로그인 이름: " +
-    user.name
-  );
-  setLoading(false);
-  return;
-}
+    console.log("전체 teachers:", allTeachers);
+    console.log("로그인 user:", user);
 
+    const teacher = (allTeachers || []).find(
+      (t) => clean(t.email) === clean(user.email)
+    );
+
+    if (!teacher) {
+      setDebug(
+        "teachers에서 선생님을 못 찾음 / 로그인 이메일: " +
+          user.email +
+          " / 로그인 이름: " +
+          user.name +
+          " / teachers 수: " +
+          (allTeachers || []).length
+      );
+      setLoading(false);
+      return;
+    }
+
+    setTeacherInfo(teacher);
     setDebug("2. 선생님 찾음: " + teacher.id);
 
     const { data: links, error: linkError } = await sb
@@ -80,11 +89,16 @@ console.log("user.name:", user.name);
   }
 
   async function saveAttendance(studentId, status) {
+    if (!teacherInfo) {
+      alert("선생님 정보를 먼저 불러와야 합니다.");
+      return;
+    }
+
     const today = new Date().toISOString().slice(0, 10);
 
     const { error } = await sb.from("attendance").insert({
       student_id: studentId,
-      teacher_id: user.id,
+      teacher_id: teacherInfo.id,
       date: today,
       status,
     });
@@ -108,14 +122,16 @@ console.log("user.name:", user.name);
         <button onClick={onLogout}>로그아웃</button>
       </div>
 
-      <div style={{
-        background: "#fff7ed",
-        border: "1px solid #fed7aa",
-        padding: "16px",
-        borderRadius: "12px",
-        marginBottom: "20px",
-        color: "#9a3412"
-      }}>
+      <div
+        style={{
+          background: "#fff7ed",
+          border: "1px solid #fed7aa",
+          padding: "16px",
+          borderRadius: "12px",
+          marginBottom: "20px",
+          color: "#9a3412",
+        }}
+      >
         진단 결과: {debug}
       </div>
 
@@ -128,12 +144,15 @@ console.log("user.name:", user.name);
       ) : (
         <div style={{ display: "grid", gap: "20px" }}>
           {students.map((student) => (
-            <div key={student.id} style={{
-              background: "white",
-              padding: "24px",
-              borderRadius: "20px",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.05)"
-            }}>
+            <div
+              key={student.id}
+              style={{
+                background: "white",
+                padding: "24px",
+                borderRadius: "20px",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+              }}
+            >
               <h2>{student.name}</h2>
               <p>학년: {student.grade || "-"} / 연락처: {student.phone || "-"}</p>
 
