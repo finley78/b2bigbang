@@ -129,13 +129,22 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     }
 
     // 선생님
-    const { data: teachers } = await sb.from('students').select('*').in('role', ['teacher','pending_teacher']);
-    if (teachers) {
-      setDbTeachers(teachers.map(t => ({
-        id: t.id, name: t.name, email: t.email, role: t.role,
-        subjects: t.subjects || [], createdAt: t.created_at,
-      })));
-    }
+   // 선생님
+const { data: teachers } = await sb
+  .from('teachers')
+  .select('*')
+  .order('name', { ascending: true });
+
+if (teachers) {
+  setDbTeachers(teachers.map(t => ({
+    id: t.id,
+    name: t.name,
+    email: t.email || '',
+    role: 'teacher',
+    subjects: t.subjects || [],
+    createdAt: t.created_at,
+  })));
+}
 
     // 승인 대기
     const { data: pending } = await sb.from('students').select('*').in('role', ['pending_student','pending_parent','pending_teacher']);
@@ -1153,42 +1162,31 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
 
               setSaving(true);
 
-              const { data, error } = await sb
-                .from('classes')
-                .insert({
-                  class_name: newClassName,
-                  subject: newSubject,
-                  grade: newGrade,
-                  teacher_id: newTeacherId
-                })
-                .select('*, teachers(name)')
-                .single();
+              const { error } = await sb
+  .from('classes')
+  .insert({
+    class_name: newClassName,
+    subject: newSubject,
+    grade: newGrade,
+    teacher_id: newTeacherId
+  });
 
-              setSaving(false);
+setSaving(false);
 
-              if (error) {
-                alert('반 생성 실패: ' + error.message);
-                return;
-              }
+if (error) {
+  console.error(error);
+  alert('반 생성 실패: ' + error.message);
+  return;
+}
 
-              if (data) {
-                setDbClasses(prev => [{
-                  id: data.id,
-                  className: data.class_name || '',
-                  subject: data.subject || '',
-                  grade: data.grade || '',
-                  teacherId: data.teacher_id || null,
-                  teacherName: data.teachers?.name || '',
-                  createdAt: data.created_at,
-                }, ...prev]);
-              }
+setNewClassName('');
+setNewSubject('');
+setNewGrade('');
+setNewTeacherId('');
 
-              setNewClassName('');
-              setNewSubject('');
-              setNewGrade('');
-              setNewTeacherId('');
+alert('반 생성 완료!');
+              
 
-              alert('반 생성 완료!');
             },
             disabled:saving,
             style:{ ...btnS(), marginTop:'16px', opacity:saving?0.6:1 }
