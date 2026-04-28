@@ -67,6 +67,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
   const [newTeacherId, setNewTeacherId] = React.useState('');
   const [selectedClassId, setSelectedClassId] = React.useState('');
   const [classStudents, setClassStudents] = React.useState([]);
+  const [studentClassAssignments, setStudentClassAssignments] = React.useState({});
 
   const sb = window.supabase;
 
@@ -168,6 +169,33 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
           createdAt: c.created_at,
         };
       }));
+
+      const { data: allClassStudents } = await sb
+        .from('class_students')
+        .select('*');
+
+      if (allClassStudents) {
+        const classMap = {};
+        classes.forEach(c => {
+          classMap[c.id] = {
+            id: c.id,
+            className: c.class_name || c.name || '',
+            subject: c.subject || '',
+            grade: c.grade || '',
+            teacherId: c.teacher_id || null,
+          };
+        });
+
+        const assignmentMap = {};
+        allClassStudents.forEach(row => {
+          const cls = classMap[row.class_id];
+          if (!cls || !cls.subject) return;
+          if (!assignmentMap[row.student_id]) assignmentMap[row.student_id] = {};
+          assignmentMap[row.student_id][cls.subject] = row.class_id;
+        });
+
+        setStudentClassAssignments(assignmentMap);
+      }
     }
 
   }
@@ -257,6 +285,14 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       return;
     }
 
+    const selectedClass = dbClasses.find(cls => cls.id === selectedClassId);
+    if (selectedClass?.subject) {
+      setStudentClassAssignments(prev => ({
+        ...prev,
+        [studentId]: { ...(prev[studentId] || {}), [selectedClass.subject]: selectedClassId }
+      }));
+    }
+
     loadClassStudents(selectedClassId);
   }
 
@@ -274,7 +310,63 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       return;
     }
 
+    const selectedClass = dbClasses.find(cls => cls.id === selectedClassId);
+    if (selectedClass?.subject) {
+      setStudentClassAssignments(prev => {
+        const nextForStudent = { ...(prev[studentId] || {}) };
+        if (nextForStudent[selectedClass.subject] === selectedClassId) delete nextForStudent[selectedClass.subject];
+        return { ...prev, [studentId]: nextForStudent };
+      });
+    }
+
     loadClassStudents(selectedClassId);
+  }
+
+  async function assignStudentToSubjectClass(studentId, subject, classId) {
+    if (!studentId || !subject) return;
+
+    const subjectClassIds = dbClasses
+      .filter(cls => cls.subject === subject)
+      .map(cls => cls.id);
+
+    if (subjectClassIds.length === 0) {
+      alert(subject + ' 반이 아직 없습니다. 먼저 반을 생성해주세요.');
+      return;
+    }
+
+    const { error: deleteError } = await sb
+      .from('class_students')
+      .delete()
+      .eq('student_id', studentId)
+      .in('class_id', subjectClassIds);
+
+    if (deleteError) {
+      alert('기존 반 배정 삭제 실패: ' + deleteError.message);
+      return;
+    }
+
+    if (classId) {
+      const { error: insertError } = await sb
+        .from('class_students')
+        .insert({
+          student_id: studentId,
+          class_id: classId
+        });
+
+      if (insertError) {
+        alert('반 배정 실패: ' + insertError.message);
+        return;
+      }
+    }
+
+    setStudentClassAssignments(prev => {
+      const nextForStudent = { ...(prev[studentId] || {}) };
+      if (classId) nextForStudent[subject] = classId;
+      else delete nextForStudent[subject];
+      return { ...prev, [studentId]: nextForStudent };
+    });
+
+    if (selectedClassId) loadClassStudents(selectedClassId);
   }
 
   if (!authed) return React.createElement(AdminLogin, { onLogin:()=>setAuthed(true) });
@@ -774,6 +866,47 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                       })
                     )
                   ),
+                  // 과목별 담당 반 배정
+                  React.createElement('div', { style:{ marginBottom:'16px', borderTop:'1px solid rgba(0,0,0,0.08)', paddingTop:'14px' } },
+                    React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '과목별 담당 반 배정'),
+                    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr', gap:'10px' } },
+                      SUBJECTS.map(function(sub) {
+                        var subjectClasses = dbClasses
+                          .filter(function(cls) {
+                            return cls.subject === sub && (!st.grade || !cls.grade || cls.grade === st.grade);
+                          })
+                          .sort(function(a,b) { return (a.className || '').localeCompare(b.className || ''); });
+
+                        var selectedSubjectClassId = (studentClassAssignments[st.id] || {})[sub] || '';
+                        var selectedSubjectClass = dbClasses.find(function(cls) { return cls.id === selectedSubjectClassId; });
+
+                        return React.createElement('div', { key:sub, style:{ display:'grid', gridTemplateColumns:'70px 1fr', alignItems:'center', gap:'8px' } },
+                          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, sub),
+                          React.createElement('div', null,
+                            React.createElement('select', {
+                              value:selectedSubjectClassId,
+                              onChange:function(e) { assignStudentToSubjectClass(st.id, sub, e.target.value); },
+                              style:inputS
+                            },
+                              React.createElement('option', { value:'' }, sub + ' 반 선택 안 함'),
+                              subjectClasses.map(function(cls) {
+                                return React.createElement('option', { key:cls.id, value:cls.id },
+                                  cls.className + ' / ' + (cls.teacherName || '담당 미지정')
+                                );
+                              })
+                            ),
+                            selectedSubjectClass && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'4px' } },
+                              '현재 배정: ' + selectedSubjectClass.className + (selectedSubjectClass.teacherName ? ' · ' + selectedSubjectClass.teacherName : '')
+                            ),
+                            subjectClasses.length === 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginTop:'4px' } },
+                              sub + ' 반이 없습니다. 반 관리에서 먼저 생성해주세요.'
+                            )
+                          )
+                        );
+                      })
+                    )
+                  ),
+
                   // 수강 강좌
                   React.createElement('div', null,
                     React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '수강 강좌 배정'),
