@@ -11,13 +11,13 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; max-width: 100%; }
-  html, body { overflow-x: hidden; width: 100%; }
-  html { font-size: 62.5%; scroll-behavior: smooth; }
-  body { font-family: 'Manrope', sans-serif; background: #f2f0eb; min-height: 100vh; }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #f2f0eb; }
-  ::-webkit-scrollbar-thumb { background: #d4e9e2; border-radius: 3px; }
+* { box-sizing: border-box; margin: 0; padding: 0; max-width: 100%; }
+html, body { overflow-x: hidden; width: 100%; }
+html { font-size: 62.5%; scroll-behavior: smooth; }
+body { font-family: 'Manrope', sans-serif; background: #f2f0eb; min-height: 100vh; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f2f0eb; }
+::-webkit-scrollbar-thumb { background: #d4e9e2; border-radius: 3px; }
 </style>
 </head>
 <body>
@@ -30,89 +30,213 @@
 <script type="text/babel" src="AdminPanel.jsx"></script>
 
 <script>
+// Supabase 클라이언트 초기화
 const SUPABASE_URL = 'https://ldsjysjavwssadheeiog.supabase.co';
-const SUPABASE_KEY = 'YOUR_KEY';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxkc2p5c2phdndzc2FkaGVlaW9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNjk2ODksImV4cCI6MjA5Mjc0NTY4OX0.W8YiMizRRERInr3PZdNusxP3bKj7HE8gCipYLycI0d4';
 window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 </script>
 
 <script type="text/babel">
-const INITIAL_STATE = window.INITIAL_STATE || {};
+
+const INITIAL_STATE = {
+banners: [
+{ id:1, bg:'#1E3932', subtitle:'중간고사 완벽 대비 특강', title:'내신 특강 모집 중', label:'개강 5/5(월)', badge:'기간 한정', active:true, cta:'등록하기' },
+{ id:2, bg:'#006241', subtitle:'목표 대학을 향해', title:'2027 합격이 보인다', label:'개강 4/28(월)', badge:'인기 강좌', active:true, cta:'신청하기' },
+],
+notices: [
+{ id:1, type:'모집', text:'2027 초기 반수반 설명회 – 학습 전략 공개', date:'2026.04.11' },
+{ id:2, type:'강좌', text:'기초부터 탄탄하게, 2027 논술 특강 개강', date:'2026.04.10' },
+{ id:3, type:'이벤트', text:'신규 등록생 첫 달 50% 할인 이벤트', date:'2026.04.08' },
+],
+announcements: [
+{ id:1, title:'2027학년도 6월 평가원 모의고사 이부생 접수 안내', date:'2026.03.17' },
+{ id:2, title:'2027 재수정규 시즌2 강좌 및 수강신청 안내', date:'2026.03.17' },
+{ id:3, title:'2027 B2빅뱅학원 2차 등교 인원 안내', date:'2026.04.11' },
+{ id:4, title:'수능 D-208 특별 학습 관리 프로그램 시작', date:'2026.04.09' },
+],
+courses: [],
+students: [],
+slides: [
+{ bg:'#1E3932', text1:'최고의 결과를 만든다', text2:'B2빅뱅 학습 시스템', accent:'2027 합격이 보인다', image:'', youtube:'' },
+{ bg:'#006241', text1:'체계적인 커리큘럼', text2:'전문 강사진의 1:1 관리', accent:'목표 대학을 향해', image:'', youtube:'' },
+],
+content: {
+featureEyebrow:'지금 등록하면',
+featureTitle:'첫 달 수강료\n50% 할인',
+featureBody:'신규 등록생 한정 · 선착순 마감\n지금 바로 문의해 주세요',
+featureCta1:'지금 문의하기',
+featureCta2:'프로그램 보기',
+},
+};
+
 const EXAM_DATE = '2026-11-12';
 
 function App() {
-  const [page, setPage] = React.useState('home');
-  const [user, setUser] = React.useState(null);
-  const [showLogin, setShowLogin] = React.useState(false);
-  const [isAdmin, setIsAdmin] = React.useState(false);
-  const [adminAuthed, setAdminAuthed] = React.useState(false);
-  const [state, setState] = React.useState(INITIAL_STATE);
+const [page, setPage] = React.useState('home');
+const [user, setUser] = React.useState(null);
+const [showLogin, setShowLogin] = React.useState(false);
+const [isAdmin, setIsAdmin] = React.useState(false);
+const [adminAuthed, setAdminAuthed] = React.useState(false);
+const [state, setState] = React.useState(INITIAL_STATE);
+const [dbLoaded, setDbLoaded] = React.useState(false);
 
-  function navigate(p) {
-    setPage(p);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+// Supabase에서 subjects, courses, videos 로드
+React.useEffect(() => {
+async function loadFromDB() {
+try {
+const { data: subjects } = await window.supabase
+.from('subjects').select('*').order('sort_order');
 
-  function handleLogin(u) {
-    setUser(u);
-    setShowLogin(false);
-  }
+const { data: courses } = await window.supabase
+.from('courses').select(`*, subjects(name, color), videos(*)`)
+.eq('is_active', true).order('sort_order');
 
-  function handleLogout() {
-    setUser(null);
-    setIsAdmin(false);
+if (courses && courses.length > 0) {
+const mapped = courses.map(c => ({
+id: c.id,
+subject: c.subjects?.name || '',
+color: c.subjects?.color || '#006241',
+name: c.title,
+description: c.description,
+grade: '',
+days: 0,
+duration: 0,
+teacher: '',
+price: '',
+badge: null,
+lectures: (c.videos || []).sort((a,b) => a.sort_order - b.sort_order).map(v => ({
+id: v.id,
+title: v.title,
+videoUrl: v.youtube_id ? `https://www.youtube.com/watch?v=${v.youtube_id}` : '',
+youtubeId: v.youtube_id,
+})),
+}));
+setState(prev => ({ ...prev, courses: mapped }));
+}
+setDbLoaded(true);
+} catch(e) {
+console.error('DB 로드 실패:', e);
+setDbLoaded(true);
+}
+}
+loadFromDB();
+}, []);
+
+// 브라우저 뒤로가기 지원
+React.useEffect(() => {
+function handlePopState(e) {
+const p = e.state?.page || 'home';
+setPage(p);
+}
+window.addEventListener('popstate', handlePopState);
+window.history.replaceState({ page: 'home' }, '', '');
+return () => window.removeEventListener('popstate', handlePopState);
+}, []);
+
+function navigate(p) {
+setPage(p);
+window.history.pushState({ page: p }, '', '');
+window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function handleLogin(u) {
+setUser(u);
+setShowLogin(false);
+}
+
+function handleLogout() {
+setUser(null);
+setIsAdmin(false);
     setAdminAuthed(false);
-    navigate('home');
-  }
+navigate('home');
+}
 
-  function handleAdminClick() {
-    navigate('admin');
-  }
+function handleAdminClick() {
+navigate('admin');
+}
 
-  function handleSignup() {
-    setShowLogin(false);
-    navigate('signup');
-  }
+// 회원가입 페이지로 바로 이동
+function handleSignup() {
+setShowLogin(false);
+navigate('signup');
+}
 
-  return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
+return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
 
-    showLogin && React.createElement(LoginModal, {
-      onLogin: handleLogin,
-      onClose: ()=>setShowLogin(false),
-      onAdminLogin: ()=>{ setAdminAuthed(true); navigate('admin'); },
-      onSignup: handleSignup,
-    }),
+// 로그인 모달
+showLogin && React.createElement(LoginModal, {
+onLogin: handleLogin,
+onClose: ()=>setShowLogin(false),
+onAdminLogin: ()=>{ setAdminAuthed(true); navigate('admin'); },
+onSignup: handleSignup,
+}),
 
-    React.createElement(TopBar, {
-      user,
-      onLoginClick: ()=>setShowLogin(true),
-      onLogout: handleLogout,
-      onAdminClick: handleAdminClick,
-      examDate: EXAM_DATE,
-    }),
+// 상단 네비
+React.createElement(TopBar, {
+user,
+onLoginClick: ()=>setShowLogin(true),
+onLogout: handleLogout,
+onAdminClick: handleAdminClick,
+examDate: EXAM_DATE,
+}),
+React.createElement(MainNav, {
+page,
+setPage: navigate,
+user,
+adminAuthed,
+onLoginClick: ()=>setShowLogin(true),
+onSignupClick: handleSignup,
+onAdminClick: handleAdminClick,
+onLogout: handleLogout,
+examDate: EXAM_DATE,
+}),
 
-    React.createElement(MainNav, {
-      page,
-      setPage: navigate,
-      user,
-      adminAuthed,
-      onLoginClick: ()=>setShowLogin(true),
-      onSignupClick: handleSignup,
-      onAdminClick: handleAdminClick,
-      onLogout: handleLogout,
-      examDate: EXAM_DATE,
-    }),
+// 메인 콘텐츠
+React.createElement('main', { style:{ flex:1 } },
 
-    React.createElement('main', { style:{ flex:1 } },
+page === 'home' && React.createElement(HomePage, {
+banners: state.banners,
+slides: state.slides,
+categories: [
+{ emoji:'📐', label:'수학', page:'service', highlight:false },
+{ emoji:'📖', label:'영어', page:'service', highlight:false },
+{ emoji:'✏️', label:'국어', page:'service', highlight:false },
+{ emoji:'🔬', label:'과학', page:'service', highlight:false },
+{ emoji:'📋', label:'내신 대비', page:'service', highlight:false },
+{ emoji:'🎯', label:'수능 특강', page:'service', highlight:true },
+],
+notices: state.notices,
+announcements: state.announcements,
+setPage: navigate,
+isAdmin,
+content: state.content,
+onAdminAction: ()=>{},
+}),
 
-      page === 'admin' && React.createElement(AdminPanel, {
-        state,
-        setState,
-        adminAuthed,
-        setAdminAuthed,
-        onLogout: null
-      })
-    )
-  );
+page === 'service' && React.createElement(ServicePage, { setPage: navigate, courses: state.courses }),
+page === 'contact' && React.createElement(ContactPage),
+
+page === 'signup' && React.createElement(SignupPage, {
+onBack: ()=>{ navigate('home'); },
+onComplete: ()=>{ navigate('home'); },
+}),
+
+page === 'portal' && React.createElement(StudentPortal, {
+user,
+courses: state.courses,
+students: state.students,
+onLoginClick: ()=>setShowLogin(true),
+}),
+
+page === 'admin' && React.createElement(AdminPanel, {
+state,
+setState,
+adminAuthed,
+setAdminAuthed,
+onLogout: null,
+}),
+),
+);
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
