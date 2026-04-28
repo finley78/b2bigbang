@@ -16,7 +16,7 @@ function TeacherPortal({ user, onLogout }) {
     const { data: teacher, error: teacherError } = await sb
       .from("teachers")
       .select("*")
-      .eq("email", user.email)
+      .ilike("email", user.email.trim())
       .maybeSingle();
 
     if (teacherError) {
