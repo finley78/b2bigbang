@@ -1,5 +1,5 @@
-// TopNav.jsx — Recovery version with Admin button
-// 기존 TopNav.jsx 전체를 이 파일 내용으로 교체하세요.
+// TopNav.jsx — Fixed version without Admin button
+// 기존 TopNav.jsx 전체 교체용 파일입니다.
 
 const NAV_LINKS = ['학원안내', '프로그램', '모집안내', '온라인 강의', '문의하기'];
 const PAGE_MAP  = { '학원안내':'about', '프로그램':'service', '모집안내':'recruit', '온라인 강의':'portal', '문의하기':'contact' };
@@ -85,7 +85,6 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
 
       React.createElement('div', { style: mnStyles.cta },
         React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
-          React.createElement('button', { style: mnStyles.adminBtn, onClick: goAdmin }, '관리자'),
 
           isLoggedIn
             ? React.createElement(React.Fragment, null,
@@ -93,10 +92,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
                   React.createElement('div', { style: mnStyles.avatar }, firstLetter),
                   React.createElement('span', { style: mnStyles.userName }, displayName)
                 ),
-                React.createElement('button', {
-                  style: mnStyles.ctaBtnOutline,
-                  onClick: onLogout,
-                }, '로그아웃')
+                React.createElement('button', { style: mnStyles.ctaBtnOutline, onClick: onLogout }, '로그아웃')
               )
             : React.createElement(React.Fragment, null,
                 React.createElement('button', { style: mnStyles.ctaBtnOutline, onClick: onLoginClick }, '로그인'),
@@ -161,7 +157,6 @@ const mnStyles = {
   links: { display:'flex', gap:'28px', flex:1, justifyContent:'center' },
   link: { fontSize:'14px', fontWeight:'600', letterSpacing:'-0.01em', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'color 0.2s', paddingBottom:'2px' },
   cta: { flexShrink:0 },
-  adminBtn: { background:'#111827', color:'#fff', border:'1px solid #111827', borderRadius:'8px', padding:'9px 16px', fontSize:'13px', fontWeight:'800', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em', whiteSpace:'nowrap' },
   ctaBtn: { background:'#00754A', color:'#fff', border:'1px solid #00754A', borderRadius:'8px', padding:'9px 20px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em', transition:'all 0.2s', whiteSpace:'nowrap' },
   ctaBtnOutline: { background:'transparent', color:'rgba(0,0,0,0.7)', border:'1px solid rgba(0,0,0,0.2)', borderRadius:'8px', padding:'9px 16px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em', transition:'all 0.2s' },
   userBadge: { display:'flex', alignItems:'center', gap:'8px' },
