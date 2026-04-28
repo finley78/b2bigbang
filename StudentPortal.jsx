@@ -38,6 +38,17 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
       if (user.role === 'pending_teacher') { setMsg('관리자 승인 대기 중입니다.'); setLoading(false); return; }
       if (user.role === 'pending_student' || user.role === 'pending_parent') { setMsg('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); setLoading(false); return; }
       if (user.password_hash !== password) { setMsg('비밀번호가 틀렸습니다.'); setLoading(false); return; }
+      if (user.role === 'teacher') {
+  onAdminLogin({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    subjects: user.subjects || []
+  });
+  onClose();
+  return;
+}
       const { data: enrollments } = await sb.from('enrollments').select('course_id').eq('student_id', user.id);
       onLogin({ id: user.id, name: user.name, email: user.email, role: user.role, subjects: user.subjects || [], enrolledCourses: (enrollments||[]).map(e=>e.course_id) });
       onClose();
