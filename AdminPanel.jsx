@@ -1164,12 +1164,13 @@ if (teachers) {
 
               const { error } = await sb
   .from('classes')
-  .insert({
-    class_name: newClassName,
-    subject: newSubject,
-    grade: newGrade,
-    teacher_id: newTeacherId
-  });
+ .insert({
+  name: newClassName,
+  class_name: newClassName,
+  subject: newSubject,
+  grade: newGrade,
+  teacher_id: newTeacherId
+});
 
 setSaving(false);
 
