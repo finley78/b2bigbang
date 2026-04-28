@@ -1,4 +1,4 @@
-// TopNav.jsx — Top utility bar + Main navigation (반응형)
+// TopNav.jsx — Top utility bar + Main navigation (반응형 / 관리자 버튼 복구 버전)
 const NAV_LINKS = ['학원안내', '프로그램', '모집안내', '온라인 강의', '문의하기'];
 const PAGE_MAP  = { '학원안내':'about', '프로그램':'service', '모집안내':'recruit', '온라인 강의':'portal', '문의하기':'contact' };
 
@@ -10,7 +10,12 @@ function dDay(targetDateStr) {
   return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
 }
 
-function TopBar({ user, onLoginClick, onLogout, onAdminClick, examDate }) {
+function isAdminUser(user, adminAuthed) {
+  const role = String(user?.role || user?.user_role || user?.type || '').toLowerCase();
+  return Boolean(adminAuthed || role === 'admin' || role === 'manager' || user?.is_admin || user?.isAdmin);
+}
+
+function TopBar({ user, adminAuthed, onLoginClick, onLogout, onAdminClick, setPage, examDate }) {
   return null;
 }
 
@@ -32,63 +37,62 @@ function TopNavAuthButtons({
   onSignupClick,
   onAdminClick,
   onLogout,
+  setPage,
   isMobile,
   closeMenu,
 }) {
-  const isAuthed = Boolean(user || adminAuthed);
-  const displayName = user?.name || user?.email || '관리자';
+  const authed = Boolean(user || adminAuthed);
+  const admin = isAdminUser(user, adminAuthed);
+  const displayName = user?.name || user?.email || (admin ? '관리자' : '사용자');
   const firstLetter = String(displayName || 'B').slice(0, 1).toUpperCase();
 
-  function handleClick(fn) {
-    if (typeof fn === 'function') fn();
+  function close() {
     if (typeof closeMenu === 'function') closeMenu();
   }
 
-  if (isMobile) {
-    if (!isAuthed) {
+  function run(fn) {
+    if (typeof fn === 'function') fn();
+    close();
+  }
+
+  function openAdmin() {
+    if (typeof onAdminClick === 'function') {
+      onAdminClick();
+    } else if (typeof setPage === 'function') {
+      setPage('admin');
+    }
+    close();
+  }
+
+  if (!authed) {
+    if (isMobile) {
       return React.createElement('div', null,
-        React.createElement('div', {
-          style:{ ...mnStyles.mobileMenuItem },
-          onClick:()=>handleClick(onLoginClick)
-        }, '로그인'),
-        React.createElement('div', {
-          style:{ ...mnStyles.mobileMenuItem, color:'#006241', fontWeight:'700' },
-          onClick:()=>handleClick(onSignupClick || onLoginClick)
-        }, '회원가입')
+        React.createElement('div', { style:{ ...mnStyles.mobileMenuItem }, onClick:()=>run(onLoginClick) }, '로그인'),
+        React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#006241', fontWeight:'700' }, onClick:()=>run(onSignupClick || onLoginClick) }, '회원가입')
       );
     }
 
-    return React.createElement('div', null,
-      React.createElement('div', {
-        style:{ ...mnStyles.mobileMenuItem, color:'rgba(0,0,0,0.7)', fontWeight:'700' },
-        onClick:()=>handleClick(onAdminClick)
-      }, user ? `${displayName}` : '관리자 모드'),
-      React.createElement('div', {
-        style:{ ...mnStyles.mobileMenuItem, color:'rgba(0,0,0,0.45)' },
-        onClick:()=>handleClick(onLogout)
-      }, '로그아웃')
-    );
-  }
-
-  if (!isAuthed) {
     return React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
       React.createElement('button', { style: mnStyles.ctaBtnOutline, onClick: onLoginClick }, '로그인'),
       React.createElement('button', { style: mnStyles.ctaBtn, onClick: onSignupClick || onLoginClick }, '회원가입')
     );
   }
 
+  if (isMobile) {
+    return React.createElement('div', null,
+      React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'rgba(0,0,0,0.7)', fontWeight:'700' } }, displayName),
+      admin && React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#006241', fontWeight:'800' }, onClick:openAdmin }, '관리자 화면'),
+      React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'rgba(0,0,0,0.45)' }, onClick:()=>run(onLogout) }, '로그아웃')
+    );
+  }
+
   return React.createElement('div', { style: { display:'flex', alignItems:'center', gap:'12px' } },
-    React.createElement('div', {
-      style: mnStyles.userBadge,
-      onClick: onAdminClick,
-    },
+    React.createElement('div', { style: mnStyles.userBadge },
       React.createElement('div', { style: mnStyles.avatar }, firstLetter),
-      React.createElement('span', { style: mnStyles.userName }, user ? displayName : '관리자 모드')
+      React.createElement('span', { style: mnStyles.userName }, displayName)
     ),
-    React.createElement('span', {
-      style: { fontSize:'12px', color:'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
-      onClick: onLogout
-    }, '로그아웃')
+    admin && React.createElement('button', { style: mnStyles.adminBtn, onClick: openAdmin }, '관리자'),
+    React.createElement('span', { style: mnStyles.logoutLink, onClick: onLogout }, '로그아웃')
   );
 }
 
@@ -96,7 +100,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   const d = dDay(examDate || '2026-11-12');
-  const isAuthed = Boolean(user || adminAuthed);
+  const authed = Boolean(user || adminAuthed);
 
   React.useEffect(() => {
     function handleResize() {
@@ -108,7 +112,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
   }, []);
 
   function goPageByLabel(label) {
-    if (label === '온라인 강의' && !isAuthed) {
+    if (label === '온라인 강의' && !authed) {
       if (typeof onLoginClick === 'function') onLoginClick();
       return;
     }
@@ -116,7 +120,6 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
   }
 
   return React.createElement('nav', { style: { ...mnStyles.nav, position: 'sticky', top: 0, zIndex: 100 } },
-
     !isMobile && React.createElement('div', { style: mnStyles.inner },
       React.createElement('div', { style: mnStyles.logo, onClick: () => setPage('home') },
         React.createElement('div', { style: mnStyles.logoMark }, 'B2'),
@@ -146,6 +149,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
           onSignupClick,
           onAdminClick,
           onLogout,
+          setPage,
           isMobile: false,
         })
       )
@@ -158,15 +162,15 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
       ),
       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
         React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#006241', fontFamily:'Manrope, sans-serif' } }, `수능 D-${d}`),
-        user && React.createElement('div', { style:{ width:'28px', height:'28px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, String(user.name || user.email || 'B').slice(0, 1).toUpperCase()),
-        !user && adminAuthed && React.createElement('div', { style:{ width:'28px', height:'28px', borderRadius:'50%', background:'#111827', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'11px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, 'A'),
+        user && React.createElement('div', { style: mnStyles.mobileAvatar }, String(user.name || user.email || 'B').slice(0, 1).toUpperCase()),
+        !user && adminAuthed && React.createElement('div', { style:{ ...mnStyles.mobileAvatar, background:'#111827' } }, 'A'),
         React.createElement('button', {
           onClick: () => setMenuOpen(!menuOpen),
-          style: { background:'none', border:'none', cursor:'pointer', padding:'4px', display:'flex', flexDirection:'column', gap:'5px' }
+          style: mnStyles.hamburgerBtn
         },
-          React.createElement('div', { style:{ width:'22px', height:'2px', background:'rgba(0,0,0,0.7)', borderRadius:'1px', transition:'all 0.2s', transform: menuOpen ? 'rotate(45deg) translateY(7px)' : 'none' } }),
-          React.createElement('div', { style:{ width:'22px', height:'2px', background:'rgba(0,0,0,0.7)', borderRadius:'1px', opacity: menuOpen ? 0 : 1, transition:'all 0.2s' } }),
-          React.createElement('div', { style:{ width:'22px', height:'2px', background:'rgba(0,0,0,0.7)', borderRadius:'1px', transition:'all 0.2s', transform: menuOpen ? 'rotate(-45deg) translateY(-7px)' : 'none' } })
+          React.createElement('div', { style:{ ...mnStyles.hamburgerLine, transform: menuOpen ? 'rotate(45deg) translateY(7px)' : 'none' } }),
+          React.createElement('div', { style:{ ...mnStyles.hamburgerLine, opacity: menuOpen ? 0 : 1 } }),
+          React.createElement('div', { style:{ ...mnStyles.hamburgerLine, transform: menuOpen ? 'rotate(-45deg) translateY(-7px)' : 'none' } })
         )
       )
     ),
@@ -194,6 +198,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
           onSignupClick,
           onAdminClick,
           onLogout,
+          setPage,
           isMobile: true,
           closeMenu: () => setMenuOpen(false),
         })
@@ -215,10 +220,15 @@ const mnStyles = {
   cta: { flexShrink:0 },
   ctaBtn: { background:'#00754A', color:'#fff', border:'1px solid #00754A', borderRadius:'8px', padding:'9px 20px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em', transition:'all 0.2s', whiteSpace:'nowrap' },
   ctaBtnOutline: { background:'transparent', color:'rgba(0,0,0,0.7)', border:'1px solid rgba(0,0,0,0.2)', borderRadius:'8px', padding:'9px 16px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em', transition:'all 0.2s' },
-  userBadge: { display:'flex', alignItems:'center', gap:'8px', cursor:'pointer' },
+  adminBtn: { background:'#111827', color:'#fff', border:'1px solid #111827', borderRadius:'8px', padding:'8px 14px', fontSize:'13px', fontWeight:'800', fontFamily:'Manrope, sans-serif', cursor:'pointer', whiteSpace:'nowrap' },
+  logoutLink: { fontSize:'12px', color:'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
+  userBadge: { display:'flex', alignItems:'center', gap:'8px' },
   avatar: { width:'34px', height:'34px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' },
   userName: { fontSize:'14px', fontWeight:'600', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' },
   mobileBar: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 16px', height:'56px' },
+  mobileAvatar: { width:'28px', height:'28px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' },
+  hamburgerBtn: { background:'none', border:'none', cursor:'pointer', padding:'4px', display:'flex', flexDirection:'column', gap:'5px' },
+  hamburgerLine: { width:'22px', height:'2px', background:'rgba(0,0,0,0.7)', borderRadius:'1px', transition:'all 0.2s' },
   mobileMenu: { background:'#fff', borderTop:'1px solid rgba(0,0,0,0.08)', padding:'8px 0 16px', boxShadow:'0 4px 12px rgba(0,0,0,0.1)' },
   mobileMenuItem: { padding:'14px 20px', fontSize:'15px', fontWeight:'500', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em' },
 };
