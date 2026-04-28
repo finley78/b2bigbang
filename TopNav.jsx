@@ -1,5 +1,5 @@
-// TopNav.jsx — Fixed version without Admin button
-// 기존 TopNav.jsx 전체 교체용 파일입니다.
+// TopNav.jsx — Recovery version with Admin button
+// 기존 TopNav.jsx 전체를 이 파일 내용으로 교체하세요.
 
 const NAV_LINKS = ['학원안내', '프로그램', '모집안내', '온라인 강의', '문의하기'];
 const PAGE_MAP  = { '학원안내':'about', '프로그램':'service', '모집안내':'recruit', '온라인 강의':'portal', '문의하기':'contact' };
@@ -92,7 +92,10 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
                   React.createElement('div', { style: mnStyles.avatar }, firstLetter),
                   React.createElement('span', { style: mnStyles.userName }, displayName)
                 ),
-                React.createElement('button', { style: mnStyles.ctaBtnOutline, onClick: onLogout }, '로그아웃')
+                React.createElement('button', {
+                  style: mnStyles.ctaBtnOutline,
+                  onClick: onLogout,
+                }, '로그아웃')
               )
             : React.createElement(React.Fragment, null,
                 React.createElement('button', { style: mnStyles.ctaBtnOutline, onClick: onLoginClick }, '로그인'),
@@ -134,7 +137,6 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
         }, label)
       ),
       React.createElement('div', { style:{ borderTop:'1px solid rgba(0,0,0,0.08)', marginTop:'8px', paddingTop:'8px' } },
-        React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#111827', fontWeight:'800' }, onClick: goAdmin }, '관리자'),
         isLoggedIn
           ? React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'rgba(0,0,0,0.45)' }, onClick:()=>{ onLogout && onLogout(); setMenuOpen(false); } }, '로그아웃')
           : React.createElement(React.Fragment, null,
