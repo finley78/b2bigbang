@@ -1,25 +1,33 @@
 function TeacherPortal({ user, onLogout }) {
-  const [students, setStudents] = React.useState([]);
   const [teacherInfo, setTeacherInfo] = React.useState(null);
+  const [classes, setClasses] = React.useState([]);
+  const [selectedClass, setSelectedClass] = React.useState(null);
+  const [students, setStudents] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [debug, setDebug] = React.useState("");
 
-  const [scoreInputs, setScoreInputs] = React.useState({});
-  const [noteInputs, setNoteInputs] = React.useState({});
+  const [testInfo, setTestInfo] = React.useState({
+    testType: "주간 테스트",
+    testName: "",
+    subject: "",
+    testDate: new Date().toISOString().slice(0, 10),
+  });
+
+  const [scores, setScores] = React.useState({});
 
   const sb = window.supabase;
 
   React.useEffect(() => {
-    loadStudents();
+    loadTeacherAndClasses();
   }, []);
 
   function clean(value) {
     return String(value || "").trim().toLowerCase();
   }
 
-  async function loadStudents() {
+  async function loadTeacherAndClasses() {
     setLoading(true);
-    setDebug("1. 학생 조회 시작");
+    setDebug("1. 선생님 정보 조회 시작");
 
     const { data: allTeachers, error: teacherError } = await sb
       .from("teachers")
@@ -39,8 +47,6 @@ function TeacherPortal({ user, onLogout }) {
       setDebug(
         "teachers에서 선생님을 못 찾음 / 로그인 이메일: " +
           user.email +
-          " / 로그인 이름: " +
-          user.name +
           " / teachers 수: " +
           (allTeachers || []).length
       );
@@ -51,24 +57,42 @@ function TeacherPortal({ user, onLogout }) {
     setTeacherInfo(teacher);
     setDebug("2. 선생님 찾음: " + teacher.id);
 
-    const { data: links, error: linkError } = await sb
-      .from("teacher_students")
+    const { data: classList, error: classError } = await sb
+      .from("classes")
       .select("*")
       .eq("teacher_id", teacher.id);
 
-    if (linkError) {
-      setDebug("teacher_students 조회 오류: " + linkError.message);
+    if (classError) {
+      setDebug("classes 조회 오류: " + classError.message);
       setLoading(false);
+      return;
+    }
+
+    setClasses(classList || []);
+    setDebug("3. 담당 반 수: " + (classList || []).length);
+    setLoading(false);
+  }
+
+  async function selectClass(cls) {
+    setSelectedClass(cls);
+    setStudents([]);
+    setScores({});
+    setDebug("4. 반 학생 조회 시작: " + cls.name);
+
+    const { data: links, error: linkError } = await sb
+      .from("class_students")
+      .select("*")
+      .eq("class_id", cls.id);
+
+    if (linkError) {
+      setDebug("class_students 조회 오류: " + linkError.message);
       return;
     }
 
     if (!links || links.length === 0) {
-      setDebug("teacher_students 연결 0개 / teacher_id: " + teacher.id);
-      setLoading(false);
+      setDebug("선택한 반에 등록된 학생이 없습니다.");
       return;
     }
-
-    setDebug("3. 연결된 학생 수: " + links.length);
 
     const studentIds = links.map((x) => x.student_id);
 
@@ -79,139 +103,97 @@ function TeacherPortal({ user, onLogout }) {
 
     if (studentError) {
       setDebug("students 조회 오류: " + studentError.message);
-      setLoading(false);
       return;
     }
 
     setStudents(studentList || []);
-    setDebug("4. 최종 학생 수: " + (studentList || []).length);
-    setLoading(false);
+    setTestInfo((prev) => ({
+      ...prev,
+      subject: cls.subject || prev.subject,
+    }));
+    setDebug("5. 선택한 반 학생 수: " + (studentList || []).length);
   }
 
-  async function saveAttendance(studentId, status) {
-    const today = new Date().toISOString().slice(0, 10);
-
-    const { error } = await sb.from("attendance").insert({
-      student_id: studentId,
-      teacher_id: user.id,
-      date: today,
-      status,
-    });
-
-    if (error) {
-      alert("출결 저장 실패: " + error.message);
-      return;
-    }
-
-    alert("출결 저장 완료");
+  function updateScore(studentId, value) {
+    setScores((prev) => ({
+      ...prev,
+      [studentId]: value,
+    }));
   }
 
-  async function saveScore(studentId) {
+  async function saveAllScores() {
     if (!teacherInfo) {
       alert("선생님 정보를 먼저 불러와야 합니다.");
       return;
     }
 
-    const input = scoreInputs[studentId] || {};
-    const testName = String(input.testName || "").trim();
-    const subject = String(input.subject || "").trim();
-    const score = String(input.score || "").trim();
-    const memo = String(input.memo || "").trim();
+    if (!selectedClass) {
+      alert("반을 선택해 주세요.");
+      return;
+    }
 
-    if (!testName) {
+    if (!testInfo.testName.trim()) {
       alert("시험명을 입력해 주세요.");
       return;
     }
 
-    if (!subject) {
+    if (!testInfo.subject.trim()) {
       alert("과목을 입력해 주세요.");
       return;
     }
 
-    if (!score) {
-      alert("점수를 입력해 주세요.");
+    const rows = students
+      .filter((student) => String(scores[student.id] || "").trim() !== "")
+      .map((student) => ({
+        student_id: student.id,
+        teacher_id: teacherInfo.id,
+        class_id: selectedClass.id,
+        test_type: testInfo.testType,
+        test_name: testInfo.testName.trim(),
+        subject: testInfo.subject.trim(),
+        test_date: testInfo.testDate,
+        score: Number(scores[student.id]),
+        created_at: new Date().toISOString(),
+      }));
+
+    if (rows.length === 0) {
+      alert("입력된 점수가 없습니다.");
       return;
     }
 
-    const { error } = await sb.from("test_scores").insert({
-      student_id: studentId,
-      teacher_id: teacherInfo.id,
-      test_name: testName,
-      subject: subject,
-      score: Number(score),
-      memo: memo,
-      created_at: new Date().toISOString(),
-    });
+    const { error } = await sb.from("test_scores").insert(rows);
 
     if (error) {
       alert("성적 저장 실패: " + error.message);
       return;
     }
 
-    setScoreInputs((prev) => ({
-      ...prev,
-      [studentId]: {
-        testName: "",
-        subject: "",
-        score: "",
-        memo: "",
-      },
-    }));
-
-    alert("성적 저장 완료");
+    alert(rows.length + "명 성적 저장 완료");
+    setScores({});
   }
 
-  async function saveNote(studentId) {
-    if (!teacherInfo) {
-      alert("선생님 정보를 먼저 불러와야 합니다.");
-      return;
-    }
-
-    const note = String(noteInputs[studentId] || "").trim();
-
-    if (!note) {
-      alert("특이사항을 입력해 주세요.");
-      return;
-    }
-
-    const { error } = await sb.from("teacher_notes").insert({
-      student_id: studentId,
-      teacher_id: teacherInfo.id,
-      note: note,
-      created_at: new Date().toISOString(),
-    });
-
-    if (error) {
-      alert("특이사항 저장 실패: " + error.message);
-      return;
-    }
-
-    setNoteInputs((prev) => ({
-      ...prev,
-      [studentId]: "",
-    }));
-
-    alert("특이사항 저장 완료");
-  }
+  const cardStyle = {
+    background: "white",
+    padding: "24px",
+    borderRadius: "20px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+  };
 
   const inputStyle = {
     border: "1px solid #d1d5db",
     borderRadius: "10px",
     padding: "10px 12px",
-    marginRight: "8px",
-    marginTop: "8px",
+    fontSize: "14px",
   };
 
   const buttonStyle = {
     border: "none",
     borderRadius: "10px",
-    padding: "10px 14px",
+    padding: "11px 16px",
     cursor: "pointer",
     fontWeight: "700",
     background: "#006241",
     color: "white",
-    marginRight: "8px",
-    marginTop: "8px",
   };
 
   return (
@@ -219,7 +201,7 @@ function TeacherPortal({ user, onLogout }) {
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "30px" }}>
         <div>
           <h1 style={{ fontSize: "32px", fontWeight: "bold" }}>선생님 페이지</h1>
-          <p>{user?.name} 선생님 담당 학생 관리</p>
+          <p>{user?.name} 선생님 반별 성적 관리</p>
         </div>
 
         <button onClick={onLogout}>로그아웃</button>
@@ -239,127 +221,135 @@ function TeacherPortal({ user, onLogout }) {
       </div>
 
       {loading ? (
-        <div>학생 목록 불러오는 중...</div>
-      ) : students.length === 0 ? (
-        <div style={{ background: "white", padding: "30px", borderRadius: "20px" }}>
-          담당 학생이 없습니다.
-        </div>
+        <div>불러오는 중...</div>
       ) : (
-        <div style={{ display: "grid", gap: "20px" }}>
-          {students.map((student) => (
-            <div
-              key={student.id}
-              style={{
-                background: "white",
-                padding: "24px",
-                borderRadius: "20px",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
-              }}
-            >
-              <h2>{student.name}</h2>
-              <p>학년: {student.grade || "-"} / 연락처: {student.phone || "-"}</p>
+        <>
+          <div style={{ ...cardStyle, marginBottom: "24px" }}>
+            <h2 style={{ marginBottom: "16px" }}>담당 반 선택</h2>
 
-              <div style={{ marginTop: "16px" }}>
-                <strong>출결</strong>
-                <br />
-                <button onClick={() => saveAttendance(student.id, "present")}>출석</button>
-                <button onClick={() => saveAttendance(student.id, "late")}>지각</button>
-                <button onClick={() => saveAttendance(student.id, "absent")}>결석</button>
+            {classes.length === 0 ? (
+              <div>담당 반이 없습니다.</div>
+            ) : (
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                {classes.map((cls) => (
+                  <button
+                    key={cls.id}
+                    onClick={() => selectClass(cls)}
+                    style={{
+                      ...buttonStyle,
+                      background: selectedClass?.id === cls.id ? "#111827" : "#006241",
+                    }}
+                  >
+                    {cls.name}
+                  </button>
+                ))}
               </div>
+            )}
+          </div>
 
-              <div style={{ marginTop: "24px" }}>
-                <strong>성적 입력</strong>
-                <br />
+          {selectedClass && (
+            <div style={{ ...cardStyle, marginBottom: "24px" }}>
+              <h2 style={{ marginBottom: "16px" }}>
+                선택한 반: {selectedClass.name}
+              </h2>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: "12px",
+                  marginBottom: "20px",
+                }}
+              >
+                <select
+                  style={inputStyle}
+                  value={testInfo.testType}
+                  onChange={(e) =>
+                    setTestInfo((prev) => ({ ...prev, testType: e.target.value }))
+                  }
+                >
+                  <option>주간 테스트</option>
+                  <option>월간 테스트</option>
+                  <option>학교 중간고사</option>
+                  <option>학교 기말고사</option>
+                  <option>모의고사</option>
+                  <option>수행평가</option>
+                </select>
 
                 <input
                   style={inputStyle}
-                  placeholder="시험명 예: 1학기 중간고사"
-                  value={scoreInputs[student.id]?.testName || ""}
+                  placeholder="시험명 예: 4월 4주차 단어 테스트"
+                  value={testInfo.testName}
                   onChange={(e) =>
-                    setScoreInputs((prev) => ({
-                      ...prev,
-                      [student.id]: {
-                        ...(prev[student.id] || {}),
-                        testName: e.target.value,
-                      },
-                    }))
+                    setTestInfo((prev) => ({ ...prev, testName: e.target.value }))
                   }
                 />
 
                 <input
                   style={inputStyle}
                   placeholder="과목 예: 영어"
-                  value={scoreInputs[student.id]?.subject || ""}
+                  value={testInfo.subject}
                   onChange={(e) =>
-                    setScoreInputs((prev) => ({
-                      ...prev,
-                      [student.id]: {
-                        ...(prev[student.id] || {}),
-                        subject: e.target.value,
-                      },
-                    }))
+                    setTestInfo((prev) => ({ ...prev, subject: e.target.value }))
                   }
                 />
 
                 <input
-                  style={{ ...inputStyle, width: "100px" }}
-                  placeholder="점수"
-                  type="number"
-                  value={scoreInputs[student.id]?.score || ""}
+                  style={inputStyle}
+                  type="date"
+                  value={testInfo.testDate}
                   onChange={(e) =>
-                    setScoreInputs((prev) => ({
-                      ...prev,
-                      [student.id]: {
-                        ...(prev[student.id] || {}),
-                        score: e.target.value,
-                      },
-                    }))
+                    setTestInfo((prev) => ({ ...prev, testDate: e.target.value }))
                   }
                 />
-
-                <input
-                  style={{ ...inputStyle, width: "260px" }}
-                  placeholder="메모 예: 문법 보완 필요"
-                  value={scoreInputs[student.id]?.memo || ""}
-                  onChange={(e) =>
-                    setScoreInputs((prev) => ({
-                      ...prev,
-                      [student.id]: {
-                        ...(prev[student.id] || {}),
-                        memo: e.target.value,
-                      },
-                    }))
-                  }
-                />
-
-                <button style={buttonStyle} onClick={() => saveScore(student.id)}>
-                  성적 저장
-                </button>
               </div>
 
-              <div style={{ marginTop: "24px" }}>
-                <strong>특이사항</strong>
-                <br />
+              {students.length === 0 ? (
+                <div>이 반에 등록된 학생이 없습니다.</div>
+              ) : (
+                <>
+                  <div style={{ display: "grid", gap: "10px" }}>
+                    {students.map((student) => (
+                      <div
+                        key={student.id}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 140px",
+                          alignItems: "center",
+                          gap: "12px",
+                          padding: "12px 16px",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "12px",
+                        }}
+                      >
+                        <div>
+                          <strong>{student.name}</strong>
+                          <div style={{ fontSize: "13px", color: "#6b7280" }}>
+                            {student.grade || "-"} / {student.phone || "-"}
+                          </div>
+                        </div>
 
-                <input
-                  style={{ ...inputStyle, width: "70%" }}
-                  placeholder="예: 숙제 미제출, 수업 태도 양호, 상담 필요 등"
-                  value={noteInputs[student.id] || ""}
-                  onChange={(e) =>
-                    setNoteInputs((prev) => ({
-                      ...prev,
-                      [student.id]: e.target.value,
-                    }))
-                  }
-                />
+                        <input
+                          style={inputStyle}
+                          type="number"
+                          placeholder="점수"
+                          value={scores[student.id] || ""}
+                          onChange={(e) => updateScore(student.id, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
 
-                <button style={buttonStyle} onClick={() => saveNote(student.id)}>
-                  특이사항 저장
-                </button>
-              </div>
+                  <div style={{ marginTop: "20px", textAlign: "right" }}>
+                    <button style={buttonStyle} onClick={saveAllScores}>
+                      전체 성적 저장
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
