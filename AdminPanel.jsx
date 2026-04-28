@@ -65,6 +65,8 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
   const [newSubject, setNewSubject] = React.useState('');
   const [newGrade, setNewGrade] = React.useState('');
   const [newTeacherId, setNewTeacherId] = React.useState('');
+  const [selectedClassId, setSelectedClassId] = React.useState('');
+  const [classStudents, setClassStudents] = React.useState([]);
 
   const sb = window.supabase;
 
@@ -129,22 +131,13 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     }
 
     // 선생님
-   // 선생님
-const { data: teachers } = await sb
-  .from('teachers')
-  .select('*')
-  .order('name', { ascending: true });
-
-if (teachers) {
-  setDbTeachers(teachers.map(t => ({
-    id: t.id,
-    name: t.name,
-    email: t.email || '',
-    role: 'teacher',
-    subjects: t.subjects || [],
-    createdAt: t.created_at,
-  })));
-}
+    const { data: teachers } = await sb.from('students').select('*').in('role', ['teacher','pending_teacher']);
+    if (teachers) {
+      setDbTeachers(teachers.map(t => ({
+        id: t.id, name: t.name, email: t.email, role: t.role,
+        subjects: t.subjects || [], createdAt: t.created_at,
+      })));
+    }
 
     // 승인 대기
     const { data: pending } = await sb.from('students').select('*').in('role', ['pending_student','pending_parent','pending_teacher']);
@@ -159,7 +152,7 @@ if (teachers) {
     if (classes) {
       setDbClasses(classes.map(c => ({
         id: c.id,
-        className: c.class_name || '',
+        className: c.class_name || c.name || '',
         subject: c.subject || '',
         grade: c.grade || '',
         teacherId: c.teacher_id || null,
@@ -219,6 +212,60 @@ if (teachers) {
     const updated = subjects.includes(subject) ? subjects.filter(s => s !== subject) : [...subjects, subject];
     await sb.from('students').update({ subjects: updated }).eq('id', teacherId);
     setDbTeachers(ts => ts.map(x => x.id === teacherId ? { ...x, subjects: updated } : x));
+  }
+
+  async function loadClassStudents(classId) {
+    if (!classId) {
+      setClassStudents([]);
+      return;
+    }
+
+    const { data, error } = await sb
+      .from('class_students')
+      .select('student_id, students(id, name, grade, school, phone)')
+      .eq('class_id', classId);
+
+    if (error) {
+      alert('반 학생 조회 실패: ' + error.message);
+      return;
+    }
+
+    setClassStudents((data || []).map(item => item.students).filter(Boolean));
+  }
+
+  async function addStudentToClass(studentId) {
+    if (!selectedClassId || !studentId) return;
+
+    const { error } = await sb
+      .from('class_students')
+      .insert({
+        class_id: selectedClassId,
+        student_id: studentId
+      });
+
+    if (error) {
+      alert('학생 추가 실패: ' + error.message);
+      return;
+    }
+
+    loadClassStudents(selectedClassId);
+  }
+
+  async function removeStudentFromClass(studentId) {
+    if (!selectedClassId || !studentId) return;
+
+    const { error } = await sb
+      .from('class_students')
+      .delete()
+      .eq('class_id', selectedClassId)
+      .eq('student_id', studentId);
+
+    if (error) {
+      alert('학생 삭제 실패: ' + error.message);
+      return;
+    }
+
+    loadClassStudents(selectedClassId);
   }
 
   if (!authed) return React.createElement(AdminLogin, { onLogin:()=>setAuthed(true) });
@@ -1075,20 +1122,21 @@ if (teachers) {
             onClick: async function() {
               const { data: classes } = await sb
                 .from('classes')
-                .select('*, teachers(name)')
+                .select('*')
                 .order('created_at', { ascending: false });
 
               if (classes) {
                 setDbClasses(classes.map(c => ({
                   id: c.id,
-                  className: c.class_name || '',
+                  className: c.class_name || c.name || '',
                   subject: c.subject || '',
                   grade: c.grade || '',
                   teacherId: c.teacher_id || null,
-                  teacherName: c.teachers?.name || '',
+                  teacherName: dbTeachers.find(t => t.id === c.teacher_id)?.name || '',
                   createdAt: c.created_at,
                 })));
               }
+              if (selectedClassId) loadClassStudents(selectedClassId);
             },
             style:btnS('#2b5148')
           }, '새로고침')
@@ -1130,7 +1178,7 @@ if (teachers) {
                 style:inputS
               },
                 React.createElement('option', { value:'' }, '학년 선택'),
-                GRADES.map(g =>
+                ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'].map(g =>
                   React.createElement('option', { key:g, value:g }, g)
                 )
               )
@@ -1162,36 +1210,105 @@ if (teachers) {
 
               setSaving(true);
 
-              const { error } = await sb
-  .from('classes')
- .insert({
-  name: newClassName,
-  class_name: newClassName,
-  subject: newSubject,
-  grade: newGrade,
-  teacher_id: newTeacherId
-});
+              const { data, error } = await sb
+                .from('classes')
+                .insert({
+                  name: newClassName,
+                  class_name: newClassName,
+                  subject: newSubject,
+                  grade: newGrade,
+                  teacher_id: newTeacherId
+                })
+                .select('*')
+                .single();
 
-setSaving(false);
+              setSaving(false);
 
-if (error) {
-  console.error(error);
-  alert('반 생성 실패: ' + error.message);
-  return;
-}
+              if (error) {
+                alert('반 생성 실패: ' + error.message);
+                return;
+              }
 
-setNewClassName('');
-setNewSubject('');
-setNewGrade('');
-setNewTeacherId('');
+              if (data) {
+                setDbClasses(prev => [{
+                  id: data.id,
+                  className: data.class_name || data.name || '',
+                  subject: data.subject || '',
+                  grade: data.grade || '',
+                  teacherId: data.teacher_id || null,
+                  teacherName: dbTeachers.find(t => t.id === data.teacher_id)?.name || '',
+                  createdAt: data.created_at,
+                }, ...prev]);
+              }
 
-alert('반 생성 완료!');
-              
+              setNewClassName('');
+              setNewSubject('');
+              setNewGrade('');
+              setNewTeacherId('');
 
+              alert('반 생성 완료!');
             },
             disabled:saving,
             style:{ ...btnS(), marginTop:'16px', opacity:saving?0.6:1 }
           }, saving ? '저장 중...' : '반 생성')
+        ),
+
+        React.createElement('div', { style:{ ...cardS, marginBottom:'18px' } },
+          React.createElement('h3', { style:{ fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '반별 학생 배정'),
+
+          React.createElement('select', {
+            value:selectedClassId,
+            onChange:function(e) {
+              setSelectedClassId(e.target.value);
+              loadClassStudents(e.target.value);
+            },
+            style:inputS
+          },
+            React.createElement('option', { value:'' }, '학생을 배정할 반 선택'),
+            dbClasses.map(cls =>
+              React.createElement('option', { key:cls.id, value:cls.id },
+                `${cls.className} / ${cls.subject} / ${cls.grade} / ${cls.teacherName || '담당 미지정'}`
+              )
+            )
+          ),
+
+          selectedClassId && React.createElement('div', { style:{ marginTop:'18px' } },
+            React.createElement('h4', { style:{ fontSize:'13px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '학생 추가'),
+
+            dbStudents.filter(st => !classStudents.some(cs => cs.id === st.id)).length === 0
+              ? React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '추가할 수 있는 학생이 없습니다.')
+              : React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'20px' } },
+                  dbStudents
+                    .filter(st => !classStudents.some(cs => cs.id === st.id))
+                    .map(st =>
+                      React.createElement('button', {
+                        key:st.id,
+                        onClick:()=>addStudentToClass(st.id),
+                        style:{ background:'#f2f0eb', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px', cursor:'pointer', textAlign:'left', fontFamily:'Manrope, sans-serif' }
+                      },
+                        React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, st.name),
+                        React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', marginTop:'2px' } }, [st.school, st.grade, st.phone].filter(Boolean).join(' · ') || '정보 없음')
+                      )
+                    )
+                ),
+
+            React.createElement('h4', { style:{ fontSize:'13px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, `현재 배정 학생 ${classStudents.length}명`),
+
+            classStudents.length === 0
+              ? React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '아직 배정된 학생이 없습니다.')
+              : classStudents.map(st =>
+                  React.createElement('div', { key:st.id, style:{ display:'flex', justifyContent:'space-between', alignItems:'center', border:'1px solid #eee', borderRadius:'8px', padding:'10px 12px', marginBottom:'8px', background:'#fff' } },
+                    React.createElement('div', null,
+                      React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.name),
+                      React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [st.school, st.grade, st.phone].filter(Boolean).join(' · ') || '정보 없음')
+                    ),
+                    React.createElement('button', {
+                      onClick:()=>removeStudentFromClass(st.id),
+                      style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }
+                    }, '삭제')
+                  )
+                )
+          )
         ),
 
         React.createElement('div', null,
@@ -1212,6 +1329,7 @@ alert('반 생성 완료!');
                       onClick: async function() {
                         if (!confirm(cls.className + ' 반을 삭제할까요?')) return;
 
+                        await sb.from('class_students').delete().eq('class_id', cls.id);
                         const { error } = await sb.from('classes').delete().eq('id', cls.id);
 
                         if (error) {
@@ -1220,6 +1338,10 @@ alert('반 생성 완료!');
                         }
 
                         setDbClasses(prev => prev.filter(c => c.id !== cls.id));
+                        if (selectedClassId === cls.id) {
+                          setSelectedClassId('');
+                          setClassStudents([]);
+                        }
                       },
                       style:btnOutS
                     }, '삭제')
