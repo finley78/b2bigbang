@@ -25,14 +25,16 @@ function TeacherPortal({ user, onLogout }) {
       return;
     }
 
-    if (!teacher) {
- setDebug(
-  "teachers에서 선생님을 못 찾음 / 로그인 이메일: " +
-  user.email +
-  " / 로그인 이름: " +
-  user.name
-);
-    }
+  if (!teacher) {
+  setDebug(
+    "teachers에서 선생님을 못 찾음 / 로그인 이메일: " +
+    user.email +
+    " / 로그인 이름: " +
+    user.name
+  );
+  setLoading(false);
+  return;
+}
 
     setDebug("2. 선생님 찾음: " + teacher.id);
 
