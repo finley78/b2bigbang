@@ -369,6 +369,62 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     if (selectedClassId) loadClassStudents(selectedClassId);
   }
 
+
+  async function assignStudentToSubjectTeacher(studentId, student, subject, teacherId) {
+    if (!studentId || !student || !subject) return;
+
+    if (!teacherId) {
+      await assignStudentToSubjectClass(studentId, subject, '');
+      return;
+    }
+
+    const teacher = dbTeachers.find(t => t.id === teacherId);
+    const classGrade = student.grade || '';
+
+    let targetClass = dbClasses.find(cls =>
+      cls.subject === subject &&
+      cls.teacherId === teacherId &&
+      ((cls.grade || '') === classGrade)
+    );
+
+    if (!targetClass) {
+      const autoClassName = [classGrade, subject, teacher?.name ? teacher.name + '반' : '담당반']
+        .filter(Boolean)
+        .join(' ');
+
+      const { data, error } = await sb
+        .from('classes')
+        .insert({
+          name: autoClassName,
+          class_name: autoClassName,
+          subject: subject,
+          grade: classGrade,
+          teacher_id: teacherId
+        })
+        .select('*')
+        .single();
+
+      if (error) {
+        alert('자동 반 생성 실패: ' + error.message);
+        return;
+      }
+
+      targetClass = {
+        id: data.id,
+        className: data.class_name || data.name || autoClassName,
+        subject: data.subject || subject,
+        grade: data.grade || classGrade,
+        teacherId: data.teacher_id || teacherId,
+        teacherName: teacher?.name || '',
+        createdAt: data.created_at,
+      };
+
+      setDbClasses(prev => [targetClass, ...prev]);
+    }
+
+    await assignStudentToSubjectClass(studentId, subject, targetClass.id);
+  }
+
   if (!authed) return React.createElement(AdminLogin, { onLogin:()=>setAuthed(true) });
 
   const tabs = [
@@ -866,40 +922,46 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                       })
                     )
                   ),
-                  // 과목별 담당 반 배정
+                  // 과목별 담당 선생님 배정
                   React.createElement('div', { style:{ marginBottom:'16px', borderTop:'1px solid rgba(0,0,0,0.08)', paddingTop:'14px' } },
-                    React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '과목별 담당 반 배정'),
+                    React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '과목별 담당 선생님 배정'),
                     React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr', gap:'10px' } },
                       SUBJECTS.map(function(sub) {
-                        var subjectClasses = dbClasses
-                          .filter(function(cls) {
-                            return cls.subject === sub && (!st.grade || !cls.grade || cls.grade === st.grade);
-                          })
-                          .sort(function(a,b) { return (a.className || '').localeCompare(b.className || ''); });
-
                         var selectedSubjectClassId = (studentClassAssignments[st.id] || {})[sub] || '';
                         var selectedSubjectClass = dbClasses.find(function(cls) { return cls.id === selectedSubjectClassId; });
+                        var selectedTeacherId = selectedSubjectClass ? (selectedSubjectClass.teacherId || '') : '';
+
+                        var subjectTeachers = dbTeachers
+                          .filter(function(t) {
+                            if (t.role !== 'teacher') return false;
+                            var teacherSubjects = t.subjects || [];
+                            return teacherSubjects.includes(sub);
+                          })
+                          .sort(function(a,b) { return (a.name || '').localeCompare(b.name || ''); });
 
                         return React.createElement('div', { key:sub, style:{ display:'grid', gridTemplateColumns:'70px 1fr', alignItems:'center', gap:'8px' } },
                           React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, sub),
                           React.createElement('div', null,
                             React.createElement('select', {
-                              value:selectedSubjectClassId,
-                              onChange:function(e) { assignStudentToSubjectClass(st.id, sub, e.target.value); },
+                              value:selectedTeacherId,
+                              onChange:function(e) { assignStudentToSubjectTeacher(st.id, st, sub, e.target.value); },
                               style:inputS
                             },
-                              React.createElement('option', { value:'' }, sub + ' 반 선택 안 함'),
-                              subjectClasses.map(function(cls) {
-                                return React.createElement('option', { key:cls.id, value:cls.id },
-                                  cls.className + ' / ' + (cls.teacherName || '담당 미지정')
+                              React.createElement('option', { value:'' }, sub + ' 담당 선생님 선택 안 함'),
+                              subjectTeachers.map(function(t) {
+                                var existingClass = dbClasses.find(function(cls) {
+                                  return cls.subject === sub && cls.teacherId === t.id && ((cls.grade || '') === (st.grade || ''));
+                                });
+                                return React.createElement('option', { key:t.id, value:t.id },
+                                  t.name + (existingClass ? ' / ' + existingClass.className : ' / 선택 시 반 자동 생성')
                                 );
                               })
                             ),
                             selectedSubjectClass && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'4px' } },
-                              '현재 배정: ' + selectedSubjectClass.className + (selectedSubjectClass.teacherName ? ' · ' + selectedSubjectClass.teacherName : '')
+                              '현재 배정: ' + (selectedSubjectClass.teacherName || '담당 미지정') + ' · ' + selectedSubjectClass.className
                             ),
-                            subjectClasses.length === 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginTop:'4px' } },
-                              sub + ' 반이 없습니다. 반 관리에서 먼저 생성해주세요.'
+                            subjectTeachers.length === 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginTop:'4px' } },
+                              sub + ' 담당 선생님이 없습니다. 선생님 관리에서 담당 과목을 먼저 체크해주세요.'
                             )
                           )
                         );
