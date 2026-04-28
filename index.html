@@ -27,7 +27,6 @@
 <script type="text/babel" src="HomePage.jsx"></script>
 <script type="text/babel" src="Pages.jsx"></script>
 <script type="text/babel" src="StudentPortal.jsx"></script>
-<script type="text/babel" src="TeacherPortal.jsx"></script> 
 <script type="text/babel" src="AdminPanel.jsx"></script>
 
 <script>
@@ -140,25 +139,10 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
- function handleLogin(u) {
-  const role = String(u.role || '').trim();
-
-  setUser({
-    ...u,
-    role,
-  });
-
-  setShowLogin(false);
-
-  if (role === 'teacher') {
-    setIsAdmin(false);
-    setAdminAuthed(false);
-    navigate('teacher');
-    return;
+  function handleLogin(u) {
+    setUser(u);
+    setShowLogin(false);
   }
-
-  navigate('portal');
-}
 
   function handleLogout() {
     setUser(null);
@@ -236,23 +220,11 @@ function App() {
         onComplete: ()=>{ navigate('home'); },
       }),
 
-      page === 'portal' && user?.role === 'teacher'
-        ? React.createElement(TeacherPortal, {
-            user,
-            courses: state.courses,
-            onLogout: handleLogout,
-          })
-        : page === 'portal' && React.createElement(StudentPortal, {
-            user,
-            courses: state.courses,
-            students: state.students,
-            onLoginClick: ()=>setShowLogin(true),
-          }),
-
-      page === 'teacher' && React.createElement(TeacherPortal, {
+      page === 'portal' && React.createElement(StudentPortal, {
         user,
         courses: state.courses,
-        onLogout: handleLogout,
+        students: state.students,
+        onLoginClick: ()=>setShowLogin(true),
       }),
 
       page === 'admin' && React.createElement(AdminPanel, {
@@ -260,7 +232,12 @@ function App() {
         setState,
         adminAuthed,
         setAdminAuthed,
-        onLogout: ()=>{ setIsAdmin(false); setAdminAuthed(false); navigate('home'); },
+        onLogout: ()=>{
+          setUser(null);
+          setIsAdmin(false);
+          setAdminAuthed(false);
+          navigate('home');
+        },
       }),
     ),
   );
