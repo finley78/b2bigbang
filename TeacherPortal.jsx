@@ -13,11 +13,11 @@ function TeacherPortal({ user, onLogout }) {
     setLoading(true);
     setDebug("1. 학생 조회 시작");
 
-    const { data: teacher, error: teacherError } = await sb
-      .from("teachers")
-      .select("*")
-      .ilike("email", user.email.trim())
-      .maybeSingle();
+   const { data: teacher, error: teacherError } = await sb
+  .from("teachers")
+  .select("*")
+  .eq("name", user.name)
+  .maybeSingle();
 
     if (teacherError) {
       setDebug("teachers 조회 오류: " + teacherError.message);
