@@ -40,8 +40,9 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
   const [editingCourse, setEditingCourse] = React.useState(null);
   const [expandedStudent, setExpandedStudent] = React.useState(null);
   const [expandedMember, setExpandedMember] = React.useState(null);
-  const [dbStudents, setDbStudents] = React.useState([]);   // 수강생 (강좌 배정 대상)
-  const [dbMembers, setDbMembers] = React.useState([]);     // 전체 회원
+  const [memberFilter, setMemberFilter] = React.useState('전체');
+  const [dbStudents, setDbStudents] = React.useState([]);
+  const [dbMembers, setDbMembers] = React.useState([]);
   const [dbTeachers, setDbTeachers] = React.useState([]);
   const [dbPending, setDbPending] = React.useState([]);
   const [saving, setSaving] = React.useState(false);
@@ -95,13 +96,16 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       setDbStudents(mapped);
     }
 
-    // 전체 회원 (student, parent, teacher 모두)
-    const { data: allMembers } = await sb.from('students').select('*').in('role', ['student','parent','teacher']).eq('is_active', true);
+
+    // 전체 회원 (student, parent, teacher 모두) — parent_id + 수강 여부 포함
+    const { data: allMembers } = await sb.from('students').select('*, enrollments(course_id)').in('role', ['student','parent','teacher']).eq('is_active', true);
     if (allMembers) {
       setDbMembers(allMembers.map(m => ({
         id: m.id, name: m.name, email: m.email, provider: m.login_provider,
         role: m.role, grade: m.grade || '', school: m.school || '',
         phone: m.phone || '', address: m.address || '', createdAt: m.created_at,
+        parentId: m.parent_id || null,
+        isEnrollee: (m.enrollments || []).length > 0,
       })));
     }
 
@@ -177,7 +181,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     { id:'notice',  label:'공지사항' },
     { id:'course',  label:'강좌 관리' },
     { id:'enrollee',label:'수강생 관리' },
-    { id:'member',  label:'회원 관리' },
+    { id:'member',  label:'회원 정보' },
     { id:'teacher', label:'👨‍🏫 선생님 관리' },
     { id:'feature', label:'섹션 편집' },
   ];
@@ -527,57 +531,148 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
 
       /* ── 회원 관리 TAB ── */
       tab==='member' && React.createElement('div', null,
+        // 헤더 + 드롭다운
         React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' } },
-          React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, `회원 목록 (${dbMembers.length}명)`),
-          React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '가입한 모든 회원')
-        ),
-        // 역할별 필터 뱃지
-        React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'16px' } },
-          ['전체','학생','학부모','선생님'].map(function(lbl) {
-            const roleMap = { '학생':'student', '학부모':'parent', '선생님':'teacher' };
-            const count = lbl === '전체' ? dbMembers.length : dbMembers.filter(m => m.role === roleMap[lbl]).length;
-            return React.createElement('div', { key:lbl, style:{ background:'#fff', borderRadius:'8px', padding:'6px 14px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.6)', boxShadow:'0 1px 3px rgba(0,0,0,0.08)' } },
-              lbl + ' ' + count + '명'
-            );
-          })
-        ),
-        dbMembers.length === 0 && React.createElement('div', { style:{ ...cardS, textAlign:'center', padding:'48px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px' } }, '등록된 회원이 없습니다'),
-        dbMembers.map(m =>
-          React.createElement('div', { key:m.id, style:cardS },
-            React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }, onClick:()=>setExpandedMember(expandedMember===m.id?null:m.id) },
-              React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
-                React.createElement('div', { style:{ width:'40px', height:'40px', borderRadius:'50%', background: m.role==='teacher'?'#d4e9e2': m.role==='parent'?'#fff3cd':'#e8f4fd', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', flexShrink:0 } }, ROLE_ICON[m.role]||'👤'),
-                React.createElement('div', null,
-                  React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
-                    React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, m.name),
-                    React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background: m.role==='teacher'?'#d4e9e2': m.role==='parent'?'#fff3cd':'#e8f4fd', color: m.role==='teacher'?'#006241': m.role==='parent'?'#856404':'#0066cc', borderRadius:'6px', padding:'2px 8px', fontFamily:'Manrope, sans-serif' } }, ROLE_LABEL[m.role]||m.role)
-                  ),
-                  React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } },
-                    (m.email || m.phone || '') + (m.grade ? ' · ' + m.grade : '') + (m.school ? ' · ' + m.school : '')
-                  )
-                )
-              ),
-              React.createElement('span', { style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', transition:'transform 0.2s', transform: expandedMember===m.id?'rotate(180deg)':'none' } }, '▾')
-            ),
-            // 상세 정보
-            expandedMember===m.id && React.createElement('div', { style:{ marginTop:'14px', paddingTop:'14px', borderTop:'1px solid rgba(0,0,0,0.08)', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' } },
-              [
-                { label:'이름', value: m.name },
-                { label:'역할', value: ROLE_LABEL[m.role]||m.role },
-                { label:'전화번호', value: m.phone || '—' },
-                { label:'이메일', value: m.email || '—' },
-                { label:'주소', value: m.address || '—' },
-                { label:'학교', value: m.school || '—' },
-                { label:'학년', value: m.grade || '—' },
-                { label:'가입일', value: m.createdAt ? m.createdAt.slice(0,10) : '—' },
-              ].map(function(item) {
-                return React.createElement('div', { key:item.label },
-                  React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', marginBottom:'2px', letterSpacing:'0.04em' } }, item.label),
-                  React.createElement('div', { style:{ fontSize:'13px', fontWeight:'600', color:'rgba(0,0,0,0.75)', fontFamily:'Manrope, sans-serif' } }, item.value)
-                );
-              })
+          React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '회원 정보'),
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
+            // 드롭다운 필터
+            React.createElement('select', {
+              value: memberFilter,
+              onChange: e => { setMemberFilter(e.target.value); setExpandedMember(null); },
+              style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 14px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', background:'#fff', cursor:'pointer', outline:'none' }
+            },
+              React.createElement('option', { value:'전체' }, `전체 ${dbMembers.length}명`),
+              React.createElement('option', { value:'수강생' }, `수강생 ${dbMembers.filter(m=>m.role==='student'&&m.isEnrollee).length}명`),
+              React.createElement('option', { value:'일반회원' }, `일반회원 ${dbMembers.filter(m=>m.role==='student'&&!m.isEnrollee).length}명`),
+              React.createElement('option', { value:'학부모' }, `학부모 ${dbMembers.filter(m=>m.role==='parent').length}명`),
+              React.createElement('option', { value:'선생님' }, `선생님 ${dbMembers.filter(m=>m.role==='teacher').length}명`)
             )
           )
+        ),
+
+        // 필터링된 목록
+        React.createElement('div', null,
+          (function() {
+            let filtered = dbMembers;
+            if (memberFilter === '수강생')   filtered = dbMembers.filter(m => m.role==='student' && m.isEnrollee);
+            if (memberFilter === '일반회원') filtered = dbMembers.filter(m => m.role==='student' && !m.isEnrollee);
+            if (memberFilter === '학부모')   filtered = dbMembers.filter(m => m.role==='parent');
+            if (memberFilter === '선생님')   filtered = dbMembers.filter(m => m.role==='teacher');
+
+            if (filtered.length === 0) return [React.createElement('div', { key:'empty', style:{ ...cardS, textAlign:'center', padding:'48px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px' } }, '해당 회원이 없습니다')];
+
+            return filtered.map(function(m) {
+              // 이 학생의 학부모 찾기
+              const linkedParent = m.role==='student' && m.parentId
+                ? dbMembers.find(x => x.id === m.parentId)
+                : null;
+              // 이 학부모의 자녀 찾기
+              const linkedChildren = m.role==='parent'
+                ? dbMembers.filter(x => x.role==='student' && x.parentId === m.id)
+                : [];
+
+              const roleBg    = m.role==='teacher'?'#d4e9e2': m.role==='parent'?'#fff3cd': m.isEnrollee?'#e8f4fd':'#f2f0eb';
+              const roleColor = m.role==='teacher'?'#006241': m.role==='parent'?'#856404': m.isEnrollee?'#0066cc':'rgba(0,0,0,0.45)';
+              const roleLabel = m.role==='teacher'?'선생님': m.role==='parent'?'학부모': m.isEnrollee?'수강생':'일반회원';
+
+              return React.createElement('div', { key:m.id, style:cardS },
+                // 카드 헤더
+                React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }, onClick:()=>setExpandedMember(expandedMember===m.id?null:m.id) },
+                  React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
+                    // 아바타
+                    React.createElement('div', { style:{ width:'40px', height:'40px', borderRadius:'50%', background:roleBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'800', color:roleColor, fontFamily:'Manrope, sans-serif', flexShrink:0 } }, m.name[0]),
+                    React.createElement('div', null,
+                      React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+                        React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, m.name),
+                        React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:roleBg, color:roleColor, borderRadius:'6px', padding:'2px 8px', fontFamily:'Manrope, sans-serif' } }, roleLabel),
+                        // 학부모 연결 미리보기
+                        linkedParent && React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, `학부모: ${linkedParent.name}`),
+                        linkedChildren.length > 0 && React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, `자녀: ${linkedChildren.map(c=>c.name).join(', ')}`)
+                      ),
+                      React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } },
+                        [m.phone, m.grade, m.school].filter(Boolean).join(' · ') || m.email || '—'
+                      )
+                    )
+                  ),
+                  React.createElement('span', { style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', transition:'transform 0.2s', transform: expandedMember===m.id?'rotate(180deg)':'none' } }, '▾')
+                ),
+
+                // 펼침 상세
+                expandedMember===m.id && React.createElement('div', { style:{ marginTop:'14px', paddingTop:'14px', borderTop:'1px solid rgba(0,0,0,0.08)' } },
+                  // 기본 정보 그리드
+                  React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'16px' } },
+                    [
+                      { label:'이름', value: m.name },
+                      { label:'구분', value: roleLabel },
+                      { label:'전화번호', value: m.phone || '—' },
+                      { label:'이메일', value: m.email || '—' },
+                      { label:'주소', value: m.address || '—' },
+                      { label:'학교', value: m.school || '—' },
+                      { label:'학년', value: m.grade || '—' },
+                      { label:'가입일', value: m.createdAt ? m.createdAt.slice(0,10) : '—' },
+                    ].map(function(item) {
+                      return React.createElement('div', { key:item.label },
+                        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', marginBottom:'2px', letterSpacing:'0.04em' } }, item.label),
+                        React.createElement('div', { style:{ fontSize:'13px', fontWeight:'600', color:'rgba(0,0,0,0.75)', fontFamily:'Manrope, sans-serif' } }, item.value)
+                      );
+                    })
+                  ),
+
+                  // 학생 → 학부모 연결
+                  m.role==='student' && React.createElement('div', { style:{ background:'#f9f9f9', borderRadius:'10px', padding:'14px', marginBottom:'8px' } },
+                    React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'10px', letterSpacing:'0.04em' } }, '학부모 연결'),
+                    linkedParent
+                      ? React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between' } },
+                          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
+                            React.createElement('div', { style:{ width:'32px', height:'32px', borderRadius:'50%', background:'#fff3cd', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', color:'#856404', fontFamily:'Manrope, sans-serif' } }, linkedParent.name[0]),
+                            React.createElement('div', null,
+                              React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, linkedParent.name),
+                              React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, linkedParent.phone || linkedParent.email || '—')
+                            )
+                          ),
+                          React.createElement('button', { onClick: async function() {
+                            await sb.from('students').update({ parent_id: null }).eq('id', m.id);
+                            setDbMembers(prev => prev.map(x => x.id===m.id ? {...x, parentId:null} : x));
+                          }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '연결 해제')
+                        )
+                      : React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
+                          React.createElement('select', {
+                            defaultValue: '',
+                            onChange: async function(e) {
+                              const parentId = e.target.value;
+                              if (!parentId) return;
+                              await sb.from('students').update({ parent_id: parentId }).eq('id', m.id);
+                              setDbMembers(prev => prev.map(x => x.id===m.id ? {...x, parentId} : x));
+                            },
+                            style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', background:'#fff', outline:'none', flex:1, cursor:'pointer' }
+                          },
+                            React.createElement('option', { value:'' }, '학부모를 선택하세요'),
+                            dbMembers.filter(x=>x.role==='parent').map(p =>
+                              React.createElement('option', { key:p.id, value:p.id }, p.name + (p.phone?' ('+p.phone+')':''))
+                            )
+                          )
+                        )
+                  ),
+
+                  // 학부모 → 자녀 연결
+                  m.role==='parent' && React.createElement('div', { style:{ background:'#f9f9f9', borderRadius:'10px', padding:'14px' } },
+                    React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'10px', letterSpacing:'0.04em' } }, `자녀 (${linkedChildren.length}명)`),
+                    linkedChildren.length === 0
+                      ? React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '연결된 자녀가 없습니다')
+                      : linkedChildren.map(function(child) {
+                          return React.createElement('div', { key:child.id, style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px' } },
+                            React.createElement('div', { style:{ width:'32px', height:'32px', borderRadius:'50%', background:'#e8f4fd', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', color:'#0066cc', fontFamily:'Manrope, sans-serif' } }, child.name[0]),
+                            React.createElement('div', null,
+                              React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, child.name),
+                              React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [child.grade, child.school].filter(Boolean).join(' · ') || '—')
+                            )
+                          );
+                        })
+                  )
+                )
+              );
+            });
+          })()
         )
       ),
 
