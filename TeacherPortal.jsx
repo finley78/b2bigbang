@@ -16,7 +16,7 @@ function TeacherPortal({ user, onLogout }) {
       const { data: teacher, error: teacherError } = await sb
         .from("teachers")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("email", user.email)
         .single();
 
       if (teacherError || !teacher) {
