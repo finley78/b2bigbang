@@ -147,6 +147,7 @@ function App() {
   function handleLogout() {
     setUser(null);
     setIsAdmin(false);
+    setAdminAuthed(false);
     navigate('home');
   }
 
@@ -171,14 +172,15 @@ function App() {
     }),
 
     // 상단 네비
-    React.createElement(TopBar, {
+    // 관리자 화면에서는 AdminPanel 자체 헤더만 사용하도록 TopNav를 숨깁니다.
+    page !== 'admin' && React.createElement(TopBar, {
       user,
       onLoginClick: ()=>setShowLogin(true),
       onLogout: handleLogout,
       onAdminClick: handleAdminClick,
       examDate: EXAM_DATE,
     }),
-    React.createElement(MainNav, {
+    page !== 'admin' && React.createElement(MainNav, {
       page,
       setPage: navigate,
       user,
