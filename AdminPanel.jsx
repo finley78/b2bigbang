@@ -628,29 +628,11 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
 
       /* ── COURSE TAB ── */
       tab==='course' && React.createElement('div', null,
-        React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' } },
-          React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
-          React.createElement('button', { onClick: async function() {
-            try {
-              // subjects 테이블에서 수학 id 조회
-              var subjRes = await window.supabase.from('subjects').select('id,name,color').eq('name','수학').single();
-              var subjId = subjRes.data ? subjRes.data.id : null;
-              var subjName = subjRes.data ? subjRes.data.name : '수학';
-              var subjColor = subjRes.data ? subjRes.data.color : '#006241';
-              // subjects가 없으면 첫 번째 subject 사용
-              if (!subjId) {
-                var allSubj = await window.supabase.from('subjects').select('id,name,color').limit(1).single();
-                if (allSubj.data) { subjId = allSubj.data.id; subjName = allSubj.data.name; subjColor = allSubj.data.color; }
-              }
-              var insertRes = await window.supabase.from('courses').insert({ subject_id: subjId, title:'새 강좌', sort_order: state.courses.length+1 }).select('*, subjects(name,color)').single();
-              var data = insertRes.data;
-              if (data) {
-                setState(function(s) { return {...s, courses:[...s.courses,{ id:data.id, subject:data.subjects?.name||subjName, color:data.subjects?.color||subjColor, name:data.title, teacher:'', grade:'고1', price:'', badge:null, lectures:[] }]}; });
-              } else {
-                alert('강좌 추가 실패: ' + JSON.stringify(insertRes.error));
-              }
-            } catch(e) { alert('오류: ' + e.message); }
-          }, style:btnS() }, '+ 강좌 추가')
+        React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px', gap:'12px' } },
+          React.createElement('div', null,
+            React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, '전체 강좌/영상 관리'),
+            React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', margin:0 } }, '강좌 생성은 선생님 페이지에서 담당 학년과 영상 링크를 입력해 등록합니다. 관리자는 전체 강좌 수정·삭제와 학생별 수강 권한 조정만 관리합니다.')
+          )
         ),
         state.courses.map(c =>
           React.createElement('div', { key:c.id, style:cardS },
@@ -658,7 +640,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
               React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center' } },
                 React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#d4e9e2', color:'#006241', borderRadius:'4px', padding:'2px 8px', fontFamily:'Manrope, sans-serif' } }, c.subject),
                 React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, c.name),
-                React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, `${c.teacher} · ${c.grade}`)
+                React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, c.teacher || c.grade ? `${c.teacher || ''}${c.teacher && c.grade ? ' · ' : ''}${c.grade || ''}` : '선생님 등록 강좌')
               ),
               React.createElement('div', { style:{ display:'flex', gap:'8px' } },
                 editingCourse===c.id && React.createElement('button', { onClick: async ()=>{
@@ -672,7 +654,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
             ),
             editingCourse===c.id && React.createElement('div', { style:{ paddingTop:'12px', borderTop:'1px solid rgba(0,0,0,0.08)' } },
               React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'10px', marginBottom:'10px' } },
-                [{f:'name',l:'강좌명'},{f:'teacher',l:'강사'},{f:'price',l:'수강료'},{f:'badge',l:'뱃지'}].map(({f,l})=>
+                [{f:'name',l:'강좌명'},{f:'badge',l:'뱃지'}].map(({f,l})=>
                   React.createElement('div', {key:f},
                     React.createElement('label',{style:labelS},l),
                     React.createElement('input',{value:c[f]||'',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,[f]:e.target.value}:x)})),style:inputS})
@@ -1367,7 +1349,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                             })
                           ),
                       React.createElement('div', { style:{ marginTop:'8px', fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
-                        '여기서 배정한 강좌가 선생님 페이지의 온라인 강의 관리에 표시됩니다.'
+                        '선생님이 직접 올린 강좌는 자동으로 목록에 나타납니다. 필요할 때만 기존 강좌를 수동 배정하세요.'
                       )
                     )
                   )

@@ -9,6 +9,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [debug, setDebug] = React.useState("");
   const [teacherCourses, setTeacherCourses] = React.useState([]);
   const [selectedCourseId, setSelectedCourseId] = React.useState("");
+  const [selectedCourseAssignment, setSelectedCourseAssignment] = React.useState("");
+  const [courseVideoTitle, setCourseVideoTitle] = React.useState("");
+  const [courseVideoLink, setCourseVideoLink] = React.useState("");
+  const [savingOnline, setSavingOnline] = React.useState(false);
 
   const [testInfo, setTestInfo] = React.useState({
     reportPeriod: "주간",
@@ -55,6 +59,53 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return raw;
   }
 
+  function splitList(value) {
+    if (Array.isArray(value)) return value.filter(Boolean).map((v) => String(v).trim()).filter(Boolean);
+    return String(value || "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+
+  function getTeacherSubjects() {
+    const sources = [teacherInfo?.subjects, teacherInfo?.subject, user?.subjects, user?.subject];
+    const result = [];
+    sources.forEach((src) => splitList(src).forEach((item) => { if (item && !result.includes(item)) result.push(item); }));
+    return result;
+  }
+
+  function getPrimarySubject() {
+    return getTeacherSubjects()[0] || "영어";
+  }
+
+  function getTeacherAssignments() {
+    const raw = splitList(teacherInfo?.grade || user?.grade);
+    const paired = raw.filter((item) => /^(초등|중등|고등)\s+/.test(item));
+    if (paired.length > 0) return paired;
+    return raw;
+  }
+
+  function courseTitleForAssignment(assignment) {
+    const subject = getPrimarySubject();
+    const teacherName = teacherInfo?.name || user?.name || "선생님";
+    return `${assignment} ${subject} 온라인 강의 - ${teacherName}`;
+  }
+
+  function isMyOnlineCourse(course, teacher) {
+    if (isAdmin || adminAuthed || user?.role === "admin") return true;
+    const title = clean(course.title || course.name);
+    const teacherName = clean(teacher?.name || user?.name);
+    const teacherEmail = clean(teacher?.email || user?.email);
+    if (String(course.teacher_id || "") && String(course.teacher_id) === String(teacher?.id)) return true;
+    if (teacherName && title.indexOf(teacherName) >= 0) return true;
+    if (teacherEmail && clean(course.teacher_email) === teacherEmail) return true;
+    return false;
+  }
+
+  function selectedCourse() {
+    return teacherCourses.find((course) => String(course.id) === String(selectedCourseId));
+  }
+
   function mapCourseForTeacher(course) {
     return {
       id: course.id,
@@ -99,8 +150,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       return;
     }
 
-    setTeacherInfo(teacher);
-    setDebug("2. 선생님 찾음: " + teacher.id);
+    const { data: teacherAccount } = await sb
+      .from("students")
+      .select("*")
+      .eq("email", user.email)
+      .single();
+
+    const mergedTeacher = { ...(teacher || {}), ...(teacherAccount || {}), id: teacher.id || teacherAccount?.id };
+    setTeacherInfo(mergedTeacher);
+    setDebug("2. 선생님 찾음: " + mergedTeacher.id);
 
     const { data: classList, error: classError } = await sb
       .from("classes")
@@ -133,24 +191,89 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     }
 
     const teacherName = clean(teacher?.name || user?.name);
-    const teacherEmail = clean(teacher?.email || user?.email);
     const classSubjects = new Set((classList || []).map((cls) => clean(cls.subject)).filter(Boolean));
     const classNames = new Set((classList || []).map((cls) => clean(cls.name)).filter(Boolean));
     const filtered = (courseList || []).filter((course) => {
-      if (isAdmin || adminAuthed || user?.role === "admin") return true;
-      if (String(course.teacher_id || "") && String(course.teacher_id) === String(teacher?.id)) return true;
-      if (teacherName && clean(course.teacher) === teacherName) return true;
-      if (teacherEmail && clean(course.teacher_email) === teacherEmail) return true;
-
       const courseTitle = clean(course.title || course.name);
       const courseSubject = clean(course.subjects?.name || course.subject);
 
+      if (isMyOnlineCourse(course, teacher)) return true;
       if (classNames.size > 0 && classNames.has(courseTitle)) return true;
-      if (classNames.size === 0 && classSubjects.size > 0 && classSubjects.has(courseSubject)) return true;
+      if (classNames.size === 0 && classSubjects.size > 0 && classSubjects.has(courseSubject) && teacherName && courseTitle.indexOf(teacherName) >= 0) return true;
       return false;
     });
 
-    setTeacherCourses(filtered.map(mapCourseForTeacher));
+    const mapped = filtered.map(mapCourseForTeacher);
+    setTeacherCourses(mapped);
+    if (!selectedCourseId && mapped.length > 0) setSelectedCourseId(String(mapped[0].id));
+  }
+
+  async function createCourseAndAddVideo() {
+    const assignment = String(selectedCourseAssignment || "").trim();
+    const title = String(courseVideoTitle || "").trim();
+    const link = String(courseVideoLink || "").trim();
+    const subject = getPrimarySubject();
+
+    if (!assignment) { alert("담당 학년을 선택해 주세요."); return; }
+    if (!title) { alert("영상 제목을 입력해 주세요."); return; }
+    if (!link) { alert("유튜브 링크/ID 또는 시놀로지 영상 URL을 입력해 주세요."); return; }
+
+    setSavingOnline(true);
+    try {
+      const courseTitle = courseTitleForAssignment(assignment);
+      let course = teacherCourses.find((item) => item.title === courseTitle);
+      let courseId = course?.id;
+
+      if (!courseId) {
+        const { data: subjectRow } = await sb
+          .from("subjects")
+          .select("id,name,color")
+          .eq("name", subject)
+          .single();
+
+        const insertPayload = {
+          subject_id: subjectRow?.id || null,
+          title: courseTitle,
+          sort_order: teacherCourses.length + 1,
+          is_active: true,
+        };
+
+        const { data: newCourse, error: courseError } = await sb
+          .from("courses")
+          .insert(insertPayload)
+          .select("*, subjects(name,color), videos(*)")
+          .single();
+
+        if (courseError) throw courseError;
+        courseId = newCourse.id;
+        course = mapCourseForTeacher(newCourse);
+        setTeacherCourses((prev) => [...prev, course]);
+      }
+
+      const target = teacherCourses.find((item) => String(item.id) === String(courseId)) || course;
+      const nextOrder = ((target?.lectures || []).length) + 1;
+      const { data: video, error: videoError } = await sb
+        .from("videos")
+        .insert({ course_id: courseId, title, youtube_id: extractYoutubeId(link), sort_order: nextOrder })
+        .select()
+        .single();
+
+      if (videoError) throw videoError;
+
+      const lecture = { id: video.id, title: video.title, youtubeId: video.youtube_id || "", videoUrl: lectureVideoUrl(video) };
+      setTeacherCourses((prev) => {
+        const exists = prev.some((item) => String(item.id) === String(courseId));
+        const base = exists ? prev : [...prev, course];
+        return base.map((item) => String(item.id) === String(courseId) ? { ...item, lectures: [...(item.lectures || []), lecture] } : item);
+      });
+      setSelectedCourseId(String(courseId));
+      setCourseVideoTitle("");
+      setCourseVideoLink("");
+      alert("온라인 강의가 등록되었습니다.");
+    } catch (error) {
+      alert("온라인 강의 등록 실패: " + (error?.message || JSON.stringify(error)));
+    }
+    setSavingOnline(false);
   }
 
   async function addLectureToCourse(courseId) {
@@ -424,57 +547,85 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       ) : (
         <>
           <div style={{ ...cardStyle, marginBottom: "24px" }}>
-            <h2 style={{ marginBottom: "16px" }}>온라인 강의 관리</h2>
-            <p style={{ marginTop: "-6px", marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>본인 담당 강좌에 유튜브 링크/ID 또는 시놀로지 영상 URL을 등록할 수 있습니다.</p>
+            <h2 style={{ marginBottom: "16px" }}>온라인 강의 등록</h2>
+            <p style={{ marginTop: "-6px", marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>담당 학년을 선택하고, 영상 제목과 유튜브 링크/ID 또는 시놀로지 영상 URL만 입력하면 됩니다.</p>
+
+            {getTeacherAssignments().length === 0 ? (
+              <div>담당 학년이 없습니다. 관리자 페이지에서 학교급/학년 배정을 먼저 해 주세요.</div>
+            ) : (
+              <div style={{ display: "grid", gap: "12px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>담당 학년</label>
+                    <select style={inputStyle} value={selectedCourseAssignment} onChange={(e) => setSelectedCourseAssignment(e.target.value)}>
+                      <option value="">학년을 선택해 주세요</option>
+                      {getTeacherAssignments().map((assignment) => (
+                        <option key={assignment} value={assignment}>{assignment}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>과목</label>
+                    <input style={inputStyle} value={getPrimarySubject()} readOnly />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>자동 생성 강좌명</label>
+                  <input style={inputStyle} value={selectedCourseAssignment ? courseTitleForAssignment(selectedCourseAssignment) : "담당 학년을 선택하면 자동으로 생성됩니다."} readOnly />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "12px", alignItems: "end" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 제목</label>
+                    <input style={inputStyle} value={courseVideoTitle} onChange={(e) => setCourseVideoTitle(e.target.value)} placeholder="예: 4월 3주차 문법 보충강의" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 링크</label>
+                    <input style={inputStyle} value={courseVideoLink} onChange={(e) => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL" />
+                  </div>
+                  <button style={buttonStyle} onClick={createCourseAndAddVideo} disabled={savingOnline}>
+                    {savingOnline ? "저장 중..." : "강의 저장"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ ...cardStyle, marginBottom: "24px" }}>
+            <h2 style={{ marginBottom: "16px" }}>내 온라인 강좌 목록</h2>
+            <p style={{ marginTop: "-6px", marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>등록된 강좌와 영상을 확인하고 제목/링크를 수정할 수 있습니다.</p>
 
             {teacherCourses.length === 0 ? (
-              <div>담당 강좌가 없습니다. 관리자에게 강좌 배정을 요청해 주세요.</div>
+              <div>아직 등록된 온라인 강좌가 없습니다.</div>
             ) : (
               <>
-                <select
-                  style={{ ...inputStyle, maxWidth: "520px", marginBottom: "16px" }}
-                  value={selectedCourseId}
-                  onChange={(e) => setSelectedCourseId(e.target.value)}
-                >
-                  <option value="">강의를 등록할 강좌를 선택해 주세요</option>
+                <select style={{ ...inputStyle, maxWidth: "620px", marginBottom: "16px" }} value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+                  <option value="">강좌를 선택해 주세요</option>
                   {teacherCourses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.title}{course.subject ? ` / ${course.subject}` : ""}
-                    </option>
+                    <option key={course.id} value={course.id}>{course.title}{course.subject ? ` / ${course.subject}` : ""}</option>
                   ))}
                 </select>
 
                 {selectedCourseId && (
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                      <strong>{teacherCourses.find((course) => String(course.id) === String(selectedCourseId))?.title}</strong>
-                      <button style={buttonStyle} onClick={() => addLectureToCourse(selectedCourseId)}>+ 강의 추가</button>
+                      <strong>{selectedCourse()?.title}</strong>
+                      <button style={buttonStyle} onClick={() => addLectureToCourse(selectedCourseId)}>+ 빈 강의 추가</button>
                     </div>
 
-                    {(teacherCourses.find((course) => String(course.id) === String(selectedCourseId))?.lectures || []).length === 0 ? (
+                    {(selectedCourse()?.lectures || []).length === 0 ? (
                       <div style={{ color: "#6b7280" }}>아직 등록된 강의가 없습니다.</div>
                     ) : (
                       <div style={{ display: "grid", gap: "10px" }}>
-                        {(teacherCourses.find((course) => String(course.id) === String(selectedCourseId))?.lectures || []).map((lecture, idx) => (
+                        {(selectedCourse()?.lectures || []).map((lecture, idx) => (
                           <div key={lecture.id} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "12px", display: "grid", gap: "8px" }}>
                             <div style={{ display: "grid", gridTemplateColumns: "70px 1fr auto", gap: "8px", alignItems: "center" }}>
                               <strong style={{ color: "#006241" }}>{idx + 1}강</strong>
-                              <input
-                                style={inputStyle}
-                                value={lecture.title || ""}
-                                placeholder="강의 제목"
-                                onChange={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, false)}
-                                onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, true)}
-                              />
+                              <input style={inputStyle} value={lecture.title || ""} placeholder="강의 제목" onChange={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, false)} onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, true)} />
                               <button style={lightButtonStyle} onClick={() => deleteLecture(selectedCourseId, lecture.id)}>삭제</button>
                             </div>
-                            <input
-                              style={inputStyle}
-                              value={lecture.youtubeId || ""}
-                              placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL"
-                              onChange={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, false)}
-                              onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, true)}
-                            />
+                            <input style={inputStyle} value={lecture.youtubeId || ""} placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL" onChange={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, false)} onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, true)} />
                           </div>
                         ))}
                       </div>
