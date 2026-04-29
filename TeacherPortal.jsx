@@ -38,6 +38,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     }));
   }, [testInfo.reportPeriod]);
 
+  React.useEffect(() => {
+    const assignments = getTeacherAssignments();
+    if (!selectedCourseAssignment && assignments.length > 0) {
+      setSelectedCourseAssignment(assignments[0]);
+    }
+  }, [teacherInfo]);
+
   function clean(value) {
     return String(value || "").trim().toLowerCase();
   }
@@ -156,7 +163,17 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       .eq("email", user.email)
       .single();
 
-    const mergedTeacher = { ...(teacher || {}), ...(teacherAccount || {}), id: teacher.id || teacherAccount?.id };
+    const mergedTeacher = {
+      ...(teacher || {}),
+      ...(teacherAccount || {}),
+      id: teacher.id || teacherAccount?.id,
+      name: teacherAccount?.name || teacher?.name || user?.name || "선생님",
+      email: teacherAccount?.email || teacher?.email || user?.email || "",
+      subjects: teacherAccount?.subjects || teacher?.subjects || user?.subjects || [],
+      subject: teacherAccount?.subject || teacher?.subject || user?.subject || "",
+      school: teacherAccount?.school || teacher?.school || user?.school || "",
+      grade: teacherAccount?.grade || teacher?.grade || user?.grade || "",
+    };
     setTeacherInfo(mergedTeacher);
     setDebug("2. 선생님 찾음: " + mergedTeacher.id);
 
@@ -173,7 +190,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     }
 
     setClasses(classList || []);
-    await loadTeacherCourses(teacher, classList || []);
+    await loadTeacherCourses(mergedTeacher, classList || []);
     setDebug("3. 담당 반 수: " + (classList || []).length);
     setLoading(false);
   }
@@ -538,15 +555,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         <>
           <div style={{ ...cardStyle, marginBottom: "24px" }}>
             <h2 style={{ marginBottom: "16px" }}>온라인 강의 등록</h2>
-            <p style={{ marginTop: "-6px", marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>담당 학년을 선택하고, 영상 제목과 유튜브 링크/ID 또는 시놀로지 영상 URL만 입력하면 됩니다.</p>
+            <p style={{ marginTop: "-6px", marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>관리자가 배정한 담당 학년이 곧 선생님이 온라인 영상을 녹화해서 올릴 강의 목록입니다. 담당 학년을 선택하고 영상 제목/링크만 입력하면 됩니다.</p>
 
             {getTeacherAssignments().length === 0 ? (
-              <div>담당 학년이 없습니다. 관리자 페이지에서 학교급/학년 배정을 먼저 해 주세요.</div>
+              <div>아직 배정된 담당 학년이 없습니다. 관리자 페이지에서 이 선생님에게 중등 1·2·3학년 또는 고등 1·2·3학년처럼 녹화 대상 학년을 먼저 배정해 주세요.</div>
             ) : (
               <div style={{ display: "grid", gap: "12px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
-                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>담당 학년</label>
+                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>담당 학년 / 녹화 대상 강의</label>
                     <select style={inputStyle} value={selectedCourseAssignment} onChange={(e) => setSelectedCourseAssignment(e.target.value)}>
                       <option value="">학년을 선택해 주세요</option>
                       {getTeacherAssignments().map((assignment) => (
