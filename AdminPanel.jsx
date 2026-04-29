@@ -221,18 +221,46 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
   }
 
 
-  async function updateTeacherLevel(teacherId, level) {
-    await sb.from('students').update({ school: level }).eq('id', teacherId);
+  function splitAdminList(value) {
+    if (Array.isArray(value)) return value.filter(Boolean).map(function(v) { return String(v).trim(); }).filter(Boolean);
+    return String(value || '')
+      .split(',')
+      .map(function(v) { return v.trim(); })
+      .filter(Boolean);
+  }
+
+  function joinAdminList(list) {
+    return Array.from(new Set((list || []).filter(Boolean).map(function(v) { return String(v).trim(); }).filter(Boolean))).join(',');
+  }
+
+  async function toggleTeacherLevel(teacherId, level) {
+    const t = dbTeachers.find(function(x) { return x.id === teacherId; });
+    const current = splitAdminList(t && t.school);
+    const updatedList = current.includes(level) ? current.filter(function(v) { return v !== level; }) : current.concat(level);
+    const updated = joinAdminList(updatedList);
+    await sb.from('students').update({ school: updated }).eq('id', teacherId);
     setDbTeachers(function(ts) {
-      return ts.map(function(x) { return x.id === teacherId ? Object.assign({}, x, { school: level }) : x; });
+      return ts.map(function(x) { return x.id === teacherId ? Object.assign({}, x, { school: updated }) : x; });
     });
   }
 
-  async function updateTeacherGrade(teacherId, grade) {
-    await sb.from('students').update({ grade: grade }).eq('id', teacherId);
+  async function toggleTeacherGrade(teacherId, grade) {
+    const t = dbTeachers.find(function(x) { return x.id === teacherId; });
+    const current = splitAdminList(t && t.grade);
+    const updatedList = current.includes(grade) ? current.filter(function(v) { return v !== grade; }) : current.concat(grade);
+    const updated = joinAdminList(updatedList);
+    await sb.from('students').update({ grade: updated }).eq('id', teacherId);
     setDbTeachers(function(ts) {
-      return ts.map(function(x) { return x.id === teacherId ? Object.assign({}, x, { grade: grade }) : x; });
+      return ts.map(function(x) { return x.id === teacherId ? Object.assign({}, x, { grade: updated }) : x; });
     });
+  }
+
+  async function updateTeacherLevel(teacherId, level) {
+    return toggleTeacherLevel(teacherId, level);
+  }
+
+  async function updateTeacherGrade(teacherId, grade) {
+    return toggleTeacherGrade(teacherId, grade);
   }
 
   function cleanAdminValue(value) {
@@ -1201,22 +1229,31 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                     ),
                     React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #edf0f2' } },
                       React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '담당 학교급 / 학년 배정'),
-                      React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
-                        React.createElement('select', {
-                          value: t.school || '',
-                          onChange:function(e){ updateTeacherLevel(t.id, e.target.value); },
-                          style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
-                        },
-                          React.createElement('option', { value:'' }, '초/중/고 선택'),
-                          TEACHER_LEVELS.map(function(level){ return React.createElement('option', { key:level, value:level }, level); })
-                        ),
-                        React.createElement('select', {
-                          value: t.grade || '',
-                          onChange:function(e){ updateTeacherGrade(t.id, e.target.value); },
-                          style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
-                        },
-                          React.createElement('option', { value:'' }, '학년 선택'),
-                          TEACHER_GRADES.map(function(grade){ return React.createElement('option', { key:grade, value:grade }, grade); })
+                      React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '한 선생님이 여러 학교급과 여러 학년을 동시에 담당할 수 있습니다.'),
+                      React.createElement('div', { style:{ marginBottom:'12px' } },
+                        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginBottom:'6px' } }, '초 / 중 / 고'),
+                        React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
+                          TEACHER_LEVELS.map(function(level) {
+                            var selected = splitAdminList(t.school).includes(level);
+                            return React.createElement('button', {
+                              key:level,
+                              onClick:function(){ toggleTeacherLevel(t.id, level); },
+                              style:{ background:selected?'#006241':'#f2f0eb', color:selected?'#fff':'rgba(0,0,0,0.55)', border:selected?'2px solid #006241':'2px solid transparent', borderRadius:'8px', padding:'7px 18px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' }
+                            }, (selected ? '✓ ' : '') + level);
+                          })
+                        )
+                      ),
+                      React.createElement('div', null,
+                        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginBottom:'6px' } }, '담당 학년'),
+                        React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
+                          TEACHER_GRADES.map(function(grade) {
+                            var selected = splitAdminList(t.grade).includes(grade);
+                            return React.createElement('button', {
+                              key:grade,
+                              onClick:function(){ toggleTeacherGrade(t.id, grade); },
+                              style:{ background:selected?'#1E3932':'#f2f0eb', color:selected?'#fff':'rgba(0,0,0,0.55)', border:selected?'2px solid #1E3932':'2px solid transparent', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' }
+                            }, (selected ? '✓ ' : '') + grade);
+                          })
                         )
                       )
                     ),
