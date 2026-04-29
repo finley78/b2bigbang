@@ -409,10 +409,10 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                 var allSubj = await window.supabase.from('subjects').select('id,name,color').limit(1).single();
                 if (allSubj.data) { subjId = allSubj.data.id; subjName = allSubj.data.name; subjColor = allSubj.data.color; }
               }
-              var insertRes = await window.supabase.from('courses').insert({ subject_id: subjId, title:'새 강좌', teacher:'강사명', sort_order: state.courses.length+1 }).select('*, subjects(name,color)').single();
+              var insertRes = await window.supabase.from('courses').insert({ subject_id: subjId, title:'새 강좌', sort_order: state.courses.length+1 }).select('*, subjects(name,color)').single();
               var data = insertRes.data;
               if (data) {
-                setState(function(s) { return {...s, courses:[...s.courses,{ id:data.id, subject:data.subjects?.name||subjName, color:data.subjects?.color||subjColor, name:data.title, teacher:data.teacher||'', grade:'고1', price:data.price||'', badge:null, lectures:[] }]}; });
+                setState(function(s) { return {...s, courses:[...s.courses,{ id:data.id, subject:data.subjects?.name||subjName, color:data.subjects?.color||subjColor, name:data.title, teacher:'', grade:'고1', price:'', badge:null, lectures:[] }]}; });
               } else {
                 alert('강좌 추가 실패: ' + JSON.stringify(insertRes.error));
               }
@@ -430,7 +430,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
               React.createElement('div', { style:{ display:'flex', gap:'8px' } },
                 editingCourse===c.id && React.createElement('button', { onClick: async ()=>{
                   const subj = await window.supabase.from('subjects').select('id').eq('name', c.subject).single();
-                  await window.supabase.from('courses').update({ title:c.name, teacher:c.teacher, badge:c.badge, description:c.description, intro:c.intro, target:c.target, curriculum:c.curriculum, teacher_desc:c.teacherDesc, youtube:c.youtube, subject_id:subj.data?.id }).eq('id', c.id);
+                  await window.supabase.from('courses').update({ title:c.name, description:c.description, subject_id:subj.data?.id }).eq('id', c.id);
                   alert('저장되었습니다!');
                 }, style:btnS('#cba258') }, '💾 저장'),
                 React.createElement('button', { onClick:()=>setEditingCourse(editingCourse===c.id?null:c.id), style:btnS('#2b5148') }, editingCourse===c.id?'닫기':'편집'),
