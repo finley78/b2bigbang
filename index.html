@@ -72,6 +72,14 @@ featureCta2:'프로그램 보기',
 
 const EXAM_DATE = '2026-11-12';
 
+function appLectureVideoUrl(v) {
+  var raw = String((v && (v.video_url || v.youtube_id)) || '').trim();
+  if (!raw) return '';
+  if (/youtube\.com|youtu\.be/i.test(raw)) return raw;
+  if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) return 'https://www.youtube.com/watch?v=' + raw;
+  return raw;
+}
+
 function App() {
 const [page, setPage] = React.useState('home');
 const [user, setUser] = React.useState(null);
@@ -102,14 +110,14 @@ description: c.description,
 grade: '',
 days: 0,
 duration: 0,
-teacher: '',
-price: '',
+teacher: c.teacher || '',
+price: c.price || '',
 badge: null,
 lectures: (c.videos || []).sort((a,b) => a.sort_order - b.sort_order).map(v => ({
 id: v.id,
 title: v.title,
-videoUrl: v.youtube_id ? `https://www.youtube.com/watch?v=${v.youtube_id}` : '',
-youtubeId: v.youtube_id,
+videoUrl: appLectureVideoUrl(v),
+youtubeId: v.youtube_id || '',
 })),
 }));
 setState(prev => ({ ...prev, courses: mapped }));
@@ -260,6 +268,9 @@ onComplete: ()=>{ navigate('home'); },
 page === 'portal' && (isTeacherUser(effectiveUser)
 ? React.createElement(TeacherPortal, {
 user: effectiveUser,
+courses: state.courses,
+isAdmin: adminAuthed,
+adminAuthed,
 onLogout: handleLogout,
 })
 : React.createElement(StudentPortal, {
@@ -274,6 +285,7 @@ onLoginClick: ()=>setShowLogin(true),
 
 page === 'teacher' && React.createElement(TeacherPortal, {
 user: effectiveUser,
+courses: state.courses,
 isAdmin: adminAuthed,
 adminAuthed,
 onLogout: handleLogout,

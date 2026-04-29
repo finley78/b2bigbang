@@ -7,6 +7,29 @@ const SUBJECT_COLORS = {
   '과학': '#1E3932',
 };
 
+function getLectureYoutubeId(lecture) {
+  var raw = String((lecture && (lecture.youtubeId || lecture.youtube_id || lecture.videoUrl || lecture.video_url)) || '').trim();
+  if (!raw) return '';
+  var match = raw.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{6,})/);
+  if (match && match[1]) return match[1];
+  if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) return raw;
+  return '';
+}
+
+function getLectureDirectUrl(lecture) {
+  var raw = String((lecture && (lecture.videoUrl || lecture.video_url || lecture.youtubeId || lecture.youtube_id)) || '').trim();
+  if (!raw) return '';
+  if (/youtube\.com|youtu\.be/i.test(raw)) return '';
+  if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) return '';
+  return raw;
+}
+
+function getYoutubeEmbedUrl(lecture) {
+  var id = getLectureYoutubeId(lecture);
+  return id ? 'https://www.youtube.com/embed/' + id : '';
+}
+
+
 /* ── Login Modal ──────────────────────────────── */
 function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
   const [email, setEmail] = React.useState('');
@@ -38,17 +61,6 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
       if (user.role === 'pending_teacher') { setMsg('관리자 승인 대기 중입니다.'); setLoading(false); return; }
       if (user.role === 'pending_student' || user.role === 'pending_parent') { setMsg('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); setLoading(false); return; }
       if (user.password_hash !== password) { setMsg('비밀번호가 틀렸습니다.'); setLoading(false); return; }
-      if (user.role === 'teacher') {
-onLogin({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    subjects: user.subjects || []
-  });
-  onClose();
-  return;
-}
       const { data: enrollments } = await sb.from('enrollments').select('course_id').eq('student_id', user.id);
       onLogin({ id: user.id, name: user.name, email: user.email, role: user.role, subjects: user.subjects || [], enrolledCourses: (enrollments||[]).map(e=>e.course_id) });
       onClose();
@@ -372,11 +384,15 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
   var [skipAnim, setSkipAnim] = React.useState(null);
 
   var storageKey = 'lec_progress_' + lecture.id;
+  var youtubeEmbedUrl = getYoutubeEmbedUrl(lecture);
+  var directVideoUrl = getLectureDirectUrl(lecture);
+  var hasPlayableVideo = !!(youtubeEmbedUrl || directVideoUrl);
   var progress = duration > 0 ? Math.min((currentSec / duration) * 100, 100) : 0;
   var speeds = [1, 1.2, 1.5, 1.8, 2];
   var color = SUBJECT_COLORS[course.subject] || '#006241';
 
   React.useEffect(function() {
+    if (youtubeEmbedUrl) return;
     var v = videoRef.current;
     if (!v) return;
     var saved = parseFloat(localStorage.getItem(storageKey) || '0');
@@ -400,12 +416,13 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
       v.removeEventListener('play', onPlay);
       v.removeEventListener('pause', onPause);
     };
-  }, [lecture.id]);
+  }, [lecture.id, youtubeEmbedUrl]);
 
   React.useEffect(function() {
+    if (youtubeEmbedUrl) return;
     var v = videoRef.current;
     if (v) v.playbackRate = speed;
-  }, [speed]);
+  }, [speed, youtubeEmbedUrl]);
 
   function armHide() {
     clearTimeout(hideRef.current);
@@ -512,28 +529,36 @@ function VideoPlayer({ lecture, course, onBack, studentName }) {
           }
         },
       },
-        React.createElement('video', {
-          ref: videoRef,
-          src: lecture.videoUrl || '',
-          style:{ width:'100%', height:'100%', objectFit:'contain', display:'block' },
-          playsInline: true,
-          preload: 'metadata',
-          controlsList: 'nodownload nofullscreen',
-          disablePictureInPicture: true,
-          onContextMenu: function(e) { e.preventDefault(); },
-          onError: function(e) { console.log('video error', e); },
-        }),
-        !lecture.videoUrl && React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' } },
+        youtubeEmbedUrl
+          ? React.createElement('iframe', {
+              src: youtubeEmbedUrl,
+              title: lecture.title || 'YouTube lecture',
+              allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
+              allowFullScreen: true,
+              style:{ width:'100%', height:'100%', border:'none', display:'block', background:'#000' },
+            })
+          : React.createElement('video', {
+              ref: videoRef,
+              src: directVideoUrl || '',
+              style:{ width:'100%', height:'100%', objectFit:'contain', display:'block' },
+              playsInline: true,
+              preload: 'metadata',
+              controlsList: 'nodownload nofullscreen',
+              disablePictureInPicture: true,
+              onContextMenu: function(e) { e.preventDefault(); },
+              onError: function(e) { console.log('video error', e); },
+            }),
+        !hasPlayableVideo && React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' } },
           React.createElement('div', { style:{ fontSize:'50px', fontWeight:'800', color:'rgba(255,255,255,0.07)', fontFamily:'Manrope, sans-serif' } }, course.subject),
           React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.35)', fontFamily:'Manrope, sans-serif', marginTop:'8px' } }, '영상 준비 중입니다')
         ),
         React.createElement('div', { style:{ position:'absolute', bottom:'52px', right:'12px', fontSize:'11px', fontWeight:'600', color:'rgba(255,255,255,0.2)', fontFamily:'Manrope, sans-serif', pointerEvents:'none', userSelect:'none', zIndex:4 } },
           studentName + ' \u00b7 ' + today
         ),
-        skipAnim ? React.createElement('div', { style:{ position:'absolute', top:'50%', transform:'translateY(-50%)', left: skipAnim==='left'?'8%':'auto', right: skipAnim==='right'?'8%':'auto', background:'rgba(0,0,0,0.55)', borderRadius:'8px', padding:'8px 14px', pointerEvents:'none', zIndex:6 } },
+        !youtubeEmbedUrl && skipAnim ? React.createElement('div', { style:{ position:'absolute', top:'50%', transform:'translateY(-50%)', left: skipAnim==='left'?'8%':'auto', right: skipAnim==='right'?'8%':'auto', background:'rgba(0,0,0,0.55)', borderRadius:'8px', padding:'8px 14px', pointerEvents:'none', zIndex:6 } },
           React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, skipAnim==='left'?'-10\ucd08':'+10\ucd08')
         ) : null,
-        React.createElement('div', { style:{ position:'absolute', inset:0, zIndex:3, opacity: showControls?1:0, transition: showControls?'opacity 0.15s ease':'opacity 0.6s ease', background:'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 28%, transparent 62%, rgba(0,0,0,0.65) 100%)', display:'flex', flexDirection:'column', justifyContent:'space-between', pointerEvents: showControls?'auto':'none' } },
+        !youtubeEmbedUrl && React.createElement('div', { style:{ position:'absolute', inset:0, zIndex:3, opacity: showControls?1:0, transition: showControls?'opacity 0.15s ease':'opacity 0.6s ease', background:'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 28%, transparent 62%, rgba(0,0,0,0.65) 100%)', display:'flex', flexDirection:'column', justifyContent:'space-between', pointerEvents: showControls?'auto':'none' } },
           React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', padding:'10px 12px', gap:'5px' } },
             speeds.map(function(s) {
               return React.createElement('button', { key:s, onTouchEnd:function(e){e.stopPropagation();setSpeed(s);if(playing)showThenHide();}, onClick:function(e){e.stopPropagation();setSpeed(s);if(playing)showThenHide();}, style:{ background:speed===s?'#fff':'rgba(0,0,0,0.5)', border:'none', borderRadius:'4px', padding:'5px 9px', fontSize:'12px', fontWeight:'700', color:speed===s?'#1E3932':'#fff', cursor:'pointer', fontFamily:'Manrope, sans-serif', WebkitTapHighlightColor:'transparent' } }, s===1?'1x':s+'x');
@@ -687,7 +712,7 @@ function LectureList({ course, onSelectLecture, onBack }) {
                 React.createElement('div', { style:{ width:'44px', textAlign:'center', fontSize:'13px', fontWeight:'800', color: done ? color : 'rgba(0,0,0,0.25)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (idx+1) + '강'),
                 React.createElement('div', { style:{ flex:1, padding:'14px 12px', minWidth:0 } },
                   React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, lec.title),
-                  !lec.videoUrl && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.3)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, '영상 준비 중')
+                  !getLectureYoutubeId(lec) && !getLectureDirectUrl(lec) && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.3)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, '영상 준비 중')
                 ),
                 React.createElement('div', { style:{ padding:'0 16px', flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:'4px' } },
                   React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color: progress > 0 ? color : 'rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif' } }, progress + '%'),
@@ -704,7 +729,7 @@ function LectureList({ course, onSelectLecture, onBack }) {
 }
 
 /* ── Student Portal ───────────────────────────── */
-function StudentPortal({ user, courses, students, onLoginClick }) {
+function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAuthed }) {
   var [selectedSubject, setSelectedSubject] = React.useState(null);
   var [selectedCourse, setSelectedCourse] = React.useState(null);
   var [selectedLecture, setSelectedLecture] = React.useState(null);
@@ -720,7 +745,8 @@ function StudentPortal({ user, courses, students, onLoginClick }) {
     );
   }
 
-  var enrolledIds = user ? (user.enrolledCourses || []) : [];
+  var adminMode = !!(isAdmin || adminAuthed || user?.isAdmin || user?.role === 'admin');
+  var enrolledIds = adminMode ? courses.map(function(c) { return c.id; }) : (user ? (user.enrolledCourses || []) : []);
   var studentGrade = user ? (user.grade || '') : '';
   var studentSubjects = React.useMemo(() => {
     // enrolledIds에 해당하는 courses의 subject 목록 추출
