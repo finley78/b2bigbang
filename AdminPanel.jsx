@@ -1325,31 +1325,8 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                       )
                     ),
                     React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #edf0f2' } },
-                      React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '담당 강좌 배정'),
-                      state.courses.length === 0
-                        ? React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '등록된 강좌가 없습니다')
-                        : React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
-                            state.courses.map(function(course) {
-                              var assigned = isCourseAssignedToTeacher(t, course);
-                              return React.createElement('button', {
-                                key:course.id,
-                                onClick:function(){ return toggleTeacherCourse(t, course); },
-                                style:{
-                                  background: assigned ? '#1E3932' : '#f2f0eb',
-                                  color: assigned ? '#fff' : 'rgba(0,0,0,0.6)',
-                                  border: assigned ? '2px solid #1E3932' : '2px solid transparent',
-                                  borderRadius:'999px',
-                                  padding:'7px 14px',
-                                  fontSize:'12px',
-                                  fontWeight:'800',
-                                  cursor:'pointer',
-                                  fontFamily:'Manrope, sans-serif'
-                                }
-                              }, (assigned ? '✓ ' : '+ ') + (course.subject ? '[' + course.subject + '] ' : '') + course.name);
-                            })
-                          ),
-                      React.createElement('div', { style:{ marginTop:'8px', fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
-                        '선생님이 직접 올린 강좌는 자동으로 목록에 나타납니다. 필요할 때만 기존 강좌를 수동 배정하세요.'
+                      React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
+                        '온라인 강좌는 선생님 페이지에서 담당 학년을 선택해 직접 등록합니다. 관리자는 이곳에서 과목과 담당 학교급/학년만 배정합니다.'
                       )
                     )
                   )

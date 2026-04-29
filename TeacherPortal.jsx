@@ -189,18 +189,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       setTeacherCourses([]);
       return;
     }
-
-    const teacherName = clean(teacher?.name || user?.name);
-    const classSubjects = new Set((classList || []).map((cls) => clean(cls.subject)).filter(Boolean));
-    const classNames = new Set((classList || []).map((cls) => clean(cls.name)).filter(Boolean));
     const filtered = (courseList || []).filter((course) => {
-      const courseTitle = clean(course.title || course.name);
-      const courseSubject = clean(course.subjects?.name || course.subject);
-
-      if (isMyOnlineCourse(course, teacher)) return true;
-      if (classNames.size > 0 && classNames.has(courseTitle)) return true;
-      if (classNames.size === 0 && classSubjects.size > 0 && classSubjects.has(courseSubject) && teacherName && courseTitle.indexOf(teacherName) >= 0) return true;
-      return false;
+      return isMyOnlineCourse(course, teacher);
     });
 
     const mapped = filtered.map(mapCourseForTeacher);
