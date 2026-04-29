@@ -135,12 +135,18 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     const teacherName = clean(teacher?.name || user?.name);
     const teacherEmail = clean(teacher?.email || user?.email);
     const classSubjects = new Set((classList || []).map((cls) => clean(cls.subject)).filter(Boolean));
+    const classNames = new Set((classList || []).map((cls) => clean(cls.name)).filter(Boolean));
     const filtered = (courseList || []).filter((course) => {
       if (isAdmin || adminAuthed || user?.role === "admin") return true;
       if (String(course.teacher_id || "") && String(course.teacher_id) === String(teacher?.id)) return true;
       if (teacherName && clean(course.teacher) === teacherName) return true;
       if (teacherEmail && clean(course.teacher_email) === teacherEmail) return true;
-      if (classSubjects.size > 0 && classSubjects.has(clean(course.subjects?.name || course.subject))) return true;
+
+      const courseTitle = clean(course.title || course.name);
+      const courseSubject = clean(course.subjects?.name || course.subject);
+
+      if (classNames.size > 0 && classNames.has(courseTitle)) return true;
+      if (classNames.size === 0 && classSubjects.size > 0 && classSubjects.has(courseSubject)) return true;
       return false;
     });
 

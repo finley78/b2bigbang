@@ -76,6 +76,8 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
   const [dbStudents, setDbStudents] = React.useState([]);
   const [dbMembers, setDbMembers] = React.useState([]);
   const [dbTeachers, setDbTeachers] = React.useState([]);
+  const [dbTeacherProfiles, setDbTeacherProfiles] = React.useState([]);
+  const [teacherClasses, setTeacherClasses] = React.useState([]);
   const [dbPending, setDbPending] = React.useState([]);
   const [saving, setSaving] = React.useState(false);
 
@@ -150,6 +152,13 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
       })));
     }
 
+    // 선생님 포털용 teachers 테이블 + 담당 클래스
+    const { data: teacherProfiles } = await sb.from('teachers').select('*');
+    if (teacherProfiles) setDbTeacherProfiles(teacherProfiles);
+
+    const { data: classRows } = await sb.from('classes').select('*').order('name', { ascending:true });
+    if (classRows) setTeacherClasses(classRows);
+
     // 승인 대기
     const { data: pending } = await sb.from('students').select('*').in('role', ['pending_student','pending_parent','pending_teacher']);
     if (pending) setDbPending(pending.map(p => ({ id: p.id, name: p.name, phone: p.phone, role: p.role, grade: p.grade, school: p.school })));
@@ -188,8 +197,10 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
 
   // 선생님 승인
   async function approveTeacher(teacherId) {
+    const target = dbTeachers.find(t => t.id === teacherId);
     await sb.from('students').update({ role: 'teacher', is_active: true }).eq('id', teacherId);
     setDbTeachers(ts => ts.map(t => t.id === teacherId ? { ...t, role: 'teacher' } : t));
+    if (target) await ensureTeacherProfile({ ...target, role:'teacher' });
   }
 
   async function rejectTeacher(teacherId) {
@@ -204,6 +215,103 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
     const updated = subjects.includes(subject) ? subjects.filter(s => s !== subject) : [...subjects, subject];
     await sb.from('students').update({ subjects: updated }).eq('id', teacherId);
     setDbTeachers(ts => ts.map(x => x.id === teacherId ? { ...x, subjects: updated } : x));
+  }
+
+  function cleanAdminValue(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function getTeacherProfileByEmail(teacher) {
+    return (dbTeacherProfiles || []).find(function(profile) {
+      return cleanAdminValue(profile.email) === cleanAdminValue(teacher && teacher.email);
+    });
+  }
+
+  async function ensureTeacherProfile(teacher) {
+    var existing = getTeacherProfileByEmail(teacher);
+    if (existing) return existing;
+
+    var insertPayload = { name: teacher.name || '선생님', email: teacher.email || '' };
+    var result = await sb.from('teachers').insert(insertPayload).select('*').single();
+    if (result.error) {
+      alert('선생님 포털 정보 생성 실패: ' + JSON.stringify(result.error));
+      return null;
+    }
+
+    setDbTeacherProfiles(function(prev) { return [ ...(prev || []), result.data ]; });
+    return result.data;
+  }
+
+  function getTeacherClassId(teacher) {
+    var profile = getTeacherProfileByEmail(teacher);
+    return profile ? profile.id : teacher.id;
+  }
+
+  function getAssignedClassesForTeacher(teacher) {
+    var teacherClassId = getTeacherClassId(teacher);
+    return (teacherClasses || []).filter(function(cls) {
+      return String(cls.teacher_id) === String(teacherClassId);
+    });
+  }
+
+  function isCourseAssignedToTeacher(teacher, course) {
+    var assigned = getAssignedClassesForTeacher(teacher);
+    return assigned.some(function(cls) {
+      var sameName = cleanAdminValue(cls.name) === cleanAdminValue(course.name);
+      var sameSubject = !cls.subject || !course.subject || cleanAdminValue(cls.subject) === cleanAdminValue(course.subject);
+      return sameName && sameSubject;
+    });
+  }
+
+  async function assignCourseToTeacher(teacher, course) {
+    var profile = await ensureTeacherProfile(teacher);
+    if (!profile) return;
+
+    if (isCourseAssignedToTeacher(teacher, course)) return;
+
+    var payload = {
+      teacher_id: profile.id,
+      name: course.name || '담당 강좌',
+      subject: course.subject || ''
+    };
+
+    var result = await sb.from('classes').insert(payload).select('*').single();
+    if (result.error) {
+      alert('담당 강좌 배정 실패: ' + JSON.stringify(result.error));
+      return;
+    }
+
+    setTeacherClasses(function(prev) { return [ ...(prev || []), result.data ]; });
+  }
+
+  async function unassignCourseFromTeacher(teacher, course) {
+    var assigned = getAssignedClassesForTeacher(teacher).filter(function(cls) {
+      var sameName = cleanAdminValue(cls.name) === cleanAdminValue(course.name);
+      var sameSubject = !cls.subject || !course.subject || cleanAdminValue(cls.subject) === cleanAdminValue(course.subject);
+      return sameName && sameSubject;
+    });
+
+    if (assigned.length === 0) return;
+    if (!confirm(teacher.name + ' 선생님의 담당 강좌에서 [' + course.name + ']을 해제할까요?')) return;
+
+    var ids = assigned.map(function(cls) { return cls.id; });
+    var result = await sb.from('classes').delete().in('id', ids);
+    if (result.error) {
+      alert('담당 강좌 해제 실패: ' + JSON.stringify(result.error));
+      return;
+    }
+
+    setTeacherClasses(function(prev) {
+      return (prev || []).filter(function(cls) { return !ids.includes(cls.id); });
+    });
+  }
+
+  async function toggleTeacherCourse(teacher, course) {
+    if (isCourseAssignedToTeacher(teacher, course)) {
+      await unassignCourseFromTeacher(teacher, course);
+    } else {
+      await assignCourseToTeacher(teacher, course);
+    }
   }
 
   if (!authed) return React.createElement(AdminLogin, { onLogin:()=>setAuthed(true) });
@@ -1042,6 +1150,34 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
                       SUBJECTS.map(sub =>
                         React.createElement('button', { key:sub, onClick:()=>toggleTeacherSubject(t.id, sub),
                           style:{ background: (t.subjects||[]).includes(sub)?'#006241':'#f2f0eb', color: (t.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.55)', border: (t.subjects||[]).includes(sub)?'2px solid #006241':'2px solid transparent', borderRadius:'8px', padding:'7px 18px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub)
+                      )
+                    ),
+                    React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #edf0f2' } },
+                      React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '담당 강좌 배정'),
+                      state.courses.length === 0
+                        ? React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '등록된 강좌가 없습니다')
+                        : React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
+                            state.courses.map(function(course) {
+                              var assigned = isCourseAssignedToTeacher(t, course);
+                              return React.createElement('button', {
+                                key:course.id,
+                                onClick:function(){ return toggleTeacherCourse(t, course); },
+                                style:{
+                                  background: assigned ? '#1E3932' : '#f2f0eb',
+                                  color: assigned ? '#fff' : 'rgba(0,0,0,0.6)',
+                                  border: assigned ? '2px solid #1E3932' : '2px solid transparent',
+                                  borderRadius:'999px',
+                                  padding:'7px 14px',
+                                  fontSize:'12px',
+                                  fontWeight:'800',
+                                  cursor:'pointer',
+                                  fontFamily:'Manrope, sans-serif'
+                                }
+                              }, (assigned ? '✓ ' : '+ ') + (course.subject ? '[' + course.subject + '] ' : '') + course.name);
+                            })
+                          ),
+                      React.createElement('div', { style:{ marginTop:'8px', fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
+                        '여기서 배정한 강좌가 선생님 페이지의 온라인 강의 관리에 표시됩니다.'
                       )
                     )
                   )
