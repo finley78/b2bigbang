@@ -236,6 +236,11 @@ examDate: EXAM_DATE,
 }),
 
 // 메인 콘텐츠
+adminAuthed && page !== 'admin' && React.createElement('button', {
+  onClick:function(){ navigate('admin'); },
+  style:{ position:'fixed', right:'18px', bottom:'18px', zIndex:9999, background:'#1E3932', color:'#fff', border:'none', borderRadius:'999px', padding:'12px 18px', fontSize:'14px', fontWeight:'800', boxShadow:'0 8px 24px rgba(0,0,0,0.22)', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+}, '관리자 페이지'),
+
 React.createElement('main', { style:{ flex:1 } },
 
 page === 'home' && React.createElement(HomePage, {
