@@ -13,6 +13,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [courseVideoTitle, setCourseVideoTitle] = React.useState("");
   const [courseVideoLink, setCourseVideoLink] = React.useState("");
   const [savingOnline, setSavingOnline] = React.useState(false);
+  const [teacherView, setTeacherView] = React.useState("home");
 
   const [testInfo, setTestInfo] = React.useState({
     reportPeriod: "주간",
@@ -96,6 +97,49 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     const subject = getPrimarySubject();
     const teacherName = teacherInfo?.name || user?.name || "선생님";
     return `${assignment} ${subject} 온라인 강의 - ${teacherName}`;
+  }
+
+  function classLabel(cls) {
+    if (!cls) return "";
+    return [cls.name, cls.subject, cls.grade].filter(Boolean).join(" / ");
+  }
+
+  function assignmentFromClass(cls) {
+    if (!cls) return "";
+    const gradeText = String(cls.grade || "").trim();
+    if (/^(초등|중등|고등)\s+/.test(gradeText)) return gradeText;
+
+    const schoolLevel = String(cls.school_level || cls.level || cls.schoolType || cls.school_type || "").trim();
+    if (schoolLevel && gradeText) return `${schoolLevel} ${gradeText}`;
+
+    const assignments = getTeacherAssignments();
+    if (assignments.length === 1) return assignments[0];
+
+    const className = String(cls.name || "").trim();
+    const matched = assignments.find((assignment) => className.includes(assignment) || assignment.includes(className));
+    return matched || gradeText || assignments[0] || "";
+  }
+
+  function goTeacherHome() {
+    setTeacherView("home");
+  }
+
+  function openScorePage() {
+    if (!selectedClass) {
+      alert("담당 클래스를 먼저 선택해 주세요.");
+      return;
+    }
+    setTeacherView("score");
+  }
+
+  function openLecturePage() {
+    if (!selectedClass) {
+      alert("담당 클래스를 먼저 선택해 주세요.");
+      return;
+    }
+    const assignment = assignmentFromClass(selectedClass);
+    if (assignment) setSelectedCourseAssignment(assignment);
+    setTeacherView("lecture");
   }
 
   function isMyOnlineCourse(course, teacher) {
@@ -355,6 +399,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
     setSelectedClass(cls);
     setSelectedClassId(String(cls.id));
+    const matchedAssignment = assignmentFromClass(cls);
+    if (matchedAssignment) setSelectedCourseAssignment(matchedAssignment);
     setStudents([]);
     setSelectedStudentIds([]);
     setScores({});
@@ -524,167 +570,210 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   };
 
   const selectedCount = selectedStudentIds.length;
+  const teacherAssignments = getTeacherAssignments();
+  const availableClassCards = classes || [];
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "40px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "30px", gap: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "30px", gap: "16px", alignItems: "center" }}>
         <div>
           <h1 style={{ fontSize: "32px", fontWeight: "bold", margin: 0 }}>선생님 페이지</h1>
-          <p style={{ marginTop: "8px", color: "#6b7280" }}>{user?.name} 선생님 반별 성적 관리</p>
+          <p style={{ marginTop: "8px", color: "#6b7280" }}>{user?.name} 선생님 담당 클래스 관리</p>
         </div>
 
         <button style={lightButtonStyle} onClick={onLogout}>로그아웃</button>
-      </div>
-
-      <div
-        style={{
-          background: "#fff7ed",
-          border: "1px solid #fed7aa",
-          padding: "16px",
-          borderRadius: "12px",
-          marginBottom: "20px",
-          color: "#9a3412",
-        }}
-      >
-        진단 결과: {debug}
       </div>
 
       {loading ? (
         <div>불러오는 중...</div>
       ) : (
         <>
-          <div style={{ ...cardStyle, marginBottom: "24px" }}>
-            <h2 style={{ marginBottom: "16px" }}>온라인 강의 등록</h2>
-            <p style={{ marginTop: "-6px", marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>관리자가 배정한 담당 학년이 곧 선생님이 온라인 영상을 녹화해서 올릴 강의 목록입니다. 담당 학년을 선택하고 영상 제목/링크만 입력하면 됩니다.</p>
+          {teacherView !== "home" && (
+            <div style={{ marginBottom: "18px" }}>
+              <button style={lightButtonStyle} onClick={goTeacherHome}>← 담당 클래스 선택으로 돌아가기</button>
+            </div>
+          )}
 
-            {getTeacherAssignments().length === 0 ? (
-              <div>아직 배정된 담당 학년이 없습니다. 관리자 페이지에서 이 선생님에게 중등 1·2·3학년 또는 고등 1·2·3학년처럼 녹화 대상 학년을 먼저 배정해 주세요.</div>
-            ) : (
-              <div style={{ display: "grid", gap: "12px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>담당 학년 / 녹화 대상 강의</label>
-                    <select style={inputStyle} value={selectedCourseAssignment} onChange={(e) => setSelectedCourseAssignment(e.target.value)}>
-                      <option value="">학년을 선택해 주세요</option>
-                      {getTeacherAssignments().map((assignment) => (
-                        <option key={assignment} value={assignment}>{assignment}</option>
-                      ))}
-                    </select>
+          {teacherView === "home" && (
+            <>
+              <div style={{ ...cardStyle, marginBottom: "24px" }}>
+                <h2 style={{ marginBottom: "10px" }}>담당 클래스 선택</h2>
+                <p style={{ marginTop: 0, marginBottom: "18px", color: "#6b7280", fontSize: "14px" }}>
+                  담당 클래스를 먼저 선택한 뒤 성적 등록 또는 강의 추가를 선택해 주세요.
+                </p>
+
+                {availableClassCards.length === 0 ? (
+                  <div style={{ color: "#6b7280" }}>
+                    담당 클래스가 없습니다. 관리자 페이지에서 담당 클래스 또는 담당 학년을 먼저 배정해 주세요.
                   </div>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>과목</label>
-                    <input style={inputStyle} value={getPrimarySubject()} readOnly />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>자동 생성 강좌명</label>
-                  <input style={inputStyle} value={selectedCourseAssignment ? courseTitleForAssignment(selectedCourseAssignment) : "담당 학년을 선택하면 자동으로 생성됩니다."} readOnly />
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "12px", alignItems: "end" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 제목</label>
-                    <input style={inputStyle} value={courseVideoTitle} onChange={(e) => setCourseVideoTitle(e.target.value)} placeholder="예: 4월 3주차 문법 보충강의" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 링크</label>
-                    <input style={inputStyle} value={courseVideoLink} onChange={(e) => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL" />
-                  </div>
-                  <button style={buttonStyle} onClick={createCourseAndAddVideo} disabled={savingOnline}>
-                    {savingOnline ? "저장 중..." : "강의 저장"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={{ ...cardStyle, marginBottom: "24px" }}>
-            <h2 style={{ marginBottom: "16px" }}>내 온라인 강좌 목록</h2>
-            <p style={{ marginTop: "-6px", marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>등록된 강좌와 영상을 확인하고 제목/링크를 수정할 수 있습니다.</p>
-
-            {teacherCourses.length === 0 ? (
-              <div>아직 등록된 온라인 강좌가 없습니다.</div>
-            ) : (
-              <>
-                <select style={{ ...inputStyle, maxWidth: "620px", marginBottom: "16px" }} value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
-                  <option value="">강좌를 선택해 주세요</option>
-                  {teacherCourses.map((course) => (
-                    <option key={course.id} value={course.id}>{course.title}{course.subject ? ` / ${course.subject}` : ""}</option>
-                  ))}
-                </select>
-
-                {selectedCourseId && (
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                      <strong>{selectedCourse()?.title}</strong>
-                      <button style={buttonStyle} onClick={() => addLectureToCourse(selectedCourseId)}>+ 빈 강의 추가</button>
-                    </div>
-
-                    {(selectedCourse()?.lectures || []).length === 0 ? (
-                      <div style={{ color: "#6b7280" }}>아직 등록된 강의가 없습니다.</div>
-                    ) : (
-                      <div style={{ display: "grid", gap: "10px" }}>
-                        {(selectedCourse()?.lectures || []).map((lecture, idx) => (
-                          <div key={lecture.id} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "12px", display: "grid", gap: "8px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "70px 1fr auto", gap: "8px", alignItems: "center" }}>
-                              <strong style={{ color: "#006241" }}>{idx + 1}강</strong>
-                              <input style={inputStyle} value={lecture.title || ""} placeholder="강의 제목" onChange={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, false)} onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, true)} />
-                              <button style={lightButtonStyle} onClick={() => deleteLecture(selectedCourseId, lecture.id)}>삭제</button>
-                            </div>
-                            <input style={inputStyle} value={lecture.youtubeId || ""} placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL" onChange={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, false)} onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, true)} />
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+                    {availableClassCards.map((cls) => {
+                      const active = String(selectedClass?.id || "") === String(cls.id);
+                      return (
+                        <button
+                          key={cls.id}
+                          onClick={() => selectClass(cls)}
+                          style={{
+                            textAlign: "left",
+                            border: active ? "2px solid #006241" : "1px solid #e5e7eb",
+                            background: active ? "#f0fdf4" : "white",
+                            borderRadius: "16px",
+                            padding: "18px",
+                            cursor: "pointer",
+                            boxShadow: active ? "0 8px 20px rgba(0,98,65,0.10)" : "0 4px 14px rgba(0,0,0,0.04)",
+                          }}
+                        >
+                          <strong style={{ display: "block", fontSize: "17px", marginBottom: "8px", color: "#111827" }}>{cls.name}</strong>
+                          <span style={{ display: "block", fontSize: "13px", color: "#6b7280" }}>
+                            {cls.subject || getPrimarySubject()} {cls.grade ? ` / ${cls.grade}` : ""}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
-              </>
-            )}
-          </div>
+              </div>
 
-          <div style={{ ...cardStyle, marginBottom: "24px" }}>
-            <h2 style={{ marginBottom: "16px" }}>담당 클래스 필터</h2>
-
-            {classes.length === 0 ? (
-              <div>담당 반이 없습니다.</div>
-            ) : (
-              <>
-                <select
-                  style={{ ...inputStyle, maxWidth: "420px", marginBottom: "16px" }}
-                  value={selectedClassId}
-                  onChange={(e) => handleClassSelect(e.target.value)}
-                >
-                  <option value="">담당 반을 선택해 주세요</option>
-                  {classes.map((cls) => (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.name}{cls.subject ? ` / ${cls.subject}` : ""}{cls.grade ? ` / ${cls.grade}` : ""}
-                    </option>
-                  ))}
-                </select>
-
-                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                  {classes.map((cls) => (
+              {selectedClass && (
+                <div style={{ ...cardStyle, marginBottom: "24px" }}>
+                  <h2 style={{ marginBottom: "8px" }}>선택한 클래스</h2>
+                  <div style={{ fontSize: "18px", fontWeight: "800", marginBottom: "16px" }}>{classLabel(selectedClass)}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
                     <button
-                      key={cls.id}
-                      onClick={() => selectClass(cls)}
-                      style={{
-                        ...buttonStyle,
-                        background: selectedClass?.id === cls.id ? "#111827" : "#006241",
-                      }}
+                      style={{ ...buttonStyle, padding: "20px", fontSize: "16px" }}
+                      onClick={openScorePage}
                     >
-                      {cls.name}
+                      성적 등록
                     </button>
-                  ))}
+                    <button
+                      style={{ ...buttonStyle, padding: "20px", fontSize: "16px", background: "#111827" }}
+                      onClick={openLecturePage}
+                    >
+                      강의 추가
+                    </button>
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
+              )}
 
-          {selectedClass && (
+              {teacherAssignments.length > 0 && (
+                <div style={{ ...cardStyle, marginBottom: "24px" }}>
+                  <h2 style={{ marginBottom: "12px" }}>온라인 강의 녹화 대상 학년</h2>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    {teacherAssignments.map((assignment) => (
+                      <span key={assignment} style={{ background: "#ecfdf5", color: "#065f46", padding: "8px 12px", borderRadius: "999px", fontWeight: "800", fontSize: "13px" }}>
+                        {assignment}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {teacherView === "lecture" && selectedClass && (
+            <>
+              <div style={{ ...cardStyle, marginBottom: "24px" }}>
+                <h2 style={{ marginBottom: "8px" }}>강의 추가</h2>
+                <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>
+                  선택 클래스: <strong>{classLabel(selectedClass)}</strong>
+                </p>
+
+                {teacherAssignments.length === 0 ? (
+                  <div>아직 배정된 담당 학년이 없습니다. 관리자 페이지에서 이 선생님에게 녹화 대상 학년을 먼저 배정해 주세요.</div>
+                ) : (
+                  <div style={{ display: "grid", gap: "12px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>담당 학년 / 녹화 대상 강의</label>
+                        <select style={inputStyle} value={selectedCourseAssignment} onChange={(e) => setSelectedCourseAssignment(e.target.value)}>
+                          <option value="">학년을 선택해 주세요</option>
+                          {teacherAssignments.map((assignment) => (
+                            <option key={assignment} value={assignment}>{assignment}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>과목</label>
+                        <input style={inputStyle} value={getPrimarySubject()} readOnly />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>자동 생성 강좌명</label>
+                      <input style={inputStyle} value={selectedCourseAssignment ? courseTitleForAssignment(selectedCourseAssignment) : "담당 학년을 선택하면 자동으로 생성됩니다."} readOnly />
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "12px", alignItems: "end" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 제목</label>
+                        <input style={inputStyle} value={courseVideoTitle} onChange={(e) => setCourseVideoTitle(e.target.value)} placeholder="예: 4월 3주차 문법 보충강의" />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 링크</label>
+                        <input style={inputStyle} value={courseVideoLink} onChange={(e) => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL" />
+                      </div>
+                      <button style={buttonStyle} onClick={createCourseAndAddVideo} disabled={savingOnline}>
+                        {savingOnline ? "저장 중..." : "강의 저장"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ ...cardStyle, marginBottom: "24px" }}>
+                <h2 style={{ marginBottom: "16px" }}>내 온라인 강좌 목록</h2>
+                <p style={{ marginTop: "-6px", marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>등록된 강좌와 영상을 확인하고 제목/링크를 수정할 수 있습니다.</p>
+
+                {teacherCourses.length === 0 ? (
+                  <div>아직 등록된 온라인 강좌가 없습니다.</div>
+                ) : (
+                  <>
+                    <select style={{ ...inputStyle, maxWidth: "620px", marginBottom: "16px" }} value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+                      <option value="">강좌를 선택해 주세요</option>
+                      {teacherCourses.map((course) => (
+                        <option key={course.id} value={course.id}>{course.title}{course.subject ? ` / ${course.subject}` : ""}</option>
+                      ))}
+                    </select>
+
+                    {selectedCourseId && (
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                          <strong>{selectedCourse()?.title}</strong>
+                          <button style={buttonStyle} onClick={() => addLectureToCourse(selectedCourseId)}>+ 빈 강의 추가</button>
+                        </div>
+
+                        {(selectedCourse()?.lectures || []).length === 0 ? (
+                          <div style={{ color: "#6b7280" }}>아직 등록된 강의가 없습니다.</div>
+                        ) : (
+                          <div style={{ display: "grid", gap: "10px" }}>
+                            {(selectedCourse()?.lectures || []).map((lecture, idx) => (
+                              <div key={lecture.id} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "12px", display: "grid", gap: "8px" }}>
+                                <div style={{ display: "grid", gridTemplateColumns: "70px 1fr auto", gap: "8px", alignItems: "center" }}>
+                                  <strong style={{ color: "#006241" }}>{idx + 1}강</strong>
+                                  <input style={inputStyle} value={lecture.title || ""} placeholder="강의 제목" onChange={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, false)} onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, true)} />
+                                  <button style={lightButtonStyle} onClick={() => deleteLecture(selectedCourseId, lecture.id)}>삭제</button>
+                                </div>
+                                <input style={inputStyle} value={lecture.youtubeId || ""} placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL" onChange={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, false)} onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, true)} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </>
+          )}
+
+          {teacherView === "score" && selectedClass && (
             <div style={{ ...cardStyle, marginBottom: "24px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-                <h2 style={{ margin: 0 }}>선택한 반: {selectedClass.name}</h2>
+                <div>
+                  <h2 style={{ margin: 0 }}>성적 등록</h2>
+                  <div style={{ marginTop: "6px", fontSize: "14px", color: "#6b7280" }}>선택 클래스: {classLabel(selectedClass)}</div>
+                </div>
                 <div style={{ fontSize: "14px", color: "#6b7280" }}>
                   선택 학생 {selectedCount}명 / 전체 {students.length}명
                 </div>
@@ -832,6 +921,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       )}
     </div>
   );
+
 }
 
 window.TeacherPortal = TeacherPortal;
