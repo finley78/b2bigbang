@@ -265,23 +265,14 @@ onBack: ()=>{ navigate('home'); },
 onComplete: ()=>{ navigate('home'); },
 }),
 
-page === 'portal' && (isTeacherUser(effectiveUser)
-? React.createElement(TeacherPortal, {
+page === 'portal' && React.createElement(StudentPortal, {
 user: effectiveUser,
-courses: state.courses,
-isAdmin: adminAuthed,
-adminAuthed,
-onLogout: handleLogout,
-})
-: React.createElement(StudentPortal, {
-user: effectiveUser,
-isAdmin: adminAuthed,
+isAdmin: adminAuthed || isTeacherUser(effectiveUser),
 adminAuthed,
 courses: state.courses,
 students: state.students,
 onLoginClick: ()=>setShowLogin(true),
-})
-),
+}),
 
 page === 'teacher' && React.createElement(TeacherPortal, {
 user: effectiveUser,
