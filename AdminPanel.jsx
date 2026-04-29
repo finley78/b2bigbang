@@ -722,10 +722,10 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
             onChange: function(e) { setFilterLevel(e.target.value); setFilterGrade('전체'); setFilterSchool('전체'); setSelectedIds([]); },
             style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
           },
-            React.createElement('option', { value:'전체' }, '전체'),
-            React.createElement('option', { value:'초등' }, '초'),
-            React.createElement('option', { value:'중등' }, '중'),
-            React.createElement('option', { value:'고등' }, '고')
+            React.createElement('option', { value:'전체' }, '초중고'),
+            React.createElement('option', { value:'초등' }, '초등'),
+            React.createElement('option', { value:'중등' }, '중등'),
+            React.createElement('option', { value:'고등' }, '고등')
           ),
 
           // 학년 드롭다운 — 항상 표시, 초/중/고에 따라 옵션 변경
@@ -734,7 +734,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
             onChange: function(e) { setFilterGrade(e.target.value); setSelectedIds([]); },
             style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
           },
-            React.createElement('option', { value:'전체' }, '전체 학년'),
+            React.createElement('option', { value:'전체' }, '학년'),
             filterLevel === '전체'
               ? ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'].map(function(g){ return React.createElement('option',{key:g,value:g},g); })
               : SCHOOL_LEVELS[filterLevel].grades.map(function(g){ return React.createElement('option',{key:g,value:g},g); })
@@ -746,7 +746,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
             onChange: function(e) { setFilterSchool(e.target.value); setSelectedIds([]); },
             style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
           },
-            React.createElement('option', { value:'전체' }, '전체 학교'),
+            React.createElement('option', { value:'전체' }, '학교'),
             (filterLevel === '전체'
               ? SCHOOLS.filter(function(s){ return s !== '전체'; })
               : SCHOOL_LEVELS[filterLevel].schools
@@ -759,7 +759,7 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
             onChange: function(e) { setFilterTeacher(e.target.value); setSelectedIds([]); },
             style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
           },
-            React.createElement('option', { value:'전체' }, '전체 선생님'),
+            React.createElement('option', { value:'전체' }, '담당 선생님'),
             dbTeachers.filter(function(t){ return t.role === 'teacher'; }).map(function(t){
               return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님');
             })
