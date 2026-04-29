@@ -153,12 +153,19 @@ function handleLogin(u) {
 setUser(u);
 setShowLogin(false);
 
+const role = getUserRole(u);
+if (role === 'admin' || role === 'administrator' || role === '관리자') {
+setIsAdmin(true);
+setAdminAuthed(true);
+navigate('admin');
+return;
+}
+
 if (isTeacherUser(u)) {
 navigate('teacher');
 return;
 }
 
-const role = getUserRole(u);
 if (role === 'student' || role === 'students' || role === '학생') {
 navigate('portal');
 }
@@ -181,19 +188,28 @@ setShowLogin(false);
 navigate('signup');
 }
 
+const effectiveUser = adminAuthed
+? (user || { id:'admin', name:'관리자', role:'admin', isAdmin:true })
+: user;
+
 return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
 
 // 로그인 모달
 showLogin && React.createElement(LoginModal, {
 onLogin: handleLogin,
 onClose: ()=>setShowLogin(false),
-onAdminLogin: ()=>{ setAdminAuthed(true); navigate('admin'); },
+onAdminLogin: ()=>{
+setUser({ id:'admin', name:'관리자', role:'admin', isAdmin:true });
+setIsAdmin(true);
+setAdminAuthed(true);
+navigate('admin');
+},
 onSignup: handleSignup,
 }),
 
 // 상단 네비
 React.createElement(TopBar, {
-user,
+user: effectiveUser,
 onLoginClick: ()=>setShowLogin(true),
 onLogout: handleLogout,
 onAdminClick: handleAdminClick,
@@ -202,7 +218,7 @@ examDate: EXAM_DATE,
 React.createElement(MainNav, {
 page,
 setPage: navigate,
-user,
+user: effectiveUser,
 adminAuthed,
 onLoginClick: ()=>setShowLogin(true),
 onSignupClick: handleSignup,
@@ -241,13 +257,15 @@ onBack: ()=>{ navigate('home'); },
 onComplete: ()=>{ navigate('home'); },
 }),
 
-page === 'portal' && (isTeacherUser(user)
+page === 'portal' && (isTeacherUser(effectiveUser)
 ? React.createElement(TeacherPortal, {
-user,
+user: effectiveUser,
 onLogout: handleLogout,
 })
 : React.createElement(StudentPortal, {
-user,
+user: effectiveUser,
+isAdmin: adminAuthed,
+adminAuthed,
 courses: state.courses,
 students: state.students,
 onLoginClick: ()=>setShowLogin(true),
@@ -255,7 +273,9 @@ onLoginClick: ()=>setShowLogin(true),
 ),
 
 page === 'teacher' && React.createElement(TeacherPortal, {
-user,
+user: effectiveUser,
+isAdmin: adminAuthed,
+adminAuthed,
 onLogout: handleLogout,
 }),
 
