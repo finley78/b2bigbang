@@ -169,17 +169,17 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
 
 /* ── Signup Page (회원가입 전체 페이지) ─────────── */
 function SignupPage({ onBack, onComplete }) {
-  const [step, setStep] = React.useState(1); // 1: 역할선택, 2: 양식작성, 3: 완료
-  const [roleType, setRoleType] = React.useState(''); // 'student' | 'parent' | 'teacher'
-  const [form, setForm] = React.useState({ name:'', school:'', grade:'', phone:'', address:'', agree:false });
+  const [step, setStep] = React.useState(1);
+  const [roleType, setRoleType] = React.useState('');
+  const [form, setForm] = React.useState({ name:'', school:'', grade:'', phone:'', address:'', agree:false, relatedPhone:'' });
   const [msg, setMsg] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const sb = window.supabase;
 
   const ROLE_OPTIONS = [
-    { key:'student', label:'학생', icon:'', desc:'수강 중인 학생' },
-    { key:'parent',  label:'학부모', icon:'학부', desc:'학부모님' },
-    { key:'teacher', label:'선생님', icon:'선생', desc:'강사 (관리자 승인 필요)' },
+    { key:'student', label:'학생' },
+    { key:'parent',  label:'학부모' },
+    { key:'teacher', label:'선생님' },
   ];
 
   const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box', background:'#fafafa' };
@@ -212,6 +212,10 @@ function SignupPage({ onBack, onComplete }) {
     if (roleType === 'student') {
       insertData.school = form.school.trim();
       insertData.grade = form.grade.trim();
+      if (form.relatedPhone.trim()) insertData.parent_phone = form.relatedPhone.trim();
+    }
+    if (roleType === 'parent') {
+      if (form.relatedPhone.trim()) insertData.student_phone = form.relatedPhone.trim();
     }
 
     try {
@@ -257,11 +261,9 @@ function SignupPage({ onBack, onComplete }) {
       React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
         ROLE_OPTIONS.map(r =>
           React.createElement('div', { key:r.key, onClick:()=>setRoleType(r.key),
-            style:{ background:'#fff', borderRadius:'14px', padding:'20px', display:'flex', alignItems:'center', gap:'16px', cursor:'pointer', border: roleType===r.key ? '2px solid #006241' : '2px solid transparent', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', transition:'all 0.15s' } },
-            React.createElement('div', { style:{ fontSize:'32px', flexShrink:0 } }, r.icon),
+            style:{ background:'#fff', borderRadius:'14px', padding:'20px 24px', display:'flex', alignItems:'center', gap:'16px', cursor:'pointer', border: roleType===r.key ? '2px solid #006241' : '2px solid transparent', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', transition:'all 0.15s' } },
             React.createElement('div', { style:{ flex:1 } },
-              React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, r.label),
-              React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, r.desc)
+              React.createElement('div', { style:{ fontSize:'16px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, r.label)
             ),
             React.createElement('div', { style:{ width:'20px', height:'20px', borderRadius:'50%', border: roleType===r.key ? '6px solid #006241' : '2px solid rgba(0,0,0,0.25)', transition:'all 0.15s', flexShrink:0 } })
           )
@@ -310,6 +312,16 @@ function SignupPage({ onBack, onComplete }) {
         React.createElement('div', { style:fieldS },
           React.createElement('label', { style:labelS }, '전화번호 *'),
           React.createElement('input', { value:form.phone, onChange:e=>setF('phone',e.target.value), placeholder:'010-0000-0000', style:inputS, type:'tel' })
+        ),
+
+        // 관련 전화번호 (학생: 학부모 번호 / 학부모: 자녀 번호)
+        roleType === 'student' && React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '학부모 전화번호 (선택)'),
+          React.createElement('input', { value:form.relatedPhone, onChange:e=>setF('relatedPhone',e.target.value), placeholder:'학부모님 연락처를 입력하면 자동 연결됩니다', style:inputS, type:'tel' })
+        ),
+        roleType === 'parent' && React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '학생(자녀) 전화번호 (선택)'),
+          React.createElement('input', { value:form.relatedPhone, onChange:e=>setF('relatedPhone',e.target.value), placeholder:'자녀 연락처를 입력하면 자동 연결됩니다', style:inputS, type:'tel' })
         ),
 
         // 주소 (공통)

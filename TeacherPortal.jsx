@@ -534,60 +534,360 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setSelectedStudentIds([]);
   }
 
+  // test_scores에 class_id 없을 때 처리
   async function saveAllScores() {
-    if (!teacherInfo) {
-      alert("선생님 정보를 먼저 불러와야 합니다.");
-      return;
-    }
-
-    if (!selectedClass) {
-      alert("반을 선택해 주세요.");
-      return;
-    }
-
-    if (!testInfo.testName.trim()) {
-      alert("시험명을 입력해 주세요.");
-      return;
-    }
-
-    if (!testInfo.subject.trim()) {
-      alert("과목을 입력해 주세요.");
-      return;
-    }
-
-    if (!testInfo.testRange.trim()) {
-      alert("시험 범위를 입력해 주세요.");
-      return;
-    }
-
-    if (selectedStudentIds.length === 0) {
-      alert("성적을 저장할 학생을 선택해 주세요.");
-      return;
-    }
+    if (!teacherInfo) { alert("선생님 정보를 먼저 불러와야 합니다."); return; }
+    if (!testInfo.testName.trim()) { alert("시험명을 입력해 주세요."); return; }
+    if (!testInfo.subject.trim()) { alert("과목을 선택해 주세요."); return; }
+    if (!testInfo.testRange.trim()) { alert("시험 범위를 입력해 주세요."); return; }
+    if (selectedStudentIds.length === 0) { alert("성적을 저장할 학생을 선택해 주세요."); return; }
 
     const selectedIdSet = new Set(selectedStudentIds);
     const rows = students
-      .filter((student) => selectedIdSet.has(student.id))
-      .filter((student) => String(scores[student.id] || "").trim() !== "")
-      .map((student) => ({
-        student_id: student.id,
+      .filter(s => selectedIdSet.has(s.id))
+      .filter(s => String(scores[s.id] || "").trim() !== "")
+      .map(s => ({
+        student_id: s.id,
         teacher_id: teacherInfo.id,
-        class_id: selectedClass.id,
         test_type: testInfo.testType,
         test_name: testInfo.testName.trim(),
         subject: testInfo.subject.trim(),
         test_range: testInfo.testRange.trim(),
         test_date: testInfo.testDate,
-        score: Number(scores[student.id]),
+        score: Number(scores[s.id]),
         created_at: new Date().toISOString(),
       }));
 
-    if (rows.length === 0) {
-      alert("선택된 학생 중 입력된 점수가 없습니다.");
-      return;
-    }
-
+    if (rows.length === 0) { alert("선택된 학생 중 입력된 점수가 없습니다."); return; }
     const { error } = await sb.from("test_scores").insert(rows);
+    if (error) { alert("성적 저장 실패: " + error.message); return; }
+    alert("성적이 저장되었습니다.");
+    setScores({});
+  }
+
+  const selectedCount = selectedStudentIds.length;
+  const teacherAssignments = getTeacherAssignments();
+  const availableClassCards = classes || [];
+
+  // 4탭 구조 렌더링
+  const TABS = [
+    { id: "classes", label: "담당 클래스" },
+    { id: "lecture", label: "강의 추가" },
+    { id: "notes",   label: "특이사항" },
+    { id: "stats",   label: "성적 현황" },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
+      {/* 헤더 */}
+      <div style={{ background: "#1E3932", padding: "20px 40px" }}>
+        <h1 style={{ fontSize: "22px", fontWeight: "800", margin: 0, color: "#fff", fontFamily: "Manrope, sans-serif" }}>선생님 페이지</h1>
+        <p style={{ marginTop: "4px", color: "rgba(255,255,255,0.6)", fontSize: "13px", fontFamily: "Manrope, sans-serif" }}>{teacherInfo?.name || user?.name} 선생님</p>
+      </div>
+
+      {/* 탭 네비 */}
+      <div style={{ background: "#fff", borderBottom: "1px solid rgba(0,0,0,0.08)", display: "flex", gap: 0, overflowX: "auto" }}>
+        {TABS.map(t =>
+          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="stats") loadScoreHistory(); if(t.id==="notes") loadNotes(); }}
+            style={{ padding: "16px 24px", background: "none", border: "none", borderBottom: teacherView===t.id ? "2px solid #006241" : "2px solid transparent", fontSize: "14px", fontWeight: "700", color: teacherView===t.id ? "#006241" : "rgba(0,0,0,0.55)", cursor: "pointer", fontFamily: "Manrope, sans-serif", whiteSpace: "nowrap" }}>
+            {t.label}
+          </button>
+        )}
+      </div>
+
+      <div style={{ padding: "32px 40px", maxWidth: "960px", margin: "0 auto" }}>
+      {loading ? <div style={{ color: "#6b7280" }}>불러오는 중...</div> : (<>
+
+      {/* ── 탭1: 담당 클래스 ── */}
+      {teacherView === "classes" && (
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <h2 style={{ marginBottom: "10px" }}>담당 클래스</h2>
+          <p style={{ marginTop: 0, marginBottom: "18px", color: "#6b7280", fontSize: "14px" }}>
+            클래스를 선택하면 해당 학생들의 성적 등록이 가능합니다.
+          </p>
+          {availableClassCards.length === 0 ? (
+            <div style={{ color: "#6b7280" }}>담당 클래스가 없습니다. 관리자에게 배정을 요청해 주세요.</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", marginBottom: "24px" }}>
+              {availableClassCards.map(cls => {
+                const active = String(selectedClass?.id||"") === String(cls.id);
+                return (
+                  <button key={cls.id} onClick={() => selectClass(cls)} style={{ textAlign: "left", border: active ? "2px solid #006241" : "1px solid #e5e7eb", background: active ? "#f0fdf4" : "white", borderRadius: "12px", padding: "16px", cursor: "pointer" }}>
+                    <strong style={{ display: "block", fontSize: "15px", marginBottom: "4px", color: "#111827", fontFamily: "Manrope, sans-serif" }}>{cls.name}</strong>
+                    <span style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{cls.subject || ""}{cls.grade ? ` / ${cls.grade}` : ""}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 선택된 클래스의 학생 목록 */}
+          {selectedClass && students.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: "15px", fontWeight: "800", marginBottom: "12px", color: "#1E3932", fontFamily: "Manrope, sans-serif" }}>
+                {classLabel(selectedClass)} · {students.length}명
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {students.map(s => (
+                  <div key={s.id} style={{ background: "#f9fafb", borderRadius: "8px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#d4e9e2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "800", color: "#006241", fontFamily: "Manrope, sans-serif", flexShrink: 0 }}>{s.name[0]}</div>
+                    <div>
+                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#111827", fontFamily: "Manrope, sans-serif" }}>{s.name}</div>
+                      <div style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{[s.grade, s.school].filter(Boolean).join(" · ") || "—"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {selectedClass && students.length === 0 && (
+            <div style={{ color: "#6b7280", fontSize: "14px", marginTop: "12px" }}>이 클래스에 등록된 학생이 없습니다.</div>
+          )}
+        </div>
+      )}
+
+      {/* ── 탭2: 강의 추가 ── */}
+      {teacherView === "lecture" && (
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <h2 style={{ marginBottom: "16px" }}>강의 추가</h2>
+          {teacherCourses.length === 0 ? (
+            <div style={{ color: "#6b7280", padding: "16px", background: "#f9fafb", borderRadius: "10px" }}>
+              배정된 강좌가 없습니다. 관리자 페이지에서 담당 강좌를 먼저 배정해 주세요.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: "12px" }}>
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강좌 선택</label>
+                <select style={inputStyle} value={selectedCourseId} onChange={e => setSelectedCourseId(e.target.value)}>
+                  <option value="">강좌를 선택해 주세요</option>
+                  {teacherCourses.map(course => (
+                    <option key={course.id} value={course.id}>{course.title}{course.subject ? ` / ${course.subject}` : ""}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "12px", alignItems: "end" }}>
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 제목</label>
+                  <input style={inputStyle} value={courseVideoTitle} onChange={e => setCourseVideoTitle(e.target.value)} placeholder="예: 4월 3주차 문법 강의" />
+                </div>
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 링크</label>
+                  <input style={inputStyle} value={courseVideoLink} onChange={e => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 영상 URL" />
+                </div>
+                <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
+              </div>
+            </div>
+          )}
+
+          {/* 등록된 강의 목록 */}
+          {teacherCourses.filter(c => (c.lectures||[]).length > 0).map(course => (
+            <div key={course.id} style={{ marginTop: "24px", borderTop: "1px solid #e5e7eb", paddingTop: "16px" }}>
+              <div style={{ fontSize: "14px", fontWeight: "800", color: "#006241", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>
+                {course.title} ({(course.lectures||[]).length}강)
+              </div>
+              {(course.lectures||[]).map((lec, idx) => (
+                <div key={lec.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid #f3f4f6" }}>
+                  <span style={{ fontSize: "12px", fontWeight: "700", color: "#006241", width: "30px", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{idx+1}강</span>
+                  <span style={{ fontSize: "14px", color: "#374151", flex: 1, fontFamily: "Manrope, sans-serif" }}>{lec.title}</span>
+                  <button onClick={() => deleteLecture(course.id, lec.id)} style={{ background: "none", border: "none", color: "#c82014", cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>×</button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── 탭3: 특이사항 (전체 학생 대상, 클래스 무관) ── */}
+      {teacherView === "notes" && (
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <h2 style={{ marginBottom: "4px" }}>특이사항 기록</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "20px" }}>담당 학생들의 특이사항, 상담 내용 등을 기록합니다.</p>
+
+          {/* 작성 폼 */}
+          <div style={{ background: "#f9fafb", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>날짜</label>
+                <input style={inputStyle} type="date" value={noteDraft.date} onChange={e => setNoteDraft(p => ({...p, date: e.target.value}))} />
+              </div>
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>유형</label>
+                <select style={inputStyle} value={noteDraft.type} onChange={e => setNoteDraft(p => ({...p, type: e.target.value}))}>
+                  {["특이사항","학습태도","상담","과제","기타"].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>학생 (선택)</label>
+                <select style={inputStyle} value={noteDraft.studentId} onChange={e => setNoteDraft(p => ({...p, studentId: e.target.value}))}>
+                  <option value="">전체/미지정</option>
+                  {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>내용</label>
+              <textarea style={{ ...inputStyle, minHeight: "80px", resize: "vertical", lineHeight: "1.6" }}
+                placeholder="특이사항, 상담 내용, 학습 태도 등을 기록하세요."
+                value={noteDraft.content}
+                onChange={e => setNoteDraft(p => ({...p, content: e.target.value}))}
+              />
+            </div>
+            <button style={buttonStyle} onClick={saveNote} disabled={savingNote}>{savingNote ? "저장 중..." : "저장"}</button>
+          </div>
+
+          {teacherNotes.length === 0
+            ? <div style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>아직 기록이 없습니다.</div>
+            : <div style={{ display: "grid", gap: "10px" }}>
+                {teacherNotes.map(note => (
+                  <div key={note.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px 16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "12px", fontWeight: "800", background: "#ecfdf5", color: "#065f46", borderRadius: "6px", padding: "2px 10px", fontFamily: "Manrope, sans-serif" }}>{note.note_type}</span>
+                        {note.students?.name && <span style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{note.students.name}</span>}
+                        <span style={{ fontSize: "12px", color: "#9ca3af", fontFamily: "Manrope, sans-serif" }}>{note.note_date}</span>
+                      </div>
+                      <button onClick={() => deleteNote(note.id)} style={{ background: "none", border: "none", color: "#c82014", cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>×</button>
+                    </div>
+                    <p style={{ margin: 0, fontSize: "14px", color: "#374151", lineHeight: "1.7", whiteSpace: "pre-line", fontFamily: "Manrope, sans-serif" }}>{note.content}</p>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      )}
+
+      {/* ── 탭4: 성적 현황 ── */}
+      {teacherView === "stats" && (
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <h2 style={{ marginBottom: "4px" }}>성적 현황</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>본인이 등록한 성적만 표시됩니다.</p>
+
+          {/* 성적 등록 */}
+          <div style={{ background: "#f9fafb", borderRadius: "12px", padding: "16px", marginBottom: "24px" }}>
+            <h3 style={{ fontSize: "14px", fontWeight: "800", marginBottom: "12px", color: "#1E3932", fontFamily: "Manrope, sans-serif" }}>성적 등록</h3>
+            {!selectedClass && (
+              <p style={{ fontSize: "13px", color: "#c82014", margin: 0, fontFamily: "Manrope, sans-serif" }}>먼저 담당 클래스 탭에서 클래스를 선택해 주세요.</p>
+            )}
+            {selectedClass && (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                  <select style={inputStyle} value={testInfo.testType} onChange={e => setTestInfo(p => ({...p, testType: e.target.value}))}>
+                    {["주간 성적표","월간 성적표","단원 평가","모의고사","수행평가","기타"].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <input style={inputStyle} type="date" value={testInfo.testDate} onChange={e => setTestInfo(p => ({...p, testDate: e.target.value}))} />
+                  <select style={inputStyle} value={testInfo.subject} onChange={e => setTestInfo(p => ({...p, subject: e.target.value}))}>
+                    <option value="">과목 선택</option>
+                    {["국어","영어","수학","과학"].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                  <input style={inputStyle} placeholder="시험명" value={testInfo.testName} onChange={e => setTestInfo(p => ({...p, testName: e.target.value}))} />
+                  <input style={inputStyle} placeholder="시험 범위" value={testInfo.testRange} onChange={e => setTestInfo(p => ({...p, testRange: e.target.value}))} />
+                </div>
+                <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>체크된 학생에게만 성적이 저장됩니다.</p>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                  <button style={lightButtonStyle} onClick={selectAllStudents}>전체 선택</button>
+                  <button style={lightButtonStyle} onClick={clearAllStudents}>전체 해제</button>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+                  {students.map(s => {
+                    const checked = selectedStudentIds.includes(s.id);
+                    return (
+                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", border: checked ? "1px solid #006241" : "1px solid #e5e7eb", borderRadius: "10px", background: checked ? "#f0fdf4" : "white" }}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleStudent(s.id)} style={{ width: "16px", height: "16px" }} />
+                        <div style={{ flex: 1 }}>
+                          <strong style={{ fontFamily: "Manrope, sans-serif" }}>{s.name}</strong>
+                          <div style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{s.grade || "-"}</div>
+                        </div>
+                        <input style={{ ...inputStyle, width: "100px" }} type="number" placeholder="점수" value={scores[s.id] || ""} disabled={!checked} onChange={e => updateScore(s.id, e.target.value)} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <button style={buttonStyle} onClick={saveAllScores}>선택 학생 성적 저장</button>
+              </>
+            )}
+          </div>
+
+          {/* 성적 현황 */}
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+            <select style={{ ...inputStyle, maxWidth: "200px" }} value={statsStudentId} onChange={e => setStatsStudentId(e.target.value)}>
+              <option value="">전체 학생</option>
+              {students.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+            </select>
+            <button style={lightButtonStyle} onClick={loadScoreHistory}>{loadingStats ? "로딩 중..." : "새로고침"}</button>
+          </div>
+
+          {loadingStats ? <div style={{ color: "#6b7280" }}>로딩 중...</div> : (() => {
+            let filtered = scoreHistory.filter(s => {
+              if (statsStudentId && String(s.student_id) !== statsStudentId) return false;
+              return true;
+            });
+            if (filtered.length === 0) return <div style={{ color: "#6b7280", textAlign: "center", padding: "32px" }}>등록된 성적이 없습니다.</div>;
+
+            const vals = filtered.map(s => Number(s.score)).filter(v => !isNaN(v));
+            const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : "-";
+            const max = vals.length ? Math.max(...vals) : "-";
+            const min = vals.length ? Math.min(...vals) : "-";
+
+            const byTest = {};
+            filtered.forEach(s => {
+              const key = `${s.test_date}_${s.test_name}_${s.subject}`;
+              if (!byTest[key]) byTest[key] = { test_name: s.test_name, subject: s.subject, date: s.test_date, scores: [] };
+              byTest[key].scores.push(s);
+            });
+            const groups = Object.values(byTest).sort((a,b) => b.date.localeCompare(a.date));
+
+            return (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "20px" }}>
+                  {[{label:"총 시험", val: groups.length+"회"},{label:"평균",val:avg+"점"},{label:"최고",val:max+"점"},{label:"최저",val:min+"점"}].map(item => (
+                    <div key={item.label} style={{ background: "#f9fafb", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+                      <div style={{ fontSize: "20px", fontWeight: "800", color: "#006241", fontFamily: "Manrope, sans-serif" }}>{item.val}</div>
+                      <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px", fontFamily: "Manrope, sans-serif" }}>{item.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {groups.map((g, gi) => {
+                  const gVals = g.scores.map(s => Number(s.score)).filter(v => !isNaN(v));
+                  const gAvg = gVals.length ? (gVals.reduce((a,b)=>a+b,0)/gVals.length).toFixed(1) : "-";
+                  return (
+                    <div key={gi} style={{ marginBottom: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
+                      <div style={{ background: "#1E3932", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <span style={{ fontWeight: "800", color: "#fff", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>{g.test_name}</span>
+                          <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginLeft: "10px", fontFamily: "Manrope, sans-serif" }}>{g.subject} · {g.date}</span>
+                        </div>
+                        <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "12px", fontFamily: "Manrope, sans-serif" }}>평균 {gAvg}점</span>
+                      </div>
+                      <div style={{ padding: "12px 16px" }}>
+                        {g.scores.sort((a,b) => b.score - a.score).map((s, si) => {
+                          const pct = Math.min(100, Math.round(s.score));
+                          const color = s.score >= 90 ? "#006241" : s.score >= 70 ? "#2b5148" : s.score >= 50 ? "#cba258" : "#c82014";
+                          return (
+                            <div key={si} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                              <span style={{ width: "70px", fontSize: "13px", fontWeight: "600", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.students?.name || "학생"}</span>
+                              <div style={{ flex: 1, height: "14px", background: "#f3f4f6", borderRadius: "7px", overflow: "hidden" }}>
+                                <div style={{ width: pct+"%", height: "100%", background: color, borderRadius: "7px" }} />
+                              </div>
+                              <span style={{ width: "36px", fontSize: "13px", fontWeight: "700", color, textAlign: "right", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.score}점</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      </>)}
+      </div>
+    </div>
+  );
 
     if (error) {
       alert("성적 저장 실패: " + error.message);
@@ -636,589 +936,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const availableClassCards = classes || [];
 
 
-  // 업무일지 뷰
-  const notesView = teacherView === "notes" && selectedClass && (
-    <div style={{ ...cardStyle, marginBottom: "24px" }}>
-      <h2 style={{ marginBottom: "4px" }}>업무일지 / 특이사항</h2>
-      <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "20px" }}>클래스: <strong>{classLabel(selectedClass)}</strong></p>
-
-      {/* 작성 폼 */}
-      <div style={{ background: "#f9fafb", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "10px" }}>
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>날짜</label>
-            <input style={inputStyle} type="date" value={noteDraft.date} onChange={e => setNoteDraft(p => ({...p, date: e.target.value}))} />
-          </div>
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>유형</label>
-            <select style={inputStyle} value={noteDraft.type} onChange={e => setNoteDraft(p => ({...p, type: e.target.value}))}>
-              {NOTE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>학생 (선택)</label>
-            <select style={inputStyle} value={noteDraft.studentId} onChange={e => setNoteDraft(p => ({...p, studentId: e.target.value}))}>
-              <option value="">전체/미지정</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-        </div>
-        <div style={{ marginBottom: "10px" }}>
-          <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>내용</label>
-          <textarea style={{ ...inputStyle, minHeight: "80px", resize: "vertical", lineHeight: "1.6" }}
-            placeholder="특이사항, 상담 내용, 학습 태도 등을 기록하세요."
-            value={noteDraft.content}
-            onChange={e => setNoteDraft(p => ({...p, content: e.target.value}))}
-          />
-        </div>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button style={buttonStyle} onClick={saveNote} disabled={savingNote}>{savingNote ? "저장 중..." : "저장"}</button>
-          <button style={lightButtonStyle} onClick={() => { loadNotes(); }}>목록 새로고침</button>
-        </div>
-      </div>
-
-      {/* 기록 목록 */}
-      {teacherNotes.length === 0
-        ? <div style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>아직 기록이 없습니다.</div>
-        : <div style={{ display: "grid", gap: "10px" }}>
-            {teacherNotes.map(note => (
-              <div key={note.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px 16px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "12px", fontWeight: "800", background: "#ecfdf5", color: "#065f46", borderRadius: "6px", padding: "2px 10px" }}>{note.note_type}</span>
-                    {note.students?.name && <span style={{ fontSize: "12px", color: "#6b7280" }}>{note.students.name}</span>}
-                    <span style={{ fontSize: "12px", color: "#9ca3af" }}>{note.note_date}</span>
-                  </div>
-                  <button onClick={() => deleteNote(note.id)} style={{ background: "none", border: "none", color: "#c82014", cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>×</button>
-                </div>
-                <p style={{ margin: 0, fontSize: "14px", color: "#374151", lineHeight: "1.7", whiteSpace: "pre-line" }}>{note.content}</p>
-              </div>
-            ))}
-          </div>
-      }
-    </div>
-  );
-
-  // 성적 현황/통계 뷰
-  const statsView = teacherView === "stats" && selectedClass && (
-    <div style={{ ...cardStyle, marginBottom: "24px" }}>
-      <h2 style={{ marginBottom: "4px" }}>성적 현황 / 분석</h2>
-      <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>클래스: <strong>{classLabel(selectedClass)}</strong> · 본인 담당 성적만 표시됩니다.</p>
-
-      {/* 필터 */}
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
-        <select style={{ ...inputStyle, maxWidth: "200px" }} value={statsStudentId} onChange={e => setStatsStudentId(e.target.value)}>
-          <option value="">전체 학생</option>
-          {students.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
-        </select>
-        <button style={lightButtonStyle} onClick={loadScoreHistory}>{loadingStats ? "로딩 중..." : "새로고침"}</button>
-      </div>
-
-      {loadingStats
-        ? <div style={{ color: "#6b7280" }}>성적 데이터 로딩 중...</div>
-        : (() => {
-            // 이 클래스/선생님 기준으로 필터
-            let filtered = scoreHistory.filter(s => {
-              if (statsStudentId && String(s.student_id) !== statsStudentId) return false;
-              if (selectedClass && !selectedClass.isVirtual && s.class_id && String(s.class_id) !== String(selectedClass.id)) return false;
-              return true;
-            });
-
-            if (filtered.length === 0) return <div style={{ color: "#6b7280", textAlign: "center", padding: "32px" }}>등록된 성적이 없습니다.</div>;
-
-            const stats = calcStats(filtered);
-
-            // 시험별 그룹핑
-            const byTest = {};
-            filtered.forEach(s => {
-              const key = `${s.test_date}_${s.test_name}_${s.subject}`;
-              if (!byTest[key]) byTest[key] = { test_name: s.test_name, subject: s.subject, date: s.test_date, scores: [] };
-              byTest[key].scores.push(s);
-            });
-            const testGroups = Object.values(byTest).sort((a,b) => b.date.localeCompare(a.date));
-
-            return (
-              <>
-                {/* 요약 통계 */}
-                {stats && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "20px" }}>
-                    {[
-                      { label: "총 시험", val: testGroups.length + "회" },
-                      { label: "평균 점수", val: stats.avg + "점" },
-                      { label: "최고점", val: stats.max + "점" },
-                      { label: "최저점", val: stats.min + "점" },
-                    ].map(item => (
-                      <div key={item.label} style={{ background: "#f9fafb", borderRadius: "10px", padding: "16px", textAlign: "center" }}>
-                        <div style={{ fontSize: "22px", fontWeight: "800", color: "#006241" }}>{item.val}</div>
-                        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>{item.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 시험별 성적표 */}
-                {testGroups.map((group, gi) => {
-                  const groupStats = calcStats(group.scores);
-                  return (
-                    <div key={gi} style={{ marginBottom: "16px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
-                      <div style={{ background: "#1E3932", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div>
-                          <span style={{ fontWeight: "800", color: "#fff", fontSize: "14px" }}>{group.test_name}</span>
-                          <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginLeft: "10px" }}>{group.subject} · {group.date}</span>
-                        </div>
-                        {groupStats && <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "12px" }}>평균 {groupStats.avg}점 · 최고 {groupStats.max}점</span>}
-                      </div>
-                      <div style={{ padding: "12px 16px" }}>
-                        {group.scores.sort((a,b) => b.score - a.score).map((s, si) => {
-                          const pct = Math.min(100, Math.round((s.score / 100) * 100));
-                          const barColor = s.score >= 90 ? "#006241" : s.score >= 70 ? "#2b5148" : s.score >= 50 ? "#cba258" : "#c82014";
-                          return (
-                            <div key={si} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                              <span style={{ width: "80px", fontSize: "13px", fontWeight: "600", flexShrink: 0 }}>{s.students?.name || "학생"}</span>
-                              <div style={{ flex: 1, height: "16px", background: "#f3f4f6", borderRadius: "8px", overflow: "hidden" }}>
-                                <div style={{ width: pct + "%", height: "100%", background: barColor, borderRadius: "8px", transition: "width 0.3s" }} />
-                              </div>
-                              <span style={{ width: "40px", fontSize: "13px", fontWeight: "700", color: barColor, textAlign: "right", flexShrink: 0 }}>{s.score}점</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
-            );
-          })()
-      }
-    </div>
-  );
-
-
-  return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "40px" }}>
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "28px", fontWeight: "bold", margin: 0, color: "#1E3932" }}>선생님 페이지</h1>
-        <p style={{ marginTop: "6px", color: "#6b7280", fontSize: "14px" }}>{user?.name} 선생님 담당 클래스 관리</p>
-      </div>
-
-      {loading ? (
-        <div>불러오는 중...</div>
-      ) : (
-        <>
-          {teacherView !== "home" && (
-            <div style={{ marginBottom: "18px" }}>
-              <button style={lightButtonStyle} onClick={goTeacherHome}>← 담당 클래스 선택으로 돌아가기</button>
-            </div>
-          )}
-
-          {teacherView === "home" && (
-            <>
-              <div style={{ ...cardStyle, marginBottom: "24px" }}>
-                <h2 style={{ marginBottom: "10px" }}>담당 클래스 선택</h2>
-                <p style={{ marginTop: 0, marginBottom: "18px", color: "#6b7280", fontSize: "14px" }}>
-                  담당 클래스를 먼저 선택한 뒤 성적 등록 또는 강의 추가를 선택해 주세요.
-                </p>
-
-                {availableClassCards.length === 0 ? (
-                  <div style={{ color: "#6b7280" }}>
-                    담당 클래스가 없습니다. 관리자 페이지에서 담당 클래스 또는 담당 학년을 먼저 배정해 주세요.
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
-                    {availableClassCards.map((cls) => {
-                      const active = String(selectedClass?.id || "") === String(cls.id);
-                      return (
-                        <button
-                          key={cls.id}
-                          onClick={() => selectClass(cls)}
-                          style={{
-                            textAlign: "left",
-                            border: active ? "2px solid #006241" : "1px solid #e5e7eb",
-                            background: active ? "#f0fdf4" : "white",
-                            borderRadius: "16px",
-                            padding: "18px",
-                            cursor: "pointer",
-                            boxShadow: active ? "0 8px 20px rgba(0,98,65,0.10)" : "0 4px 14px rgba(0,0,0,0.04)",
-                          }}
-                        >
-                          <strong style={{ display: "block", fontSize: "17px", marginBottom: "8px", color: "#111827" }}>{cls.name}</strong>
-                          <span style={{ display: "block", fontSize: "13px", color: "#6b7280" }}>
-                            {cls.subject || getPrimarySubject()} {cls.grade ? ` / ${cls.grade}` : ""}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {selectedClass && (
-                <div style={{ ...cardStyle, marginBottom: "24px" }}>
-                  <h2 style={{ marginBottom: "8px" }}>선택한 클래스</h2>
-                  <div style={{ fontSize: "18px", fontWeight: "800", marginBottom: "16px" }}>{classLabel(selectedClass)}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px" }}>
-                    <button style={{ ...buttonStyle, padding: "18px", fontSize: "15px" }} onClick={openScorePage}>
-                      성적 등록
-                    </button>
-                    <button style={{ ...buttonStyle, padding: "18px", fontSize: "15px", background: "#111827" }} onClick={openLecturePage}>
-                      강의 추가
-                    </button>
-                    <button style={{ ...buttonStyle, padding: "18px", fontSize: "15px", background: "#2b5148" }} onClick={() => {
-                      if (!selectedClass) { alert("클래스를 먼저 선택해 주세요."); return; }
-                      setTeacherView("notes");
-                    }}>
-                      업무일지
-                    </button>
-                    <button style={{ ...buttonStyle, padding: "18px", fontSize: "15px", background: "#1E3932" }} onClick={() => {
-                      if (!selectedClass) { alert("클래스를 먼저 선택해 주세요."); return; }
-                      loadScoreHistory();
-                      setTeacherView("stats");
-                    }}>
-                      성적 현황
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 담당 강좌 목록 (관리자가 배정한 강좌만 표시) */}
-              {teacherCourses.length > 0 && (
-                <div style={{ ...cardStyle, marginBottom: "24px" }}>
-                  <h2 style={{ marginBottom: "12px" }}>담당 강좌 목록</h2>
-                  <p style={{ marginTop: 0, marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>관리자가 배정한 강좌입니다. 강의 추가는 클래스 선택 후 진행하세요.</p>
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    {teacherCourses.map((course) => (
-                      <span key={course.id} style={{ background: "#ecfdf5", color: "#065f46", padding: "8px 14px", borderRadius: "999px", fontWeight: "700", fontSize: "13px", fontFamily: "Manrope, sans-serif" }}>
-                        {course.title}{course.subject ? ` · ${course.subject}` : ""} ({(course.lectures || []).length}강)
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {teacherView === "lecture" && selectedClass && (
-            <>
-              <div style={{ ...cardStyle, marginBottom: "24px" }}>
-                <h2 style={{ marginBottom: "8px" }}>강의 추가</h2>
-                <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>
-                  선택 클래스: <strong>{classLabel(selectedClass)}</strong>
-                </p>
-
-                {teacherCourses.length === 0 ? (
-                  <div style={{ color: "#6b7280", padding: "16px", background: "#f9fafb", borderRadius: "10px" }}>
-                    배정된 강좌가 없습니다. 관리자 페이지에서 담당 강좌를 먼저 배정해 주세요.
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gap: "12px" }}>
-                    <div>
-                      <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강좌 선택 (관리자가 배정한 강좌)</label>
-                      <select style={inputStyle} value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
-                        <option value="">강좌를 선택해 주세요</option>
-                        {teacherCourses.map((course) => (
-                          <option key={course.id} value={course.id}>
-                            {course.title}{course.subject ? ` / ${course.subject}` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "12px", alignItems: "end" }}>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 제목</label>
-                        <input style={inputStyle} value={courseVideoTitle} onChange={(e) => setCourseVideoTitle(e.target.value)} placeholder="예: 4월 3주차 문법 보충강의" />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 링크</label>
-                        <input style={inputStyle} value={courseVideoLink} onChange={(e) => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL" />
-                      </div>
-                      <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>
-                        {savingOnline ? "저장 중..." : "강의 저장"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ ...cardStyle, marginBottom: "24px" }}>
-                <h2 style={{ marginBottom: "16px" }}>내 온라인 강좌 목록</h2>
-                <p style={{ marginTop: "-6px", marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>등록된 강좌와 영상을 확인하고 제목/링크를 수정할 수 있습니다.</p>
-
-                {teacherCourses.length === 0 ? (
-                  <div>아직 등록된 온라인 강좌가 없습니다.</div>
-                ) : (
-                  <>
-                    <select style={{ ...inputStyle, maxWidth: "620px", marginBottom: "16px" }} value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
-                      <option value="">강좌를 선택해 주세요</option>
-                      {teacherCourses.map((course) => (
-                        <option key={course.id} value={course.id}>{course.title}{course.subject ? ` / ${course.subject}` : ""}</option>
-                      ))}
-                    </select>
-
-                    {selectedCourseId && (
-                      <div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                          <strong>{selectedCourse()?.title}</strong>
-                          <button style={buttonStyle} onClick={() => addLectureToCourse(selectedCourseId)}>+ 빈 강의 추가</button>
-                        </div>
-
-                        {(selectedCourse()?.lectures || []).length === 0 ? (
-                          <div style={{ color: "#6b7280" }}>아직 등록된 강의가 없습니다.</div>
-                        ) : (
-                          <div style={{ display: "grid", gap: "10px" }}>
-                            {(selectedCourse()?.lectures || []).map((lecture, idx) => (
-                              <div key={lecture.id} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "12px", display: "grid", gap: "8px" }}>
-                                <div style={{ display: "grid", gridTemplateColumns: "70px 1fr auto", gap: "8px", alignItems: "center" }}>
-                                  <strong style={{ color: "#006241" }}>{idx + 1}강</strong>
-                                  <input style={inputStyle} value={lecture.title || ""} placeholder="강의 제목" onChange={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, false)} onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "title", e.target.value, true)} />
-                                  <button style={lightButtonStyle} onClick={() => deleteLecture(selectedCourseId, lecture.id)}>삭제</button>
-                                </div>
-                                <input style={inputStyle} value={lecture.youtubeId || ""} placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL" onChange={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, false)} onBlur={(e) => updateLecture(selectedCourseId, lecture.id, "youtubeId", e.target.value, true)} />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </>
-          )}
-
-          {teacherView === "score" && selectedClass && (
-            <div style={{ ...cardStyle, marginBottom: "24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-                <div>
-                  <h2 style={{ margin: 0 }}>성적 등록</h2>
-                  <div style={{ marginTop: "6px", fontSize: "14px", color: "#6b7280" }}>선택 클래스: {classLabel(selectedClass)}</div>
-                </div>
-                <div style={{ fontSize: "14px", color: "#6b7280" }}>
-                  선택 학생 {selectedCount}명 / 전체 {students.length}명
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                  gap: "12px",
-                  marginBottom: "12px",
-                }}
-              >
-                <select
-                  style={inputStyle}
-                  value={testInfo.reportPeriod}
-                  onChange={(e) =>
-                    setTestInfo((prev) => ({
-                      ...prev,
-                      reportPeriod: e.target.value,
-                      testType: `${e.target.value} 성적표`,
-                    }))
-                  }
-                >
-                  <option value="일일">일일 성적표</option>
-                  <option value="주간">주간 성적표</option>
-                  <option value="월간">월간 성적표</option>
-                </select>
-
-                <input
-                  style={inputStyle}
-                  type="date"
-                  value={testInfo.testDate}
-                  onChange={(e) =>
-                    setTestInfo((prev) => ({ ...prev, testDate: e.target.value }))
-                  }
-                />
-
-                <select
-                  style={inputStyle}
-                  value={testInfo.subject}
-                  onChange={(e) =>
-                    setTestInfo((prev) => ({ ...prev, subject: e.target.value }))
-                  }
-                >
-                  <option value="">과목 선택</option>
-                  <option value="국어">국어</option>
-                  <option value="영어">영어</option>
-                  <option value="수학">수학</option>
-                  <option value="과학">과학</option>
-                </select>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  gap: "12px",
-                  marginBottom: "20px",
-                }}
-              >
-                <input
-                  style={inputStyle}
-                  placeholder="시험명 예: 4월 4주차 단어 테스트"
-                  value={testInfo.testName}
-                  onChange={(e) =>
-                    setTestInfo((prev) => ({ ...prev, testName: e.target.value }))
-                  }
-                />
-
-                <input
-                  style={inputStyle}
-                  placeholder="시험 범위 예: Unit 1~3 / 본문 1과 / 3월 모의고사 20~24번"
-                  value={testInfo.testRange}
-                  onChange={(e) =>
-                    setTestInfo((prev) => ({ ...prev, testRange: e.target.value }))
-                  }
-                />
-              </div>
-
-              {students.length === 0 ? (
-                <div>이 반에 등록된 학생이 없습니다.</div>
-              ) : (
-                <>
-                  <div style={{ display: "flex", gap: "8px", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
-                    <div style={{ fontSize: "14px", color: "#6b7280" }}>
-                      체크된 학생에게만 성적이 저장됩니다. 점수가 비어 있는 학생은 저장되지 않습니다.
-                    </div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button style={lightButtonStyle} onClick={selectAllStudents}>전체 선택</button>
-                      <button style={lightButtonStyle} onClick={clearAllStudents}>전체 해제</button>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "grid", gap: "10px" }}>
-                    {students.map((student) => {
-                      const checked = selectedStudentIds.includes(student.id);
-
-                      return (
-                        <div
-                          key={student.id}
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "36px 1fr 140px",
-                            alignItems: "center",
-                            gap: "12px",
-                            padding: "12px 16px",
-                            border: checked ? "1px solid #006241" : "1px solid #e5e7eb",
-                            borderRadius: "12px",
-                            background: checked ? "#f0fdf4" : "white",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleStudent(student.id)}
-                            style={{ width: "18px", height: "18px" }}
-                          />
-
-                          <div>
-                            <strong>{student.name}</strong>
-                            <div style={{ fontSize: "13px", color: "#6b7280" }}>
-                              {student.grade || "-"} / {student.school || student.phone || "-"}
-                            </div>
-                          </div>
-
-                          <input
-                            style={inputStyle}
-                            type="number"
-                            placeholder="점수"
-                            value={scores[student.id] || ""}
-                            disabled={!checked}
-                            onChange={(e) => updateScore(student.id, e.target.value)}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div style={{ marginTop: "20px", textAlign: "right" }}>
-                    <button style={buttonStyle} onClick={saveAllScores}>
-                      선택 학생 성적 저장
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* 업무일지 뷰 */}
-          {teacherView === "notes" && selectedClass && notesView}
-
-          {/* 성적 현황/통계 뷰 */}
-          {teacherView === "stats" && selectedClass && statsView}
-        </>
-      )}
-    </div>
-  );
-
-  // 성적 이력 로드 (이 선생님 데이터만)
-  async function loadScoreHistory() {
-    if (!teacherInfo?.id) return;
-    setLoadingStats(true);
-    const { data } = await sb.from("test_scores")
-      .select("*, students(name, grade, school)")
-      .eq("teacher_id", teacherInfo.id)
-      .order("test_date", { ascending: false });
-    setScoreHistory(data || []);
-    setLoadingStats(false);
-  }
-
-  // 업무일지 로드
-  async function loadNotes() {
-    if (!teacherInfo?.id) return;
-    const { data } = await sb.from("teacher_notes")
-      .select("*, students(name)")
-      .eq("teacher_id", teacherInfo.id)
-      .order("note_date", { ascending: false });
-    setTeacherNotes(data || []);
-  }
-
-  // 업무일지 저장
-  async function saveNote() {
-    if (!noteDraft.content.trim()) { alert("내용을 입력해 주세요."); return; }
-    if (!teacherInfo?.id) { alert("선생님 정보를 불러오는 중입니다."); return; }
-    setSavingNote(true);
-    try {
-      const payload = {
-        teacher_id: teacherInfo.id,
-        class_id: selectedClass?.isVirtual ? null : (selectedClass?.id || null),
-        student_id: noteDraft.studentId || null,
-        note_date: noteDraft.date,
-        note_type: noteDraft.type,
-        content: noteDraft.content.trim(),
-      };
-      const { data, error } = await sb.from("teacher_notes").insert(payload).select("*, students(name)").single();
-      if (error) throw error;
-      setTeacherNotes(prev => [data, ...prev]);
-      setNoteDraft(prev => ({ ...prev, content: "", studentId: "" }));
-    } catch(e) {
-      alert("저장 실패: " + (e?.message || JSON.stringify(e)));
-    }
-    setSavingNote(false);
-  }
-
-  // 업무일지 삭제
-  async function deleteNote(id) {
-    if (!confirm("이 기록을 삭제할까요?")) return;
-    await sb.from("teacher_notes").delete().eq("id", id);
-    setTeacherNotes(prev => prev.filter(n => n.id !== id));
-  }
-
-  // 성적 통계 계산
-  function calcStats(scores) {
-    if (!scores || scores.length === 0) return null;
-    const vals = scores.map(s => Number(s.score)).filter(v => !isNaN(v));
-    if (vals.length === 0) return null;
-    const avg = (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
-    const max = Math.max(...vals);
-    const min = Math.min(...vals);
-    return { avg, max, min, count: vals.length };
-  }
-
-  const NOTE_TYPES = ["특이사항", "학습태도", "상담", "과제", "기타"];
-  const SUBJECTS_LIST = ["국어", "영어", "수학", "과학"];
-
 }
+
 
 window.TeacherPortal = TeacherPortal;

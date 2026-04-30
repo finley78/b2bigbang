@@ -266,6 +266,11 @@ adminAuthed && page !== 'admin' && React.createElement('button', {
   style:{ position:'fixed', right:'22px', top:'104px', zIndex:9999, background:'#1E3932', color:'#fff', border:'none', borderRadius:'999px', padding:'9px 15px', fontSize:'13px', fontWeight:'800', boxShadow:'0 6px 18px rgba(0,0,0,0.18)', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
 }, '관리자 페이지'),
 
+isTeacherUser(effectiveUser) && page !== 'teacher' && React.createElement('button', {
+  onClick:function(){ navigate('teacher'); },
+  style:{ position:'fixed', right:'22px', top:'104px', zIndex:9999, background:'#2b5148', color:'#fff', border:'none', borderRadius:'999px', padding:'9px 15px', fontSize:'13px', fontWeight:'800', boxShadow:'0 6px 18px rgba(0,0,0,0.18)', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+}, '선생님 페이지'),
+
 React.createElement('main', { style:{ flex:1 } },
 
 page === 'home' && React.createElement(HomePage, {
