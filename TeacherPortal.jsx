@@ -17,7 +17,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [lectureSubject, setLectureSubject] = React.useState("");
   const [lectureClassId, setLectureClassId] = React.useState("");
   const [lectureCourseName, setLectureCourseName] = React.useState("");
-  const [courseChipSearch, setCourseChipSearch] = React.useState("");
   const [savingOnline, setSavingOnline] = React.useState(false);
   const [teacherView, setTeacherView] = React.useState("home");
   // 업무일지
@@ -179,6 +178,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       title: course.title || course.name || "이름 없는 강좌",
       subject: course.subjects?.name || course.subject || "",
       teacher: course.teacher || "",
+      level: course.level || "",
+      grade: course.grade || "",
+      class_id: course.class_id || null,
       lectures: (course.videos || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map((video) => ({
         id: video.id,
         title: video.title || "",
@@ -313,11 +315,16 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
     setSavingOnline(true);
     try {
-      // 1) 강좌 찾기 또는 새로 생성 (이름 + 과목으로 매칭, 과목이 정해진 경우)
-      let course = teacherCourses.find(c =>
-        clean(c.title) === clean(courseName) &&
-        (!effectiveSubject || clean(c.subject) === clean(effectiveSubject))
-      );
+      // 1) 강좌 찾기 또는 새로 생성 (scope 까지 일치하는 것만)
+      let course = teacherCourses.find(c => {
+        if (clean(c.title) !== clean(courseName)) return false;
+        if (effectiveSubject && c.subject && clean(c.subject) !== clean(effectiveSubject)) return false;
+        if (useClass) return String(c.class_id || "") === String(lectureClassId);
+        // 학년 모드
+        if (lectureGrade && c.grade && c.grade !== lectureGrade) return false;
+        if (lectureGrade && !c.grade) return false;
+        return !c.class_id;
+      });
       let courseId;
       if (course) {
         courseId = course.id;
@@ -328,9 +335,17 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           const { data: subjRows } = await sb.from("subjects").select("id, name").eq("name", effectiveSubject).limit(1);
           subjectId = subjRows && subjRows.length > 0 ? subjRows[0].id : null;
         }
+        const newCoursePayload = {
+          title: courseName,
+          subject_id: subjectId,
+          is_active: true,
+          level: useClass ? null : (lectureLevel || null),
+          grade: useClass ? null : (lectureGrade || null),
+          class_id: useClass ? lectureClassId : null,
+        };
         const { data: created, error: courseError } = await sb
           .from("courses")
-          .insert({ title: courseName, subject_id: subjectId, is_active: true })
+          .insert(newCoursePayload)
           .select("*, subjects(name,color), videos(*)")
           .single();
         if (courseError) throw courseError;
@@ -798,13 +813,16 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         // 클래스 모드에서 과목이 비어있으면 클래스의 subject로 추론
         const inferredClass = classMode ? (availableClassCards || []).find(c => String(c.id) === String(lectureClassId)) : null;
         const effectiveSubject = lectureSubject || (inferredClass && inferredClass.subject) || "";
-        // 본 선생님이 가진 기존 강좌명 후보 (과목이 정해졌으면 그 과목으로 한정)
-        const courseSuggestions = Array.from(new Set(
-          (teacherCourses || [])
-            .filter(c => !effectiveSubject || clean(c.subject) === clean(effectiveSubject))
-            .map(c => c.title)
-            .filter(Boolean)
-        ));
+        // 필터 조건에 맞는 기존 강좌만 후보로
+        const scopedCourses = (teacherCourses || []).filter(c => {
+          if (classMode) return String(c.class_id || "") === String(lectureClassId);
+          if (lectureLevel && c.level && c.level !== lectureLevel) return false;
+          if (lectureGrade && c.grade && c.grade !== lectureGrade) return false;
+          if (effectiveSubject && c.subject && clean(c.subject) !== clean(effectiveSubject)) return false;
+          if (gradeMode && c.class_id) return false; // 학년 모드일 땐 클래스 전용 강좌 제외
+          return true;
+        });
+        const courseSuggestions = Array.from(new Set(scopedCourses.map(c => c.title).filter(Boolean)));
         const matchedCourse = ready
           ? teacherCourses.find(c => clean(c.title) === clean(lectureCourseName) && (!effectiveSubject || clean(c.subject) === clean(effectiveSubject)))
           : null;
@@ -847,52 +865,38 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </div>
             </div>
 
-            {/* 1.5. 내 강좌 목록 (한눈에 보고 클릭으로 선택) */}
-            {(() => {
-              const q = courseChipSearch.trim().toLowerCase();
-              const filteredSuggestions = q ? courseSuggestions.filter(n => n.toLowerCase().indexOf(q) >= 0) : courseSuggestions;
-              return (
-                <div style={{ marginBottom: "16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                    <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                      내 강좌 {effectiveSubject ? `(${effectiveSubject})` : ""} · {q ? `${filteredSuggestions.length}/${courseSuggestions.length}` : courseSuggestions.length}개
-                    </label>
-                    {courseSuggestions.length > 0 && (
-                      <input
-                        value={courseChipSearch}
-                        onChange={e => setCourseChipSearch(e.target.value)}
-                        placeholder="강좌명 검색"
-                        style={{ ...inputStyle, width: "180px", padding: "6px 10px", fontSize: "12px" }}
-                      />
-                    )}
-                  </div>
-                  {courseSuggestions.length === 0 ? (
-                    <div style={{ color: "#9ca3af", fontSize: "12px", padding: "10px 12px", background: "#f9fafb", borderRadius: "8px", fontFamily: "Manrope, sans-serif" }}>
-                      아직 생성된 강좌가 없습니다. 아래 강좌명을 입력하고 첫 강의를 저장하면 새 강좌가 만들어집니다.
-                    </div>
-                  ) : filteredSuggestions.length === 0 ? (
-                    <div style={{ color: "#9ca3af", fontSize: "12px", padding: "10px 12px", background: "#f9fafb", borderRadius: "8px", fontFamily: "Manrope, sans-serif" }}>
-                      검색 결과가 없습니다.
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", maxHeight: "180px", overflowY: "auto", padding: "8px", background: "#f9fafb", borderRadius: "8px", border: "1px solid #edf0f2" }}>
-                      {filteredSuggestions.map(name => {
-                        const c = teacherCourses.find(x => clean(x.title) === clean(name) && (!effectiveSubject || clean(x.subject) === clean(effectiveSubject)));
-                        const lectureCount = c ? (c.lectures || []).length : 0;
-                        const active = clean(lectureCourseName) === clean(name);
-                        return (
-                          <button key={name} onClick={() => setLectureCourseName(name)}
-                            style={{ background: active ? "#006241" : "#fff", color: active ? "#fff" : "#1E3932", border: active ? "2px solid #006241" : "1px solid #d6dbde", borderRadius: "20px", padding: "6px 14px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Manrope, sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            <span>{name}</span>
-                            <span style={{ fontSize: "11px", opacity: 0.7 }}>{lectureCount}강</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+            {/* 1.5. 내 강좌 목록 (필터 조건에 맞는 강좌만 표시, 클릭으로 선택) */}
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                내 강좌 · {courseSuggestions.length}개
+                {classMode ? " (선택한 클래스)" :
+                  (lectureLevel || lectureGrade || effectiveSubject)
+                    ? ` (${[lectureLevel, lectureGrade, effectiveSubject].filter(Boolean).join(" · ")})`
+                    : ""}
+              </label>
+              {courseSuggestions.length === 0 ? (
+                <div style={{ color: "#9ca3af", fontSize: "12px", padding: "10px 12px", background: "#f9fafb", borderRadius: "8px", fontFamily: "Manrope, sans-serif" }}>
+                  {(classMode || lectureLevel || lectureGrade || effectiveSubject)
+                    ? "이 조건으로 생성된 강좌가 없습니다. 아래 강좌명을 입력하고 첫 강의를 저장하면 새 강좌가 만들어집니다."
+                    : "필터를 선택하면 그 조건에 맞는 강좌가 여기 표시됩니다."}
                 </div>
-              );
-            })()}
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", maxHeight: "180px", overflowY: "auto", padding: "8px", background: "#f9fafb", borderRadius: "8px", border: "1px solid #edf0f2" }}>
+                  {courseSuggestions.map(name => {
+                    const c = scopedCourses.find(x => clean(x.title) === clean(name));
+                    const lectureCount = c ? (c.lectures || []).length : 0;
+                    const active = clean(lectureCourseName) === clean(name);
+                    return (
+                      <button key={name} onClick={() => setLectureCourseName(name)}
+                        style={{ background: active ? "#006241" : "#fff", color: active ? "#fff" : "#1E3932", border: active ? "2px solid #006241" : "1px solid #d6dbde", borderRadius: "20px", padding: "6px 14px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Manrope, sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <span>{name}</span>
+                        <span style={{ fontSize: "11px", opacity: 0.7 }}>{lectureCount}강</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* 2. 강좌명 (기존 강좌 자동완성 + 새 강좌명 입력 가능) */}
             <div style={{ marginBottom: "12px" }}>
