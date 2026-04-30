@@ -290,27 +290,43 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     const title = String(courseVideoTitle || "").trim();
     const link = String(courseVideoLink || "").trim();
 
-    if (!lectureLevel) { alert("초중고를 선택해 주세요."); return; }
-    if (!lectureGrade) { alert("학년을 선택해 주세요."); return; }
-    if (!lectureSubject) { alert("과목을 선택해 주세요."); return; }
-    if (!lectureClassId) { alert("클래스를 선택해 주세요."); return; }
+    // 두 가지 시나리오:
+    //  A) 학년 단위 공통: 초중고 + 학년 + 과목 (클래스 없음) → 해당 학년·과목 학생 전체에게 배정
+    //  B) 특정 클래스 전용: 클래스 (필요 시 다른 필드는 클래스에서 자동 추론) → 그 반 학생만 배정
+    const useClass = !!lectureClassId;
+    if (!useClass) {
+      if (!lectureLevel) { alert("초중고를 선택하거나 클래스를 선택해 주세요."); return; }
+      if (!lectureGrade) { alert("학년을 선택하거나 클래스를 선택해 주세요."); return; }
+      if (!lectureSubject) { alert("과목을 선택하거나 클래스를 선택해 주세요."); return; }
+    }
     if (!courseName) { alert("강좌명을 입력해 주세요."); return; }
     if (!title) { alert("강의 제목을 입력해 주세요."); return; }
     if (!link) { alert("YouTube 링크 또는 영상 URL을 입력해 주세요."); return; }
 
+    // 클래스 모드일 때 과목이 비어있으면 클래스의 subject로 보충 (강좌 매칭에 필요)
+    let effectiveSubject = lectureSubject;
+    if (useClass && !effectiveSubject) {
+      const cls = (availableClassCards || []).find(c => String(c.id) === String(lectureClassId));
+      effectiveSubject = (cls && cls.subject) || "";
+    }
+
     setSavingOnline(true);
     try {
-      // 1) 강좌 찾기 또는 새로 생성 (이름 + 선생님 + 과목으로 매칭)
+      // 1) 강좌 찾기 또는 새로 생성 (이름 + 과목으로 매칭, 과목이 정해진 경우)
       let course = teacherCourses.find(c =>
-        clean(c.title) === clean(courseName) && clean(c.subject) === clean(lectureSubject)
+        clean(c.title) === clean(courseName) &&
+        (!effectiveSubject || clean(c.subject) === clean(effectiveSubject))
       );
       let courseId;
       if (course) {
         courseId = course.id;
       } else {
-        // subject_id 조회
-        const { data: subjRows } = await sb.from("subjects").select("id, name").eq("name", lectureSubject).limit(1);
-        const subjectId = subjRows && subjRows.length > 0 ? subjRows[0].id : null;
+        // subject_id 조회 (과목이 정해진 경우만)
+        let subjectId = null;
+        if (effectiveSubject) {
+          const { data: subjRows } = await sb.from("subjects").select("id, name").eq("name", effectiveSubject).limit(1);
+          subjectId = subjRows && subjRows.length > 0 ? subjRows[0].id : null;
+        }
         const { data: created, error: courseError } = await sb
           .from("courses")
           .insert({ title: courseName, subject_id: subjectId, is_active: true })
@@ -340,11 +356,21 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       setCourseVideoLink("");
       alert("강의가 등록되었습니다.");
 
-      // 3) 선택한 클래스 학생들에게 자동 수강 배정
+      // 3) 자동 수강 배정
       try {
-        const { data: classLinks } = await sb.from("class_students").select("student_id").eq("class_id", lectureClassId);
-        if (classLinks && classLinks.length > 0) {
-          const studentIds = classLinks.map(l => l.student_id);
+        let studentIds = [];
+        if (useClass) {
+          // B) 특정 클래스 전용
+          const { data: classLinks } = await sb.from("class_students").select("student_id").eq("class_id", lectureClassId);
+          studentIds = (classLinks || []).map(l => l.student_id);
+        } else {
+          // A) 학년 단위 공통: 같은 학년 + (과목 배열에 포함) 인 학생 전체
+          const { data: gradeStudents } = await sb.from("students").select("id, subjects").eq("grade", lectureGrade).eq("role", "student").eq("is_active", true);
+          studentIds = (gradeStudents || [])
+            .filter(s => Array.isArray(s.subjects) ? s.subjects.includes(lectureSubject) : true)
+            .map(s => s.id);
+        }
+        if (studentIds.length > 0) {
           const { data: existing } = await sb.from("enrollments").select("student_id").eq("course_id", courseId).in("student_id", studentIds);
           const alreadySet = new Set((existing || []).map(e => e.student_id));
           const toAdd = studentIds.filter(sid => !alreadySet.has(sid));
@@ -761,24 +787,32 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           "고등": ["고1","고2","고3"],
         };
         const LECTURE_SUBJECTS = ["국어","영어","수학","과학"];
-        const filtersComplete = !!(lectureLevel && lectureGrade && lectureSubject && lectureClassId);
-        const ready = filtersComplete && lectureCourseName.trim();
+        // 두 시나리오 모두 허용:
+        //  A) 학년 단위 공통: 초중고+학년+과목 모두 선택 (클래스 미선택)
+        //  B) 특정 클래스 전용: 클래스 선택
+        const classMode = !!lectureClassId;
+        const gradeMode = !!(lectureLevel && lectureGrade && lectureSubject);
+        const scopeOk = classMode || gradeMode;
+        const ready = scopeOk && lectureCourseName.trim();
+        // 클래스 모드에서 과목이 비어있으면 클래스의 subject로 추론
+        const inferredClass = classMode ? (availableClassCards || []).find(c => String(c.id) === String(lectureClassId)) : null;
+        const effectiveSubject = lectureSubject || (inferredClass && inferredClass.subject) || "";
         // 본 선생님이 가진 기존 강좌명 후보 (과목이 정해졌으면 그 과목으로 한정)
         const courseSuggestions = Array.from(new Set(
           (teacherCourses || [])
-            .filter(c => !lectureSubject || clean(c.subject) === clean(lectureSubject))
+            .filter(c => !effectiveSubject || clean(c.subject) === clean(effectiveSubject))
             .map(c => c.title)
             .filter(Boolean)
         ));
         const matchedCourse = ready
-          ? teacherCourses.find(c => clean(c.title) === clean(lectureCourseName) && clean(c.subject) === clean(lectureSubject))
+          ? teacherCourses.find(c => clean(c.title) === clean(lectureCourseName) && (!effectiveSubject || clean(c.subject) === clean(effectiveSubject)))
           : null;
         const visibleLectures = matchedCourse ? (matchedCourse.lectures || []) : [];
 
         return (
           <div style={{ ...cardStyle, marginBottom: "24px" }}>
             <h2 style={{ marginBottom: "4px" }}>강의 추가</h2>
-            <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "20px" }}>필터와 강좌명을 모두 선택/입력하면 해당 강좌의 강의 목록이 표시됩니다.</p>
+            <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "20px" }}>학년 단위 공통 강의는 초중고 + 학년 + 과목을, 특정 반 전용은 클래스만 선택하시면 됩니다.</p>
 
             {/* 1. 상단 필터 (4개 드롭다운) */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "16px" }}>
@@ -837,7 +871,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             {/* 4. 강의 목록 (필터 + 강좌명 모두 입력됐을 때만) */}
             {!ready ? (
               <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
-                필터와 강좌명을 모두 선택/입력하면 강의 목록이 표시됩니다.
+                초중고 + 학년 + 과목 또는 클래스 중 하나를 선택하고 강좌명을 입력하면 강의 목록이 표시됩니다.
               </div>
             ) : !matchedCourse ? (
               <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
