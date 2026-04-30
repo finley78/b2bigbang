@@ -171,16 +171,20 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
 function SignupPage({ onBack, onComplete }) {
   const [step, setStep] = React.useState(1); // 1: 역할선택, 2: 양식작성, 3: 완료
   const [roleType, setRoleType] = React.useState(''); // 'student' | 'parent' | 'teacher'
-  const [form, setForm] = React.useState({ name:'', school:'', grade:'', phone:'', address:'', agree:false });
+  const [form, setForm] = React.useState({ name:'', school:'', grade:'', phone:'', address:'', agree:false, parentPhone:'', studentPhone:'' });
   const [msg, setMsg] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const sb = window.supabase;
 
   const ROLE_OPTIONS = [
-    { key:'student', label:'학생', icon:'', desc:'수강 중인 학생' },
-    { key:'parent',  label:'학부모', icon:'학부', desc:'학부모님' },
-    { key:'teacher', label:'선생님', icon:'선생', desc:'강사 (관리자 승인 필요)' },
+    { key:'student', label:'학생' },
+    { key:'parent',  label:'학부모' },
+    { key:'teacher', label:'선생님' },
   ];
+
+  function normalizePhone(s) {
+    return String(s || '').replace(/[^0-9]/g, '');
+  }
 
   const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box', background:'#fafafa' };
   const labelS = { display:'block', fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginBottom:'6px', letterSpacing:'0.04em' };
@@ -193,6 +197,10 @@ function SignupPage({ onBack, onComplete }) {
     if (roleType === 'student') {
       if (!form.school.trim()) { setMsg('학교를 입력해 주세요.'); return; }
       if (!form.grade.trim()) { setMsg('학년을 입력해 주세요.'); return; }
+      if (!form.parentPhone.trim()) { setMsg('학부모 전화번호를 입력해 주세요.'); return; }
+    }
+    if (roleType === 'parent') {
+      if (!form.studentPhone.trim()) { setMsg('자녀(학생) 전화번호를 입력해 주세요.'); return; }
     }
     if (!form.phone.trim()) { setMsg('전화번호를 입력해 주세요.'); return; }
     if (!form.address.trim()) { setMsg('주소를 입력해 주세요.'); return; }
@@ -200,6 +208,7 @@ function SignupPage({ onBack, onComplete }) {
 
     setLoading(true); setMsg('');
     const dbRole = roleType === 'teacher' ? 'pending_teacher' : roleType;
+    const ownPhoneNorm = normalizePhone(form.phone);
     const insertData = {
       name: form.name.trim(),
       phone: form.phone.trim(),
@@ -212,12 +221,30 @@ function SignupPage({ onBack, onComplete }) {
     if (roleType === 'student') {
       insertData.school = form.school.trim();
       insertData.grade = form.grade.trim();
+      insertData.parent_phone = form.parentPhone.trim();
     }
 
     try {
       if (sb) {
-        const { error } = await sb.from('students').insert(insertData);
+        const { data: inserted, error } = await sb.from('students').insert(insertData).select().single();
         if (error) throw error;
+
+        // 학생-학부모 자동 연결 (전화번호 매칭)
+        if (roleType === 'student' && inserted?.id) {
+          const targetPhone = normalizePhone(form.parentPhone);
+          const { data: parents } = await sb.from('students').select('id, phone').eq('role', 'parent');
+          const matchedParent = (parents || []).find(p => normalizePhone(p.phone) === targetPhone);
+          if (matchedParent) {
+            await sb.from('students').update({ parent_id: matchedParent.id }).eq('id', inserted.id);
+          }
+        } else if (roleType === 'parent' && inserted?.id) {
+          const targetPhone = normalizePhone(form.studentPhone);
+          const { data: studentsList } = await sb.from('students').select('id, phone').eq('role', 'student');
+          const matchedStudent = (studentsList || []).find(s => normalizePhone(s.phone) === targetPhone);
+          if (matchedStudent) {
+            await sb.from('students').update({ parent_id: inserted.id, parent_phone: form.phone.trim() }).eq('id', matchedStudent.id);
+          }
+        }
       }
       setStep(3);
     } catch(e) {
@@ -257,12 +284,8 @@ function SignupPage({ onBack, onComplete }) {
       React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
         ROLE_OPTIONS.map(r =>
           React.createElement('div', { key:r.key, onClick:()=>setRoleType(r.key),
-            style:{ background:'#fff', borderRadius:'14px', padding:'20px', display:'flex', alignItems:'center', gap:'16px', cursor:'pointer', border: roleType===r.key ? '2px solid #006241' : '2px solid transparent', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', transition:'all 0.15s' } },
-            React.createElement('div', { style:{ fontSize:'32px', flexShrink:0 } }, r.icon),
-            React.createElement('div', { style:{ flex:1 } },
-              React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, r.label),
-              React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, r.desc)
-            ),
+            style:{ background:'#fff', borderRadius:'14px', padding:'22px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'16px', cursor:'pointer', border: roleType===r.key ? '2px solid #006241' : '2px solid transparent', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', transition:'all 0.15s' } },
+            React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, r.label),
             React.createElement('div', { style:{ width:'20px', height:'20px', borderRadius:'50%', border: roleType===r.key ? '6px solid #006241' : '2px solid rgba(0,0,0,0.25)', transition:'all 0.15s', flexShrink:0 } })
           )
         )
@@ -277,12 +300,9 @@ function SignupPage({ onBack, onComplete }) {
     header,
     React.createElement('div', { style:{ maxWidth:'480px', margin:'0 auto', padding:'32px 20px' } },
       React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', marginBottom:'20px' } },
-        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'20px', paddingBottom:'16px', borderBottom:'1px solid rgba(0,0,0,0.07)' } },
-          React.createElement('div', { style:{ fontSize:'24px' } }, ROLE_OPTIONS.find(r=>r.key===roleType)?.icon),
-          React.createElement('div', null,
-            React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, ROLE_OPTIONS.find(r=>r.key===roleType)?.label + ' 회원가입'),
-            roleType === 'teacher' && React.createElement('div', { style:{ fontSize:'12px', color:'#c87000', fontFamily:'Manrope, sans-serif', marginTop:'2px', fontWeight:'600' } }, '관리자 승인 후 이용 가능합니다')
-          )
+        React.createElement('div', { style:{ marginBottom:'20px', paddingBottom:'16px', borderBottom:'1px solid rgba(0,0,0,0.07)' } },
+          React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, ROLE_OPTIONS.find(r=>r.key===roleType)?.label + ' 회원가입'),
+          roleType === 'teacher' && React.createElement('div', { style:{ fontSize:'12px', color:'#c87000', fontFamily:'Manrope, sans-serif', marginTop:'4px', fontWeight:'600' } }, '관리자 승인 후 이용 가능합니다')
         ),
 
         // 이름 (공통)
@@ -310,6 +330,18 @@ function SignupPage({ onBack, onComplete }) {
         React.createElement('div', { style:fieldS },
           React.createElement('label', { style:labelS }, '전화번호 *'),
           React.createElement('input', { value:form.phone, onChange:e=>setF('phone',e.target.value), placeholder:'010-0000-0000', style:inputS, type:'tel' })
+        ),
+
+        // 학부모 전화번호 (학생만)
+        roleType === 'student' && React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '학부모 전화번호 *'),
+          React.createElement('input', { value:form.parentPhone, onChange:e=>setF('parentPhone',e.target.value), placeholder:'010-0000-0000', style:inputS, type:'tel' })
+        ),
+
+        // 학생 전화번호 (학부모만)
+        roleType === 'parent' && React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '자녀(학생) 전화번호 *'),
+          React.createElement('input', { value:form.studentPhone, onChange:e=>setF('studentPhone',e.target.value), placeholder:'010-0000-0000', style:inputS, type:'tel' })
         ),
 
         // 주소 (공통)

@@ -137,7 +137,8 @@ const mapped = students.map(st => ({
 id: st.id, name: st.name, email: st.email, provider: st.login_provider,
 grade: st.grade || '', school: st.school || '', subjects: st.subjects || [],
 enrolledCourses: (st.enrollments || []).map(e => e.course_id),
-phone: st.phone || '', role: 'student',
+phone: st.phone || '', parent_phone: st.parent_phone || '', parent_id: st.parent_id || null,
+role: 'student',
 }));
 setDbStudents(mapped);
 }
@@ -849,6 +850,16 @@ style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 10px', font
 },
 React.createElement('option', { value:'' }, '선택'),
 SCHOOLS.filter(function(s){ return s!=='전체'; }).map(function(s){ return React.createElement('option',{key:s,value:s},s); })
+)
+),
+React.createElement('div', { style:{ display:'flex', gap:'24px', flexWrap:'wrap', marginBottom:'14px', padding:'12px 14px', background:'#f9f9f9', borderRadius:'8px' } },
+React.createElement('div', null,
+React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'4px', letterSpacing:'0.04em', textTransform:'uppercase' } }, '학생 전화번호'),
+React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.phone || '미입력')
+),
+React.createElement('div', null,
+React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'4px', letterSpacing:'0.04em', textTransform:'uppercase' } }, '학부모 전화번호'),
+React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.parent_phone || '미입력')
 )
 ),
 React.createElement('div', { style:{ marginBottom:'14px' } },
