@@ -1161,68 +1161,98 @@ React.createElement('button', { key:sub, onClick:()=>toggleTeacherSubject(t.id, 
 style:{ background: (t.subjects||[]).includes(sub)?'#006241':'#f2f0eb', color: (t.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.55)', border: (t.subjects||[]).includes(sub)?'2px solid #006241':'2px solid transparent', borderRadius:'8px', padding:'7px 18px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub)
 )
 ),
+
+/* 과목별 학년 배정 — 각 담당 과목마다 별도 섹션 */
 React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #edf0f2' } },
-React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '담당 학교급 / 학년 배정'),
-React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '학교급 1개를 선택하고, 담당 학년을 여러 개 선택한 뒤 저장합니다.'),
-React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'12px' } },
-React.createElement('select', {
-value:getTeacherAssignDraft(t.id).level,
-onChange:function(e){ updateTeacherAssignDraft(t.id, { level:e.target.value }); },
-style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', background:'#fff', outline:'none', cursor:'pointer' }
-},
-TEACHER_ASSIGN_LEVELS.map(function(level) {
-return React.createElement('option', { key:level, value:level }, level);
-})
-),
-React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
-TEACHER_ASSIGN_GRADES.map(function(grade) {
-var selectedGrades = getTeacherAssignDraft(t.id).grades || [];
-var selected = selectedGrades.includes(grade);
-return React.createElement('button', {
-key:grade, type:'button',
-onClick:function(){ toggleTeacherGrade(t.id, grade); },
-style:{ background:selected?'#006241':'#f2f0eb', color:selected?'#fff':'rgba(0,0,0,0.62)', border:selected?'2px solid #006241':'2px solid transparent', borderRadius:'999px', padding:'7px 12px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-}, grade);
-})
-),
-React.createElement('button', {
-onClick:function(){ saveTeacherGradeAssignment(t.id); },
-style:{ background:'#006241', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 16px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-}, '저장')
-),
-React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' } },
-getTeacherGradeAssignments(t).length === 0
-? React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '아직 배정된 학교급/학년이 없습니다.')
-: React.createElement(React.Fragment, null,
-    getTeacherGradeAssignments(t).map(function(assignment) {
-      return React.createElement('button', {
-        key:assignment,
-        onClick:function(){ removeTeacherGradeAssignment(t.id, assignment); },
-        title:'클릭하면 배정 해제',
-        style:{ background:'#1E3932', color:'#fff', border:'2px solid #1E3932', borderRadius:'999px', padding:'7px 12px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-      }, assignment + ' ×');
-    }),
-    React.createElement('button', {
-      onClick: async function() {
-        if (!confirm('배정된 학교급/학년을 전체 초기화할까요?')) return;
-        await sb.from('students').update({ grade: '', school: '' }).eq('id', t.id);
-        setDbTeachers(function(ts) {
-          return ts.map(function(x) {
-            return x.id === t.id ? Object.assign({}, x, { grade: '', school: '' }) : x;
-          });
-        });
-        setTeacherAssignDrafts(function(prev) {
-          return Object.assign({}, prev, { [t.id]: { level:'초등', grades:[] } });
-        });
+React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, '과목별 학교급 / 학년 배정'),
+React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '과목마다 별도로 학교급과 담당 학년을 설정하고 저장합니다.'),
+
+(t.subjects && t.subjects.length > 0 ? t.subjects : ['(과목 미지정)']).map(function(sub) {
+  var draftKey = t.id + '_' + sub;
+  var draft = getTeacherAssignDraft(draftKey) || { level:'초등', grades:[] };
+  var savedAssignments = getTeacherGradeAssignments(t).filter(function(a) {
+    return String(a).indexOf(sub + '-') === 0;
+  }).map(function(a) { return a.replace(sub + '-', ''); });
+
+  return React.createElement('div', { key:sub, style:{ background:'#f9f9f9', borderRadius:'10px', padding:'14px 16px', marginBottom:'10px' } },
+    // 과목 라벨
+    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, sub),
+
+    // 학교급 + 학년 선택 + 저장
+    React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'10px' } },
+      React.createElement('select', {
+        value: draft.level,
+        onChange: function(e) { updateTeacherAssignDraft(draftKey, { level: e.target.value }); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
       },
-      style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'999px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-    }, '전체 초기화')
-  )
-),
-React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #edf0f2' } },
-React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
-'온라인 강좌는 선생님 페이지에서 담당 학년을 선택해 직접 등록합니다.'
-)
+        TEACHER_ASSIGN_LEVELS.map(function(level) {
+          return React.createElement('option', { key:level, value:level }, level);
+        })
+      ),
+      React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap' } },
+        TEACHER_ASSIGN_GRADES.map(function(grade) {
+          var selected = (draft.grades || []).includes(grade);
+          return React.createElement('button', {
+            key:grade, type:'button',
+            onClick: function() {
+              var grades = draft.grades || [];
+              var next = selected ? grades.filter(function(g){ return g!==grade; }) : grades.concat(grade);
+              updateTeacherAssignDraft(draftKey, { grades: next });
+            },
+            style:{ background:selected?'#006241':'#fff', color:selected?'#fff':'rgba(0,0,0,0.62)', border:selected?'2px solid #006241':'1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 11px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+          }, grade);
+        })
+      ),
+      React.createElement('button', {
+        onClick: async function() {
+          if ((draft.grades || []).length === 0) { alert('학년을 1개 이상 선택해 주세요.'); return; }
+          var newTags = (draft.grades || []).map(function(g) { return sub + '-' + draft.level + ' ' + g; });
+          var existing = getTeacherGradeAssignments(t).filter(function(a) { return String(a).indexOf(sub + '-') !== 0; });
+          var merged = existing.concat(newTags);
+          var gradeStr = Array.from(new Set(merged.filter(Boolean))).join(',');
+          var schoolStr = '';
+          await sb.from('students').update({ grade: gradeStr, school: schoolStr }).eq('id', t.id);
+          setDbTeachers(function(ts) { return ts.map(function(x) { return x.id===t.id ? Object.assign({},x,{grade:gradeStr,school:schoolStr}) : x; }); });
+          updateTeacherAssignDraft(draftKey, { grades:[] });
+        },
+        style:{ background:'#006241', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+      }, '저장')
+    ),
+
+    // 현재 배정된 학년 태그
+    savedAssignments.length === 0
+      ? React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.35)', fontFamily:'Manrope, sans-serif' } }, '배정된 학년 없음')
+      : React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
+          savedAssignments.map(function(a) {
+            return React.createElement('button', {
+              key:a,
+              onClick: async function() {
+                var tagToRemove = sub + '-' + a;
+                var updated = getTeacherGradeAssignments(t).filter(function(x) { return x !== tagToRemove; });
+                var gradeStr = updated.join(',');
+                await sb.from('students').update({ grade: gradeStr, school: '' }).eq('id', t.id);
+                setDbTeachers(function(ts) { return ts.map(function(x) { return x.id===t.id ? Object.assign({},x,{grade:gradeStr}) : x; }); });
+              },
+              style:{ background:'#1E3932', color:'#fff', border:'none', borderRadius:'999px', padding:'5px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+            }, a + ' ×');
+          }),
+          React.createElement('button', {
+            onClick: async function() {
+              if (!confirm(sub + ' 과목의 배정을 전체 초기화할까요?')) return;
+              var updated = getTeacherGradeAssignments(t).filter(function(x) { return String(x).indexOf(sub + '-') !== 0; });
+              var gradeStr = updated.join(',');
+              await sb.from('students').update({ grade: gradeStr, school: '' }).eq('id', t.id);
+              setDbTeachers(function(ts) { return ts.map(function(x) { return x.id===t.id ? Object.assign({},x,{grade:gradeStr}) : x; }); });
+            },
+            style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'999px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+          }, '초기화')
+        )
+  );
+}),
+
+// 전체 배정 현황
+React.createElement('div', { style:{ marginTop:'12px', paddingTop:'12px', borderTop:'1px solid #edf0f2', fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
+  '온라인 강좌는 관리자가 강좌 관리에서 선생님에게 강좌를 배정한 후, 선생님이 직접 영상을 등록합니다.'
 )
 )
 )

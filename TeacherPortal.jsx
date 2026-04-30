@@ -251,6 +251,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       return;
     }
     const filtered = (courseList || []).filter((course) => {
+      // 1. teacher_id 직접 매칭
+      if (teacher?.id && String(course.teacher_id) === String(teacher.id)) return true;
+      // 2. classes 테이블에서 이름+과목으로 매칭
+      if (classList && classList.some(cls =>
+        clean(cls.name) === clean(course.title || course.name) &&
+        (!cls.subject || clean(cls.subject) === clean(course.subjects?.name || course.subject || ""))
+      )) return true;
+      // 3. 레거시: 이름/이메일 매칭
       return isMyOnlineCourse(course, teacher);
     });
 
@@ -259,50 +267,20 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!selectedCourseId && mapped.length > 0) setSelectedCourseId(String(mapped[0].id));
   }
 
-  async function createCourseAndAddVideo() {
-    const assignment = String(selectedCourseAssignment || "").trim();
+  // 선택한 강좌에 영상 직접 추가 (강좌는 teacherCourses에서 선택)
+  async function addVideoToCourse() {
+    const courseId = selectedCourseId;
     const title = String(courseVideoTitle || "").trim();
     const link = String(courseVideoLink || "").trim();
-    const subject = getPrimarySubject();
 
-    if (!assignment) { alert("담당 학년을 선택해 주세요."); return; }
+    if (!courseId) { alert("강좌를 선택해 주세요."); return; }
     if (!title) { alert("영상 제목을 입력해 주세요."); return; }
-    if (!link) { alert("유튜브 링크/ID 또는 시놀로지 영상 URL을 입력해 주세요."); return; }
+    if (!link) { alert("YouTube 링크 또는 영상 URL을 입력해 주세요."); return; }
 
     setSavingOnline(true);
     try {
-      const courseTitle = courseTitleForAssignment(assignment);
-      let course = teacherCourses.find((item) => item.title === courseTitle);
-      let courseId = course?.id;
-
-      if (!courseId) {
-        const { data: subjectRow } = await sb
-          .from("subjects")
-          .select("id,name,color")
-          .eq("name", subject)
-          .single();
-
-        const insertPayload = {
-          subject_id: subjectRow?.id || null,
-          title: courseTitle,
-          sort_order: teacherCourses.length + 1,
-          is_active: true,
-        };
-
-        const { data: newCourse, error: courseError } = await sb
-          .from("courses")
-          .insert(insertPayload)
-          .select("*, subjects(name,color), videos(*)")
-          .single();
-
-        if (courseError) throw courseError;
-        courseId = newCourse.id;
-        course = mapCourseForTeacher(newCourse);
-        setTeacherCourses((prev) => [...prev, course]);
-      }
-
-      const target = teacherCourses.find((item) => String(item.id) === String(courseId)) || course;
-      const nextOrder = ((target?.lectures || []).length) + 1;
+      const target = teacherCourses.find((c) => String(c.id) === String(courseId));
+      const nextOrder = (target?.lectures || []).length + 1;
       const { data: video, error: videoError } = await sb
         .from("videos")
         .insert({ course_id: courseId, title, youtube_id: extractYoutubeId(link), sort_order: nextOrder })
@@ -312,17 +290,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       if (videoError) throw videoError;
 
       const lecture = { id: video.id, title: video.title, youtubeId: video.youtube_id || "", videoUrl: lectureVideoUrl(video) };
-      setTeacherCourses((prev) => {
-        const exists = prev.some((item) => String(item.id) === String(courseId));
-        const base = exists ? prev : [...prev, course];
-        return base.map((item) => String(item.id) === String(courseId) ? { ...item, lectures: [...(item.lectures || []), lecture] } : item);
-      });
-      setSelectedCourseId(String(courseId));
+      setTeacherCourses((prev) => prev.map((c) =>
+        String(c.id) === String(courseId) ? { ...c, lectures: [...(c.lectures || []), lecture] } : c
+      ));
       setCourseVideoTitle("");
       setCourseVideoLink("");
-      alert("온라인 강의가 등록되었습니다.");
+      alert("강의가 등록되었습니다.");
     } catch (error) {
-      alert("온라인 강의 등록 실패: " + (error?.message || JSON.stringify(error)));
+      alert("강의 등록 실패: " + (error?.message || JSON.stringify(error)));
     }
     setSavingOnline(false);
   }
@@ -575,13 +550,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "40px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "30px", gap: "16px", alignItems: "center" }}>
-        <div>
-          <h1 style={{ fontSize: "32px", fontWeight: "bold", margin: 0 }}>선생님 페이지</h1>
-          <p style={{ marginTop: "8px", color: "#6b7280" }}>{user?.name} 선생님 담당 클래스 관리</p>
-        </div>
-
-        <button style={lightButtonStyle} onClick={onLogout}>로그아웃</button>
+      <div style={{ marginBottom: "24px" }}>
+        <h1 style={{ fontSize: "28px", fontWeight: "bold", margin: 0, color: "#1E3932" }}>선생님 페이지</h1>
+        <p style={{ marginTop: "6px", color: "#6b7280", fontSize: "14px" }}>{user?.name} 선생님 담당 클래스 관리</p>
       </div>
 
       {loading ? (
@@ -656,13 +627,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 </div>
               )}
 
-              {teacherAssignments.length > 0 && (
+              {/* 담당 강좌 목록 (관리자가 배정한 강좌만 표시) */}
+              {teacherCourses.length > 0 && (
                 <div style={{ ...cardStyle, marginBottom: "24px" }}>
-                  <h2 style={{ marginBottom: "12px" }}>온라인 강의 녹화 대상 학년</h2>
+                  <h2 style={{ marginBottom: "12px" }}>담당 강좌 목록</h2>
+                  <p style={{ marginTop: 0, marginBottom: "14px", color: "#6b7280", fontSize: "14px" }}>관리자가 배정한 강좌입니다. 강의 추가는 클래스 선택 후 진행하세요.</p>
                   <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    {teacherAssignments.map((assignment) => (
-                      <span key={assignment} style={{ background: "#ecfdf5", color: "#065f46", padding: "8px 12px", borderRadius: "999px", fontWeight: "800", fontSize: "13px" }}>
-                        {assignment}
+                    {teacherCourses.map((course) => (
+                      <span key={course.id} style={{ background: "#ecfdf5", color: "#065f46", padding: "8px 14px", borderRadius: "999px", fontWeight: "700", fontSize: "13px", fontFamily: "Manrope, sans-serif" }}>
+                        {course.title}{course.subject ? ` · ${course.subject}` : ""} ({(course.lectures || []).length}강)
                       </span>
                     ))}
                   </div>
@@ -679,29 +652,22 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   선택 클래스: <strong>{classLabel(selectedClass)}</strong>
                 </p>
 
-                {teacherAssignments.length === 0 ? (
-                  <div>아직 배정된 담당 학년이 없습니다. 관리자 페이지에서 이 선생님에게 녹화 대상 학년을 먼저 배정해 주세요.</div>
+                {teacherCourses.length === 0 ? (
+                  <div style={{ color: "#6b7280", padding: "16px", background: "#f9fafb", borderRadius: "10px" }}>
+                    배정된 강좌가 없습니다. 관리자 페이지에서 담당 강좌를 먼저 배정해 주세요.
+                  </div>
                 ) : (
                   <div style={{ display: "grid", gap: "12px" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>담당 학년 / 녹화 대상 강의</label>
-                        <select style={inputStyle} value={selectedCourseAssignment} onChange={(e) => setSelectedCourseAssignment(e.target.value)}>
-                          <option value="">학년을 선택해 주세요</option>
-                          {teacherAssignments.map((assignment) => (
-                            <option key={assignment} value={assignment}>{assignment}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>과목</label>
-                        <input style={inputStyle} value={getPrimarySubject()} readOnly />
-                      </div>
-                    </div>
-
                     <div>
-                      <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>자동 생성 강좌명</label>
-                      <input style={inputStyle} value={selectedCourseAssignment ? courseTitleForAssignment(selectedCourseAssignment) : "담당 학년을 선택하면 자동으로 생성됩니다."} readOnly />
+                      <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강좌 선택 (관리자가 배정한 강좌)</label>
+                      <select style={inputStyle} value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+                        <option value="">강좌를 선택해 주세요</option>
+                        {teacherCourses.map((course) => (
+                          <option key={course.id} value={course.id}>
+                            {course.title}{course.subject ? ` / ${course.subject}` : ""}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "12px", alignItems: "end" }}>
@@ -713,7 +679,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 링크</label>
                         <input style={inputStyle} value={courseVideoLink} onChange={(e) => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 시놀로지 영상 URL" />
                       </div>
-                      <button style={buttonStyle} onClick={createCourseAndAddVideo} disabled={savingOnline}>
+                      <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>
                         {savingOnline ? "저장 중..." : "강의 저장"}
                       </button>
                     </div>

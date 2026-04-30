@@ -76,7 +76,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
                 React.createElement('div', { style: mnStyles.avatar }, user.name[0]),
                 React.createElement('span', { style: mnStyles.userName }, user.name)
               ),
-              React.createElement('span', { style: { fontSize:'12px', color:'rgba(0,0,0,0.45)', cursor:'pointer', fontFamily:'Manrope, sans-serif' }, onClick: onLogout }, '로그아웃')
+              React.createElement('button', { onClick: onLogout, style:{ background:'transparent', color:'#006241', border:'1px solid #006241', borderRadius:'8px', padding:'6px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s' } }, '로그아웃')
             )
           : React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
               React.createElement('button', { style: mnStyles.ctaBtnOutline, onClick: onLoginClick }, '로그인'),
@@ -135,6 +135,13 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
               React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#006241', fontWeight:'700' }, onClick:()=>{ (onSignupClick || onLoginClick)(); setMenuOpen(false); } }, '회원가입')
             )
       )
+    ),
+    // 모바일 로그아웃 버튼 (로그인 상태)
+    isMobile && menuOpen && user && React.createElement('div', { style:{ background:'#fff', borderTop:'1px solid rgba(0,0,0,0.06)', padding:'12px 20px' } },
+      React.createElement('button', {
+        onClick:()=>{ onLogout(); setMenuOpen(false); },
+        style:{ width:'100%', background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'10px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+      }, '로그아웃')
     )
   );
 }
