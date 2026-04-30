@@ -14,6 +14,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [courseVideoLink, setCourseVideoLink] = React.useState("");
   const [savingOnline, setSavingOnline] = React.useState(false);
   const [teacherView, setTeacherView] = React.useState("home");
+  // 업무일지
+  const [teacherNotes, setTeacherNotes] = React.useState([]);
+  const [noteDraft, setNoteDraft] = React.useState({ date: new Date().toISOString().slice(0,10), type: '특이사항', studentId: '', content: '' });
+  const [savingNote, setSavingNote] = React.useState(false);
+  // 성적 현황/통계
+  const [scoreHistory, setScoreHistory] = React.useState([]);
+  const [statsClassId, setStatsClassId] = React.useState('');
+  const [statsStudentId, setStatsStudentId] = React.useState('');
+  const [loadingStats, setLoadingStats] = React.useState(false);
 
   const [testInfo, setTestInfo] = React.useState({
     reportPeriod: "주간",
@@ -234,6 +243,38 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     }
 
     setClasses(classList || []);
+
+    // 관리자가 배정한 학년 기반 가상 클래스 생성 (과목-학교급 학년 형식)
+    const gradeRaw = (mergedTeacher.grade || "").split(",").map(s => s.trim()).filter(Boolean);
+    const virtualClasses = [];
+    gradeRaw.forEach(function(assignment, idx) {
+      // "영어-고등 1학년" 또는 "고등 1학년" 형식 처리
+      const dashIdx = assignment.indexOf("-");
+      let subject = "", grade = assignment;
+      if (dashIdx > 0) {
+        subject = assignment.substring(0, dashIdx).trim();
+        grade = assignment.substring(dashIdx + 1).trim();
+      }
+      const virtualName = subject ? `${subject} ${grade}` : grade;
+      // 실제 classes에 같은 이름이 없을 때만 추가
+      const alreadyExists = (classList || []).some(c =>
+        c.name === virtualName ||
+        (c.subject === subject && c.grade === grade)
+      );
+      if (!alreadyExists && virtualName) {
+        virtualClasses.push({
+          id: `virt_${idx}`,
+          name: virtualName,
+          subject: subject,
+          grade: grade,
+          teacher_id: teacher.id,
+          isVirtual: true,
+        });
+      }
+    });
+
+    const mergedClasses = [...(classList || []), ...virtualClasses];
+    setClasses(mergedClasses);
     await loadTeacherCourses(mergedTeacher, classList || []);
     setDebug("3. 담당 반 수: " + (classList || []).length);
     setLoading(false);
@@ -399,6 +440,33 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setSelectedStudentIds([]);
     setScores({});
     setDebug("4. 반 학생 조회 시작: " + cls.name);
+
+    // 가상 클래스(관리자 학년 배정)인 경우 → 학년으로 학생 조회
+    if (cls.isVirtual) {
+      const gradeValue = cls.grade || "";
+      // "고등 1학년" → "고1", "중등 2학년" → "중2" 변환 시도 후 students 테이블 검색
+      const gradeMap = {
+        "초등 1학년": "1학년", "초등 2학년": "2학년", "초등 3학년": "3학년",
+        "초등 4학년": "4학년", "초등 5학년": "5학년", "초등 6학년": "6학년",
+        "중등 1학년": "중1", "중등 2학년": "중2", "중등 3학년": "중3",
+        "고등 1학년": "고1", "고등 2학년": "고2", "고등 3학년": "고3",
+      };
+      const mappedGrade = gradeMap[gradeValue] || gradeValue;
+      const { data: studentList, error: studentError } = await sb
+        .from("students")
+        .select("*")
+        .eq("grade", mappedGrade)
+        .eq("is_active", true)
+        .eq("role", "student")
+        .order("name", { ascending: true });
+      if (studentError) { setDebug("학년별 학생 조회 오류: " + studentError.message); return; }
+      const loaded = studentList || [];
+      setStudents(loaded);
+      setSelectedStudentIds(loaded.map(s => s.id));
+      setTestInfo(prev => ({ ...prev, subject: cls.subject || prev.subject }));
+      setDebug("5. 학년(" + mappedGrade + ") 학생 수: " + loaded.length);
+      return;
+    }
 
     const { data: links, error: linkError } = await sb
       .from("class_students")
@@ -567,6 +635,165 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const teacherAssignments = getTeacherAssignments();
   const availableClassCards = classes || [];
 
+
+  // 업무일지 뷰
+  const notesView = teacherView === "notes" && selectedClass && (
+    <div style={{ ...cardStyle, marginBottom: "24px" }}>
+      <h2 style={{ marginBottom: "4px" }}>업무일지 / 특이사항</h2>
+      <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "20px" }}>클래스: <strong>{classLabel(selectedClass)}</strong></p>
+
+      {/* 작성 폼 */}
+      <div style={{ background: "#f9fafb", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>날짜</label>
+            <input style={inputStyle} type="date" value={noteDraft.date} onChange={e => setNoteDraft(p => ({...p, date: e.target.value}))} />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>유형</label>
+            <select style={inputStyle} value={noteDraft.type} onChange={e => setNoteDraft(p => ({...p, type: e.target.value}))}>
+              {NOTE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>학생 (선택)</label>
+            <select style={inputStyle} value={noteDraft.studentId} onChange={e => setNoteDraft(p => ({...p, studentId: e.target.value}))}>
+              <option value="">전체/미지정</option>
+              {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom: "10px" }}>
+          <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>내용</label>
+          <textarea style={{ ...inputStyle, minHeight: "80px", resize: "vertical", lineHeight: "1.6" }}
+            placeholder="특이사항, 상담 내용, 학습 태도 등을 기록하세요."
+            value={noteDraft.content}
+            onChange={e => setNoteDraft(p => ({...p, content: e.target.value}))}
+          />
+        </div>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button style={buttonStyle} onClick={saveNote} disabled={savingNote}>{savingNote ? "저장 중..." : "저장"}</button>
+          <button style={lightButtonStyle} onClick={() => { loadNotes(); }}>목록 새로고침</button>
+        </div>
+      </div>
+
+      {/* 기록 목록 */}
+      {teacherNotes.length === 0
+        ? <div style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>아직 기록이 없습니다.</div>
+        : <div style={{ display: "grid", gap: "10px" }}>
+            {teacherNotes.map(note => (
+              <div key={note.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px 16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "12px", fontWeight: "800", background: "#ecfdf5", color: "#065f46", borderRadius: "6px", padding: "2px 10px" }}>{note.note_type}</span>
+                    {note.students?.name && <span style={{ fontSize: "12px", color: "#6b7280" }}>{note.students.name}</span>}
+                    <span style={{ fontSize: "12px", color: "#9ca3af" }}>{note.note_date}</span>
+                  </div>
+                  <button onClick={() => deleteNote(note.id)} style={{ background: "none", border: "none", color: "#c82014", cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>×</button>
+                </div>
+                <p style={{ margin: 0, fontSize: "14px", color: "#374151", lineHeight: "1.7", whiteSpace: "pre-line" }}>{note.content}</p>
+              </div>
+            ))}
+          </div>
+      }
+    </div>
+  );
+
+  // 성적 현황/통계 뷰
+  const statsView = teacherView === "stats" && selectedClass && (
+    <div style={{ ...cardStyle, marginBottom: "24px" }}>
+      <h2 style={{ marginBottom: "4px" }}>성적 현황 / 분석</h2>
+      <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>클래스: <strong>{classLabel(selectedClass)}</strong> · 본인 담당 성적만 표시됩니다.</p>
+
+      {/* 필터 */}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+        <select style={{ ...inputStyle, maxWidth: "200px" }} value={statsStudentId} onChange={e => setStatsStudentId(e.target.value)}>
+          <option value="">전체 학생</option>
+          {students.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+        </select>
+        <button style={lightButtonStyle} onClick={loadScoreHistory}>{loadingStats ? "로딩 중..." : "새로고침"}</button>
+      </div>
+
+      {loadingStats
+        ? <div style={{ color: "#6b7280" }}>성적 데이터 로딩 중...</div>
+        : (() => {
+            // 이 클래스/선생님 기준으로 필터
+            let filtered = scoreHistory.filter(s => {
+              if (statsStudentId && String(s.student_id) !== statsStudentId) return false;
+              if (selectedClass && !selectedClass.isVirtual && s.class_id && String(s.class_id) !== String(selectedClass.id)) return false;
+              return true;
+            });
+
+            if (filtered.length === 0) return <div style={{ color: "#6b7280", textAlign: "center", padding: "32px" }}>등록된 성적이 없습니다.</div>;
+
+            const stats = calcStats(filtered);
+
+            // 시험별 그룹핑
+            const byTest = {};
+            filtered.forEach(s => {
+              const key = `${s.test_date}_${s.test_name}_${s.subject}`;
+              if (!byTest[key]) byTest[key] = { test_name: s.test_name, subject: s.subject, date: s.test_date, scores: [] };
+              byTest[key].scores.push(s);
+            });
+            const testGroups = Object.values(byTest).sort((a,b) => b.date.localeCompare(a.date));
+
+            return (
+              <>
+                {/* 요약 통계 */}
+                {stats && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "20px" }}>
+                    {[
+                      { label: "총 시험", val: testGroups.length + "회" },
+                      { label: "평균 점수", val: stats.avg + "점" },
+                      { label: "최고점", val: stats.max + "점" },
+                      { label: "최저점", val: stats.min + "점" },
+                    ].map(item => (
+                      <div key={item.label} style={{ background: "#f9fafb", borderRadius: "10px", padding: "16px", textAlign: "center" }}>
+                        <div style={{ fontSize: "22px", fontWeight: "800", color: "#006241" }}>{item.val}</div>
+                        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>{item.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 시험별 성적표 */}
+                {testGroups.map((group, gi) => {
+                  const groupStats = calcStats(group.scores);
+                  return (
+                    <div key={gi} style={{ marginBottom: "16px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
+                      <div style={{ background: "#1E3932", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <span style={{ fontWeight: "800", color: "#fff", fontSize: "14px" }}>{group.test_name}</span>
+                          <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginLeft: "10px" }}>{group.subject} · {group.date}</span>
+                        </div>
+                        {groupStats && <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "12px" }}>평균 {groupStats.avg}점 · 최고 {groupStats.max}점</span>}
+                      </div>
+                      <div style={{ padding: "12px 16px" }}>
+                        {group.scores.sort((a,b) => b.score - a.score).map((s, si) => {
+                          const pct = Math.min(100, Math.round((s.score / 100) * 100));
+                          const barColor = s.score >= 90 ? "#006241" : s.score >= 70 ? "#2b5148" : s.score >= 50 ? "#cba258" : "#c82014";
+                          return (
+                            <div key={si} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                              <span style={{ width: "80px", fontSize: "13px", fontWeight: "600", flexShrink: 0 }}>{s.students?.name || "학생"}</span>
+                              <div style={{ flex: 1, height: "16px", background: "#f3f4f6", borderRadius: "8px", overflow: "hidden" }}>
+                                <div style={{ width: pct + "%", height: "100%", background: barColor, borderRadius: "8px", transition: "width 0.3s" }} />
+                              </div>
+                              <span style={{ width: "40px", fontSize: "13px", fontWeight: "700", color: barColor, textAlign: "right", flexShrink: 0 }}>{s.score}점</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()
+      }
+    </div>
+  );
+
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "40px" }}>
       <div style={{ marginBottom: "24px" }}>
@@ -629,18 +856,25 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <div style={{ ...cardStyle, marginBottom: "24px" }}>
                   <h2 style={{ marginBottom: "8px" }}>선택한 클래스</h2>
                   <div style={{ fontSize: "18px", fontWeight: "800", marginBottom: "16px" }}>{classLabel(selectedClass)}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
-                    <button
-                      style={{ ...buttonStyle, padding: "20px", fontSize: "16px" }}
-                      onClick={openScorePage}
-                    >
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px" }}>
+                    <button style={{ ...buttonStyle, padding: "18px", fontSize: "15px" }} onClick={openScorePage}>
                       성적 등록
                     </button>
-                    <button
-                      style={{ ...buttonStyle, padding: "20px", fontSize: "16px", background: "#111827" }}
-                      onClick={openLecturePage}
-                    >
+                    <button style={{ ...buttonStyle, padding: "18px", fontSize: "15px", background: "#111827" }} onClick={openLecturePage}>
                       강의 추가
+                    </button>
+                    <button style={{ ...buttonStyle, padding: "18px", fontSize: "15px", background: "#2b5148" }} onClick={() => {
+                      if (!selectedClass) { alert("클래스를 먼저 선택해 주세요."); return; }
+                      setTeacherView("notes");
+                    }}>
+                      업무일지
+                    </button>
+                    <button style={{ ...buttonStyle, padding: "18px", fontSize: "15px", background: "#1E3932" }} onClick={() => {
+                      if (!selectedClass) { alert("클래스를 먼저 선택해 주세요."); return; }
+                      loadScoreHistory();
+                      setTeacherView("stats");
+                    }}>
+                      성적 현황
                     </button>
                   </div>
                 </div>
@@ -797,14 +1031,19 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   }
                 />
 
-                <input
+                <select
                   style={inputStyle}
-                  placeholder="과목 예: 영어"
                   value={testInfo.subject}
                   onChange={(e) =>
                     setTestInfo((prev) => ({ ...prev, subject: e.target.value }))
                   }
-                />
+                >
+                  <option value="">과목 선택</option>
+                  <option value="국어">국어</option>
+                  <option value="영어">영어</option>
+                  <option value="수학">수학</option>
+                  <option value="과학">과학</option>
+                </select>
               </div>
 
               <div
@@ -902,10 +1141,83 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               )}
             </div>
           )}
+
+          {/* 업무일지 뷰 */}
+          {teacherView === "notes" && selectedClass && notesView}
+
+          {/* 성적 현황/통계 뷰 */}
+          {teacherView === "stats" && selectedClass && statsView}
         </>
       )}
     </div>
   );
+
+  // 성적 이력 로드 (이 선생님 데이터만)
+  async function loadScoreHistory() {
+    if (!teacherInfo?.id) return;
+    setLoadingStats(true);
+    const { data } = await sb.from("test_scores")
+      .select("*, students(name, grade, school)")
+      .eq("teacher_id", teacherInfo.id)
+      .order("test_date", { ascending: false });
+    setScoreHistory(data || []);
+    setLoadingStats(false);
+  }
+
+  // 업무일지 로드
+  async function loadNotes() {
+    if (!teacherInfo?.id) return;
+    const { data } = await sb.from("teacher_notes")
+      .select("*, students(name)")
+      .eq("teacher_id", teacherInfo.id)
+      .order("note_date", { ascending: false });
+    setTeacherNotes(data || []);
+  }
+
+  // 업무일지 저장
+  async function saveNote() {
+    if (!noteDraft.content.trim()) { alert("내용을 입력해 주세요."); return; }
+    if (!teacherInfo?.id) { alert("선생님 정보를 불러오는 중입니다."); return; }
+    setSavingNote(true);
+    try {
+      const payload = {
+        teacher_id: teacherInfo.id,
+        class_id: selectedClass?.isVirtual ? null : (selectedClass?.id || null),
+        student_id: noteDraft.studentId || null,
+        note_date: noteDraft.date,
+        note_type: noteDraft.type,
+        content: noteDraft.content.trim(),
+      };
+      const { data, error } = await sb.from("teacher_notes").insert(payload).select("*, students(name)").single();
+      if (error) throw error;
+      setTeacherNotes(prev => [data, ...prev]);
+      setNoteDraft(prev => ({ ...prev, content: "", studentId: "" }));
+    } catch(e) {
+      alert("저장 실패: " + (e?.message || JSON.stringify(e)));
+    }
+    setSavingNote(false);
+  }
+
+  // 업무일지 삭제
+  async function deleteNote(id) {
+    if (!confirm("이 기록을 삭제할까요?")) return;
+    await sb.from("teacher_notes").delete().eq("id", id);
+    setTeacherNotes(prev => prev.filter(n => n.id !== id));
+  }
+
+  // 성적 통계 계산
+  function calcStats(scores) {
+    if (!scores || scores.length === 0) return null;
+    const vals = scores.map(s => Number(s.score)).filter(v => !isNaN(v));
+    if (vals.length === 0) return null;
+    const avg = (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
+    const max = Math.max(...vals);
+    const min = Math.min(...vals);
+    return { avg, max, min, count: vals.length };
+  }
+
+  const NOTE_TYPES = ["특이사항", "학습태도", "상담", "과제", "기타"];
+  const SUBJECTS_LIST = ["국어", "영어", "수학", "과학"];
 
 }
 
