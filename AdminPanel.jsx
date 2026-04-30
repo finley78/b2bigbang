@@ -107,6 +107,10 @@ const [adminRecords, setAdminRecords] = React.useState([]);
 const [recordsTeacherFilter, setRecordsTeacherFilter] = React.useState('전체');
 const [recordsTypeFilter, setRecordsTypeFilter] = React.useState('전체');
 const [recordsSearch, setRecordsSearch] = React.useState('');
+const [classStudents, setClassStudents] = React.useState({}); // { class_id: [student_id, ...] }
+const [classManageDrafts, setClassManageDrafts] = React.useState({}); // { teacher_id: { name, grade, subject, level } }
+const [expandedClassId, setExpandedClassId] = React.useState(null);
+const [classStudentSearch, setClassStudentSearch] = React.useState('');
 
 const sb = window.supabase;
 
@@ -185,6 +189,60 @@ const { data: notes } = await sb.from('teacher_notes')
 .select('*, students(name, grade, school), teachers(name)')
 .order('note_date', { ascending: false });
 if (notes) setAdminRecords(notes);
+
+const { data: clsStudents } = await sb.from('class_students').select('*');
+if (clsStudents) {
+  var grouped = {};
+  clsStudents.forEach(function(row){
+    if (!grouped[row.class_id]) grouped[row.class_id] = [];
+    grouped[row.class_id].push(row.student_id);
+  });
+  setClassStudents(grouped);
+}
+}
+
+async function createTeacherClass(teacher, draft) {
+if (!draft.name || !draft.name.trim()) { alert('반 이름을 입력해 주세요.'); return; }
+if (!draft.grade) { alert('학년을 선택해 주세요.'); return; }
+var profile = await ensureTeacherProfile(teacher);
+if (!profile) return;
+var payload = { teacher_id: profile.id, name: draft.name.trim(), grade: draft.grade, subject: draft.subject || '', class_name: draft.name.trim() };
+var { data, error } = await sb.from('classes').insert(payload).select('*').single();
+if (error) { alert('반 생성 실패: ' + error.message); return; }
+setTeacherClasses(function(prev){ return [...(prev||[]), data]; });
+setClassManageDrafts(function(prev){ var n = Object.assign({}, prev); delete n[teacher.id]; return n; });
+}
+
+async function deleteTeacherClass(classId) {
+if (!confirm('이 반을 삭제할까요? 배정된 학생도 함께 제거됩니다.')) return;
+await sb.from('class_students').delete().eq('class_id', classId);
+var { error } = await sb.from('classes').delete().eq('id', classId);
+if (error) { alert('반 삭제 실패: ' + error.message); return; }
+setTeacherClasses(function(prev){ return (prev||[]).filter(function(c){ return c.id !== classId; }); });
+setClassStudents(function(prev){ var n = Object.assign({}, prev); delete n[classId]; return n; });
+if (expandedClassId === classId) setExpandedClassId(null);
+}
+
+async function addStudentToClass(classId, studentId) {
+var current = classStudents[classId] || [];
+if (current.includes(studentId)) return;
+var { error } = await sb.from('class_students').insert({ class_id: classId, student_id: studentId });
+if (error) { alert('학생 배정 실패: ' + error.message); return; }
+setClassStudents(function(prev){ var n = Object.assign({}, prev); n[classId] = (n[classId]||[]).concat(studentId); return n; });
+}
+
+async function removeStudentFromClass(classId, studentId) {
+var { error } = await sb.from('class_students').delete().eq('class_id', classId).eq('student_id', studentId);
+if (error) { alert('학생 해제 실패: ' + error.message); return; }
+setClassStudents(function(prev){ var n = Object.assign({}, prev); n[classId] = (n[classId]||[]).filter(function(id){ return id !== studentId; }); return n; });
+}
+
+function getRealClassesForTeacher(teacher) {
+var profile = getTeacherProfileByEmail(teacher);
+var teacherId = profile ? profile.id : teacher.id;
+return (teacherClasses || []).filter(function(cls){
+  return String(cls.teacher_id) === String(teacherId) && cls.grade;
+});
 }
 
 async function loadStudentViews(studentId) {
@@ -1468,6 +1526,115 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
         )
   );
 }),
+
+// 담당 반 관리
+React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #edf0f2' } },
+  React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, '담당 반 관리'),
+  React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '실제 운영 중인 반을 추가하고 학생을 배정합니다. 선생님 페이지의 담당 클래스에 표시됩니다.'),
+  (function(){
+    var draft = classManageDrafts[t.id] || { name:'', level:'초등', grade:'', subject:'' };
+    return React.createElement('div', { style:{ background:'#f9f9f9', borderRadius:'10px', padding:'14px', marginBottom:'12px', display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' } },
+      React.createElement('input', {
+        value: draft.name,
+        onChange: function(e){ var v = e.target.value; setClassManageDrafts(function(prev){ var next = Object.assign({}, prev); next[t.id] = Object.assign({}, draft, { name: v }); return next; }); },
+        placeholder: '반 이름 (예: 고1 영어 A반)',
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'180px', flex:1 }
+      }),
+      React.createElement('select', {
+        value: draft.level,
+        onChange: function(e){ var v = e.target.value; setClassManageDrafts(function(prev){ var next = Object.assign({}, prev); next[t.id] = Object.assign({}, draft, { level: v, grade: '' }); return next; }); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
+        React.createElement('option', {value:'초등'}, '초등'),
+        React.createElement('option', {value:'중등'}, '중등'),
+        React.createElement('option', {value:'고등'}, '고등')
+      ),
+      React.createElement('select', {
+        value: draft.grade,
+        onChange: function(e){ var v = e.target.value; setClassManageDrafts(function(prev){ var next = Object.assign({}, prev); next[t.id] = Object.assign({}, draft, { grade: v }); return next; }); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
+        React.createElement('option', {value:''}, '학년'),
+        SCHOOL_LEVELS[draft.level].grades.map(function(g){ return React.createElement('option', {key:g, value:g}, g); })
+      ),
+      React.createElement('select', {
+        value: draft.subject,
+        onChange: function(e){ var v = e.target.value; setClassManageDrafts(function(prev){ var next = Object.assign({}, prev); next[t.id] = Object.assign({}, draft, { subject: v }); return next; }); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
+        React.createElement('option', {value:''}, '과목 (선택)'),
+        SUBJECTS.map(function(s){ return React.createElement('option', {key:s, value:s}, s); })
+      ),
+      React.createElement('button', {
+        onClick: function(){ createTeacherClass(t, draft); },
+        style:{ background:'#006241', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+      }, '+ 반 추가')
+    );
+  })(),
+  (function(){
+    var realClasses = getRealClassesForTeacher(t);
+    if (realClasses.length === 0) {
+      return React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', textAlign:'center', padding:'12px' } }, '아직 배정된 반이 없습니다');
+    }
+    return realClasses.map(function(cls){
+      var clsStudents = classStudents[cls.id] || [];
+      var isExpanded = expandedClassId === cls.id;
+      return React.createElement('div', { key:cls.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', marginBottom:'8px' } },
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
+          React.createElement('div', { style:{ flex:1, cursor:'pointer' }, onClick: function(){ setExpandedClassId(isExpanded?null:cls.id); setClassStudentSearch(''); } },
+            React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, cls.name),
+            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, [cls.grade, cls.subject].filter(Boolean).join(' · ') + ' · ' + clsStudents.length + '명')
+          ),
+          React.createElement('button', {
+            onClick: function(){ deleteTeacherClass(cls.id); },
+            style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+          }, '삭제'),
+          React.createElement('span', { onClick: function(){ setExpandedClassId(isExpanded?null:cls.id); setClassStudentSearch(''); }, style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', cursor:'pointer', transition:'transform 0.2s', transform: isExpanded?'rotate(180deg)':'none' } }, '▾')
+        ),
+        isExpanded && React.createElement('div', { style:{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid #f3f4f6' } },
+          clsStudents.length > 0 && React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'10px' } },
+            clsStudents.map(function(sid){
+              var stu = dbStudents.find(function(x){ return x.id === sid; });
+              if (!stu) return null;
+              return React.createElement('div', { key:sid, style:{ background:'#d4e9e2', borderRadius:'20px', padding:'4px 12px', display:'flex', alignItems:'center', gap:'6px' } },
+                React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#006241', fontFamily:'Manrope, sans-serif' } }, stu.name + (stu.grade?' ('+stu.grade+')':'')),
+                React.createElement('button', { onClick: function(){ removeStudentFromClass(cls.id, sid); }, style:{ background:'none', border:'none', cursor:'pointer', color:'#006241', fontSize:'14px', lineHeight:1, fontWeight:'700' } }, '×')
+              );
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'6px' } }, '학생 추가'),
+            React.createElement('input', {
+              value: classStudentSearch,
+              onChange: function(e){ setClassStudentSearch(e.target.value); },
+              placeholder: '학생명·학교 검색',
+              style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'6px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', width:'100%', marginBottom:'8px', boxSizing:'border-box' }
+            }),
+            (function(){
+              var q = classStudentSearch.trim().toLowerCase();
+              if (!q) return React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '검색어를 입력하면 학생이 표시됩니다');
+              var candidates = dbStudents.filter(function(stu){
+                if (clsStudents.includes(stu.id)) return false;
+                var hay = [stu.name, stu.school, stu.phone, stu.grade].filter(Boolean).join(' ').toLowerCase();
+                return hay.indexOf(q) >= 0;
+              }).slice(0, 8);
+              if (candidates.length === 0) return React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '검색 결과가 없습니다');
+              return React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px' } },
+                candidates.map(function(stu){
+                  return React.createElement('button', { key:stu.id, onClick: function(){ addStudentToClass(cls.id, stu.id); }, style:{ background:'#f9f9f9', border:'1px solid #e5e7eb', borderRadius:'7px', padding:'6px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', textAlign:'left', cursor:'pointer', display:'flex', alignItems:'center', gap:'8px' } },
+                    React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, stu.name),
+                    React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', fontSize:'11px' } }, [stu.school, stu.grade, stu.phone].filter(Boolean).join(' · ')),
+                    React.createElement('span', { style:{ marginLeft:'auto', color:'#006241', fontWeight:'800' } }, '+ 추가')
+                  );
+                })
+              );
+            })()
+          )
+        )
+      );
+    });
+  })()
+),
 
 // 전체 배정 현황
 React.createElement('div', { style:{ marginTop:'12px', paddingTop:'12px', borderTop:'1px solid #edf0f2', fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },

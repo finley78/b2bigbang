@@ -234,6 +234,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       .from("classes")
       .select("*")
       .eq("teacher_id", teacher.id)
+      .not("grade", "is", null)
       .order("name", { ascending: true });
 
     if (classError) {
