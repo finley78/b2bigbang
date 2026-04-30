@@ -804,7 +804,18 @@ function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAu
   }
 
   var adminMode = !!(isAdmin || adminAuthed || user?.role === 'admin' || user?.isAdmin);
-  var enrolledIds = adminMode ? courses.map(function(c) { return c.id; }) : (user ? (user.enrolledCourses || []) : []);
+  var isTeacherMode = !adminMode && (user?.role === 'teacher' || user?.role === 'teachers');
+  
+  // 선생님: 본인이 올린 강의만, 학생: 수강 등록된 강의만, 관리자: 전체
+  var enrolledIds = adminMode
+    ? courses.map(function(c) { return c.id; })
+    : isTeacherMode
+      ? courses.filter(function(c) { 
+          return c.teacher === user.name || 
+                 c.teacher_id === user.id ||
+                 String(c.teacher_email||'') === String(user.email||'');
+        }).map(function(c){ return c.id; })
+      : (user ? (user.enrolledCourses || []) : []);
   var studentGrade = user ? (user.grade || '') : '';
   var studentSubjects = React.useMemo(() => {
     // enrolledIds에 해당하는 courses의 subject 목록 추출
@@ -823,14 +834,17 @@ function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAu
 
   // 상단 헤더 공통
   function renderHeader(small) {
-    return React.createElement('div', { style:{ background:'#1E3932', padding: small ? '20px 16px' : '28px 16px' } },
+    return React.createElement('div', { style:{ background: isTeacherMode ? '#2b5148' : '#1E3932', padding: small ? '20px 16px' : '28px 16px' } },
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between' } },
         React.createElement('div', { style:{ display:'flex', alignItems:'center', gap: small ? '10px' : '16px' } },
           React.createElement('div', { style:{ width: small?'40px':'52px', height: small?'40px':'52px', borderRadius:'50%', background:'#00754A', display:'flex', alignItems:'center', justifyContent:'center', fontSize: small?'18px':'22px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, user.name[0]),
-          React.createElement('div', { style:{ fontSize: small?'16px':'22px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, user.name + '님' + (small ? '' : ', 안녕하세요!'))
+          React.createElement('div', null,
+            React.createElement('div', { style:{ fontSize: small?'16px':'22px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, user.name + '님' + (small ? '' : ', 안녕하세요!')),
+            isTeacherMode && React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.65)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, '내가 등록한 강의 보기')
+          )
         ),
-        studentGrade && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 14px':'8px 20px' } },
-          React.createElement('span', { style:{ fontSize: small?'12px':'14px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, studentGrade)
+        (studentGrade || isTeacherMode) && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 14px':'8px 20px' } },
+          React.createElement('span', { style:{ fontSize: small?'12px':'14px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, isTeacherMode ? '선생님' : studentGrade)
         )
       )
     );
@@ -880,7 +894,7 @@ function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAu
     studentSubjects.length === 0
       ? React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
           React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'48px', textAlign:'center' } },
-            React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '배정된 강좌가 없습니다. 관리자에게 문의해 주세요.')
+            React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, isTeacherMode ? '등록한 강의가 없습니다. 선생님 페이지에서 강의를 추가해 주세요.' : '배정된 강좌가 없습니다. 관리자에게 문의해 주세요.')
           )
         )
       : React.createElement(SubjectSelect, {
