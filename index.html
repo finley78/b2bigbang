@@ -264,6 +264,8 @@ onAdminAction: ()=>{},
 
 page === 'service' && React.createElement(ServicePage, { setPage: navigate, courses: state.courses }),
 page === 'contact' && React.createElement(ContactPage),
+page === 'about' && React.createElement(AboutPage),
+page === 'recruit' && React.createElement(RecruitPage, { setPage: navigate }),
 
 page === 'signup' && React.createElement(SignupPage, {
 onBack: ()=>{ navigate('home'); },

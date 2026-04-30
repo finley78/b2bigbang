@@ -162,10 +162,10 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
 function StatsBand() {
   const isMobile = useIsMobile();
   const stats = [
-    { val:'98%', label:'목표 대학 합격률' },
-    { val:'15+', label:'년 교육 경험' },
-    { val:'2,000+', label:'재원생 수' },
-    { val:'1위', label:'강남 지역 입시 전문' },
+    { val:'10+', label:'년 교육 경험' },
+    { val:'국·영·수·과', label:'전 과목 전문 강사진' },
+    { val:'내신+수능', label:'통합 관리 시스템' },
+    { val:'1:1', label:'맞춤형 학습 관리' },
   ];
   return React.createElement('div', { style:{ background:'#fff', padding: isMobile ? '24px 16px' : '32px 40px', borderTop:'1px solid rgba(0,0,0,0.06)' } },
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:'16px', textAlign:'center' } },

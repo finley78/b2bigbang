@@ -91,6 +91,14 @@ function CourseDetailPage({ course, onBack, setPage }) {
 
 /* ── Service Page ───────────────────────────── */
 function ServicePage({ setPage, courses, onSelectCourse }) {
+  const isMobile = window.innerWidth < 768;
+  const [isMobileState, setIsMobileState] = React.useState(isMobile);
+  React.useEffect(() => {
+    function onResize() { setIsMobileState(window.innerWidth < 768); }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const isMob = isMobileState;
   const programs = courses && courses.length ? courses : [
     { id:1, subject:'수학', color:'#006241', grade:'고1·2·3', name:'수능 수학 완성반', desc:'수능 수학 전 범위를 체계적으로 완성. 개념→유형→실전 3단계 구성', days:3, duration:90, price:'280,000원', badge:'인기', teacher:'김민준 강사' },
     { id:2, subject:'영어', color:'#00754A', grade:'고2·3', name:'수능 영어 1등급반', desc:'독해·듣기·어휘를 통합한 수능 영어 완성 프로그램', days:2, duration:100, price:'250,000원', badge:'신규', teacher:'이수진 강사' },
@@ -114,16 +122,16 @@ function ServicePage({ setPage, courses, onSelectCourse }) {
   }
 
   return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
-    React.createElement('div', { style:{ background:'#1E3932', padding:'56px 40px' } },
+    React.createElement('div', { style:{ background:'#1E3932', padding: isMob ? '32px 16px' : '56px 40px' } },
       React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } },
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'Programs'),
         React.createElement('h1', { style:{ fontSize:'44px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, 'B2빅뱅학원\n프로그램 안내'),
         React.createElement('p', { style:{ fontSize:'16px', color:'rgba(255,255,255,0.65)', letterSpacing:'-0.01em', fontFamily:'Manrope, sans-serif' } }, '수능·내신·특기 전 과목 전문 강사진과 함께')
       )
     ),
-    React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', padding:'40px 40px' } },
+    React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', padding: isMob ? '24px 16px' : '40px 40px' } },
       React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#006241', letterSpacing:'-0.16px', marginBottom:'24px', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
-      React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', marginBottom:'56px' } },
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMob ? '1fr' : 'repeat(3,1fr)', gap:'16px', marginBottom:'56px' } },
         programs.map((p,i) =>
           React.createElement('div', { key:i, onClick:()=>setSelectedCourse(p), style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', transition:'transform 0.2s ease' },
             onMouseEnter:e=>e.currentTarget.style.transform='translateY(-2px)',
@@ -145,7 +153,7 @@ function ServicePage({ setPage, courses, onSelectCourse }) {
         )
       ),
       React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#006241', letterSpacing:'-0.16px', marginBottom:'24px', fontFamily:'Manrope, sans-serif' } }, '강사진'),
-      React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'16px', marginBottom:'40px' } },
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMob ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:'16px', marginBottom:'40px' } },
         teachers.map((t,i) =>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'24px 20px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', textAlign:'center' } },
             React.createElement('div', { style:{ width:'60px', height:'60px', borderRadius:'50%', background:'#d4e9e2', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:'22px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, t.name[0]),
@@ -257,9 +265,9 @@ function ContactPage() {
       ),
       React.createElement('div', { style:{ marginTop:'24px', display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px' } },
         [
-          { icon:'📞', label:'전화 상담', val:'02-1234-5678', sub:'평일 9:00~20:00' },
-          { icon:'💬', label:'카카오톡', val:'@B2빅뱅학원', sub:'24시간 메시지 가능' },
-          { icon:'📍', label:'방문 상담', val:'서울 강남구 대치동', sub:'사전 예약 필수' },
+          { icon:'📞', label:'전화 상담', val:'문의 전화', sub:'평일 9:00~20:00' },
+          { icon:'💬', label:'카카오톡', val:'카카오채널 문의', sub:'채널 검색: B2빅뱅학원' },
+          { icon:'📍', label:'방문 상담', val:'인천 검암동', sub:'사전 예약 필수' },
         ].map((item,i)=>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'16px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)' } },
             React.createElement('div', { style:{ fontSize:'22px', marginBottom:'6px' } }, item.icon),
@@ -273,4 +281,140 @@ function ContactPage() {
   );
 }
 
-Object.assign(window, { ServicePage, ContactPage });
+Object.assign(window, { ServicePage, ContactPage, AboutPage, RecruitPage });
+
+
+/* ── About Page (학원안내) ───────────────────── */
+function AboutPage() {
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    function onResize() { setIsMobile(window.innerWidth < 768); }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const values = [
+    { icon:'🎯', title:'목표 중심 학습', desc:'단순 수업이 아닌 목표 대학과 목표 점수를 기준으로 역산한 맞춤형 커리큘럼을 제공합니다.' },
+    { icon:'👥', title:'소수 정예 수업', desc:'학생 한 명 한 명의 진도와 이해도를 파악할 수 있는 소수 정예 반 운영을 원칙으로 합니다.' },
+    { icon:'📊', title:'체계적 성과 관리', desc:'정기적인 성취도 평가와 피드백으로 학습 상태를 투명하게 관리합니다.' },
+    { icon:'💬', title:'학부모 소통', desc:'정기 상담과 알림 서비스로 학부모님과 긴밀하게 소통합니다.' },
+  ];
+
+  const subjects = [
+    { name:'국어', color:'#2b5148', desc:'독서·문학·화작 전 영역 / 내신 + 수능 통합 대비' },
+    { name:'영어', color:'#00754A', desc:'독해·어휘·듣기 통합 / 내신 + 수능 1등급 목표' },
+    { name:'수학', color:'#006241', desc:'개념→유형→실전 3단계 / 내신 + 수능 완성' },
+    { name:'과학', color:'#1E3932', desc:'물리·화학·생물·지구과학 / 내신 집중 대비' },
+  ];
+
+  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+    // 헤더
+    React.createElement('div', { style:{ background:'#1E3932', padding: isMobile ? '40px 16px' : '64px 40px' } },
+      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto' } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'About'),
+        React.createElement('h1', { style:{ fontSize: isMobile ? '30px' : '44px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, 'B2빅뱅학원\n소개'),
+        React.createElement('p', { style:{ fontSize:'16px', color:'rgba(255,255,255,0.65)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } }, '체계적인 커리큘럼과 전문 강사진으로\n목표를 현실로 만드는 학원입니다.')
+      )
+    ),
+    // 학원 소개
+    React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding: isMobile ? '32px 16px' : '56px 40px' } },
+      React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', padding: isMobile ? '24px 20px' : '40px', marginBottom:'32px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
+        React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E3932', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } }, '학원 소개'),
+        React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.7)', fontFamily:'Manrope, sans-serif', lineHeight:'1.9', whiteSpace:'pre-line' } },
+          'B2빅뱅학원은 인천 검암동에 위치한 입시 전문 학원입니다.\n\n국어, 영어, 수학, 과학 전 과목을 아우르는 전문 강사진이 학생 한 명 한 명의 목표에 맞는 맞춤 학습을 제공합니다.\n\n내신부터 수능까지, 체계적인 커리큘럼으로 원하는 결과를 만들어 드립니다.'
+        )
+      ),
+      // 핵심 가치
+      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E3932', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '우리의 약속'),
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', marginBottom:'40px' } },
+        values.map((v, i) =>
+          React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
+            React.createElement('div', { style:{ fontSize:'28px', marginBottom:'12px' } }, v.icon),
+            React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, v.title),
+            React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } }, v.desc)
+          )
+        )
+      ),
+      // 개설 과목
+      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E3932', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '개설 과목'),
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap:'12px' } },
+        subjects.map((s, i) =>
+          React.createElement('div', { key:i, style:{ background:s.color, borderRadius:'12px', padding:'20px 16px', textAlign:'center' } },
+            React.createElement('div', { style:{ fontSize:'20px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, s.name),
+            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.75)', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, s.desc)
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ── Recruit Page (모집안내) ─────────────────── */
+function RecruitPage({ setPage }) {
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    function onResize() { setIsMobile(window.innerWidth < 768); }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const steps = [
+    { step:'01', title:'상담 신청', desc:'전화, 카카오채널, 또는 홈페이지 문의 폼으로 상담을 신청합니다.', icon:'📞' },
+    { step:'02', title:'레벨 테스트', desc:'현재 학습 수준을 파악하기 위한 간단한 레벨 테스트를 진행합니다.', icon:'📝' },
+    { step:'03', title:'커리큘럼 상담', desc:'테스트 결과를 바탕으로 적합한 반과 커리큘럼을 안내해 드립니다.', icon:'📋' },
+    { step:'04', title:'등록 완료', desc:'등록 후 학생 포털 계정이 발급되며 온라인 강의를 이용하실 수 있습니다.', icon:'✅' },
+  ];
+
+  const targets = [
+    { grade:'초등', icon:'📚', desc:'기초 학습 습관 형성\n초등 수학·영어 집중\n중학교 대비 선행' },
+    { grade:'중등', icon:'🏫', desc:'내신 완벽 대비\n고등 대비 선행 학습\n학습 습관 정착' },
+    { grade:'고등', icon:'🎯', desc:'내신 + 수능 통합 관리\n목표 대학별 맞춤 전략\n실전 모의고사 대비' },
+    { grade:'재수·반수', icon:'🌟', desc:'수능 집중 완성 과정\n취약 과목 집중 공략\n정시·수시 동시 대비' },
+  ];
+
+  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+    React.createElement('div', { style:{ background:'#1E3932', padding: isMobile ? '40px 16px' : '64px 40px' } },
+      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto' } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'Recruit'),
+        React.createElement('h1', { style:{ fontSize: isMobile ? '30px' : '44px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, '모집 안내'),
+        React.createElement('p', { style:{ fontSize:'16px', color:'rgba(255,255,255,0.65)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } }, '지금 바로 상담을 신청하고\n첫 걸음을 시작하세요.')
+      )
+    ),
+    React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding: isMobile ? '32px 16px' : '56px 40px' } },
+      // 대상
+      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E3932', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '모집 대상'),
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap:'12px', marginBottom:'48px' } },
+        targets.map((t, i) =>
+          React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'20px 16px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
+            React.createElement('div', { style:{ fontSize:'28px', marginBottom:'8px' } }, t.icon),
+            React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, t.grade),
+            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7', whiteSpace:'pre-line' } }, t.desc)
+          )
+        )
+      ),
+      // 등록 과정
+      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E3932', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '등록 과정'),
+      React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px', marginBottom:'48px' } },
+        steps.map((s, i) =>
+          React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'20px 24px', display:'flex', alignItems:'center', gap:'20px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
+            React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, s.step),
+            React.createElement('div', { style:{ flex:1 } },
+              React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, s.icon + '  ' + s.title),
+              React.createElement('div', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, s.desc)
+            )
+          )
+        )
+      ),
+      // CTA
+      React.createElement('div', { style:{ background:'#006241', borderRadius:'16px', padding: isMobile ? '28px 20px' : '40px', textAlign:'center' } },
+        React.createElement('div', { style:{ fontSize:'22px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '지금 바로 상담 신청하기'),
+        React.createElement('p', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.75)', fontFamily:'Manrope, sans-serif', marginBottom:'24px' } }, '첫 상담은 무료입니다. 부담 없이 연락해 주세요.'),
+        React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#fff', color:'#006241', border:'none', borderRadius:'8px', padding:'14px 36px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
+          onMouseDown:e=>e.currentTarget.style.transform='scale(0.97)',
+          onMouseUp:e=>e.currentTarget.style.transform='scale(1)' },
+          '무료 상담 신청 →'
+        )
+      )
+    )
+  );
+}
