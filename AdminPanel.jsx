@@ -1190,17 +1190,34 @@ onClick:function(){ saveTeacherGradeAssignment(t.id); },
 style:{ background:'#006241', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 16px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
 }, '저장')
 ),
-React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
+React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' } },
 getTeacherGradeAssignments(t).length === 0
 ? React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '아직 배정된 학교급/학년이 없습니다.')
-: getTeacherGradeAssignments(t).map(function(assignment) {
-return React.createElement('button', {
-key:assignment,
-onClick:function(){ removeTeacherGradeAssignment(t.id, assignment); },
-title:'클릭하면 배정 해제',
-style:{ background:'#1E3932', color:'#fff', border:'2px solid #1E3932', borderRadius:'999px', padding:'7px 12px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-}, assignment + ' ×');
-})
+: React.createElement(React.Fragment, null,
+    getTeacherGradeAssignments(t).map(function(assignment) {
+      return React.createElement('button', {
+        key:assignment,
+        onClick:function(){ removeTeacherGradeAssignment(t.id, assignment); },
+        title:'클릭하면 배정 해제',
+        style:{ background:'#1E3932', color:'#fff', border:'2px solid #1E3932', borderRadius:'999px', padding:'7px 12px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+      }, assignment + ' ×');
+    }),
+    React.createElement('button', {
+      onClick: async function() {
+        if (!confirm('배정된 학교급/학년을 전체 초기화할까요?')) return;
+        await sb.from('students').update({ grade: '', school: '' }).eq('id', t.id);
+        setDbTeachers(function(ts) {
+          return ts.map(function(x) {
+            return x.id === t.id ? Object.assign({}, x, { grade: '', school: '' }) : x;
+          });
+        });
+        setTeacherAssignDrafts(function(prev) {
+          return Object.assign({}, prev, { [t.id]: { level:'초등', grades:[] } });
+        });
+      },
+      style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'999px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+    }, '전체 초기화')
+  )
 ),
 React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #edf0f2' } },
 React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
