@@ -12,7 +12,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [selectedCourseAssignment, setSelectedCourseAssignment] = React.useState("");
   const [courseVideoTitle, setCourseVideoTitle] = React.useState("");
   const [courseVideoLink, setCourseVideoLink] = React.useState("");
-  const [courseVideoCategory, setCourseVideoCategory] = React.useState("");
+  const [lectureLevel, setLectureLevel] = React.useState("");
+  const [lectureGrade, setLectureGrade] = React.useState("");
+  const [lectureSubject, setLectureSubject] = React.useState("");
+  const [lectureClassId, setLectureClassId] = React.useState("");
+  const [lectureCourseName, setLectureCourseName] = React.useState("");
+  const [lectureCategory, setLectureCategory] = React.useState("");
   const [savingOnline, setSavingOnline] = React.useState(false);
   const [teacherView, setTeacherView] = React.useState("home");
   // 업무일지
@@ -280,51 +285,74 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!selectedCourseId && mapped.length > 0) setSelectedCourseId(String(mapped[0].id));
   }
 
-  // 선택한 강좌에 영상 직접 추가 (강좌는 teacherCourses에서 선택)
+  // 강좌명을 직접 입력받아 find-or-create 후 영상 추가
   async function addVideoToCourse() {
-    const courseId = selectedCourseId;
-    const category = String(courseVideoCategory || "").trim();
+    const courseName = String(lectureCourseName || "").trim();
+    const category = String(lectureCategory || "").trim();
     const title = String(courseVideoTitle || "").trim();
     const link = String(courseVideoLink || "").trim();
 
-    if (!courseId) { alert("강좌를 선택해 주세요."); return; }
-    if (!category) { alert("카테고리를 입력해 주세요. (예: 명사, 형용사)"); return; }
+    if (!lectureLevel) { alert("초중고를 선택해 주세요."); return; }
+    if (!lectureGrade) { alert("학년을 선택해 주세요."); return; }
+    if (!lectureSubject) { alert("과목을 선택해 주세요."); return; }
+    if (!lectureClassId) { alert("클래스를 선택해 주세요."); return; }
+    if (!courseName) { alert("강좌명을 입력해 주세요."); return; }
+    if (!category) { alert("강의 카테고리를 선택해 주세요."); return; }
     if (!title) { alert("영상 제목을 입력해 주세요."); return; }
     if (!link) { alert("YouTube 링크 또는 영상 URL을 입력해 주세요."); return; }
 
     setSavingOnline(true);
     try {
-      const target = teacherCourses.find((c) => String(c.id) === String(courseId));
-      const nextOrder = (target?.lectures || []).length + 1;
+      // 1) 강좌 찾기 또는 새로 생성 (이름 + 선생님 + 과목으로 매칭)
+      let course = teacherCourses.find(c =>
+        clean(c.title) === clean(courseName) && clean(c.subject) === clean(lectureSubject)
+      );
+      let courseId;
+      if (course) {
+        courseId = course.id;
+      } else {
+        // subject_id 조회
+        const { data: subjRows } = await sb.from("subjects").select("id, name").eq("name", lectureSubject).limit(1);
+        const subjectId = subjRows && subjRows.length > 0 ? subjRows[0].id : null;
+        const { data: created, error: courseError } = await sb
+          .from("courses")
+          .insert({ title: courseName, subject_id: subjectId, is_active: true })
+          .select("*, subjects(name,color), videos(*)")
+          .single();
+        if (courseError) throw courseError;
+        courseId = created.id;
+        const newCourseMapped = mapCourseForTeacher(created);
+        setTeacherCourses(prev => [...prev, newCourseMapped]);
+      }
+
+      // 2) 영상 insert
+      const target = teacherCourses.find(c => String(c.id) === String(courseId));
+      const nextOrder = ((target?.lectures || []).length) + 1;
       const { data: video, error: videoError } = await sb
         .from("videos")
         .insert({ course_id: courseId, title, category, youtube_id: extractYoutubeId(link), sort_order: nextOrder })
         .select()
         .single();
-
       if (videoError) throw videoError;
 
       const lecture = { id: video.id, title: video.title, category: video.category || "", youtubeId: video.youtube_id || "", videoUrl: lectureVideoUrl(video) };
-      setTeacherCourses((prev) => prev.map((c) =>
+      setTeacherCourses(prev => prev.map(c =>
         String(c.id) === String(courseId) ? { ...c, lectures: [...(c.lectures || []), lecture] } : c
       ));
       setCourseVideoTitle("");
       setCourseVideoLink("");
       alert("강의가 등록되었습니다.");
 
-      // 이 강좌의 담당 클래스 학생들에게 자동 수강 배정
+      // 3) 선택한 클래스 학생들에게 자동 수강 배정
       try {
-        for (var i = 0; i < classes.length; i++) {
-          var cls = classes[i];
-          var { data: classLinks } = await sb.from("class_students").select("student_id").eq("class_id", cls.id);
-          if (classLinks && classLinks.length > 0) {
-            var studentIds = classLinks.map(function(l) { return l.student_id; });
-            var { data: existing } = await sb.from("enrollments").select("student_id").eq("course_id", courseId).in("student_id", studentIds);
-            var alreadySet = new Set((existing||[]).map(function(e){ return e.student_id; }));
-            var toAdd = studentIds.filter(function(sid){ return !alreadySet.has(sid); });
-            if (toAdd.length > 0) {
-              await sb.from("enrollments").insert(toAdd.map(function(sid){ return { student_id: sid, course_id: courseId }; }));
-            }
+        const { data: classLinks } = await sb.from("class_students").select("student_id").eq("class_id", lectureClassId);
+        if (classLinks && classLinks.length > 0) {
+          const studentIds = classLinks.map(l => l.student_id);
+          const { data: existing } = await sb.from("enrollments").select("student_id").eq("course_id", courseId).in("student_id", studentIds);
+          const alreadySet = new Set((existing || []).map(e => e.student_id));
+          const toAdd = studentIds.filter(sid => !alreadySet.has(sid));
+          if (toAdd.length > 0) {
+            await sb.from("enrollments").insert(toAdd.map(sid => ({ student_id: sid, course_id: courseId })));
           }
         }
       } catch(autoErr) {
@@ -729,88 +757,121 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       )}
 
       {/* ── 탭2: 강의 추가 ── */}
-      {teacherView === "lecture" && (
-        <div style={{ ...cardStyle, marginBottom: "24px" }}>
-          <h2 style={{ marginBottom: "16px" }}>강의 추가</h2>
-          {teacherCourses.length === 0 ? (
-            <div style={{ color: "#6b7280", padding: "16px", background: "#f9fafb", borderRadius: "10px" }}>
-              배정된 강좌가 없습니다. 관리자 페이지에서 담당 강좌를 먼저 배정해 주세요.
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: "12px" }}>
+      {teacherView === "lecture" && (() => {
+        const LECTURE_GRADES = {
+          "초등": ["1학년","2학년","3학년","4학년","5학년","6학년"],
+          "중등": ["중1","중2","중3"],
+          "고등": ["고1","고2","고3"],
+        };
+        const LECTURE_SUBJECTS = ["국어","영어","수학","과학"];
+        const LECTURE_CATEGORIES = ["문법","독해","구문","어법","기타"];
+        const filtersComplete = !!(lectureLevel && lectureGrade && lectureSubject && lectureClassId);
+        const ready = filtersComplete && lectureCourseName.trim() && lectureCategory;
+        const matchedCourse = ready
+          ? teacherCourses.find(c => clean(c.title) === clean(lectureCourseName) && clean(c.subject) === clean(lectureSubject))
+          : null;
+        const visibleLectures = matchedCourse
+          ? (matchedCourse.lectures || []).filter(l => clean(l.category) === clean(lectureCategory))
+          : [];
+
+        return (
+          <div style={{ ...cardStyle, marginBottom: "24px" }}>
+            <h2 style={{ marginBottom: "4px" }}>강의 추가</h2>
+            <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "20px" }}>필터와 강의 카테고리를 모두 선택하면 해당 영상 목록이 표시됩니다.</p>
+
+            {/* 1. 상단 필터 (4개 드롭다운) */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "16px" }}>
               <div>
-                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강좌 선택</label>
-                <select style={inputStyle} value={selectedCourseId} onChange={e => setSelectedCourseId(e.target.value)}>
-                  <option value="">강좌를 선택해 주세요</option>
-                  {teacherCourses.map(course => (
-                    <option key={course.id} value={course.id}>{course.title}{course.subject ? ` / ${course.subject}` : ""}</option>
-                  ))}
+                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>초중고</label>
+                <select style={inputStyle} value={lectureLevel} onChange={e => { setLectureLevel(e.target.value); setLectureGrade(""); }}>
+                  <option value="">선택</option>
+                  {Object.keys(LECTURE_GRADES).map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
-              {(() => {
-                const selectedCourse = teacherCourses.find(c => String(c.id) === String(selectedCourseId));
-                const existingCategories = Array.from(new Set((selectedCourse?.lectures || []).map(l => l.category).filter(Boolean)));
-                return (
-                  <>
-                    <div>
-                      <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>카테고리 (하위 분류)</label>
-                      <input list="lecture-categories" style={inputStyle} value={courseVideoCategory} onChange={e => setCourseVideoCategory(e.target.value)} placeholder="예: 명사, 형용사, 준동사" />
-                      <datalist id="lecture-categories">
-                        {existingCategories.map(c => <option key={c} value={c} />)}
-                      </datalist>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "12px", alignItems: "end" }}>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 제목</label>
-                        <input style={inputStyle} value={courseVideoTitle} onChange={e => setCourseVideoTitle(e.target.value)} placeholder="예: 명사의 종류" />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 링크</label>
-                        <input style={inputStyle} value={courseVideoLink} onChange={e => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 영상 URL" />
-                      </div>
-                      <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* 등록된 강의 목록 (강좌 → 카테고리 → 영상) */}
-          {teacherCourses.filter(c => (c.lectures||[]).length > 0).map(course => {
-            const grouped = {};
-            (course.lectures || []).forEach(lec => {
-              const cat = lec.category || "(미지정)";
-              if (!grouped[cat]) grouped[cat] = [];
-              grouped[cat].push(lec);
-            });
-            return (
-              <div key={course.id} style={{ marginTop: "24px", borderTop: "1px solid #e5e7eb", paddingTop: "16px" }}>
-                <div style={{ fontSize: "14px", fontWeight: "800", color: "#006241", marginBottom: "12px", fontFamily: "Manrope, sans-serif" }}>
-                  {course.title} ({(course.lectures||[]).length}강)
-                </div>
-                {Object.keys(grouped).map(cat => (
-                  <div key={cat} style={{ marginBottom: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
-                    <div style={{ background: "#f9fafb", padding: "8px 14px", fontSize: "13px", fontWeight: "800", color: "#1E3932", fontFamily: "Manrope, sans-serif", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span>{cat}</span>
-                      <span style={{ fontSize: "11px", color: "#6b7280", fontWeight: "600" }}>{grouped[cat].length}강</span>
-                    </div>
-                    <div style={{ padding: "6px 14px" }}>
-                      {grouped[cat].map((lec, idx) => (
-                        <div key={lec.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: idx < grouped[cat].length - 1 ? "1px solid #f3f4f6" : "none" }}>
-                          <span style={{ fontSize: "12px", fontWeight: "700", color: "#006241", width: "30px", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{idx+1}강</span>
-                          <span style={{ fontSize: "14px", color: "#374151", flex: 1, fontFamily: "Manrope, sans-serif" }}>{lec.title}</span>
-                          <button onClick={() => deleteLecture(course.id, lec.id)} style={{ background: "none", border: "none", color: "#c82014", cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>×</button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>학년</label>
+                <select style={inputStyle} value={lectureGrade} onChange={e => setLectureGrade(e.target.value)} disabled={!lectureLevel}>
+                  <option value="">선택</option>
+                  {(LECTURE_GRADES[lectureLevel] || []).map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
               </div>
-            );
-          })}
-        </div>
-      )}
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>과목</label>
+                <select style={inputStyle} value={lectureSubject} onChange={e => setLectureSubject(e.target.value)}>
+                  <option value="">선택</option>
+                  {LECTURE_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>클래스</label>
+                <select style={inputStyle} value={lectureClassId} onChange={e => setLectureClassId(e.target.value)}>
+                  <option value="">선택</option>
+                  {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* 2. 강좌명 직접 입력 */}
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강좌명</label>
+              <input style={inputStyle} value={lectureCourseName} onChange={e => setLectureCourseName(e.target.value)} placeholder="예: 중1 영어 문법" />
+            </div>
+
+            {/* 3. 강의 카테고리 */}
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 카테고리</label>
+              <select style={inputStyle} value={lectureCategory} onChange={e => setLectureCategory(e.target.value)}>
+                <option value="">선택</option>
+                {LECTURE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {/* 4. 강의 추가 입력 */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "10px", alignItems: "end", marginBottom: "16px" }}>
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 제목</label>
+                <input style={inputStyle} value={courseVideoTitle} onChange={e => setCourseVideoTitle(e.target.value)} placeholder="예: 명사의 종류" />
+              </div>
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 링크</label>
+                <input style={inputStyle} value={courseVideoLink} onChange={e => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 영상 URL" />
+              </div>
+              <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
+            </div>
+
+            {/* 5. 강의 목록 (필터 + 강좌명 + 카테고리 모두 입력됐을 때만) */}
+            {!ready ? (
+              <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
+                필터와 강좌명, 카테고리를 모두 선택/입력하면 강의 목록이 표시됩니다.
+              </div>
+            ) : !matchedCourse ? (
+              <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
+                "{lectureCourseName}" 강좌가 아직 없습니다. 영상을 저장하면 새 강좌로 자동 생성됩니다.
+              </div>
+            ) : visibleLectures.length === 0 ? (
+              <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
+                "{lectureCategory}" 카테고리에 등록된 영상이 없습니다.
+              </div>
+            ) : (
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
+                <div style={{ background: "#1E3932", padding: "10px 14px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "14px", fontWeight: "800", fontFamily: "Manrope, sans-serif" }}>{matchedCourse.title} · {lectureCategory}</span>
+                  <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontFamily: "Manrope, sans-serif" }}>{visibleLectures.length}강</span>
+                </div>
+                <div style={{ padding: "8px 14px" }}>
+                  {visibleLectures.map((lec, idx) => (
+                    <div key={lec.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: idx < visibleLectures.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                      <span style={{ fontSize: "12px", fontWeight: "700", color: "#006241", width: "30px", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{idx+1}강</span>
+                      <span style={{ fontSize: "14px", color: "#374151", flex: 1, fontFamily: "Manrope, sans-serif" }}>{lec.title}</span>
+                      <button onClick={() => deleteLecture(matchedCourse.id, lec.id)} style={{ background: "none", border: "none", color: "#c82014", cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── 탭3: 특이사항 (전체 학생 대상, 클래스 무관) ── */}
       {teacherView === "notes" && (
