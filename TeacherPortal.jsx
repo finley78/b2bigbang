@@ -17,6 +17,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [lectureSubject, setLectureSubject] = React.useState("");
   const [lectureClassId, setLectureClassId] = React.useState("");
   const [lectureCourseName, setLectureCourseName] = React.useState("");
+  const [courseChipSearch, setCourseChipSearch] = React.useState("");
   const [savingOnline, setSavingOnline] = React.useState(false);
   const [teacherView, setTeacherView] = React.useState("home");
   // 업무일지
@@ -847,31 +848,51 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             </div>
 
             {/* 1.5. 내 강좌 목록 (한눈에 보고 클릭으로 선택) */}
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                내 강좌 {effectiveSubject ? `(${effectiveSubject})` : ""} · {courseSuggestions.length}개
-              </label>
-              {courseSuggestions.length === 0 ? (
-                <div style={{ color: "#9ca3af", fontSize: "12px", padding: "10px 12px", background: "#f9fafb", borderRadius: "8px", fontFamily: "Manrope, sans-serif" }}>
-                  아직 생성된 강좌가 없습니다. 아래 강좌명을 입력하고 첫 강의를 저장하면 새 강좌가 만들어집니다.
+            {(() => {
+              const q = courseChipSearch.trim().toLowerCase();
+              const filteredSuggestions = q ? courseSuggestions.filter(n => n.toLowerCase().indexOf(q) >= 0) : courseSuggestions;
+              return (
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                      내 강좌 {effectiveSubject ? `(${effectiveSubject})` : ""} · {q ? `${filteredSuggestions.length}/${courseSuggestions.length}` : courseSuggestions.length}개
+                    </label>
+                    {courseSuggestions.length > 0 && (
+                      <input
+                        value={courseChipSearch}
+                        onChange={e => setCourseChipSearch(e.target.value)}
+                        placeholder="강좌명 검색"
+                        style={{ ...inputStyle, width: "180px", padding: "6px 10px", fontSize: "12px" }}
+                      />
+                    )}
+                  </div>
+                  {courseSuggestions.length === 0 ? (
+                    <div style={{ color: "#9ca3af", fontSize: "12px", padding: "10px 12px", background: "#f9fafb", borderRadius: "8px", fontFamily: "Manrope, sans-serif" }}>
+                      아직 생성된 강좌가 없습니다. 아래 강좌명을 입력하고 첫 강의를 저장하면 새 강좌가 만들어집니다.
+                    </div>
+                  ) : filteredSuggestions.length === 0 ? (
+                    <div style={{ color: "#9ca3af", fontSize: "12px", padding: "10px 12px", background: "#f9fafb", borderRadius: "8px", fontFamily: "Manrope, sans-serif" }}>
+                      검색 결과가 없습니다.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", maxHeight: "180px", overflowY: "auto", padding: "8px", background: "#f9fafb", borderRadius: "8px", border: "1px solid #edf0f2" }}>
+                      {filteredSuggestions.map(name => {
+                        const c = teacherCourses.find(x => clean(x.title) === clean(name) && (!effectiveSubject || clean(x.subject) === clean(effectiveSubject)));
+                        const lectureCount = c ? (c.lectures || []).length : 0;
+                        const active = clean(lectureCourseName) === clean(name);
+                        return (
+                          <button key={name} onClick={() => setLectureCourseName(name)}
+                            style={{ background: active ? "#006241" : "#fff", color: active ? "#fff" : "#1E3932", border: active ? "2px solid #006241" : "1px solid #d6dbde", borderRadius: "20px", padding: "6px 14px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Manrope, sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <span>{name}</span>
+                            <span style={{ fontSize: "11px", opacity: 0.7 }}>{lectureCount}강</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                  {courseSuggestions.map(name => {
-                    const c = teacherCourses.find(x => clean(x.title) === clean(name) && (!effectiveSubject || clean(x.subject) === clean(effectiveSubject)));
-                    const lectureCount = c ? (c.lectures || []).length : 0;
-                    const active = clean(lectureCourseName) === clean(name);
-                    return (
-                      <button key={name} onClick={() => setLectureCourseName(name)}
-                        style={{ background: active ? "#006241" : "#fff", color: active ? "#fff" : "#1E3932", border: active ? "2px solid #006241" : "1px solid #d6dbde", borderRadius: "20px", padding: "6px 14px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Manrope, sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                        <span>{name}</span>
-                        <span style={{ fontSize: "11px", opacity: 0.7 }}>{lectureCount}강</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* 2. 강좌명 (기존 강좌 자동완성 + 새 강좌명 입력 가능) */}
             <div style={{ marginBottom: "12px" }}>
