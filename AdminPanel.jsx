@@ -1759,7 +1759,7 @@ React.createElement('select', {
   style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
 },
   React.createElement('option', { value:'전체' }, '시험 전체'),
-  Array.from(new Set((adminAnalysis || []).map(function(s){ return s.test_name; }).filter(Boolean))).map(function(n){ return React.createElement('option', { key:n, value:n }, n); })
+  ['주간테스트','월말테스트','1학기 중간','1학기 기말','2학기 중간','2학기 기말'].map(function(n){ return React.createElement('option', { key:n, value:n }, n); })
 ),
 React.createElement('input', {
   value: analysisSearch,

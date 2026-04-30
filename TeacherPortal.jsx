@@ -884,7 +884,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 </select>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-                <input style={inputStyle} placeholder="시험명" value={testInfo.testName} onChange={e => setTestInfo(p => ({...p, testName: e.target.value}))} />
+                <select style={inputStyle} value={testInfo.testName} onChange={e => setTestInfo(p => ({...p, testName: e.target.value}))}>
+                  <option value="">시험명 선택</option>
+                  {["주간테스트","월말테스트","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
                 <input style={inputStyle} placeholder="시험 범위" value={testInfo.testRange} onChange={e => setTestInfo(p => ({...p, testRange: e.target.value}))} />
               </div>
               <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>체크된 학생에게만 성적이 저장됩니다.</p>
@@ -930,7 +933,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             </select>
             <select style={{ ...inputStyle, maxWidth: "200px" }} value={analysisTestName} onChange={e => setAnalysisTestName(e.target.value)}>
               <option value="전체">시험 전체</option>
-              {Array.from(new Set(scoreAnalysis.map(s => s.test_name).filter(Boolean))).map(n => <option key={n} value={n}>{n}</option>)}
+              {["주간테스트","월말테스트","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(n => <option key={n} value={n}>{n}</option>)}
             </select>
             <input style={{ ...inputStyle, minWidth: "180px", flex: 1 }} placeholder="학생명·선생님명 검색" value={analysisSearch} onChange={e => setAnalysisSearch(e.target.value)} />
             <button style={lightButtonStyle} onClick={loadScoreAnalysis}>{analysisLoading ? "로딩 중..." : "새로고침"}</button>
