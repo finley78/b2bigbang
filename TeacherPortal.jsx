@@ -541,6 +541,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (error) { alert("성적 저장 실패: " + error.message); return; }
     alert("성적이 저장되었습니다.");
     setScores({});
+    loadScoreAnalysis();
   }
 
   async function loadNotes() {
