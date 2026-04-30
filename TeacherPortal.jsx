@@ -569,6 +569,39 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const teacherAssignments = getTeacherAssignments();
   const availableClassCards = classes || [];
 
+  const cardStyle = {
+    background: "white",
+    padding: "24px",
+    borderRadius: "20px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+  };
+
+  const inputStyle = {
+    border: "1px solid #d1d5db",
+    borderRadius: "10px",
+    padding: "10px 12px",
+    fontSize: "14px",
+    width: "100%",
+    boxSizing: "border-box",
+  };
+
+  const buttonStyle = {
+    border: "none",
+    borderRadius: "10px",
+    padding: "11px 16px",
+    cursor: "pointer",
+    fontWeight: "700",
+    background: "#006241",
+    color: "white",
+  };
+
+  const lightButtonStyle = {
+    ...buttonStyle,
+    background: "#f3f4f6",
+    color: "#111827",
+    border: "1px solid #e5e7eb",
+  };
+
   // 4탭 구조 렌더링
   const TABS = [
     { id: "classes", label: "담당 클래스" },
@@ -888,54 +921,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       </div>
     </div>
   );
-
-    if (error) {
-      alert("성적 저장 실패: " + error.message);
-      return;
-    }
-
-    alert(rows.length + "명 성적 저장 완료");
-    setScores({});
-  }
-
-  const cardStyle = {
-    background: "white",
-    padding: "24px",
-    borderRadius: "20px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
-  };
-
-  const inputStyle = {
-    border: "1px solid #d1d5db",
-    borderRadius: "10px",
-    padding: "10px 12px",
-    fontSize: "14px",
-    width: "100%",
-    boxSizing: "border-box",
-  };
-
-  const buttonStyle = {
-    border: "none",
-    borderRadius: "10px",
-    padding: "11px 16px",
-    cursor: "pointer",
-    fontWeight: "700",
-    background: "#006241",
-    color: "white",
-  };
-
-  const lightButtonStyle = {
-    ...buttonStyle,
-    background: "#f3f4f6",
-    color: "#111827",
-    border: "1px solid #e5e7eb",
-  };
-
-  const selectedCount = selectedStudentIds.length;
-  const teacherAssignments = getTeacherAssignments();
-  const availableClassCards = classes || [];
-
-
 }
 
 
