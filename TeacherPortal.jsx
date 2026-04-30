@@ -813,13 +813,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         // 클래스 모드에서 과목이 비어있으면 클래스의 subject로 추론
         const inferredClass = classMode ? (availableClassCards || []).find(c => String(c.id) === String(lectureClassId)) : null;
         const effectiveSubject = lectureSubject || (inferredClass && inferredClass.subject) || "";
-        // 필터 조건에 맞는 기존 강좌만 후보로
-        const scopedCourses = (teacherCourses || []).filter(c => {
+        // 필터 조건에 맞는 기존 강좌만 후보로 (필터 미선택 시 빈 목록)
+        const hasAnyFilter = classMode || !!lectureLevel || !!lectureGrade || !!effectiveSubject;
+        const scopedCourses = !hasAnyFilter ? [] : (teacherCourses || []).filter(c => {
           if (classMode) return String(c.class_id || "") === String(lectureClassId);
-          if (lectureLevel && c.level && c.level !== lectureLevel) return false;
-          if (lectureGrade && c.grade && c.grade !== lectureGrade) return false;
-          if (effectiveSubject && c.subject && clean(c.subject) !== clean(effectiveSubject)) return false;
-          if (gradeMode && c.class_id) return false; // 학년 모드일 땐 클래스 전용 강좌 제외
+          // 학년/과목 모드: 클래스 전용 강좌는 제외
+          if (c.class_id) return false;
+          if (lectureLevel && c.level !== lectureLevel) return false;
+          if (lectureGrade && c.grade !== lectureGrade) return false;
+          if (effectiveSubject && clean(c.subject) !== clean(effectiveSubject)) return false;
           return true;
         });
         const courseSuggestions = Array.from(new Set(scopedCourses.map(c => c.title).filter(Boolean)));
