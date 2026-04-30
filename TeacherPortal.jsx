@@ -951,11 +951,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             // 2. 표시 대상 학생: 선택된 반의 학생들
             const targetIds = (analysisClassStudents[analysisClassId] || []).map(String);
             // 3. 학생별 행 구성 + 검색 필터
+            const subjectActive = analysisSubject !== "전체";
+            const testNameActive = analysisTestName !== "전체";
             const rows = targetIds.map(sid => {
               const std = analysisAllStudents[sid];
               const studentName = (std && std.name) || (scoreAnalysis.find(s => String(s.student_id) === sid)?.students?.name) || "학생";
               const studentGrade = (std && std.grade) || "";
               const myScores = scoresFiltered.filter(s => String(s.student_id) === sid);
+              // 과목·시험명 필터가 활성화된 경우 매칭 점수가 없는 학생은 제외
+              if ((subjectActive || testNameActive) && myScores.length === 0) return null;
               if (q) {
                 const teacherNames = myScores.map(s => s.teachers?.name).filter(Boolean);
                 const hay = [studentName, ...teacherNames].join(" ").toLowerCase();

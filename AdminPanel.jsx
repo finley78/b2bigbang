@@ -1781,12 +1781,16 @@ React.createElement('input', {
     return true;
   });
   var targetIds = (classStudents[analysisClassId] || []).map(String);
+  var subjectActive = analysisSubject !== '전체';
+  var testNameActive = analysisTestName !== '전체';
+  var teacherActive = analysisTeacherId !== '전체';
   var rows = targetIds.map(function(sid){
     var stu = dbStudents.find(function(x){ return String(x.id) === sid; });
     var fallbackStu = scoreAnalysisFallback(sid);
     var name = (stu && stu.name) || fallbackStu.name || '학생';
     var grade = (stu && stu.grade) || fallbackStu.grade || '';
     var myScores = scoresFiltered.filter(function(s){ return String(s.student_id) === sid; });
+    if ((subjectActive || testNameActive || teacherActive) && myScores.length === 0) return null;
     if (q) {
       var teacherNames = myScores.map(function(s){ return s.teachers && s.teachers.name; }).filter(Boolean);
       var hay = [name].concat(teacherNames).join(' ').toLowerCase();
