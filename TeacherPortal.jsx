@@ -583,7 +583,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setAnalysisLoading(true);
     const { data, error } = await sb
       .from("test_scores")
-      .select("*, students!test_scores_student_id_fkey(name, grade, school), teachers!test_scores_teacher_id_fkey(name)")
+      .select("*, students!test_scores_student_id_fkey(name, grade), teachers!test_scores_teacher_id_fkey(name)")
       .order("test_date", { ascending: false });
     if (error) { console.error("loadScoreAnalysis error:", error.message || error); setScoreAnalysis([]); setAnalysisLoading(false); return; }
     setScoreAnalysis(data || []);
@@ -596,7 +596,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       });
       setAnalysisClassStudents(grouped);
     }
-    const { data: stdList } = await sb.from("students").select("id, name, grade, school").eq("role", "student");
+    const { data: stdList } = await sb.from("students").select("id, name, grade").eq("role", "student");
     if (stdList) {
       const m = {};
       stdList.forEach(function(s){ m[s.id] = s; });

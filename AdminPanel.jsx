@@ -192,7 +192,7 @@ const { data: pending } = await sb.from('students').select('*').in('role', ['pen
 if (pending) setDbPending(pending.map(p => ({ id: p.id, name: p.name, phone: p.phone, role: p.role, grade: p.grade, school: p.school })));
 
 const { data: notes } = await sb.from('teacher_notes')
-.select('*, students(name, grade, school), teachers(name)')
+.select('*, students(name, grade), teachers(name)')
 .order('note_date', { ascending: false });
 if (notes) setAdminRecords(notes);
 
@@ -207,7 +207,7 @@ if (clsStudents) {
 }
 
 const { data: scores, error: scoresError } = await sb.from('test_scores')
-  .select('*, students!test_scores_student_id_fkey(name, grade, school), teachers!test_scores_teacher_id_fkey(name)')
+  .select('*, students!test_scores_student_id_fkey(name, grade), teachers!test_scores_teacher_id_fkey(name)')
   .order('test_date', { ascending: false });
 if (scoresError) console.error('test_scores load error:', scoresError.message || scoresError);
 if (scores) setAdminAnalysis(scores);
