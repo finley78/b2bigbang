@@ -17,7 +17,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [lectureSubject, setLectureSubject] = React.useState("");
   const [lectureClassId, setLectureClassId] = React.useState("");
   const [lectureCourseName, setLectureCourseName] = React.useState("");
-  const [lectureCategory, setLectureCategory] = React.useState("");
   const [savingOnline, setSavingOnline] = React.useState(false);
   const [teacherView, setTeacherView] = React.useState("home");
   // 업무일지
@@ -288,7 +287,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   // 강좌명을 직접 입력받아 find-or-create 후 영상 추가
   async function addVideoToCourse() {
     const courseName = String(lectureCourseName || "").trim();
-    const category = String(lectureCategory || "").trim();
     const title = String(courseVideoTitle || "").trim();
     const link = String(courseVideoLink || "").trim();
 
@@ -297,8 +295,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!lectureSubject) { alert("과목을 선택해 주세요."); return; }
     if (!lectureClassId) { alert("클래스를 선택해 주세요."); return; }
     if (!courseName) { alert("강좌명을 입력해 주세요."); return; }
-    if (!category) { alert("강의 카테고리를 선택해 주세요."); return; }
-    if (!title) { alert("영상 제목을 입력해 주세요."); return; }
+    if (!title) { alert("강의 제목을 입력해 주세요."); return; }
     if (!link) { alert("YouTube 링크 또는 영상 URL을 입력해 주세요."); return; }
 
     setSavingOnline(true);
@@ -330,7 +327,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       const nextOrder = ((target?.lectures || []).length) + 1;
       const { data: video, error: videoError } = await sb
         .from("videos")
-        .insert({ course_id: courseId, title, category, youtube_id: extractYoutubeId(link), sort_order: nextOrder })
+        .insert({ course_id: courseId, title, youtube_id: extractYoutubeId(link), sort_order: nextOrder })
         .select()
         .single();
       if (videoError) throw videoError;
@@ -764,20 +761,24 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           "고등": ["고1","고2","고3"],
         };
         const LECTURE_SUBJECTS = ["국어","영어","수학","과학"];
-        const LECTURE_CATEGORIES = ["문법","독해","구문","어법","기타"];
         const filtersComplete = !!(lectureLevel && lectureGrade && lectureSubject && lectureClassId);
-        const ready = filtersComplete && lectureCourseName.trim() && lectureCategory;
+        const ready = filtersComplete && lectureCourseName.trim();
+        // 본 선생님이 가진 기존 강좌명 후보 (과목이 정해졌으면 그 과목으로 한정)
+        const courseSuggestions = Array.from(new Set(
+          (teacherCourses || [])
+            .filter(c => !lectureSubject || clean(c.subject) === clean(lectureSubject))
+            .map(c => c.title)
+            .filter(Boolean)
+        ));
         const matchedCourse = ready
           ? teacherCourses.find(c => clean(c.title) === clean(lectureCourseName) && clean(c.subject) === clean(lectureSubject))
           : null;
-        const visibleLectures = matchedCourse
-          ? (matchedCourse.lectures || []).filter(l => clean(l.category) === clean(lectureCategory))
-          : [];
+        const visibleLectures = matchedCourse ? (matchedCourse.lectures || []) : [];
 
         return (
           <div style={{ ...cardStyle, marginBottom: "24px" }}>
             <h2 style={{ marginBottom: "4px" }}>강의 추가</h2>
-            <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "20px" }}>필터와 강의 카테고리를 모두 선택하면 해당 영상 목록이 표시됩니다.</p>
+            <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "20px" }}>필터와 강좌명을 모두 선택/입력하면 해당 강좌의 강의 목록이 표시됩니다.</p>
 
             {/* 1. 상단 필터 (4개 드롭다운) */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "16px" }}>
@@ -811,51 +812,45 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </div>
             </div>
 
-            {/* 2. 강좌명 직접 입력 */}
+            {/* 2. 강좌명 (기존 강좌 자동완성 + 새 강좌명 입력 가능) */}
             <div style={{ marginBottom: "12px" }}>
               <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강좌명</label>
-              <input style={inputStyle} value={lectureCourseName} onChange={e => setLectureCourseName(e.target.value)} placeholder="예: 중1 영어 문법" />
+              <input list="lecture-course-names" style={inputStyle} value={lectureCourseName} onChange={e => setLectureCourseName(e.target.value)} placeholder="예: 문법 (기존 강좌 선택 또는 새로 입력)" />
+              <datalist id="lecture-course-names">
+                {courseSuggestions.map(name => <option key={name} value={name} />)}
+              </datalist>
             </div>
 
-            {/* 3. 강의 카테고리 */}
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 카테고리</label>
-              <select style={inputStyle} value={lectureCategory} onChange={e => setLectureCategory(e.target.value)}>
-                <option value="">선택</option>
-                {LECTURE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-
-            {/* 4. 강의 추가 입력 */}
+            {/* 3. 강의 입력 */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "10px", alignItems: "end", marginBottom: "16px" }}>
               <div>
-                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 제목</label>
-                <input style={inputStyle} value={courseVideoTitle} onChange={e => setCourseVideoTitle(e.target.value)} placeholder="예: 명사의 종류" />
+                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 제목</label>
+                <input style={inputStyle} value={courseVideoTitle} onChange={e => setCourseVideoTitle(e.target.value)} placeholder="예: 명사" />
               </div>
               <div>
-                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>영상 링크</label>
+                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 링크</label>
                 <input style={inputStyle} value={courseVideoLink} onChange={e => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 영상 URL" />
               </div>
               <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
             </div>
 
-            {/* 5. 강의 목록 (필터 + 강좌명 + 카테고리 모두 입력됐을 때만) */}
+            {/* 4. 강의 목록 (필터 + 강좌명 모두 입력됐을 때만) */}
             {!ready ? (
               <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
-                필터와 강좌명, 카테고리를 모두 선택/입력하면 강의 목록이 표시됩니다.
+                필터와 강좌명을 모두 선택/입력하면 강의 목록이 표시됩니다.
               </div>
             ) : !matchedCourse ? (
               <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
-                "{lectureCourseName}" 강좌가 아직 없습니다. 영상을 저장하면 새 강좌로 자동 생성됩니다.
+                "{lectureCourseName}" 강좌가 아직 없습니다. 강의를 저장하면 새 강좌로 자동 생성됩니다.
               </div>
             ) : visibleLectures.length === 0 ? (
               <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
-                "{lectureCategory}" 카테고리에 등록된 영상이 없습니다.
+                "{matchedCourse.title}" 강좌에 등록된 강의가 없습니다.
               </div>
             ) : (
               <div style={{ border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
                 <div style={{ background: "#1E3932", padding: "10px 14px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "14px", fontWeight: "800", fontFamily: "Manrope, sans-serif" }}>{matchedCourse.title} · {lectureCategory}</span>
+                  <span style={{ fontSize: "14px", fontWeight: "800", fontFamily: "Manrope, sans-serif" }}>{matchedCourse.title}</span>
                   <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontFamily: "Manrope, sans-serif" }}>{visibleLectures.length}강</span>
                 </div>
                 <div style={{ padding: "8px 14px" }}>
