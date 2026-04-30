@@ -565,6 +565,54 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setScores({});
   }
 
+  async function loadNotes() {
+    if (!teacherInfo) return;
+    const { data, error } = await sb
+      .from("teacher_notes")
+      .select("*, students(name)")
+      .eq("teacher_id", teacherInfo.id)
+      .order("note_date", { ascending: false });
+    if (error) { console.error("loadNotes error:", error); setTeacherNotes([]); return; }
+    setTeacherNotes(data || []);
+  }
+
+  async function saveNote() {
+    if (!teacherInfo) { alert("선생님 정보를 먼저 불러와야 합니다."); return; }
+    if (!String(noteDraft.content || "").trim()) { alert("내용을 입력해 주세요."); return; }
+    setSavingNote(true);
+    const { error } = await sb.from("teacher_notes").insert({
+      teacher_id: teacherInfo.id,
+      student_id: noteDraft.studentId || null,
+      note_type: noteDraft.type,
+      note_date: noteDraft.date,
+      content: noteDraft.content.trim(),
+    });
+    setSavingNote(false);
+    if (error) { alert("저장 실패: " + error.message); return; }
+    setNoteDraft({ date: new Date().toISOString().slice(0,10), type: '특이사항', studentId: '', content: '' });
+    await loadNotes();
+  }
+
+  async function deleteNote(id) {
+    if (!confirm("정말 삭제하시겠습니까?")) return;
+    const { error } = await sb.from("teacher_notes").delete().eq("id", id);
+    if (error) { alert("삭제 실패: " + error.message); return; }
+    await loadNotes();
+  }
+
+  async function loadScoreHistory() {
+    if (!teacherInfo) return;
+    setLoadingStats(true);
+    const { data, error } = await sb
+      .from("test_scores")
+      .select("*, students(name)")
+      .eq("teacher_id", teacherInfo.id)
+      .order("test_date", { ascending: false });
+    setLoadingStats(false);
+    if (error) { console.error("loadScoreHistory error:", error); setScoreHistory([]); return; }
+    setScoreHistory(data || []);
+  }
+
   const selectedCount = selectedStudentIds.length;
   const teacherAssignments = getTeacherAssignments();
   const availableClassCards = classes || [];
