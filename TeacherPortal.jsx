@@ -31,6 +31,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [analysisTestName, setAnalysisTestName] = React.useState('전체');
   const [analysisSearch, setAnalysisSearch] = React.useState('');
   const [analysisClassStudents, setAnalysisClassStudents] = React.useState({}); // { class_id: [student_id, ...] }
+  const [analysisAllStudents, setAnalysisAllStudents] = React.useState({}); // { id: {name, grade, school} }
 
   const [testInfo, setTestInfo] = React.useState({
     reportPeriod: "주간",
@@ -594,6 +595,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       });
       setAnalysisClassStudents(grouped);
     }
+    const { data: stdList } = await sb.from("students").select("id, name, grade, school").eq("role", "student");
+    if (stdList) {
+      const m = {};
+      stdList.forEach(function(s){ m[s.id] = s; });
+      setAnalysisAllStudents(m);
+    }
     setAnalysisLoading(false);
   }
 
@@ -932,69 +939,91 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             <div style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>로딩 중...</div>
           ) : (() => {
             const q = analysisSearch.trim().toLowerCase();
-            const allowedStudentIds = analysisClassId ? new Set((analysisClassStudents[analysisClassId] || []).map(String)) : null;
-            const filtered = scoreAnalysis.filter(s => {
-              if (allowedStudentIds && !allowedStudentIds.has(String(s.student_id))) return false;
+            // 1. 점수 데이터에 비-반 필터(과목/시험명) 적용
+            const scoresFiltered = scoreAnalysis.filter(s => {
               if (analysisSubject !== "전체" && s.subject !== analysisSubject) return false;
               if (analysisTestName !== "전체" && s.test_name !== analysisTestName) return false;
-              if (q) {
-                const hay = [s.students?.name, s.teachers?.name, s.test_name, s.subject].filter(Boolean).join(" ").toLowerCase();
-                if (hay.indexOf(q) < 0) return false;
-              }
               return true;
             });
-            if (filtered.length === 0) return <div style={{ color: "#6b7280", textAlign: "center", padding: "32px" }}>등록된 성적이 없습니다.</div>;
+            // 2. 표시 대상 학생 ID 결정
+            let targetIds;
+            if (analysisClassId) {
+              targetIds = (analysisClassStudents[analysisClassId] || []).map(String);
+            } else {
+              targetIds = Array.from(new Set(scoresFiltered.map(s => String(s.student_id))));
+            }
+            // 3. 학생별 행 구성 + 검색 필터
+            const rows = targetIds.map(sid => {
+              const std = analysisAllStudents[sid];
+              const studentName = (std && std.name) || (scoreAnalysis.find(s => String(s.student_id) === sid)?.students?.name) || "학생";
+              const studentGrade = (std && std.grade) || "";
+              const myScores = scoresFiltered.filter(s => String(s.student_id) === sid);
+              if (q) {
+                const teacherNames = myScores.map(s => s.teachers?.name).filter(Boolean);
+                const hay = [studentName, ...teacherNames].join(" ").toLowerCase();
+                if (hay.indexOf(q) < 0) return null;
+              }
+              return { id: sid, name: studentName, grade: studentGrade, scores: myScores };
+            }).filter(Boolean);
 
-            const vals = filtered.map(s => Number(s.score)).filter(v => !isNaN(v));
-            const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : "-";
-            const max = vals.length ? Math.max(...vals) : "-";
-            const min = vals.length ? Math.min(...vals) : "-";
+            if (rows.length === 0) return <div style={{ color: "#6b7280", textAlign: "center", padding: "32px" }}>표시할 학생이 없습니다.</div>;
 
-            const byTest = {};
-            filtered.forEach(s => {
-              const key = `${s.test_date || ''}_${s.test_name || ''}_${s.subject || ''}`;
-              if (!byTest[key]) byTest[key] = { test_name: s.test_name || "(무제)", subject: s.subject || "", date: s.test_date || "", scores: [] };
-              byTest[key].scores.push(s);
-            });
-            const groups = Object.values(byTest).sort((a,b) => (b.date||"").localeCompare(a.date||""));
+            const allVals = rows.flatMap(r => r.scores.map(s => Number(s.score))).filter(v => !isNaN(v));
+            const avg = allVals.length ? (allVals.reduce((a,b)=>a+b,0)/allVals.length).toFixed(1) : "-";
+            const max = allVals.length ? Math.max(...allVals) : "-";
+            const min = allVals.length ? Math.min(...allVals) : "-";
+            const totalTests = new Set(rows.flatMap(r => r.scores.map(s => `${s.test_date}_${s.test_name}_${s.subject}`))).size;
 
             return (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "20px" }}>
-                  {[{label:"총 시험", val: groups.length+"회"},{label:"평균", val: avg+"점"},{label:"최고", val: max+"점"},{label:"최저", val: min+"점"}].map(item => (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px", marginBottom: "20px" }}>
+                  {[
+                    {label:"학생", val: rows.length+"명"},
+                    {label:"총 시험", val: totalTests+"회"},
+                    {label:"평균", val: avg+"점"},
+                    {label:"최고", val: max+"점"},
+                    {label:"최저", val: min+"점"},
+                  ].map(item => (
                     <div key={item.label} style={{ background: "#f9fafb", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
-                      <div style={{ fontSize: "20px", fontWeight: "800", color: "#006241", fontFamily: "Manrope, sans-serif" }}>{item.val}</div>
+                      <div style={{ fontSize: "18px", fontWeight: "800", color: "#006241", fontFamily: "Manrope, sans-serif" }}>{item.val}</div>
                       <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px", fontFamily: "Manrope, sans-serif" }}>{item.label}</div>
                     </div>
                   ))}
                 </div>
-                {groups.map((g, gi) => {
-                  const gVals = g.scores.map(s => Number(s.score)).filter(v => !isNaN(v));
-                  const gAvg = gVals.length ? (gVals.reduce((a,b)=>a+b,0)/gVals.length).toFixed(1) : "-";
+                {rows.map(r => {
+                  const myVals = r.scores.map(s => Number(s.score)).filter(v => !isNaN(v));
+                  const myAvg = myVals.length ? (myVals.reduce((a,b)=>a+b,0)/myVals.length).toFixed(1) : "-";
                   return (
-                    <div key={gi} style={{ marginBottom: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
+                    <div key={r.id} style={{ marginBottom: "12px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
                       <div style={{ background: "#1E3932", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
                         <div>
-                          <span style={{ fontWeight: "800", color: "#fff", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>{g.test_name}</span>
-                          <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginLeft: "10px", fontFamily: "Manrope, sans-serif" }}>{g.subject}{g.date ? ` · ${g.date}` : ""}</span>
+                          <span style={{ fontWeight: "800", color: "#fff", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>{r.name}</span>
+                          {r.grade && <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginLeft: "8px", fontFamily: "Manrope, sans-serif" }}>{r.grade}</span>}
                         </div>
-                        <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "12px", fontFamily: "Manrope, sans-serif" }}>{g.scores.length}명 · 평균 {gAvg}점</span>
+                        <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "12px", fontFamily: "Manrope, sans-serif" }}>{r.scores.length}회 응시{myVals.length > 0 ? ` · 평균 ${myAvg}점` : ""}</span>
                       </div>
                       <div style={{ padding: "12px 16px" }}>
-                        {g.scores.slice().sort((a,b) => (Number(b.score)||0) - (Number(a.score)||0)).map((s, si) => {
-                          const pct = Math.max(0, Math.min(100, Math.round(Number(s.score) || 0)));
-                          const color = s.score >= 90 ? "#006241" : s.score >= 70 ? "#2b5148" : s.score >= 50 ? "#cba258" : "#c82014";
-                          return (
-                            <div key={si} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                              <span style={{ width: "90px", fontSize: "13px", fontWeight: "600", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.students?.name || "학생"}</span>
-                              <span style={{ width: "72px", fontSize: "11px", color: "#9ca3af", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.teachers?.name ? `${s.teachers.name} 선생님` : ""}</span>
-                              <div style={{ flex: 1, height: "14px", background: "#f3f4f6", borderRadius: "7px", overflow: "hidden" }}>
-                                <div style={{ width: pct+"%", height: "100%", background: color, borderRadius: "7px" }} />
+                        {r.scores.length === 0 ? (
+                          <div style={{ color: "#9ca3af", fontSize: "13px", fontStyle: "italic", fontFamily: "Manrope, sans-serif" }}>아직 등록된 성적이 없습니다 (미응시)</div>
+                        ) : (
+                          r.scores.slice().sort((a,b) => (b.test_date||"").localeCompare(a.test_date||"")).map((s, si) => {
+                            const pct = Math.max(0, Math.min(100, Math.round(Number(s.score) || 0)));
+                            const color = s.score >= 90 ? "#006241" : s.score >= 70 ? "#2b5148" : s.score >= 50 ? "#cba258" : "#c82014";
+                            return (
+                              <div key={si} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                                <div style={{ width: "180px", flexShrink: 0 }}>
+                                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#374151", fontFamily: "Manrope, sans-serif" }}>{s.test_name || "(무제)"}</div>
+                                  <div style={{ fontSize: "11px", color: "#9ca3af", fontFamily: "Manrope, sans-serif" }}>{[s.subject, s.test_date].filter(Boolean).join(" · ")}</div>
+                                </div>
+                                <span style={{ width: "78px", fontSize: "11px", color: "#9ca3af", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.teachers?.name ? `${s.teachers.name} 선생님` : ""}</span>
+                                <div style={{ flex: 1, height: "14px", background: "#f3f4f6", borderRadius: "7px", overflow: "hidden" }}>
+                                  <div style={{ width: pct+"%", height: "100%", background: color, borderRadius: "7px" }} />
+                                </div>
+                                <span style={{ width: "44px", fontSize: "13px", fontWeight: "700", color, textAlign: "right", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.score}점</span>
                               </div>
-                              <span style={{ width: "44px", fontSize: "13px", fontWeight: "700", color, textAlign: "right", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.score}점</span>
-                            </div>
-                          );
-                        })}
+                            );
+                          })
+                        )}
                       </div>
                     </div>
                   );

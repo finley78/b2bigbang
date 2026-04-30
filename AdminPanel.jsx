@@ -1770,71 +1770,90 @@ React.createElement('input', {
 
 (function(){
   var q = analysisSearch.trim().toLowerCase();
-  var allowedStudentIds = analysisClassId ? new Set((classStudents[analysisClassId] || []).map(String)) : null;
-  var filtered = (adminAnalysis || []).filter(function(s){
-    if (allowedStudentIds && !allowedStudentIds.has(String(s.student_id))) return false;
+  var scoresFiltered = (adminAnalysis || []).filter(function(s){
     if (analysisTeacherId !== '전체' && String(s.teacher_id) !== String(analysisTeacherId)) return false;
     if (analysisSubject !== '전체' && s.subject !== analysisSubject) return false;
     if (analysisTestName !== '전체' && s.test_name !== analysisTestName) return false;
-    if (q) {
-      var hay = [s.students && s.students.name, s.teachers && s.teachers.name, s.test_name, s.subject].filter(Boolean).join(' ').toLowerCase();
-      if (hay.indexOf(q) < 0) return false;
-    }
     return true;
   });
-  if (filtered.length === 0) {
-    return React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '등록된 성적이 없습니다');
+  var targetIds;
+  if (analysisClassId) {
+    targetIds = (classStudents[analysisClassId] || []).map(String);
+  } else {
+    targetIds = Array.from(new Set(scoresFiltered.map(function(s){ return String(s.student_id); })));
   }
-  var vals = filtered.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
-  var avg = vals.length ? (vals.reduce(function(a,b){ return a+b; },0)/vals.length).toFixed(1) : '-';
-  var max = vals.length ? Math.max.apply(null, vals) : '-';
-  var min = vals.length ? Math.min.apply(null, vals) : '-';
-  var byTest = {};
-  filtered.forEach(function(s){
-    var key = (s.test_date||'') + '_' + (s.test_name||'') + '_' + (s.subject||'');
-    if (!byTest[key]) byTest[key] = { test_name: s.test_name || '(무제)', subject: s.subject || '', date: s.test_date || '', scores: [] };
-    byTest[key].scores.push(s);
-  });
-  var groups = Object.values(byTest).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  var rows = targetIds.map(function(sid){
+    var stu = dbStudents.find(function(x){ return String(x.id) === sid; });
+    var fallbackStu = scoreAnalysisFallback(sid);
+    var name = (stu && stu.name) || fallbackStu.name || '학생';
+    var grade = (stu && stu.grade) || fallbackStu.grade || '';
+    var myScores = scoresFiltered.filter(function(s){ return String(s.student_id) === sid; });
+    if (q) {
+      var teacherNames = myScores.map(function(s){ return s.teachers && s.teachers.name; }).filter(Boolean);
+      var hay = [name].concat(teacherNames).join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return null;
+    }
+    return { id:sid, name:name, grade:grade, scores: myScores };
+  }).filter(Boolean);
+
+  function scoreAnalysisFallback(sid) {
+    var match = (adminAnalysis || []).find(function(s){ return String(s.student_id) === sid; });
+    return match && match.students ? match.students : {};
+  }
+
+  if (rows.length === 0) {
+    return React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '표시할 학생이 없습니다');
+  }
+  var allVals = rows.reduce(function(acc, r){ return acc.concat(r.scores.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); })); }, []);
+  var avg = allVals.length ? (allVals.reduce(function(a,b){ return a+b; },0)/allVals.length).toFixed(1) : '-';
+  var max = allVals.length ? Math.max.apply(null, allVals) : '-';
+  var min = allVals.length ? Math.min.apply(null, allVals) : '-';
+  var totalTests = new Set(rows.reduce(function(acc, r){ return acc.concat(r.scores.map(function(s){ return (s.test_date||'')+'_'+(s.test_name||'')+'_'+(s.subject||''); })); }, [])).size;
 
   return React.createElement('div', null,
-    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'10px', marginBottom:'20px' } },
+    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:'10px', marginBottom:'20px' } },
       [
-        { label:'총 시험', val: groups.length+'회' },
+        { label:'학생', val: rows.length+'명' },
+        { label:'총 시험', val: totalTests+'회' },
         { label:'평균', val: avg+'점' },
         { label:'최고', val: max+'점' },
         { label:'최저', val: min+'점' },
       ].map(function(item){
         return React.createElement('div', { key:item.label, style:{ background:'#fff', borderRadius:'10px', padding:'14px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14)' } },
-          React.createElement('div', { style:{ fontSize:'20px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, item.val),
+          React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, item.val),
           React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'3px' } }, item.label)
         );
       })
     ),
-    groups.map(function(g, gi){
-      var gVals = g.scores.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
-      var gAvg = gVals.length ? (gVals.reduce(function(a,b){ return a+b; },0)/gVals.length).toFixed(1) : '-';
-      return React.createElement('div', { key:gi, style:{ marginBottom:'14px', border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden' } },
+    rows.map(function(r){
+      var myVals = r.scores.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
+      var myAvg = myVals.length ? (myVals.reduce(function(a,b){ return a+b; },0)/myVals.length).toFixed(1) : '-';
+      return React.createElement('div', { key:r.id, style:{ marginBottom:'12px', border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden' } },
         React.createElement('div', { style:{ background:'#1E3932', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' } },
           React.createElement('div', null,
-            React.createElement('span', { style:{ fontWeight:'800', color:'#fff', fontSize:'14px', fontFamily:'Manrope, sans-serif' } }, g.test_name),
-            React.createElement('span', { style:{ color:'rgba(255,255,255,0.6)', fontSize:'12px', marginLeft:'10px', fontFamily:'Manrope, sans-serif' } }, g.subject + (g.date ? ' · ' + g.date : ''))
+            React.createElement('span', { style:{ fontWeight:'800', color:'#fff', fontSize:'14px', fontFamily:'Manrope, sans-serif' } }, r.name),
+            r.grade && React.createElement('span', { style:{ color:'rgba(255,255,255,0.6)', fontSize:'12px', marginLeft:'8px', fontFamily:'Manrope, sans-serif' } }, r.grade)
           ),
-          React.createElement('span', { style:{ color:'rgba(255,255,255,0.85)', fontSize:'12px', fontFamily:'Manrope, sans-serif' } }, g.scores.length + '명 · 평균 ' + gAvg + '점')
+          React.createElement('span', { style:{ color:'rgba(255,255,255,0.85)', fontSize:'12px', fontFamily:'Manrope, sans-serif' } }, r.scores.length + '회 응시' + (myVals.length > 0 ? ' · 평균 ' + myAvg + '점' : ''))
         ),
         React.createElement('div', { style:{ padding:'12px 16px' } },
-          g.scores.slice().sort(function(a,b){ return (Number(b.score)||0) - (Number(a.score)||0); }).map(function(s, si){
-            var pct = Math.max(0, Math.min(100, Math.round(Number(s.score) || 0)));
-            var color = s.score >= 90 ? '#006241' : s.score >= 70 ? '#2b5148' : s.score >= 50 ? '#cba258' : '#c82014';
-            return React.createElement('div', { key:si, style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'6px' } },
-              React.createElement('span', { style:{ width:'90px', fontSize:'13px', fontWeight:'600', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, (s.students && s.students.name) || '학생'),
-              React.createElement('span', { style:{ width:'90px', fontSize:'11px', color:'#9ca3af', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, (s.teachers && s.teachers.name) ? s.teachers.name + ' 선생님' : ''),
-              React.createElement('div', { style:{ flex:1, height:'14px', background:'#f3f4f6', borderRadius:'7px', overflow:'hidden' } },
-                React.createElement('div', { style:{ width:pct+'%', height:'100%', background:color, borderRadius:'7px' } })
-              ),
-              React.createElement('span', { style:{ width:'44px', fontSize:'13px', fontWeight:'700', color:color, textAlign:'right', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, s.score+'점')
-            );
-          })
+          r.scores.length === 0
+            ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', fontStyle:'italic', fontFamily:'Manrope, sans-serif' } }, '아직 등록된 성적이 없습니다 (미응시)')
+            : r.scores.slice().sort(function(a,b){ return (b.test_date||'').localeCompare(a.test_date||''); }).map(function(s, si){
+                var pct = Math.max(0, Math.min(100, Math.round(Number(s.score) || 0)));
+                var color = s.score >= 90 ? '#006241' : s.score >= 70 ? '#2b5148' : s.score >= 50 ? '#cba258' : '#c82014';
+                return React.createElement('div', { key:si, style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'6px' } },
+                  React.createElement('div', { style:{ width:'180px', flexShrink:0 } },
+                    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'600', color:'#374151', fontFamily:'Manrope, sans-serif' } }, s.test_name || '(무제)'),
+                    React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, [s.subject, s.test_date].filter(Boolean).join(' · '))
+                  ),
+                  React.createElement('span', { style:{ width:'90px', fontSize:'11px', color:'#9ca3af', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, (s.teachers && s.teachers.name) ? s.teachers.name + ' 선생님' : ''),
+                  React.createElement('div', { style:{ flex:1, height:'14px', background:'#f3f4f6', borderRadius:'7px', overflow:'hidden' } },
+                    React.createElement('div', { style:{ width:pct+'%', height:'100%', background:color, borderRadius:'7px' } })
+                  ),
+                  React.createElement('span', { style:{ width:'44px', fontSize:'13px', fontWeight:'700', color:color, textAlign:'right', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, s.score+'점')
+                );
+              })
         )
       );
     })
