@@ -108,6 +108,12 @@ const [recordsTeacherFilter, setRecordsTeacherFilter] = React.useState('전체')
 const [recordsTypeFilter, setRecordsTypeFilter] = React.useState('전체');
 const [recordsSearch, setRecordsSearch] = React.useState('');
 const [classStudents, setClassStudents] = React.useState({}); // { class_id: [student_id, ...] }
+const [adminAnalysis, setAdminAnalysis] = React.useState([]);
+const [analysisClassId, setAnalysisClassId] = React.useState('');
+const [analysisSubject, setAnalysisSubject] = React.useState('전체');
+const [analysisTestName, setAnalysisTestName] = React.useState('전체');
+const [analysisTeacherId, setAnalysisTeacherId] = React.useState('전체');
+const [analysisSearch, setAnalysisSearch] = React.useState('');
 const [classManageDrafts, setClassManageDrafts] = React.useState({}); // { teacher_id: { name, grade, subject, level } }
 const [expandedClassId, setExpandedClassId] = React.useState(null);
 const [classStudentSearch, setClassStudentSearch] = React.useState('');
@@ -199,6 +205,11 @@ if (clsStudents) {
   });
   setClassStudents(grouped);
 }
+
+const { data: scores } = await sb.from('test_scores')
+  .select('*, students(name, grade, school), teachers(name)')
+  .order('test_date', { ascending: false });
+if (scores) setAdminAnalysis(scores);
 }
 
 async function createTeacherClass(teacher, draft) {
@@ -481,6 +492,7 @@ const tabs = [
 { id:'member',  label:'회원 정보' },
 { id:'teacher', label:'선생님 관리' },
 { id:'records', label:'선생님 기록' },
+{ id:'analysis',label:'성적 분석' },
 { id:'views',   label:'학습 현황' },
 { id:'feature', label:'섹션 편집' },
 ];
@@ -1704,6 +1716,126 @@ React.createElement('input', {
           React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', marginLeft:'auto' } }, r.note_date || (r.created_at||'').slice(0,10))
         ),
         React.createElement('p', { style:{ margin:0, fontSize:'14px', color:'rgba(0,0,0,0.75)', lineHeight:'1.7', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' } }, r.content || '')
+      );
+    })
+  );
+})()
+),
+
+/* ── 성적 분석 TAB ── */
+tab==='analysis' && React.createElement('div', null,
+React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '성적 분석'),
+React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '선생님이 등록한 시험 성적을 통합해서 확인합니다.'),
+
+React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px' } },
+React.createElement('select', {
+  value: analysisClassId,
+  onChange: function(e){ setAnalysisClassId(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'' }, '반 전체'),
+  (teacherClasses || []).filter(function(c){ return c.grade; }).map(function(c){ return React.createElement('option', { key:c.id, value:String(c.id) }, c.name); })
+),
+React.createElement('select', {
+  value: analysisTeacherId,
+  onChange: function(e){ setAnalysisTeacherId(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '선생님 전체'),
+  dbTeacherProfiles.map(function(t){ return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님'); })
+),
+React.createElement('select', {
+  value: analysisSubject,
+  onChange: function(e){ setAnalysisSubject(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '과목 전체'),
+  SUBJECTS.map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+),
+React.createElement('select', {
+  value: analysisTestName,
+  onChange: function(e){ setAnalysisTestName(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '시험 전체'),
+  Array.from(new Set((adminAnalysis || []).map(function(s){ return s.test_name; }).filter(Boolean))).map(function(n){ return React.createElement('option', { key:n, value:n }, n); })
+),
+React.createElement('input', {
+  value: analysisSearch,
+  onChange: function(e){ setAnalysisSearch(e.target.value); },
+  placeholder: '학생명·선생님명 검색',
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'180px', flex:1 }
+})
+),
+
+(function(){
+  var q = analysisSearch.trim().toLowerCase();
+  var allowedStudentIds = analysisClassId ? new Set((classStudents[analysisClassId] || []).map(String)) : null;
+  var filtered = (adminAnalysis || []).filter(function(s){
+    if (allowedStudentIds && !allowedStudentIds.has(String(s.student_id))) return false;
+    if (analysisTeacherId !== '전체' && String(s.teacher_id) !== String(analysisTeacherId)) return false;
+    if (analysisSubject !== '전체' && s.subject !== analysisSubject) return false;
+    if (analysisTestName !== '전체' && s.test_name !== analysisTestName) return false;
+    if (q) {
+      var hay = [s.students && s.students.name, s.teachers && s.teachers.name, s.test_name, s.subject].filter(Boolean).join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+  if (filtered.length === 0) {
+    return React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '등록된 성적이 없습니다');
+  }
+  var vals = filtered.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
+  var avg = vals.length ? (vals.reduce(function(a,b){ return a+b; },0)/vals.length).toFixed(1) : '-';
+  var max = vals.length ? Math.max.apply(null, vals) : '-';
+  var min = vals.length ? Math.min.apply(null, vals) : '-';
+  var byTest = {};
+  filtered.forEach(function(s){
+    var key = (s.test_date||'') + '_' + (s.test_name||'') + '_' + (s.subject||'');
+    if (!byTest[key]) byTest[key] = { test_name: s.test_name || '(무제)', subject: s.subject || '', date: s.test_date || '', scores: [] };
+    byTest[key].scores.push(s);
+  });
+  var groups = Object.values(byTest).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+
+  return React.createElement('div', null,
+    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'10px', marginBottom:'20px' } },
+      [
+        { label:'총 시험', val: groups.length+'회' },
+        { label:'평균', val: avg+'점' },
+        { label:'최고', val: max+'점' },
+        { label:'최저', val: min+'점' },
+      ].map(function(item){
+        return React.createElement('div', { key:item.label, style:{ background:'#fff', borderRadius:'10px', padding:'14px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14)' } },
+          React.createElement('div', { style:{ fontSize:'20px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, item.val),
+          React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'3px' } }, item.label)
+        );
+      })
+    ),
+    groups.map(function(g, gi){
+      var gVals = g.scores.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
+      var gAvg = gVals.length ? (gVals.reduce(function(a,b){ return a+b; },0)/gVals.length).toFixed(1) : '-';
+      return React.createElement('div', { key:gi, style:{ marginBottom:'14px', border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden' } },
+        React.createElement('div', { style:{ background:'#1E3932', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' } },
+          React.createElement('div', null,
+            React.createElement('span', { style:{ fontWeight:'800', color:'#fff', fontSize:'14px', fontFamily:'Manrope, sans-serif' } }, g.test_name),
+            React.createElement('span', { style:{ color:'rgba(255,255,255,0.6)', fontSize:'12px', marginLeft:'10px', fontFamily:'Manrope, sans-serif' } }, g.subject + (g.date ? ' · ' + g.date : ''))
+          ),
+          React.createElement('span', { style:{ color:'rgba(255,255,255,0.85)', fontSize:'12px', fontFamily:'Manrope, sans-serif' } }, g.scores.length + '명 · 평균 ' + gAvg + '점')
+        ),
+        React.createElement('div', { style:{ padding:'12px 16px' } },
+          g.scores.slice().sort(function(a,b){ return (Number(b.score)||0) - (Number(a.score)||0); }).map(function(s, si){
+            var pct = Math.max(0, Math.min(100, Math.round(Number(s.score) || 0)));
+            var color = s.score >= 90 ? '#006241' : s.score >= 70 ? '#2b5148' : s.score >= 50 ? '#cba258' : '#c82014';
+            return React.createElement('div', { key:si, style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'6px' } },
+              React.createElement('span', { style:{ width:'90px', fontSize:'13px', fontWeight:'600', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, (s.students && s.students.name) || '학생'),
+              React.createElement('span', { style:{ width:'90px', fontSize:'11px', color:'#9ca3af', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, (s.teachers && s.teachers.name) ? s.teachers.name + ' 선생님' : ''),
+              React.createElement('div', { style:{ flex:1, height:'14px', background:'#f3f4f6', borderRadius:'7px', overflow:'hidden' } },
+                React.createElement('div', { style:{ width:pct+'%', height:'100%', background:color, borderRadius:'7px' } })
+              ),
+              React.createElement('span', { style:{ width:'44px', fontSize:'13px', fontWeight:'700', color:color, textAlign:'right', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, s.score+'점')
+            );
+          })
+        )
       );
     })
   );

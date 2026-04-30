@@ -23,6 +23,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [statsClassId, setStatsClassId] = React.useState('');
   const [statsStudentId, setStatsStudentId] = React.useState('');
   const [loadingStats, setLoadingStats] = React.useState(false);
+  // 성적 분석 (선생님 공유)
+  const [scoreAnalysis, setScoreAnalysis] = React.useState([]);
+  const [analysisLoading, setAnalysisLoading] = React.useState(false);
+  const [analysisClassId, setAnalysisClassId] = React.useState('');
+  const [analysisSubject, setAnalysisSubject] = React.useState('전체');
+  const [analysisTestName, setAnalysisTestName] = React.useState('전체');
+  const [analysisSearch, setAnalysisSearch] = React.useState('');
+  const [analysisClassStudents, setAnalysisClassStudents] = React.useState({}); // { class_id: [student_id, ...] }
 
   const [testInfo, setTestInfo] = React.useState({
     reportPeriod: "주간",
@@ -569,6 +577,26 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     await loadNotes();
   }
 
+  async function loadScoreAnalysis() {
+    setAnalysisLoading(true);
+    const { data, error } = await sb
+      .from("test_scores")
+      .select("*, students(name, grade, school), teachers(name)")
+      .order("test_date", { ascending: false });
+    if (error) { console.error("loadScoreAnalysis error:", error); setScoreAnalysis([]); setAnalysisLoading(false); return; }
+    setScoreAnalysis(data || []);
+    const { data: links } = await sb.from("class_students").select("class_id, student_id");
+    if (links) {
+      const grouped = {};
+      links.forEach(function(row){
+        if (!grouped[row.class_id]) grouped[row.class_id] = [];
+        grouped[row.class_id].push(row.student_id);
+      });
+      setAnalysisClassStudents(grouped);
+    }
+    setAnalysisLoading(false);
+  }
+
   async function loadScoreHistory() {
     if (!teacherInfo) return;
     setLoadingStats(true);
@@ -621,10 +649,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
   // 4탭 구조 렌더링
   const TABS = [
-    { id: "classes", label: "담당 클래스" },
-    { id: "lecture", label: "강의 추가" },
-    { id: "notes",   label: "특이사항" },
-    { id: "stats",   label: "성적 등록" },
+    { id: "classes",  label: "담당 클래스" },
+    { id: "lecture",  label: "강의 추가" },
+    { id: "notes",    label: "특이사항" },
+    { id: "stats",    label: "성적 등록" },
+    { id: "analysis", label: "성적 분석" },
   ];
 
   return (
@@ -638,7 +667,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       {/* 탭 네비 */}
       <div style={{ background: "#fff", borderBottom: "1px solid rgba(0,0,0,0.08)", display: "flex", gap: 0, overflowX: "auto" }}>
         {TABS.map(t =>
-          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); }}
+          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); if(t.id==="analysis") loadScoreAnalysis(); }}
             style={{ padding: "16px 24px", background: "none", border: "none", borderBottom: teacherView===t.id ? "2px solid #006241" : "2px solid transparent", fontSize: "14px", fontWeight: "700", color: teacherView===t.id ? "#006241" : "rgba(0,0,0,0.55)", cursor: "pointer", fontFamily: "Manrope, sans-serif", whiteSpace: "nowrap" }}>
             {t.label}
           </button>
@@ -873,6 +902,106 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <button style={buttonStyle} onClick={saveAllScores}>선택 학생 성적 저장</button>
             </>
           )}
+        </div>
+      )}
+
+      {/* ── 탭5: 성적 분석 ── */}
+      {teacherView === "analysis" && (
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <h2 style={{ marginBottom: "4px" }}>성적 분석</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>모든 선생님이 등록한 성적을 함께 확인할 수 있습니다.</p>
+
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+            <select style={{ ...inputStyle, maxWidth: "200px" }} value={analysisClassId} onChange={e => setAnalysisClassId(e.target.value)}>
+              <option value="">반 전체</option>
+              {availableClassCards.map(cls => <option key={cls.id} value={String(cls.id)}>{cls.name}</option>)}
+            </select>
+            <select style={{ ...inputStyle, maxWidth: "140px" }} value={analysisSubject} onChange={e => setAnalysisSubject(e.target.value)}>
+              <option value="전체">과목 전체</option>
+              {["국어","영어","수학","과학"].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select style={{ ...inputStyle, maxWidth: "200px" }} value={analysisTestName} onChange={e => setAnalysisTestName(e.target.value)}>
+              <option value="전체">시험 전체</option>
+              {Array.from(new Set(scoreAnalysis.map(s => s.test_name).filter(Boolean))).map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <input style={{ ...inputStyle, minWidth: "180px", flex: 1 }} placeholder="학생명·선생님명 검색" value={analysisSearch} onChange={e => setAnalysisSearch(e.target.value)} />
+            <button style={lightButtonStyle} onClick={loadScoreAnalysis}>{analysisLoading ? "로딩 중..." : "새로고침"}</button>
+          </div>
+
+          {analysisLoading ? (
+            <div style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>로딩 중...</div>
+          ) : (() => {
+            const q = analysisSearch.trim().toLowerCase();
+            const allowedStudentIds = analysisClassId ? new Set((analysisClassStudents[analysisClassId] || []).map(String)) : null;
+            const filtered = scoreAnalysis.filter(s => {
+              if (allowedStudentIds && !allowedStudentIds.has(String(s.student_id))) return false;
+              if (analysisSubject !== "전체" && s.subject !== analysisSubject) return false;
+              if (analysisTestName !== "전체" && s.test_name !== analysisTestName) return false;
+              if (q) {
+                const hay = [s.students?.name, s.teachers?.name, s.test_name, s.subject].filter(Boolean).join(" ").toLowerCase();
+                if (hay.indexOf(q) < 0) return false;
+              }
+              return true;
+            });
+            if (filtered.length === 0) return <div style={{ color: "#6b7280", textAlign: "center", padding: "32px" }}>등록된 성적이 없습니다.</div>;
+
+            const vals = filtered.map(s => Number(s.score)).filter(v => !isNaN(v));
+            const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : "-";
+            const max = vals.length ? Math.max(...vals) : "-";
+            const min = vals.length ? Math.min(...vals) : "-";
+
+            const byTest = {};
+            filtered.forEach(s => {
+              const key = `${s.test_date || ''}_${s.test_name || ''}_${s.subject || ''}`;
+              if (!byTest[key]) byTest[key] = { test_name: s.test_name || "(무제)", subject: s.subject || "", date: s.test_date || "", scores: [] };
+              byTest[key].scores.push(s);
+            });
+            const groups = Object.values(byTest).sort((a,b) => (b.date||"").localeCompare(a.date||""));
+
+            return (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "20px" }}>
+                  {[{label:"총 시험", val: groups.length+"회"},{label:"평균", val: avg+"점"},{label:"최고", val: max+"점"},{label:"최저", val: min+"점"}].map(item => (
+                    <div key={item.label} style={{ background: "#f9fafb", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
+                      <div style={{ fontSize: "20px", fontWeight: "800", color: "#006241", fontFamily: "Manrope, sans-serif" }}>{item.val}</div>
+                      <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px", fontFamily: "Manrope, sans-serif" }}>{item.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {groups.map((g, gi) => {
+                  const gVals = g.scores.map(s => Number(s.score)).filter(v => !isNaN(v));
+                  const gAvg = gVals.length ? (gVals.reduce((a,b)=>a+b,0)/gVals.length).toFixed(1) : "-";
+                  return (
+                    <div key={gi} style={{ marginBottom: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
+                      <div style={{ background: "#1E3932", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                        <div>
+                          <span style={{ fontWeight: "800", color: "#fff", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>{g.test_name}</span>
+                          <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginLeft: "10px", fontFamily: "Manrope, sans-serif" }}>{g.subject}{g.date ? ` · ${g.date}` : ""}</span>
+                        </div>
+                        <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "12px", fontFamily: "Manrope, sans-serif" }}>{g.scores.length}명 · 평균 {gAvg}점</span>
+                      </div>
+                      <div style={{ padding: "12px 16px" }}>
+                        {g.scores.slice().sort((a,b) => (Number(b.score)||0) - (Number(a.score)||0)).map((s, si) => {
+                          const pct = Math.max(0, Math.min(100, Math.round(Number(s.score) || 0)));
+                          const color = s.score >= 90 ? "#006241" : s.score >= 70 ? "#2b5148" : s.score >= 50 ? "#cba258" : "#c82014";
+                          return (
+                            <div key={si} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                              <span style={{ width: "90px", fontSize: "13px", fontWeight: "600", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.students?.name || "학생"}</span>
+                              <span style={{ width: "72px", fontSize: "11px", color: "#9ca3af", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.teachers?.name ? `${s.teachers.name} 선생님` : ""}</span>
+                              <div style={{ flex: 1, height: "14px", background: "#f3f4f6", borderRadius: "7px", overflow: "hidden" }}>
+                                <div style={{ width: pct+"%", height: "100%", background: color, borderRadius: "7px" }} />
+                              </div>
+                              <span style={{ width: "44px", fontSize: "13px", fontWeight: "700", color, textAlign: "right", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.score}점</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
         </div>
       )}
 
