@@ -583,9 +583,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setAnalysisLoading(true);
     const { data, error } = await sb
       .from("test_scores")
-      .select("*, students(name, grade, school), teachers(name)")
+      .select("*, students!test_scores_student_id_fkey(name, grade, school), teachers!test_scores_teacher_id_fkey(name)")
       .order("test_date", { ascending: false });
-    if (error) { console.error("loadScoreAnalysis error:", error); setScoreAnalysis([]); setAnalysisLoading(false); return; }
+    if (error) { console.error("loadScoreAnalysis error:", error.message || error); setScoreAnalysis([]); setAnalysisLoading(false); return; }
     setScoreAnalysis(data || []);
     const { data: links } = await sb.from("class_students").select("class_id, student_id");
     if (links) {

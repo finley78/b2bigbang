@@ -206,9 +206,10 @@ if (clsStudents) {
   setClassStudents(grouped);
 }
 
-const { data: scores } = await sb.from('test_scores')
-  .select('*, students(name, grade, school), teachers(name)')
+const { data: scores, error: scoresError } = await sb.from('test_scores')
+  .select('*, students!test_scores_student_id_fkey(name, grade, school), teachers!test_scores_teacher_id_fkey(name)')
   .order('test_date', { ascending: false });
+if (scoresError) console.error('test_scores load error:', scoresError.message || scoresError);
 if (scores) setAdminAnalysis(scores);
 }
 
