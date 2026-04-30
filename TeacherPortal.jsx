@@ -16,7 +16,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [teacherView, setTeacherView] = React.useState("home");
   // 업무일지
   const [teacherNotes, setTeacherNotes] = React.useState([]);
-  const [noteDraft, setNoteDraft] = React.useState({ date: new Date().toISOString().slice(0,10), type: '특이사항', studentId: '', content: '' });
+  const [noteDraft, setNoteDraft] = React.useState({ date: new Date().toISOString().slice(0,10), content: '' });
   const [savingNote, setSavingNote] = React.useState(false);
   // 성적 현황/통계
   const [scoreHistory, setScoreHistory] = React.useState([]);
@@ -553,14 +553,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setSavingNote(true);
     const { error } = await sb.from("teacher_notes").insert({
       teacher_id: teacherInfo.id,
-      student_id: noteDraft.studentId || null,
-      note_type: noteDraft.type,
+      student_id: null,
+      note_type: '특이사항',
       note_date: noteDraft.date,
       content: noteDraft.content.trim(),
     });
     setSavingNote(false);
     if (error) { alert("저장 실패: " + error.message); return; }
-    setNoteDraft({ date: new Date().toISOString().slice(0,10), type: '특이사항', studentId: '', content: '' });
+    setNoteDraft({ date: new Date().toISOString().slice(0,10), content: '' });
     await loadNotes();
   }
 
@@ -783,24 +783,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
           {/* 작성 폼 */}
           <div style={{ background: "#f9fafb", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "10px" }}>
-              <div>
-                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>날짜</label>
-                <input style={inputStyle} type="date" value={noteDraft.date} onChange={e => setNoteDraft(p => ({...p, date: e.target.value}))} />
-              </div>
-              <div>
-                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>유형</label>
-                <select style={inputStyle} value={noteDraft.type} onChange={e => setNoteDraft(p => ({...p, type: e.target.value}))}>
-                  {["특이사항","학습태도","상담","과제","기타"].map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>학생 (선택)</label>
-                <select style={inputStyle} value={noteDraft.studentId} onChange={e => setNoteDraft(p => ({...p, studentId: e.target.value}))}>
-                  <option value="">전체/미지정</option>
-                  {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
+            <div style={{ marginBottom: "10px", maxWidth: "200px" }}>
+              <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>날짜</label>
+              <input style={inputStyle} type="date" value={noteDraft.date} onChange={e => setNoteDraft(p => ({...p, date: e.target.value}))} />
             </div>
             <div style={{ marginBottom: "10px" }}>
               <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>내용</label>
