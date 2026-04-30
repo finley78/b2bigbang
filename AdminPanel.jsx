@@ -97,6 +97,16 @@ const [acLevel, setAcLevel] = React.useState('전체');
 const [acGrade, setAcGrade] = React.useState('전체');
 const [acTeacher, setAcTeacher] = React.useState('전체');
 const [acName, setAcName] = React.useState('');
+const [viewsLevel, setViewsLevel] = React.useState('전체');
+const [viewsGrade, setViewsGrade] = React.useState('전체');
+const [viewsCourse, setViewsCourse] = React.useState('전체');
+const [viewsSearch, setViewsSearch] = React.useState('');
+const [viewsExpandedId, setViewsExpandedId] = React.useState(null);
+const [viewsDataMap, setViewsDataMap] = React.useState({});
+const [adminRecords, setAdminRecords] = React.useState([]);
+const [recordsTeacherFilter, setRecordsTeacherFilter] = React.useState('전체');
+const [recordsTypeFilter, setRecordsTypeFilter] = React.useState('전체');
+const [recordsSearch, setRecordsSearch] = React.useState('');
 
 const sb = window.supabase;
 
@@ -170,6 +180,20 @@ if (classRows) setTeacherClasses(classRows);
 
 const { data: pending } = await sb.from('students').select('*').in('role', ['pending_student','pending_parent','pending_teacher']);
 if (pending) setDbPending(pending.map(p => ({ id: p.id, name: p.name, phone: p.phone, role: p.role, grade: p.grade, school: p.school })));
+
+const { data: notes } = await sb.from('teacher_notes')
+.select('*, students(name, grade, school), teachers(name)')
+.order('note_date', { ascending: false });
+if (notes) setAdminRecords(notes);
+}
+
+async function loadStudentViews(studentId) {
+if (viewsDataMap[studentId]) return;
+const { data } = await sb.from('video_views')
+.select('*, videos(title, course_id), courses(title, subjects(name))')
+.eq('student_id', studentId)
+.order('last_watched_at', { ascending: false });
+setViewsDataMap(function(prev){ var n = Object.assign({}, prev); n[studentId] = data || []; return n; });
 }
 
 async function updateStudentGrade(studentId, grade) {
@@ -1456,116 +1480,227 @@ React.createElement('div', { style:{ marginTop:'12px', paddingTop:'12px', border
 )
 ),
 
+/* ── 선생님 기록 TAB ── */
+tab==='records' && React.createElement('div', null,
+React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '선생님 기록'),
+React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '선생님이 등록한 학생 특이사항·상담 기록을 확인합니다.'),
+
+React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px' } },
+React.createElement('select', {
+  value: recordsTeacherFilter,
+  onChange: function(e) { setRecordsTeacherFilter(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '선생님 전체'),
+  dbTeacherProfiles.map(function(t){ return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님'); })
+),
+React.createElement('select', {
+  value: recordsTypeFilter,
+  onChange: function(e) { setRecordsTypeFilter(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '유형 전체'),
+  ['특이사항','학습태도','상담','과제','기타'].map(function(t){ return React.createElement('option', { key:t, value:t }, t); })
+),
+React.createElement('input', {
+  value: recordsSearch,
+  onChange: function(e) { setRecordsSearch(e.target.value); },
+  placeholder: '학생명·내용 검색',
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'200px', flex:1 }
+})
+),
+
+(function() {
+  var q = recordsSearch.trim().toLowerCase();
+  var filtered = (adminRecords || []).filter(function(r) {
+    if (recordsTeacherFilter !== '전체' && String(r.teacher_id) !== String(recordsTeacherFilter)) return false;
+    if (recordsTypeFilter !== '전체' && r.note_type !== recordsTypeFilter) return false;
+    if (q) {
+      var hay = [r.students?.name, r.teachers?.name, r.note_type, r.content].filter(Boolean).join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    return React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '기록이 없습니다');
+  }
+
+  return React.createElement('div', null,
+    React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', padding:'8px 18px', marginBottom:'4px' } }, filtered.length + '건'),
+    filtered.map(function(r) {
+      return React.createElement('div', { key:r.id, style:{ ...cardS, marginBottom:'10px' } },
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'8px' } },
+          React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', background:'#ecfdf5', color:'#065f46', borderRadius:'6px', padding:'2px 10px', fontFamily:'Manrope, sans-serif' } }, r.note_type || '기록'),
+          r.students?.name && React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, r.students.name + (r.students.grade?' ('+r.students.grade+')':'')),
+          r.teachers?.name && React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '· ' + r.teachers.name + ' 선생님'),
+          React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', marginLeft:'auto' } }, r.note_date || (r.created_at||'').slice(0,10))
+        ),
+        React.createElement('p', { style:{ margin:0, fontSize:'14px', color:'rgba(0,0,0,0.75)', lineHeight:'1.7', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' } }, r.content || '')
+      );
+    })
+  );
+})()
+),
+
 /* ── 학습 현황 TAB ── */
 tab==='views' && React.createElement('div', null,
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '학습 현황'),
 React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '학생별 영상 시청 이력과 학습 진도를 확인합니다.'),
 
-// 필터
+// 필터: 초중고 / 학년 / 강좌 / 검색
 React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px' } },
 React.createElement('select', {
-  id: 'viewsStudentFilter',
-  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' },
-  onChange: async function(e) {
-    var sid = e.target.value;
-    window._viewsStudentId = sid;
-    if (!sid) { window._viewsData = null; setState(function(s){ return {...s}; }); return; }
-    var { data } = await sb.from('video_views')
-      .select('*, videos(title, course_id), courses(title, subjects(name))')
-      .eq('student_id', sid)
-      .order('last_watched_at', { ascending: false });
-    window._viewsData = data || [];
-    setState(function(s){ return {...s}; });
-  }
+  value: viewsLevel,
+  onChange: function(e) { setViewsLevel(e.target.value); setViewsGrade('전체'); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
 },
-  React.createElement('option', { value:'' }, '학생 선택'),
-  dbStudents.map(function(s){
-    return React.createElement('option', { key:s.id, value:s.id }, s.name + (s.grade ? ' ('+s.grade+')' : ''));
-  })
+  React.createElement('option', { value:'전체' }, '초중고'),
+  React.createElement('option', { value:'초등' }, '초등'),
+  React.createElement('option', { value:'중등' }, '중등'),
+  React.createElement('option', { value:'고등' }, '고등')
 ),
 React.createElement('select', {
-  id: 'viewsCourseFilter',
-  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' },
-  onChange: async function(e) {
-    var cid = e.target.value;
-    window._viewsCourseId = cid;
-    setState(function(s){ return {...s}; });
-  }
+  value: viewsGrade,
+  onChange: function(e) { setViewsGrade(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
 },
-  React.createElement('option', { value:'' }, '강좌 전체'),
-  state.courses.map(function(c){
-    return React.createElement('option', { key:c.id, value:String(c.id) }, c.name + (c.subject?' ('+c.subject+')':''));
-  })
-)
+  React.createElement('option', { value:'전체' }, '학년'),
+  (viewsLevel === '전체'
+    ? ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3']
+    : SCHOOL_LEVELS[viewsLevel].grades
+  ).map(function(g){ return React.createElement('option',{key:g,value:g},g); })
+),
+React.createElement('select', {
+  value: viewsCourse,
+  onChange: function(e) { setViewsCourse(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '강좌'),
+  state.courses.map(function(c){ return React.createElement('option', { key:c.id, value:String(c.id) }, c.name + (c.subject?' ('+c.subject+')':'')); })
+),
+React.createElement('input', {
+  value: viewsSearch,
+  onChange: function(e) { setViewsSearch(e.target.value); },
+  placeholder: '학생명·학교·전화 검색',
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'200px', flex:1 }
+})
 ),
 
-// 학습 현황 표시
-(!window._viewsData || window._viewsData.length === 0)
-? React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, window._viewsStudentId ? '학습 이력이 없습니다' : '학생을 선택해 주세요')
-: (function() {
-    var data = (window._viewsData || []).filter(function(v) {
-      if (window._viewsCourseId && String(v.course_id) !== String(window._viewsCourseId)) return false;
-      return true;
-    });
+// 학습 현황 표시: 필터된 학생 목록 + 펼치면 영상 시청 이력
+(function() {
+  var q = viewsSearch.trim().toLowerCase();
+  var filtered = dbStudents.filter(function(st) {
+    if (viewsLevel !== '전체') {
+      var lvGrades = SCHOOL_LEVELS[viewsLevel].grades;
+      if (!lvGrades.includes(st.grade)) return false;
+    }
+    if (viewsGrade !== '전체' && st.grade !== viewsGrade) return false;
+    if (viewsCourse !== '전체') {
+      if (!(st.enrolledCourses || []).map(String).includes(String(viewsCourse))) return false;
+    }
+    if (q) {
+      var hay = [st.name, st.school, st.phone, st.parent_phone, st.grade].filter(Boolean).join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
 
-    // 강좌별 그룹
-    var byCourse = {};
-    data.forEach(function(v) {
-      var cTitle = v.courses?.title || '알 수 없는 강좌';
-      var cSubj = v.courses?.subjects?.name || '';
-      var key = String(v.course_id);
-      if (!byCourse[key]) byCourse[key] = { title: cTitle, subject: cSubj, videos: [] };
-      byCourse[key].videos.push(v);
-    });
+  if (filtered.length === 0) {
+    return React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '해당하는 학생이 없습니다');
+  }
 
-    var totalVideos = data.length;
-    var completed = data.filter(function(v){ return v.progress_pct >= 90; }).length;
-    var avgProgress = totalVideos > 0 ? Math.round(data.reduce(function(s,v){ return s + (v.progress_pct||0); }, 0) / totalVideos) : 0;
+  return React.createElement('div', null,
+    React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', padding:'8px 18px', marginBottom:'4px' } }, filtered.length + '명'),
+    filtered.map(function(st) {
+      var isOpen = viewsExpandedId === st.id;
+      var data = (viewsDataMap[st.id] || []).filter(function(v) {
+        if (viewsCourse !== '전체' && String(v.course_id) !== String(viewsCourse)) return false;
+        return true;
+      });
 
-    return React.createElement('div', null,
-      // 요약
-      React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'10px', marginBottom:'20px' } },
-        [
-          { label:'시청 강의', val: totalVideos + '개' },
-          { label:'완료 강의 (90%+)', val: completed + '개' },
-          { label:'평균 진도', val: avgProgress + '%' },
-          { label:'완료율', val: (totalVideos > 0 ? Math.round(completed/totalVideos*100) : 0) + '%' },
-        ].map(function(item) {
-          return React.createElement('div', { key:item.label, style:{ background:'#fff', borderRadius:'10px', padding:'14px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14)' } },
-            React.createElement('div', { style:{ fontSize:'20px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, item.val),
-            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'3px' } }, item.label)
-          );
-        })
-      ),
-      // 강좌별 상세
-      Object.values(byCourse).map(function(group, gi) {
-        var groupCompleted = group.videos.filter(function(v){ return v.progress_pct >= 90; }).length;
-        return React.createElement('div', { key:gi, style:{ marginBottom:'14px', border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden' } },
-          React.createElement('div', { style:{ background:'#1E3932', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' } },
-            React.createElement('span', { style:{ fontWeight:'800', color:'#fff', fontSize:'14px', fontFamily:'Manrope, sans-serif' } }, group.title + (group.subject ? ' · ' + group.subject : '')),
-            React.createElement('span', { style:{ color:'rgba(255,255,255,0.7)', fontSize:'12px', fontFamily:'Manrope, sans-serif' } }, groupCompleted + '/' + group.videos.length + '강 완료')
+      return React.createElement('div', { key:st.id, style:{ ...cardS, border: isOpen?'2px solid #1E3932':'2px solid transparent', transition:'border 0.15s' } },
+        React.createElement('div', {
+          style:{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer' },
+          onClick: function(){
+            if (isOpen) { setViewsExpandedId(null); }
+            else { setViewsExpandedId(st.id); loadStudentViews(st.id); }
+          }
+        },
+          React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#d4e9e2', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name[0]),
+          React.createElement('div', { style:{ flex:1, minWidth:0 } },
+            React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.name),
+            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [st.school, st.grade, st.phone].filter(Boolean).join(' · ') || '정보 없음')
           ),
-          React.createElement('div', { style:{ padding:'10px 16px' } },
-            group.videos.map(function(v, vi) {
-              var pct = v.progress_pct || 0;
-              var color = pct >= 90 ? '#006241' : pct >= 50 ? '#cba258' : '#e5e7eb';
-              var textColor = pct >= 90 ? '#006241' : pct >= 50 ? '#cba258' : 'rgba(0,0,0,0.3)';
-              var lastWatched = v.last_watched_at ? v.last_watched_at.slice(0,10) : '—';
-              return React.createElement('div', { key:vi, style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px', padding:'6px 0', borderBottom: vi < group.videos.length-1 ? '1px solid #f3f4f6' : 'none' } },
-                React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, v.videos?.title || '강의'),
-                React.createElement('div', { style:{ width:'80px', height:'6px', background:'#f3f4f6', borderRadius:'3px', overflow:'hidden', flexShrink:0 } },
-                  React.createElement('div', { style:{ width:pct+'%', height:'100%', background:color, borderRadius:'3px' } })
-                ),
-                React.createElement('span', { style:{ width:'32px', fontSize:'11px', fontWeight:'700', color:textColor, textAlign:'right', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, pct+'%'),
-                React.createElement('span', { style:{ width:'28px', fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.4)', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, v.view_count||0+'회'),
-                React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.3)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, lastWatched)
-              );
-            })
-          )
-        );
-      })
-    );
-  })()
+          st.grade && React.createElement('span', { style:{ background:'#1E3932', color:'#fff', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, st.grade),
+          React.createElement('span', { style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', transition:'transform 0.2s', transform: isOpen?'rotate(180deg)':'none', flexShrink:0 } }, '▾')
+        ),
+
+        isOpen && React.createElement('div', { style:{ marginTop:'14px', paddingTop:'14px', borderTop:'1px solid rgba(0,0,0,0.08)' } },
+          (function() {
+            if (!viewsDataMap[st.id]) {
+              return React.createElement('div', { style:{ textAlign:'center', color:'rgba(0,0,0,0.4)', fontSize:'13px', fontFamily:'Manrope, sans-serif', padding:'14px' } }, '불러오는 중...');
+            }
+            if (data.length === 0) {
+              return React.createElement('div', { style:{ textAlign:'center', color:'rgba(0,0,0,0.4)', fontSize:'13px', fontFamily:'Manrope, sans-serif', padding:'14px' } }, '학습 이력이 없습니다');
+            }
+
+            var byCourse = {};
+            data.forEach(function(v) {
+              var key = String(v.course_id);
+              if (!byCourse[key]) byCourse[key] = { title: v.courses?.title || '알 수 없는 강좌', subject: v.courses?.subjects?.name || '', videos: [] };
+              byCourse[key].videos.push(v);
+            });
+            var totalVideos = data.length;
+            var completed = data.filter(function(v){ return v.progress_pct >= 90; }).length;
+            var avgProgress = totalVideos > 0 ? Math.round(data.reduce(function(a,v){ return a + (v.progress_pct||0); }, 0) / totalVideos) : 0;
+
+            return React.createElement('div', null,
+              React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'10px', marginBottom:'14px' } },
+                [
+                  { label:'시청 강의', val: totalVideos + '개' },
+                  { label:'완료 (90%+)', val: completed + '개' },
+                  { label:'평균 진도', val: avgProgress + '%' },
+                  { label:'완료율', val: (totalVideos > 0 ? Math.round(completed/totalVideos*100) : 0) + '%' },
+                ].map(function(item) {
+                  return React.createElement('div', { key:item.label, style:{ background:'#f9f9f9', borderRadius:'10px', padding:'12px', textAlign:'center' } },
+                    React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, item.val),
+                    React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'3px' } }, item.label)
+                  );
+                })
+              ),
+              Object.values(byCourse).map(function(group, gi) {
+                var groupCompleted = group.videos.filter(function(v){ return v.progress_pct >= 90; }).length;
+                return React.createElement('div', { key:gi, style:{ marginBottom:'10px', border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden' } },
+                  React.createElement('div', { style:{ background:'#1E3932', padding:'8px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' } },
+                    React.createElement('span', { style:{ fontWeight:'800', color:'#fff', fontSize:'13px', fontFamily:'Manrope, sans-serif' } }, group.title + (group.subject ? ' · ' + group.subject : '')),
+                    React.createElement('span', { style:{ color:'rgba(255,255,255,0.7)', fontSize:'11px', fontFamily:'Manrope, sans-serif' } }, groupCompleted + '/' + group.videos.length + '강 완료')
+                  ),
+                  React.createElement('div', { style:{ padding:'10px 14px' } },
+                    group.videos.map(function(v, vi) {
+                      var pct = v.progress_pct || 0;
+                      var color = pct >= 90 ? '#006241' : pct >= 50 ? '#cba258' : '#e5e7eb';
+                      var textColor = pct >= 90 ? '#006241' : pct >= 50 ? '#cba258' : 'rgba(0,0,0,0.3)';
+                      var lastWatched = v.last_watched_at ? v.last_watched_at.slice(0,10) : '—';
+                      return React.createElement('div', { key:vi, style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'6px', padding:'5px 0', borderBottom: vi < group.videos.length-1 ? '1px solid #f3f4f6' : 'none' } },
+                        React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, v.videos?.title || '강의'),
+                        React.createElement('div', { style:{ width:'80px', height:'6px', background:'#f3f4f6', borderRadius:'3px', overflow:'hidden', flexShrink:0 } },
+                          React.createElement('div', { style:{ width:pct+'%', height:'100%', background:color, borderRadius:'3px' } })
+                        ),
+                        React.createElement('span', { style:{ width:'32px', fontSize:'11px', fontWeight:'700', color:textColor, textAlign:'right', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, pct+'%'),
+                        React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.3)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, lastWatched)
+                      );
+                    })
+                  )
+                );
+              })
+            );
+          })()
+        )
+      );
+    })
+  );
+})()
 ),
 
 /* ── 섹션 편집 TAB ── */
