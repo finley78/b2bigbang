@@ -81,11 +81,19 @@ function appLectureVideoUrl(v) {
 }
 
 function App() {
-const [page, setPage] = React.useState('home');
-const [user, setUser] = React.useState(null);
+const [page, setPage] = React.useState(() => {
+  try { return sessionStorage.getItem('b2_page') || 'home'; } catch { return 'home'; }
+});
+const [user, setUser] = React.useState(() => {
+  try { const s = sessionStorage.getItem('b2_user'); return s ? JSON.parse(s) : null; } catch { return null; }
+});
 const [showLogin, setShowLogin] = React.useState(false);
-const [isAdmin, setIsAdmin] = React.useState(false);
-const [adminAuthed, setAdminAuthed] = React.useState(false);
+const [isAdmin, setIsAdmin] = React.useState(() => {
+  try { return sessionStorage.getItem('b2_is_admin') === 'true'; } catch { return false; }
+});
+const [adminAuthed, setAdminAuthed] = React.useState(() => {
+  try { return sessionStorage.getItem('b2_admin_authed') === 'true'; } catch { return false; }
+});
 const [state, setState] = React.useState(INITIAL_STATE);
 const [dbLoaded, setDbLoaded] = React.useState(false);
 
@@ -138,12 +146,13 @@ const p = e.state?.page || 'home';
 setPage(p);
 }
 window.addEventListener('popstate', handlePopState);
-window.history.replaceState({ page: 'home' }, '', '');
+window.history.replaceState({ page: (()=>{ try { return sessionStorage.getItem('b2_page')||'home'; } catch { return 'home'; } })() }, '', '');
 return () => window.removeEventListener('popstate', handlePopState);
 }, []);
 
 function navigate(p) {
 setPage(p);
+try { sessionStorage.setItem('b2_page', p); } catch {}
 window.history.pushState({ page: p }, '', '');
 window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -160,11 +169,15 @@ return role === 'teacher' || role === 'teachers' || role === '선생님' || role
 function handleLogin(u) {
 setUser(u);
 setShowLogin(false);
+try {
+  sessionStorage.setItem('b2_user', JSON.stringify(u));
+} catch {}
 
 const role = getUserRole(u);
 if (role === 'admin' || role === 'administrator' || role === '관리자') {
 setIsAdmin(true);
 setAdminAuthed(true);
+try { sessionStorage.setItem('b2_is_admin','true'); sessionStorage.setItem('b2_admin_authed','true'); } catch {}
 navigate('admin');
 return;
 }
@@ -182,7 +195,13 @@ navigate('portal');
 function handleLogout() {
 setUser(null);
 setIsAdmin(false);
-    setAdminAuthed(false);
+setAdminAuthed(false);
+try {
+  sessionStorage.removeItem('b2_user');
+  sessionStorage.removeItem('b2_is_admin');
+  sessionStorage.removeItem('b2_admin_authed');
+  sessionStorage.removeItem('b2_page');
+} catch {}
 navigate('home');
 }
 
@@ -207,9 +226,15 @@ showLogin && React.createElement(LoginModal, {
 onLogin: handleLogin,
 onClose: ()=>setShowLogin(false),
 onAdminLogin: ()=>{
-setUser({ id:'admin', name:'관리자', role:'admin', isAdmin:true });
+const adminUser = { id:'admin', name:'관리자', role:'admin', isAdmin:true };
+setUser(adminUser);
 setIsAdmin(true);
 setAdminAuthed(true);
+try {
+  sessionStorage.setItem('b2_user', JSON.stringify(adminUser));
+  sessionStorage.setItem('b2_is_admin','true');
+  sessionStorage.setItem('b2_admin_authed','true');
+} catch {}
 navigate('admin');
 },
 onSignup: handleSignup,
@@ -247,12 +272,12 @@ page === 'home' && React.createElement(HomePage, {
 banners: state.banners,
 slides: state.slides,
 categories: [
-{ emoji:'📐', label:'수학', page:'service', highlight:false },
-{ emoji:'📖', label:'영어', page:'service', highlight:false },
-{ emoji:'✏️', label:'국어', page:'service', highlight:false },
-{ emoji:'🔬', label:'과학', page:'service', highlight:false },
-{ emoji:'📋', label:'내신 대비', page:'service', highlight:false },
-{ emoji:'🎯', label:'수능 특강', page:'service', highlight:true },
+{ emoji:'', label:'수학', page:'service', highlight:false },
+{ emoji:'', label:'영어', page:'service', highlight:false },
+{ emoji:'', label:'국어', page:'service', highlight:false },
+{ emoji:'', label:'과학', page:'service', highlight:false },
+{ emoji:'', label:'내신 대비', page:'service', highlight:false },
+{ emoji:'', label:'수능 특강', page:'service', highlight:true },
 ],
 notices: state.notices,
 announcements: state.announcements,

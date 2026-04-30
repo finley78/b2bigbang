@@ -265,9 +265,9 @@ function ContactPage() {
       ),
       React.createElement('div', { style:{ marginTop:'24px', display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px' } },
         [
-          { icon:'📞', label:'전화 상담', val:'문의 전화', sub:'평일 9:00~20:00' },
-          { icon:'💬', label:'카카오톡', val:'카카오채널 문의', sub:'채널 검색: B2빅뱅학원' },
-          { icon:'📍', label:'방문 상담', val:'인천 검암동', sub:'사전 예약 필수' },
+          { icon:'', label:'전화 상담', val:'문의 전화', sub:'평일 9:00~20:00' },
+          { icon:'', label:'카카오톡', val:'카카오채널 문의', sub:'채널 검색: B2빅뱅학원' },
+          { icon:'', label:'방문 상담', val:'인천 검암동', sub:'사전 예약 필수' },
         ].map((item,i)=>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'16px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)' } },
             React.createElement('div', { style:{ fontSize:'22px', marginBottom:'6px' } }, item.icon),
@@ -294,10 +294,10 @@ function AboutPage() {
   }, []);
 
   const values = [
-    { icon:'🎯', title:'목표 중심 학습', desc:'단순 수업이 아닌 목표 대학과 목표 점수를 기준으로 역산한 맞춤형 커리큘럼을 제공합니다.' },
-    { icon:'👥', title:'소수 정예 수업', desc:'학생 한 명 한 명의 진도와 이해도를 파악할 수 있는 소수 정예 반 운영을 원칙으로 합니다.' },
-    { icon:'📊', title:'체계적 성과 관리', desc:'정기적인 성취도 평가와 피드백으로 학습 상태를 투명하게 관리합니다.' },
-    { icon:'💬', title:'학부모 소통', desc:'정기 상담과 알림 서비스로 학부모님과 긴밀하게 소통합니다.' },
+    { icon:'', title:'목표 중심 학습', desc:'단순 수업이 아닌 목표 대학과 목표 점수를 기준으로 역산한 맞춤형 커리큘럼을 제공합니다.' },
+    { icon:'', title:'소수 정예 수업', desc:'학생 한 명 한 명의 진도와 이해도를 파악할 수 있는 소수 정예 반 운영을 원칙으로 합니다.' },
+    { icon:'', title:'체계적 성과 관리', desc:'정기적인 성취도 평가와 피드백으로 학습 상태를 투명하게 관리합니다.' },
+    { icon:'', title:'학부모 소통', desc:'정기 상담과 알림 서비스로 학부모님과 긴밀하게 소통합니다.' },
   ];
 
   const subjects = [
@@ -329,7 +329,7 @@ function AboutPage() {
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', marginBottom:'40px' } },
         values.map((v, i) =>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
-            React.createElement('div', { style:{ fontSize:'28px', marginBottom:'12px' } }, v.icon),
+            v.icon ? React.createElement('div', { style:{ fontSize:'28px', marginBottom:'12px' } }, v.icon) : null,
             React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, v.title),
             React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } }, v.desc)
           )
@@ -359,17 +359,17 @@ function RecruitPage({ setPage }) {
   }, []);
 
   const steps = [
-    { step:'01', title:'상담 신청', desc:'전화, 카카오채널, 또는 홈페이지 문의 폼으로 상담을 신청합니다.', icon:'📞' },
-    { step:'02', title:'레벨 테스트', desc:'현재 학습 수준을 파악하기 위한 간단한 레벨 테스트를 진행합니다.', icon:'📝' },
-    { step:'03', title:'커리큘럼 상담', desc:'테스트 결과를 바탕으로 적합한 반과 커리큘럼을 안내해 드립니다.', icon:'📋' },
-    { step:'04', title:'등록 완료', desc:'등록 후 학생 포털 계정이 발급되며 온라인 강의를 이용하실 수 있습니다.', icon:'✅' },
+    { step:'01', title:'상담 신청', desc:'전화, 카카오채널, 또는 홈페이지 문의 폼으로 상담을 신청합니다.', icon:'' },
+    { step:'02', title:'레벨 테스트', desc:'현재 학습 수준을 파악하기 위한 간단한 레벨 테스트를 진행합니다.', icon:'' },
+    { step:'03', title:'커리큘럼 상담', desc:'테스트 결과를 바탕으로 적합한 반과 커리큘럼을 안내해 드립니다.', icon:'' },
+    { step:'04', title:'등록 완료', desc:'등록 후 학생 포털 계정이 발급되며 온라인 강의를 이용하실 수 있습니다.', icon:'' },
   ];
 
   const targets = [
-    { grade:'초등', icon:'📚', desc:'기초 학습 습관 형성\n초등 수학·영어 집중\n중학교 대비 선행' },
-    { grade:'중등', icon:'🏫', desc:'내신 완벽 대비\n고등 대비 선행 학습\n학습 습관 정착' },
-    { grade:'고등', icon:'🎯', desc:'내신 + 수능 통합 관리\n목표 대학별 맞춤 전략\n실전 모의고사 대비' },
-    { grade:'재수·반수', icon:'🌟', desc:'수능 집중 완성 과정\n취약 과목 집중 공략\n정시·수시 동시 대비' },
+    { grade:'초등', icon:'', desc:'기초 학습 습관 형성\n초등 수학·영어 집중\n중학교 대비 선행' },
+    { grade:'중등', icon:'', desc:'내신 완벽 대비\n고등 대비 선행 학습\n학습 습관 정착' },
+    { grade:'고등', icon:'', desc:'내신 + 수능 통합 관리\n목표 대학별 맞춤 전략\n실전 모의고사 대비' },
+    { grade:'재수·반수', icon:'', desc:'수능 집중 완성 과정\n취약 과목 집중 공략\n정시·수시 동시 대비' },
   ];
 
   return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
@@ -386,7 +386,7 @@ function RecruitPage({ setPage }) {
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap:'12px', marginBottom:'48px' } },
         targets.map((t, i) =>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'20px 16px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
-            React.createElement('div', { style:{ fontSize:'28px', marginBottom:'8px' } }, t.icon),
+            t.icon ? React.createElement('div', { style:{ fontSize:'28px', marginBottom:'8px' } }, t.icon) : null,
             React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, t.grade),
             React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7', whiteSpace:'pre-line' } }, t.desc)
           )

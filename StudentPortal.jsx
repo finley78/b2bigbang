@@ -177,9 +177,9 @@ function SignupPage({ onBack, onComplete }) {
   const sb = window.supabase;
 
   const ROLE_OPTIONS = [
-    { key:'student', label:'학생', icon:'🎓', desc:'수강 중인 학생' },
-    { key:'parent',  label:'학부모', icon:'👨‍👩‍👧', desc:'학부모님' },
-    { key:'teacher', label:'선생님', icon:'👨‍🏫', desc:'강사 (관리자 승인 필요)' },
+    { key:'student', label:'학생', icon:'', desc:'수강 중인 학생' },
+    { key:'parent',  label:'학부모', icon:'학부', desc:'학부모님' },
+    { key:'teacher', label:'선생님', icon:'선생', desc:'강사 (관리자 승인 필요)' },
   ];
 
   const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box', background:'#fafafa' };
@@ -237,7 +237,7 @@ function SignupPage({ onBack, onComplete }) {
   if (step === 3) return React.createElement('div', { style:{ minHeight:'100vh', background:'#f2f0eb' } },
     header,
     React.createElement('div', { style:{ maxWidth:'480px', margin:'0 auto', padding:'60px 20px', textAlign:'center' } },
-      React.createElement('div', { style:{ fontSize:'64px', marginBottom:'20px' } }, roleType === 'teacher' ? '⏳' : '🎉'),
+      React.createElement('div', { style:{ fontSize:'64px', marginBottom:'20px' } }, '완료'),
       React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, roleType === 'teacher' ? '가입 신청 완료' : '가입 완료!'),
       React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.8' } },
         roleType === 'teacher'
@@ -281,7 +281,7 @@ function SignupPage({ onBack, onComplete }) {
           React.createElement('div', { style:{ fontSize:'24px' } }, ROLE_OPTIONS.find(r=>r.key===roleType)?.icon),
           React.createElement('div', null,
             React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, ROLE_OPTIONS.find(r=>r.key===roleType)?.label + ' 회원가입'),
-            roleType === 'teacher' && React.createElement('div', { style:{ fontSize:'12px', color:'#c87000', fontFamily:'Manrope, sans-serif', marginTop:'2px', fontWeight:'600' } }, '⚠ 관리자 승인 후 이용 가능합니다')
+            roleType === 'teacher' && React.createElement('div', { style:{ fontSize:'12px', color:'#c87000', fontFamily:'Manrope, sans-serif', marginTop:'2px', fontWeight:'600' } }, '관리자 승인 후 이용 가능합니다')
           )
         ),
 

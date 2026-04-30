@@ -296,6 +296,25 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       setCourseVideoTitle("");
       setCourseVideoLink("");
       alert("강의가 등록되었습니다.");
+
+      // 이 강좌의 담당 클래스 학생들에게 자동 수강 배정
+      try {
+        for (var i = 0; i < classes.length; i++) {
+          var cls = classes[i];
+          var { data: classLinks } = await sb.from("class_students").select("student_id").eq("class_id", cls.id);
+          if (classLinks && classLinks.length > 0) {
+            var studentIds = classLinks.map(function(l) { return l.student_id; });
+            var { data: existing } = await sb.from("enrollments").select("student_id").eq("course_id", courseId).in("student_id", studentIds);
+            var alreadySet = new Set((existing||[]).map(function(e){ return e.student_id; }));
+            var toAdd = studentIds.filter(function(sid){ return !alreadySet.has(sid); });
+            if (toAdd.length > 0) {
+              await sb.from("enrollments").insert(toAdd.map(function(sid){ return { student_id: sid, course_id: courseId }; }));
+            }
+          }
+        }
+      } catch(autoErr) {
+        console.log("자동 수강 배정 중 오류(무시):", autoErr);
+      }
     } catch (error) {
       alert("강의 등록 실패: " + (error?.message || JSON.stringify(error)));
     }
