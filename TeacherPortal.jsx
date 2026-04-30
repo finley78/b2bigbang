@@ -938,6 +938,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
           {analysisLoading ? (
             <div style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>로딩 중...</div>
+          ) : !analysisClassId ? (
+            <div style={{ color: "#6b7280", textAlign: "center", padding: "32px", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>반을 선택해 주세요</div>
           ) : (() => {
             const q = analysisSearch.trim().toLowerCase();
             // 1. 점수 데이터에 비-반 필터(과목/시험명) 적용
@@ -946,13 +948,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               if (analysisTestName !== "전체" && s.test_name !== analysisTestName) return false;
               return true;
             });
-            // 2. 표시 대상 학생 ID 결정
-            let targetIds;
-            if (analysisClassId) {
-              targetIds = (analysisClassStudents[analysisClassId] || []).map(String);
-            } else {
-              targetIds = Array.from(new Set(scoresFiltered.map(s => String(s.student_id))));
-            }
+            // 2. 표시 대상 학생: 선택된 반의 학생들
+            const targetIds = (analysisClassStudents[analysisClassId] || []).map(String);
             // 3. 학생별 행 구성 + 검색 필터
             const rows = targetIds.map(sid => {
               const std = analysisAllStudents[sid];
