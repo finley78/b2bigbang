@@ -243,38 +243,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     }
 
     setClasses(classList || []);
-
-    // 관리자가 배정한 학년 기반 가상 클래스 생성 (과목-학교급 학년 형식)
-    const gradeRaw = (mergedTeacher.grade || "").split(",").map(s => s.trim()).filter(Boolean);
-    const virtualClasses = [];
-    gradeRaw.forEach(function(assignment, idx) {
-      // "영어-고등 1학년" 또는 "고등 1학년" 형식 처리
-      const dashIdx = assignment.indexOf("-");
-      let subject = "", grade = assignment;
-      if (dashIdx > 0) {
-        subject = assignment.substring(0, dashIdx).trim();
-        grade = assignment.substring(dashIdx + 1).trim();
-      }
-      const virtualName = subject ? `${subject} ${grade}` : grade;
-      // 실제 classes에 같은 이름이 없을 때만 추가
-      const alreadyExists = (classList || []).some(c =>
-        c.name === virtualName ||
-        (c.subject === subject && c.grade === grade)
-      );
-      if (!alreadyExists && virtualName) {
-        virtualClasses.push({
-          id: `virt_${idx}`,
-          name: virtualName,
-          subject: subject,
-          grade: grade,
-          teacher_id: teacher.id,
-          isVirtual: true,
-        });
-      }
-    });
-
-    const mergedClasses = [...(classList || []), ...virtualClasses];
-    setClasses(mergedClasses);
     await loadTeacherCourses(mergedTeacher, classList || []);
     setDebug("3. 담당 반 수: " + (classList || []).length);
     setLoading(false);
@@ -694,8 +662,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 const active = String(selectedClass?.id||"") === String(cls.id);
                 return (
                   <button key={cls.id} onClick={() => selectClass(cls)} style={{ textAlign: "left", border: active ? "2px solid #006241" : "1px solid #e5e7eb", background: active ? "#f0fdf4" : "white", borderRadius: "12px", padding: "16px", cursor: "pointer" }}>
-                    <strong style={{ display: "block", fontSize: "15px", marginBottom: "4px", color: "#111827", fontFamily: "Manrope, sans-serif" }}>{cls.name}</strong>
-                    <span style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{cls.subject || ""}{cls.grade ? ` / ${cls.grade}` : ""}</span>
+                    <strong style={{ display: "block", fontSize: "15px", color: "#111827", fontFamily: "Manrope, sans-serif" }}>{cls.name}</strong>
                   </button>
                 );
               })}
@@ -706,7 +673,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           {selectedClass && students.length > 0 && (
             <div>
               <h3 style={{ fontSize: "15px", fontWeight: "800", marginBottom: "12px", color: "#1E3932", fontFamily: "Manrope, sans-serif" }}>
-                {classLabel(selectedClass)} · {students.length}명
+                {selectedClass.name} · {students.length}명
               </h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {students.map(s => (
