@@ -846,10 +846,37 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </div>
             </div>
 
+            {/* 1.5. 내 강좌 목록 (한눈에 보고 클릭으로 선택) */}
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                내 강좌 {effectiveSubject ? `(${effectiveSubject})` : ""} · {courseSuggestions.length}개
+              </label>
+              {courseSuggestions.length === 0 ? (
+                <div style={{ color: "#9ca3af", fontSize: "12px", padding: "10px 12px", background: "#f9fafb", borderRadius: "8px", fontFamily: "Manrope, sans-serif" }}>
+                  아직 생성된 강좌가 없습니다. 아래 강좌명을 입력하고 첫 강의를 저장하면 새 강좌가 만들어집니다.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                  {courseSuggestions.map(name => {
+                    const c = teacherCourses.find(x => clean(x.title) === clean(name) && (!effectiveSubject || clean(x.subject) === clean(effectiveSubject)));
+                    const lectureCount = c ? (c.lectures || []).length : 0;
+                    const active = clean(lectureCourseName) === clean(name);
+                    return (
+                      <button key={name} onClick={() => setLectureCourseName(name)}
+                        style={{ background: active ? "#006241" : "#fff", color: active ? "#fff" : "#1E3932", border: active ? "2px solid #006241" : "1px solid #d6dbde", borderRadius: "20px", padding: "6px 14px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Manrope, sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <span>{name}</span>
+                        <span style={{ fontSize: "11px", opacity: 0.7 }}>{lectureCount}강</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* 2. 강좌명 (기존 강좌 자동완성 + 새 강좌명 입력 가능) */}
             <div style={{ marginBottom: "12px" }}>
               <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강좌명</label>
-              <input list="lecture-course-names" style={inputStyle} value={lectureCourseName} onChange={e => setLectureCourseName(e.target.value)} placeholder="예: 문법 (기존 강좌 선택 또는 새로 입력)" />
+              <input list="lecture-course-names" style={inputStyle} value={lectureCourseName} onChange={e => setLectureCourseName(e.target.value)} placeholder="예: 문법 (위 목록에서 클릭하거나 새로 입력)" />
               <datalist id="lecture-course-names">
                 {courseSuggestions.map(name => <option key={name} value={name} />)}
               </datalist>
