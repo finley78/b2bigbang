@@ -624,7 +624,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     { id: "classes", label: "담당 클래스" },
     { id: "lecture", label: "강의 추가" },
     { id: "notes",   label: "특이사항" },
-    { id: "stats",   label: "성적 현황" },
+    { id: "stats",   label: "성적 등록" },
   ];
 
   return (
@@ -638,7 +638,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       {/* 탭 네비 */}
       <div style={{ background: "#fff", borderBottom: "1px solid rgba(0,0,0,0.08)", display: "flex", gap: 0, overflowX: "auto" }}>
         {TABS.map(t =>
-          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="stats") loadScoreHistory(); if(t.id==="notes") loadNotes(); }}
+          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); }}
             style={{ padding: "16px 24px", background: "none", border: "none", borderBottom: teacherView===t.id ? "2px solid #006241" : "2px solid transparent", fontSize: "14px", fontWeight: "700", color: teacherView===t.id ? "#006241" : "rgba(0,0,0,0.55)", cursor: "pointer", fontFamily: "Manrope, sans-serif", whiteSpace: "nowrap" }}>
             {t.label}
           </button>
@@ -805,131 +805,74 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         </div>
       )}
 
-      {/* ── 탭4: 성적 현황 ── */}
+      {/* ── 탭4: 성적 등록 ── */}
       {teacherView === "stats" && (
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
-          <h2 style={{ marginBottom: "4px" }}>성적 현황</h2>
-          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>본인이 등록한 성적만 표시됩니다.</p>
+          <h2 style={{ marginBottom: "4px" }}>성적 등록</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>대상 반을 선택하면 학생이 자동으로 표시됩니다.</p>
 
-          {/* 성적 등록 */}
-          <div style={{ background: "#f9fafb", borderRadius: "12px", padding: "16px", marginBottom: "24px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: "800", marginBottom: "12px", color: "#1E3932", fontFamily: "Manrope, sans-serif" }}>성적 등록</h3>
-            {!selectedClass && (
-              <p style={{ fontSize: "13px", color: "#c82014", margin: 0, fontFamily: "Manrope, sans-serif" }}>먼저 담당 클래스 탭에서 클래스를 선택해 주세요.</p>
-            )}
-            {selectedClass && (
-              <>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "10px" }}>
-                  <select style={inputStyle} value={testInfo.testType} onChange={e => setTestInfo(p => ({...p, testType: e.target.value}))}>
-                    {["주간 성적표","월간 성적표","단원 평가","모의고사","수행평가","기타"].map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <input style={inputStyle} type="date" value={testInfo.testDate} onChange={e => setTestInfo(p => ({...p, testDate: e.target.value}))} />
-                  <select style={inputStyle} value={testInfo.subject} onChange={e => setTestInfo(p => ({...p, subject: e.target.value}))}>
-                    <option value="">과목 선택</option>
-                    {["국어","영어","수학","과학"].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-                  <input style={inputStyle} placeholder="시험명" value={testInfo.testName} onChange={e => setTestInfo(p => ({...p, testName: e.target.value}))} />
-                  <input style={inputStyle} placeholder="시험 범위" value={testInfo.testRange} onChange={e => setTestInfo(p => ({...p, testRange: e.target.value}))} />
-                </div>
-                <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>체크된 학생에게만 성적이 저장됩니다.</p>
-                <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
-                  <button style={lightButtonStyle} onClick={selectAllStudents}>전체 선택</button>
-                  <button style={lightButtonStyle} onClick={clearAllStudents}>전체 해제</button>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
-                  {students.map(s => {
-                    const checked = selectedStudentIds.includes(s.id);
-                    return (
-                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", border: checked ? "1px solid #006241" : "1px solid #e5e7eb", borderRadius: "10px", background: checked ? "#f0fdf4" : "white" }}>
-                        <input type="checkbox" checked={checked} onChange={() => toggleStudent(s.id)} style={{ width: "16px", height: "16px" }} />
-                        <div style={{ flex: 1 }}>
-                          <strong style={{ fontFamily: "Manrope, sans-serif" }}>{s.name}</strong>
-                          <div style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{s.grade || "-"}</div>
-                        </div>
-                        <input style={{ ...inputStyle, width: "100px" }} type="number" placeholder="점수" value={scores[s.id] || ""} disabled={!checked} onChange={e => updateScore(s.id, e.target.value)} />
-                      </div>
-                    );
-                  })}
-                </div>
-                <button style={buttonStyle} onClick={saveAllScores}>선택 학생 성적 저장</button>
-              </>
-            )}
-          </div>
-
-          {/* 성적 현황 */}
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
-            <select style={{ ...inputStyle, maxWidth: "200px" }} value={statsStudentId} onChange={e => setStatsStudentId(e.target.value)}>
-              <option value="">전체 학생</option>
-              {students.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+          <div style={{ marginBottom: "16px" }}>
+            <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px", letterSpacing: "0.04em", textTransform: "uppercase" }}>대상 반</label>
+            <select
+              style={{ ...inputStyle, maxWidth: "320px" }}
+              value={selectedClassId || ""}
+              onChange={e => {
+                const id = e.target.value;
+                if (!id) { selectClass(null); return; }
+                const cls = availableClassCards.find(c => String(c.id) === String(id));
+                if (cls) selectClass(cls);
+              }}
+            >
+              <option value="">반 선택</option>
+              {availableClassCards.map(cls => (
+                <option key={cls.id} value={String(cls.id)}>{cls.name}{cls.grade ? ` (${cls.grade})` : ""}</option>
+              ))}
             </select>
-            <button style={lightButtonStyle} onClick={loadScoreHistory}>{loadingStats ? "로딩 중..." : "새로고침"}</button>
           </div>
 
-          {loadingStats ? <div style={{ color: "#6b7280" }}>로딩 중...</div> : (() => {
-            let filtered = scoreHistory.filter(s => {
-              if (statsStudentId && String(s.student_id) !== statsStudentId) return false;
-              return true;
-            });
-            if (filtered.length === 0) return <div style={{ color: "#6b7280", textAlign: "center", padding: "32px" }}>등록된 성적이 없습니다.</div>;
-
-            const vals = filtered.map(s => Number(s.score)).filter(v => !isNaN(v));
-            const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : "-";
-            const max = vals.length ? Math.max(...vals) : "-";
-            const min = vals.length ? Math.min(...vals) : "-";
-
-            const byTest = {};
-            filtered.forEach(s => {
-              const key = `${s.test_date}_${s.test_name}_${s.subject}`;
-              if (!byTest[key]) byTest[key] = { test_name: s.test_name, subject: s.subject, date: s.test_date, scores: [] };
-              byTest[key].scores.push(s);
-            });
-            const groups = Object.values(byTest).sort((a,b) => b.date.localeCompare(a.date));
-
-            return (
-              <>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "20px" }}>
-                  {[{label:"총 시험", val: groups.length+"회"},{label:"평균",val:avg+"점"},{label:"최고",val:max+"점"},{label:"최저",val:min+"점"}].map(item => (
-                    <div key={item.label} style={{ background: "#f9fafb", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
-                      <div style={{ fontSize: "20px", fontWeight: "800", color: "#006241", fontFamily: "Manrope, sans-serif" }}>{item.val}</div>
-                      <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px", fontFamily: "Manrope, sans-serif" }}>{item.label}</div>
-                    </div>
-                  ))}
-                </div>
-                {groups.map((g, gi) => {
-                  const gVals = g.scores.map(s => Number(s.score)).filter(v => !isNaN(v));
-                  const gAvg = gVals.length ? (gVals.reduce((a,b)=>a+b,0)/gVals.length).toFixed(1) : "-";
+          {!selectedClass ? (
+            <div style={{ color: "#6b7280", textAlign: "center", padding: "32px", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>대상 반을 선택해 주세요</div>
+          ) : students.length === 0 ? (
+            <div style={{ color: "#6b7280", textAlign: "center", padding: "32px", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>이 반에 배정된 학생이 없습니다.</div>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                <select style={inputStyle} value={testInfo.testType} onChange={e => setTestInfo(p => ({...p, testType: e.target.value}))}>
+                  {["주간 성적표","월간 성적표","단원 평가","모의고사","수행평가","기타"].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <input style={inputStyle} type="date" value={testInfo.testDate} onChange={e => setTestInfo(p => ({...p, testDate: e.target.value}))} />
+                <select style={inputStyle} value={testInfo.subject} onChange={e => setTestInfo(p => ({...p, subject: e.target.value}))}>
+                  <option value="">과목 선택</option>
+                  {["국어","영어","수학","과학"].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                <input style={inputStyle} placeholder="시험명" value={testInfo.testName} onChange={e => setTestInfo(p => ({...p, testName: e.target.value}))} />
+                <input style={inputStyle} placeholder="시험 범위" value={testInfo.testRange} onChange={e => setTestInfo(p => ({...p, testRange: e.target.value}))} />
+              </div>
+              <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>체크된 학생에게만 성적이 저장됩니다.</p>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                <button style={lightButtonStyle} onClick={selectAllStudents}>전체 선택</button>
+                <button style={lightButtonStyle} onClick={clearAllStudents}>전체 해제</button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+                {students.map(s => {
+                  const checked = selectedStudentIds.includes(s.id);
                   return (
-                    <div key={gi} style={{ marginBottom: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
-                      <div style={{ background: "#1E3932", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div>
-                          <span style={{ fontWeight: "800", color: "#fff", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>{g.test_name}</span>
-                          <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginLeft: "10px", fontFamily: "Manrope, sans-serif" }}>{g.subject} · {g.date}</span>
-                        </div>
-                        <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "12px", fontFamily: "Manrope, sans-serif" }}>평균 {gAvg}점</span>
+                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", border: checked ? "1px solid #006241" : "1px solid #e5e7eb", borderRadius: "10px", background: checked ? "#f0fdf4" : "white" }}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleStudent(s.id)} style={{ width: "16px", height: "16px" }} />
+                      <div style={{ flex: 1 }}>
+                        <strong style={{ fontFamily: "Manrope, sans-serif" }}>{s.name}</strong>
+                        <div style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{s.grade || "-"}</div>
                       </div>
-                      <div style={{ padding: "12px 16px" }}>
-                        {g.scores.sort((a,b) => b.score - a.score).map((s, si) => {
-                          const pct = Math.min(100, Math.round(s.score));
-                          const color = s.score >= 90 ? "#006241" : s.score >= 70 ? "#2b5148" : s.score >= 50 ? "#cba258" : "#c82014";
-                          return (
-                            <div key={si} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                              <span style={{ width: "70px", fontSize: "13px", fontWeight: "600", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.students?.name || "학생"}</span>
-                              <div style={{ flex: 1, height: "14px", background: "#f3f4f6", borderRadius: "7px", overflow: "hidden" }}>
-                                <div style={{ width: pct+"%", height: "100%", background: color, borderRadius: "7px" }} />
-                              </div>
-                              <span style={{ width: "36px", fontSize: "13px", fontWeight: "700", color, textAlign: "right", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.score}점</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <input style={{ ...inputStyle, width: "100px" }} type="number" placeholder="점수" value={scores[s.id] || ""} disabled={!checked} onChange={e => updateScore(s.id, e.target.value)} />
                     </div>
                   );
                 })}
-              </>
-            );
-          })()}
+              </div>
+              <button style={buttonStyle} onClick={saveAllScores}>선택 학생 성적 저장</button>
+            </>
+          )}
         </div>
       )}
 
