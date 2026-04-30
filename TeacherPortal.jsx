@@ -34,8 +34,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [analysisAllStudents, setAnalysisAllStudents] = React.useState({}); // { id: {name, grade, school} }
 
   const [testInfo, setTestInfo] = React.useState({
-    reportPeriod: "주간",
-    testType: "주간 성적표",
+    testType: "주간평가",
     testName: "",
     subject: "",
     testRange: "",
@@ -49,13 +48,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   React.useEffect(() => {
     loadTeacherAndClasses();
   }, []);
-
-  React.useEffect(() => {
-    setTestInfo((prev) => ({
-      ...prev,
-      testType: `${prev.reportPeriod} 성적표`,
-    }));
-  }, [testInfo.reportPeriod]);
 
   React.useEffect(() => {
     const assignments = getTeacherAssignments();
@@ -875,7 +867,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "10px" }}>
                 <select style={inputStyle} value={testInfo.testType} onChange={e => setTestInfo(p => ({...p, testType: e.target.value}))}>
-                  {["주간 성적표","월간 성적표","단원 평가","모의고사","수행평가","기타"].map(t => <option key={t} value={t}>{t}</option>)}
+                  {["주간평가","월말평가","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <input style={inputStyle} type="date" value={testInfo.testDate} onChange={e => setTestInfo(p => ({...p, testDate: e.target.value}))} />
                 <select style={inputStyle} value={testInfo.subject} onChange={e => setTestInfo(p => ({...p, subject: e.target.value}))}>
@@ -886,7 +878,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
                 <select style={inputStyle} value={testInfo.testName} onChange={e => setTestInfo(p => ({...p, testName: e.target.value}))}>
                   <option value="">시험명 선택</option>
-                  {["주간테스트","월말테스트","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(n => <option key={n} value={n}>{n}</option>)}
+                  {["주간평가","월말평가","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
                 <input style={inputStyle} placeholder="시험 범위" value={testInfo.testRange} onChange={e => setTestInfo(p => ({...p, testRange: e.target.value}))} />
               </div>
@@ -933,7 +925,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             </select>
             <select style={{ ...inputStyle, maxWidth: "200px" }} value={analysisTestName} onChange={e => setAnalysisTestName(e.target.value)}>
               <option value="전체">시험 전체</option>
-              {["주간테스트","월말테스트","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(n => <option key={n} value={n}>{n}</option>)}
+              {["주간평가","월말평가","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(n => <option key={n} value={n}>{n}</option>)}
             </select>
             <input style={{ ...inputStyle, minWidth: "180px", flex: 1 }} placeholder="학생명·선생님명 검색" value={analysisSearch} onChange={e => setAnalysisSearch(e.target.value)} />
             <button style={lightButtonStyle} onClick={loadScoreAnalysis}>{analysisLoading ? "로딩 중..." : "새로고침"}</button>
