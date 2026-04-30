@@ -379,10 +379,28 @@ function SignupPage({ onBack, onComplete }) {
 function getYoutubeEmbedUrlForPortal(url) {
   var raw = String(url || '').trim();
   if (!raw) return '';
+  var id = '';
   var match = raw.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{6,})/);
-  if (match && match[1]) return 'https://www.youtube.com/embed/' + match[1];
-  if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) return 'https://www.youtube.com/embed/' + raw;
-  return '';
+  if (match && match[1]) id = match[1];
+  else if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) id = raw;
+  if (!id) return '';
+  var origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+  return 'https://www.youtube.com/embed/' + id + '?enablejsapi=1&rel=0&origin=' + encodeURIComponent(origin);
+}
+
+function ensureYouTubeIframeApi() {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (window._ytApiPromise) return window._ytApiPromise;
+  window._ytApiPromise = new Promise(function(resolve) {
+    if (window.YT && window.YT.Player) { resolve(); return; }
+    var prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = function() { if (typeof prev === 'function') prev(); resolve(); };
+    var s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    s.async = true;
+    document.body.appendChild(s);
+  });
+  return window._ytApiPromise;
 }
 
 /* ── Video Player ─────────────────────────────── */
@@ -394,6 +412,9 @@ function VideoPlayer({ lecture, course, onBack, studentName, userId }) {
   var touchStartRef = React.useRef({ x: 0, y: 0, time: 0 });
   var saveTimerRef = React.useRef(null);
   var viewStartRef = React.useRef(null);
+  var ytPlayerRef = React.useRef(null);
+  var ytPollRef = React.useRef(null);
+  var ytIframeId = 'yt-player-' + lecture.id;
 
   var [duration, setDuration] = React.useState(0);
   var [currentSec, setCurrentSec] = React.useState(0);
@@ -459,6 +480,85 @@ function VideoPlayer({ lecture, course, onBack, studentName, userId }) {
       clearInterval(saveTimerRef.current);
     };
   }, [lecture.id]);
+
+  // YouTube 영상 진도 추적
+  React.useEffect(function() {
+    if (!isYoutubeVideo) return;
+    var canceled = false;
+
+    function attach() {
+      if (canceled) return;
+      var iframeEl = document.getElementById(ytIframeId);
+      if (!iframeEl || !window.YT || !window.YT.Player) return;
+      try {
+        ytPlayerRef.current = new window.YT.Player(ytIframeId, {
+          events: {
+            onReady: function(e) {
+              try {
+                var dur = e.target.getDuration();
+                if (dur > 0) setDuration(dur);
+                var saved = parseFloat(localStorage.getItem(storageKey) || '0');
+                if (saved > 0 && saved < 99 && dur > 0) e.target.seekTo((saved / 100) * dur, true);
+              } catch (err) {}
+            },
+            onStateChange: function(e) {
+              var state = e.data;
+              try {
+                var t = e.target.getCurrentTime();
+                var d = e.target.getDuration();
+                setCurrentSec(t);
+                if (d > 0) setDuration(d);
+                var pct = d > 0 ? (t / d * 100) : 0;
+                if (state === 1) {
+                  setPlaying(true);
+                  clearInterval(ytPollRef.current);
+                  ytPollRef.current = setInterval(function() {
+                    try {
+                      var tt = e.target.getCurrentTime();
+                      var dd = e.target.getDuration();
+                      setCurrentSec(tt);
+                      if (dd > 0) setDuration(dd);
+                      var pp = dd > 0 ? (tt / dd * 100) : 0;
+                      localStorage.setItem(storageKey, pp.toFixed(2));
+                      saveProgressToDB(pp, tt);
+                    } catch (err) {}
+                  }, 5000);
+                } else if (state === 2) {
+                  setPlaying(false);
+                  clearInterval(ytPollRef.current);
+                  localStorage.setItem(storageKey, pct.toFixed(2));
+                  saveProgressToDB(pct, t);
+                } else if (state === 0) {
+                  setPlaying(false);
+                  clearInterval(ytPollRef.current);
+                  localStorage.setItem(storageKey, '100');
+                  saveProgressToDB(100, d);
+                }
+              } catch (err) {}
+            },
+          },
+        });
+      } catch (err) {}
+    }
+
+    ensureYouTubeIframeApi().then(function() {
+      // iframe이 DOM에 마운트될 시간을 살짝 줌
+      setTimeout(attach, 50);
+    });
+
+    return function() {
+      canceled = true;
+      clearInterval(ytPollRef.current);
+      try {
+        var t = ytPlayerRef.current && ytPlayerRef.current.getCurrentTime ? ytPlayerRef.current.getCurrentTime() : 0;
+        var d = ytPlayerRef.current && ytPlayerRef.current.getDuration ? ytPlayerRef.current.getDuration() : 0;
+        var pct = d > 0 ? (t / d * 100) : 0;
+        if (pct > 0) saveProgressToDB(pct, t);
+      } catch (err) {}
+      try { if (ytPlayerRef.current && ytPlayerRef.current.destroy) ytPlayerRef.current.destroy(); } catch (e) {}
+      ytPlayerRef.current = null;
+    };
+  }, [lecture.id, isYoutubeVideo]);
 
   React.useEffect(function() {
     if (isYoutubeVideo) return;
@@ -621,6 +721,7 @@ function VideoPlayer({ lecture, course, onBack, studentName, userId }) {
       },
         isYoutubeVideo
           ? React.createElement('iframe', {
+              id: ytIframeId,
               src: youtubeEmbedUrl,
               style:{ width:'100%', height:'100%', border:0, display:'block' },
               allow:'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
