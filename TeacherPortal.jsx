@@ -804,7 +804,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             </div>
             <div style={{ marginBottom: "10px" }}>
               <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>내용</label>
-              <textarea style={{ ...inputStyle, minHeight: "80px", resize: "vertical", lineHeight: "1.6" }}
+              <textarea rows={15} style={{ ...inputStyle, minHeight: "360px", resize: "vertical", lineHeight: "1.6" }}
                 placeholder="특이사항, 상담 내용, 학습 태도 등을 기록하세요."
                 value={noteDraft.content}
                 onChange={e => setNoteDraft(p => ({...p, content: e.target.value}))}
