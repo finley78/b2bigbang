@@ -2,6 +2,12 @@
 
 const GRADES = ['중1','중2','중3','고1','고2','고3'];
 const SUBJECTS = ['국어','영어','수학','과학'];
+const COURSE_LEVELS = ['초등','중등','고등'];
+const COURSE_GRADES_BY_LEVEL = {
+'초등': ['1학년','2학년','3학년','4학년','5학년','6학년'],
+'중등': ['중1','중2','중3'],
+'고등': ['고1','고2','고3'],
+};
 const SCHOOLS = ['전체','은지초','검암초','간재울초','검암중','간재울중','백석중','대인고','서인천고','백석고'];
 const TEACHER_LEVELS = ['초등','중등','고등'];
 const TEACHER_GRADES = ['1학년','2학년','3학년','4학년','5학년','6학년'];
@@ -139,7 +145,7 @@ const { data: courses } = await sb.from('courses').select(`*, subjects(name,colo
 if (courses && courses.length > 0) {
 const mapped = courses.map(c => ({
 id: c.id, subject: c.subjects?.name || '', color: c.subjects?.color || '#006241',
-name: c.title, description: c.description, grade: c.grade || '',
+name: c.title, description: c.description, grade: c.grade || '', level: c.level || '', class_id: c.class_id || '',
 days: c.days || 0, duration: c.duration || 0, teacher: c.teacher || '',
 price: c.price || '', badge: c.badge || null, intro: c.intro || '',
 target: c.target || '', curriculum: c.curriculum || '', teacherDesc: c.teacher_desc || '',
@@ -683,12 +689,25 @@ React.createElement('div', { style:{ display:'flex', justifyContent:'space-betwe
 React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center' } },
 React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#d4e9e2', color:'#006241', borderRadius:'4px', padding:'2px 8px', fontFamily:'Manrope, sans-serif' } }, c.subject),
 React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, c.name),
-React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, c.teacher || c.grade ? `${c.teacher || ''}${c.teacher && c.grade ? ' · ' : ''}${c.grade || ''}` : '선생님 등록 강좌')
+React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, (function(){
+var className = c.class_id ? ((teacherClasses||[]).find(x=>String(x.id)===String(c.class_id))||{}).name : '';
+var parts = [c.teacher, c.level, c.grade, className].filter(Boolean);
+return parts.length > 0 ? parts.join(' · ') : '선생님 등록 강좌';
+})())
 ),
 React.createElement('div', { style:{ display:'flex', gap:'8px' } },
 editingCourse===c.id && React.createElement('button', { onClick: async ()=>{
-const subj = await window.supabase.from('subjects').select('id').eq('name', c.subject).single();
-await window.supabase.from('courses').update({ title:c.name, description:c.description, subject_id:subj.data?.id }).eq('id', c.id);
+const subj = c.subject ? await window.supabase.from('subjects').select('id').eq('name', c.subject).single() : { data:null };
+const updates = {
+title: c.name,
+description: c.description,
+subject_id: subj.data?.id || null,
+level: c.level || null,
+grade: c.grade || null,
+class_id: c.class_id || null,
+};
+const { error } = await window.supabase.from('courses').update(updates).eq('id', c.id);
+if (error) { alert('저장 실패: ' + error.message); return; }
 alert('저장되었습니다!');
 }, style:btnS('#cba258') }, '저장'),
 React.createElement('button', { onClick:()=>setEditingCourse(editingCourse===c.id?null:c.id), style:btnS('#2b5148') }, editingCourse===c.id?'닫기':'편집'),
@@ -705,14 +724,30 @@ React.createElement('input',{value:c[f]||'',onChange:e=>setState(s=>({...s,cours
 ),
 React.createElement('div', {key:'subject'},
 React.createElement('label',{style:labelS},'과목'),
-React.createElement('select',{value:c.subject||'수학',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,subject:e.target.value}:x)})),style:inputS},
+React.createElement('select',{value:c.subject||'',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,subject:e.target.value}:x)})),style:inputS},
+React.createElement('option',{value:''},'선택'),
 SUBJECTS.map(sub=>React.createElement('option',{key:sub,value:sub},sub))
+)
+),
+React.createElement('div', {key:'level'},
+React.createElement('label',{style:labelS},'초중고'),
+React.createElement('select',{value:c.level||'',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,level:e.target.value,grade:''}:x)})),style:inputS},
+React.createElement('option',{value:''},'선택'),
+COURSE_LEVELS.map(l=>React.createElement('option',{key:l,value:l},l))
 )
 ),
 React.createElement('div', {key:'grade'},
 React.createElement('label',{style:labelS},'학년'),
-React.createElement('select',{value:c.grade||'고1',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,grade:e.target.value}:x)})),style:inputS},
-GRADES.map(g=>React.createElement('option',{key:g,value:g},g))
+React.createElement('select',{value:c.grade||'',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,grade:e.target.value}:x)})),style:inputS,disabled:!c.level},
+React.createElement('option',{value:''},'선택'),
+(COURSE_GRADES_BY_LEVEL[c.level]||[]).map(g=>React.createElement('option',{key:g,value:g},g))
+)
+),
+React.createElement('div', {key:'class'},
+React.createElement('label',{style:labelS},'클래스'),
+React.createElement('select',{value:c.class_id||'',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,class_id:e.target.value}:x)})),style:inputS},
+React.createElement('option',{value:''},'없음 (학년 공통)'),
+(teacherClasses||[]).filter(cls=>cls.grade).map(cls=>React.createElement('option',{key:cls.id,value:cls.id},cls.name))
 )
 )
 ),

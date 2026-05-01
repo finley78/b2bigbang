@@ -315,15 +315,21 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
     setSavingOnline(true);
     try {
-      // 1) 강좌 찾기 또는 새로 생성 (scope 까지 일치하는 것만)
+      // 1) 강좌 찾기 또는 새로 생성
+      // 칩 필터와 동일한 규칙: 강좌의 해당 필드가 비어 있으면 와일드카드로 취급
+      // (칩에서 클릭한 강좌는 그대로 재사용되도록)
       let course = teacherCourses.find(c => {
         if (clean(c.title) !== clean(courseName)) return false;
         if (effectiveSubject && c.subject && clean(c.subject) !== clean(effectiveSubject)) return false;
-        if (useClass) return String(c.class_id || "") === String(lectureClassId);
-        // 학년 모드
+        if (useClass) {
+          if (String(c.class_id || "") === String(lectureClassId)) return true;
+          if (c.class_id) return false;
+          return true; // 클래스 미지정 공통 강좌 재사용 허용
+        }
+        if (c.class_id) return false;
+        if (lectureLevel && c.level && c.level !== lectureLevel) return false;
         if (lectureGrade && c.grade && c.grade !== lectureGrade) return false;
-        if (lectureGrade && !c.grade) return false;
-        return !c.class_id;
+        return true;
       });
       let courseId;
       if (course) {
@@ -816,17 +822,28 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         // 필터 조건에 맞는 기존 강좌만 후보로 (필터 미선택 시 빈 목록)
         const hasAnyFilter = classMode || !!lectureLevel || !!lectureGrade || !!effectiveSubject;
         const scopedCourses = !hasAnyFilter ? [] : (teacherCourses || []).filter(c => {
-          if (classMode) return String(c.class_id || "") === String(lectureClassId);
+          // 강좌의 해당 필드가 비어 있으면 그 필드는 와일드카드로 취급(필터와 매치)
+          if (classMode) {
+            if (String(c.class_id || "") === String(lectureClassId)) return true;
+            // 클래스 미지정(공통) 강좌도 그 클래스의 학년/과목과 호환되면 후보에 포함
+            if (c.class_id) return false;
+            const cls = inferredClass;
+            if (cls) {
+              if (c.subject && cls.subject && clean(c.subject) !== clean(cls.subject)) return false;
+              if (c.grade && cls.grade && c.grade !== cls.grade) return false;
+            }
+            return true;
+          }
           // 학년/과목 모드: 클래스 전용 강좌는 제외
           if (c.class_id) return false;
-          if (lectureLevel && c.level !== lectureLevel) return false;
-          if (lectureGrade && c.grade !== lectureGrade) return false;
-          if (effectiveSubject && clean(c.subject) !== clean(effectiveSubject)) return false;
+          if (lectureLevel && c.level && c.level !== lectureLevel) return false;
+          if (lectureGrade && c.grade && c.grade !== lectureGrade) return false;
+          if (effectiveSubject && c.subject && clean(c.subject) !== clean(effectiveSubject)) return false;
           return true;
         });
         const courseSuggestions = Array.from(new Set(scopedCourses.map(c => c.title).filter(Boolean)));
-        const matchedCourse = ready
-          ? teacherCourses.find(c => clean(c.title) === clean(lectureCourseName) && (!effectiveSubject || clean(c.subject) === clean(effectiveSubject)))
+        const matchedCourse = lectureCourseName.trim()
+          ? teacherCourses.find(c => clean(c.title) === clean(lectureCourseName) && (!effectiveSubject || !c.subject || clean(c.subject) === clean(effectiveSubject)))
           : null;
         const visibleLectures = matchedCourse ? (matchedCourse.lectures || []) : [];
 
@@ -879,7 +896,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               {courseSuggestions.length === 0 ? (
                 <div style={{ color: "#9ca3af", fontSize: "12px", padding: "10px 12px", background: "#f9fafb", borderRadius: "8px", fontFamily: "Manrope, sans-serif" }}>
                   {(classMode || lectureLevel || lectureGrade || effectiveSubject)
-                    ? "이 조건으로 생성된 강좌가 없습니다. 아래 강좌명을 입력하고 첫 강의를 저장하면 새 강좌가 만들어집니다."
+                    ? `이 조건으로 생성된 강좌가 없습니다. (전체 로드: ${(teacherCourses||[]).length}개${classMode && inferredClass ? `, 클래스: ${inferredClass.name} / ${inferredClass.subject || "?"} / ${inferredClass.grade || "?"}` : ""})`
                     : "필터를 선택하면 그 조건에 맞는 강좌가 여기 표시됩니다."}
                 </div>
               ) : (
@@ -922,10 +939,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
             </div>
 
-            {/* 4. 강의 목록 (필터 + 강좌명 모두 입력됐을 때만) */}
-            {!ready ? (
+            {/* 4. 강의 목록 (강좌명이 입력되면 표시) */}
+            {!lectureCourseName.trim() ? (
               <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
-                초중고 + 학년 + 과목 또는 클래스 중 하나를 선택하고 강좌명을 입력하면 강의 목록이 표시됩니다.
+                위 "내 강좌"에서 클릭하거나 강좌명을 입력하면 강의 목록이 표시됩니다.
               </div>
             ) : !matchedCourse ? (
               <div style={{ color: "#9ca3af", textAlign: "center", padding: "24px", fontSize: "13px", background: "#f9fafb", borderRadius: "10px", fontFamily: "Manrope, sans-serif" }}>
