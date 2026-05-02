@@ -102,7 +102,7 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
 
     // 카드 슬라이더 (3D perspective 적용)
     React.createElement('div', {
-      style:{ overflow:'hidden', padding: isMobile ? '20px 12px 14px' : '32px 40px 22px', position:'relative', perspective:'1200px' },
+      style:{ overflow:'hidden', padding: isMobile ? '20px 12px 14px' : '32px 40px 22px', position:'relative', perspective:'800px' },
       onTouchStart, onTouchMove, onTouchEnd,
     },
       React.createElement('div', {
@@ -119,12 +119,12 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
           const ytId = getBannerYoutubeId(card.youtube);
           const directVideo = card.video_url || '';
           const isActive = i === idx;
-          // 활성 카드 기준 좌우 카드는 안쪽으로 살짝 회전 (마름모 효과)
+          // 활성 카드 기준 좌우 카드는 안쪽으로 회전 (마름모 효과)
           const offset = i - idx;
-          const rotateDeg = Math.max(-25, Math.min(25, offset * 22));
-          // 거리에 따라 약간 어둡게 + 살짝 작아지게 (자연스러운 깊이감)
+          const rotateDeg = Math.max(-50, Math.min(50, offset * 45));
+          // 거리에 따라 살짝 작아지게 (깊이감 강조)
           const isFar = Math.abs(offset) >= 1;
-          const cardScale = isFar ? 0.95 : 1;
+          const cardScale = isFar ? 0.86 : 1;
           const cardOpacity = Math.abs(offset) >= 2 ? 0 : 1; // 멀리 있는 건 숨김(성능/혼란 방지)
           return React.createElement('div', {
             key: i,
