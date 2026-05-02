@@ -16,8 +16,93 @@ function getBannerYoutubeId(url) {
   return match ? match[1] : null;
 }
 
+// PC(데스크톱)용 클래식 배너 — 텍스트 오버레이 + 단일 배너 자동 회전
+function HeroBannerClassic({ banners, isAdmin, onEdit, onSelectBanner }) {
+  const [idx, setIdx] = React.useState(0);
+  const active = banners.filter(b => b.active);
+
+  React.useEffect(() => {
+    if (active.length < 2) return;
+    const t = setInterval(() => setIdx(i => (i + 1) % active.length), 5000);
+    return () => clearInterval(t);
+  }, [active.length]);
+
+  React.useEffect(() => {
+    if (idx >= active.length && active.length > 0) setIdx(0);
+  }, [active.length, idx]);
+
+  if (!active.length) return null;
+  const b = active[Math.min(idx, active.length - 1)];
+  const ytId = getBannerYoutubeId(b.youtube);
+  const directVideo = b.video_url || '';
+
+  function handleCtaClick(e) {
+    e.stopPropagation();
+    if (onSelectBanner) onSelectBanner(b);
+  }
+
+  return React.createElement('div', { style:{ position:'relative', overflow:'hidden', height:'320px', background: b.bg } },
+    // 배경 동영상
+    directVideo && React.createElement('video', {
+      src: directVideo, autoPlay:true, muted:true, loop:true, playsInline:true, preload:'metadata',
+      style:{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', opacity:0.5, pointerEvents:'none' }
+    }),
+    // 배경 이미지
+    !directVideo && b.image && React.createElement('div', { style:{ position:'absolute', inset:0, backgroundImage:`url(${b.image})`, backgroundSize:'cover', backgroundPosition:'center', opacity:0.45 } }),
+    // 배경 유튜브
+    !directVideo && !b.image && ytId && React.createElement('div', { style:{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' } },
+      React.createElement('iframe', { src:`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&modestbranding=1&rel=0`, style:{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'177.78vh', height:'100vh', minWidth:'100%', minHeight:'100%', opacity:0.5, border:'none' }, allow:'autoplay' })
+    ),
+    // 그리드 패턴 (미디어 없을 때)
+    !directVideo && !b.image && !ytId && React.createElement('div', { style:{ position:'absolute', inset:0, opacity:0.07 } },
+      React.createElement('svg', { width:'100%', height:'100%' },
+        React.createElement('pattern', { id:'cgrid', x:0, y:0, width:40, height:40, patternUnits:'userSpaceOnUse' },
+          React.createElement('path', { d:'M 40 0 L 0 0 0 40', fill:'none', stroke:'white', strokeWidth:'0.5' })
+        ),
+        React.createElement('rect', { width:'100%', height:'100%', fill:'url(#cgrid)' })
+      )
+    ),
+    // 어두운 오버레이 (미디어 있을 때)
+    (directVideo || b.image || ytId) && React.createElement('div', { style:{ position:'absolute', inset:0, background:'rgba(0,0,0,0.4)' } }),
+    // 콘텐츠
+    React.createElement('div', { style:{ position:'relative', zIndex:2, maxWidth:'1280px', margin:'0 auto', height:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 40px', boxSizing:'border-box' } },
+      React.createElement('div', { style:{ flex:1, minWidth:0 } },
+        b.badge && React.createElement('div', { style:{ display:'inline-block', background:'rgba(255,255,255,0.2)', color:'#fff', borderRadius:'8px', padding:'4px 14px', fontSize:'12px', fontWeight:'700', letterSpacing:'0.05em', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, b.badge),
+        b.subtitle && React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.78)', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, b.subtitle),
+        React.createElement('div', { style:{ fontSize:'36px', fontWeight:'800', color:'#fff', letterSpacing:'-0.2px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif' } }, b.title),
+        b.cta && React.createElement('button', {
+          onClick: handleCtaClick,
+          style:{ marginTop:'16px', background:'#fff', color: b.bg, border:'none', borderRadius:'8px', padding:'10px 22px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+        }, b.cta)
+      ),
+      b.label && React.createElement('div', { style:{ flexShrink:0, marginLeft:'16px' } },
+        React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'10px', padding:'12px 22px', textAlign:'center' } },
+          React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif', marginBottom:'3px' } }, '개강'),
+          React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, b.label)
+        )
+      )
+    ),
+    // 페이지네이션 + 카운터
+    active.length > 1 && React.createElement('div', { style:{ position:'absolute', bottom:'14px', right:'20px', display:'flex', gap:'7px', alignItems:'center', zIndex:3 } },
+      React.createElement('span', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif' } }, (idx+1) + '/' + active.length),
+      active.map(function(_, i) {
+        return React.createElement('div', { key:i, onClick:function(){ setIdx(i); }, style:{ width: i===idx ? 20 : 6, height:5, borderRadius:'3px', background: i===idx ? '#fff' : 'rgba(255,255,255,0.35)', cursor:'pointer', transition:'all 0.3s ease' } });
+      })
+    ),
+    isAdmin && React.createElement('button', {
+      onClick: function(e){ e.stopPropagation(); onEdit && onEdit(); },
+      style:{ position:'absolute', top:'14px', right:'14px', zIndex:4, background:'rgba(203,162,88,0.9)', color:'#fff', border:'none', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+    }, '✏ 배너 편집')
+  );
+}
+
 function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
   const isMobile = useIsMobile();
+  // PC: 클래식 텍스트 오버레이 배너
+  if (!isMobile) {
+    return React.createElement(HeroBannerClassic, { banners, isAdmin, onEdit, onSelectBanner });
+  }
+  // 폰: 카드형 3D 캐러셀
   const active = banners.filter(b => b.active);
   const hasMany = active.length > 1;
   // 무한 캐러셀: [마지막 복제, ...실제, 첫 복제] 형태로 렌더해서 끝→처음 회전을 자연스럽게
