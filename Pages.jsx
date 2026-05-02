@@ -1,7 +1,36 @@
 // Pages.jsx — ServicePage + ContactPage + CourseDetailPage
 
 /* ── Course Detail Page ─────────────────────── */
-function CourseDetailPage({ course, onBack, setPage }) {
+function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh }) {
+  const [enrolling, setEnrolling] = React.useState(false);
+  const [enrolled, setEnrolled] = React.useState(false);
+  const adminMode = !!(user && (user.role === 'admin' || user.isAdmin));
+  const isTeacher = !!(user && (user.role === 'teacher' || user.role === 'teachers'));
+  const alreadyEnrolled = enrolled || (user && Array.isArray(user.enrolledCourses) && user.enrolledCourses.indexOf(course.id) >= 0);
+
+  async function enroll() {
+    if (!user) { if (onLoginClick) onLoginClick(); return; }
+    if (alreadyEnrolled) return;
+    setEnrolling(true);
+    var sb = window.supabase;
+    try {
+      var { data: existing } = await sb.from('enrollments').select('id').eq('student_id', user.id).eq('course_id', course.id).maybeSingle();
+      if (!existing) {
+        var { error } = await sb.from('enrollments').insert({ student_id: user.id, course_id: course.id, is_active: true });
+        if (error) throw error;
+      } else {
+        await sb.from('enrollments').update({ is_active: true }).eq('id', existing.id);
+      }
+      setEnrolled(true);
+      alert('수강 신청이 완료되었습니다. 마이페이지에서 강좌를 확인하세요.');
+      if (refresh) try { refresh(); } catch(e) {}
+      if (setPage) setPage('portal');
+    } catch (e) {
+      alert('수강 신청 실패: ' + (e.message || e));
+    } finally {
+      setEnrolling(false);
+    }
+  }
   const isMobile = window.innerWidth < 768;
   const color = course.color || '#006241';
 
@@ -81,18 +110,35 @@ function CourseDetailPage({ course, onBack, setPage }) {
           ),
           course.teacherDesc && React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.65)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7', whiteSpace:'pre-line' } }, course.teacherDesc)
         ),
-        // 수강 신청 버튼
-        React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%', transition:'all 0.2s ease' },
-          onMouseDown:e=>e.currentTarget.style.transform='scale(0.98)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' }, '수강 신청하기')
+        // 수강 신청 버튼 (로그인 상태에 따라 동작 분기)
+        (function(){
+          if (alreadyEnrolled) {
+            return React.createElement('button', { disabled:true, style:{ background:'#e5e7eb', color:'#6b7280', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:'not-allowed', fontFamily:'Manrope, sans-serif', width:'100%' } }, '✓ 신청 완료된 강좌');
+          }
+          if (adminMode || isTeacher) {
+            return React.createElement('button', { onClick:()=>setPage(adminMode ? 'admin' : 'teacher'), style:{ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, adminMode ? '관리자 페이지로' : '선생님 페이지로');
+          }
+          if (!user) {
+            return React.createElement('div', null,
+              React.createElement('button', { onClick:enroll, style:{ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, '로그인 후 수강 신청'),
+              React.createElement('button', { onClick:()=>setPage('contact'), style:{ marginTop:'8px', background:'#fff', color:color, border:'1px solid '+color, borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, '먼저 문의하기')
+            );
+          }
+          return React.createElement('button', { onClick:enroll, disabled:enrolling, style:{ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:enrolling?'wait':'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, enrolling ? '신청 중...' : '수강 신청하기');
+        })()
       )
     )
   );
 }
 
 /* ── Service Page ───────────────────────────── */
-function ServicePage({ setPage, courses, onSelectCourse }) {
+function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, refresh }) {
   const isMobile = window.innerWidth < 768;
   const [isMobileState, setIsMobileState] = React.useState(isMobile);
+  const [filterLevel, setFilterLevel] = React.useState('전체');
+  const [filterGrade, setFilterGrade] = React.useState('전체');
+  const [filterSubject, setFilterSubject] = React.useState('전체');
+  const SERVICE_LEVELS = { '초등': ['1학년','2학년','3학년','4학년','5학년','6학년'], '중등': ['중1','중2','중3'], '고등': ['고1','고2','고3'] };
   React.useEffect(() => {
     function onResize() { setIsMobileState(window.innerWidth < 768); }
     window.addEventListener('resize', onResize);
@@ -118,8 +164,17 @@ function ServicePage({ setPage, courses, onSelectCourse }) {
   ];
 
   if (selectedCourse) {
-    return React.createElement(CourseDetailPage, { course:selectedCourse, onBack:()=>setSelectedCourse(null), setPage });
+    return React.createElement(CourseDetailPage, { course:selectedCourse, onBack:()=>setSelectedCourse(null), setPage, user, onLoginClick, refresh });
   }
+
+  // 필터 적용 (DB 강좌만 필터; 데모용 mock 데이터는 그대로 노출)
+  const isMockData = !courses || courses.length === 0;
+  const filteredPrograms = isMockData ? programs : programs.filter(function(p){
+    if (filterLevel !== '전체' && p.level && p.level !== filterLevel) return false;
+    if (filterGrade !== '전체' && p.grade && p.grade !== filterGrade) return false;
+    if (filterSubject !== '전체' && p.subject && p.subject !== filterSubject) return false;
+    return true;
+  });
 
   return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
     React.createElement('div', { style:{ background:'#1E3932', padding: isMob ? '32px 16px' : '56px 40px' } },
@@ -130,9 +185,46 @@ function ServicePage({ setPage, courses, onSelectCourse }) {
       )
     ),
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', padding: isMob ? '24px 16px' : '40px 40px' } },
-      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#006241', letterSpacing:'-0.16px', marginBottom:'24px', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
+      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#006241', letterSpacing:'-0.16px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
+      // 필터: 초중고 / 학년 / 과목
+      !isMockData && React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'18px' } },
+        React.createElement('select', {
+          value: filterLevel,
+          onChange: function(e){ setFilterLevel(e.target.value); setFilterGrade('전체'); },
+          style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+        },
+          React.createElement('option', { value:'전체' }, '초중고 전체'),
+          ['초등','중등','고등'].map(function(l){ return React.createElement('option', { key:l, value:l }, l); })
+        ),
+        React.createElement('select', {
+          value: filterGrade,
+          onChange: function(e){ setFilterGrade(e.target.value); },
+          style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' },
+          disabled: filterLevel === '전체'
+        },
+          React.createElement('option', { value:'전체' }, '학년 전체'),
+          (SERVICE_LEVELS[filterLevel] || []).map(function(g){ return React.createElement('option', { key:g, value:g }, g); })
+        ),
+        React.createElement('select', {
+          value: filterSubject,
+          onChange: function(e){ setFilterSubject(e.target.value); },
+          style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+        },
+          React.createElement('option', { value:'전체' }, '과목 전체'),
+          ['국어','영어','수학','과학'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+        ),
+        (filterLevel !== '전체' || filterGrade !== '전체' || filterSubject !== '전체') && React.createElement('button', {
+          onClick: function(){ setFilterLevel('전체'); setFilterGrade('전체'); setFilterSubject('전체'); },
+          style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#006241', fontFamily:'Manrope, sans-serif' }
+        }, '필터 초기화'),
+        React.createElement('div', { style:{ flex:1 } }),
+        React.createElement('div', { style:{ alignSelf:'center', fontSize:'12px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif' } }, filteredPrograms.length + '개 강좌')
+      ),
+      filteredPrograms.length === 0 && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'40px', textAlign:'center', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'40px' } },
+        '선택한 조건에 맞는 강좌가 없습니다. 필터를 조정해 주세요.'
+      ),
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMob ? '1fr' : 'repeat(3,1fr)', gap:'16px', marginBottom:'56px' } },
-        programs.map((p,i) =>
+        filteredPrograms.map((p,i) =>
           React.createElement('div', { key:i, onClick:()=>setSelectedCourse(p), style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', transition:'transform 0.2s ease' },
             onMouseEnter:e=>e.currentTarget.style.transform='translateY(-2px)',
             onMouseLeave:e=>e.currentTarget.style.transform='translateY(0)' },
