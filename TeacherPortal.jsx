@@ -23,6 +23,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [teacherNotes, setTeacherNotes] = React.useState([]);
   const [noteDraft, setNoteDraft] = React.useState({ date: new Date().toISOString().slice(0,10), content: '' });
   const [savingNote, setSavingNote] = React.useState(false);
+  const [noteTargetMode, setNoteTargetMode] = React.useState('all'); // 'all' | 'student'
+  const [noteClassId, setNoteClassId] = React.useState('');
+  const [noteClassSearch, setNoteClassSearch] = React.useState('');
+  const [noteStudents, setNoteStudents] = React.useState([]);
+  const [noteStudentId, setNoteStudentId] = React.useState('');
   // 성적 현황/통계
   const [scoreHistory, setScoreHistory] = React.useState([]);
   const [statsClassId, setStatsClassId] = React.useState('');
@@ -657,13 +662,42 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setTeacherNotes(data || []);
   }
 
+  async function loadNoteClassStudents(classId) {
+    setNoteStudents([]);
+    setNoteStudentId('');
+    if (!classId) return;
+    const cls = (availableClassCards || []).find(c => String(c.id) === String(classId));
+    if (!cls) return;
+    if (cls.isVirtual) {
+      const gradeMap = {
+        "초등 1학년": "1학년", "초등 2학년": "2학년", "초등 3학년": "3학년",
+        "초등 4학년": "4학년", "초등 5학년": "5학년", "초등 6학년": "6학년",
+        "중등 1학년": "중1", "중등 2학년": "중2", "중등 3학년": "중3",
+        "고등 1학년": "고1", "고등 2학년": "고2", "고등 3학년": "고3",
+      };
+      const mappedGrade = gradeMap[cls.grade || ''] || (cls.grade || '');
+      const { data } = await sb.from("students").select("id, name, grade")
+        .eq("grade", mappedGrade).eq("is_active", true).eq("role", "student")
+        .order("name", { ascending: true });
+      setNoteStudents(data || []);
+      return;
+    }
+    const { data: links } = await sb.from("class_students").select("student_id").eq("class_id", cls.id);
+    const ids = (links || []).map(x => x.student_id);
+    if (ids.length === 0) { setNoteStudents([]); return; }
+    const { data } = await sb.from("students").select("id, name, grade")
+      .in("id", ids).order("name", { ascending: true });
+    setNoteStudents(data || []);
+  }
+
   async function saveNote() {
     if (!teacherInfo) { alert("선생님 정보를 먼저 불러와야 합니다."); return; }
     if (!String(noteDraft.content || "").trim()) { alert("내용을 입력해 주세요."); return; }
+    if (noteTargetMode === 'student' && !noteStudentId) { alert("학생을 선택해 주세요."); return; }
     setSavingNote(true);
     const { error } = await sb.from("teacher_notes").insert({
       teacher_id: teacherInfo.id,
-      student_id: null,
+      student_id: noteTargetMode === 'student' ? noteStudentId : null,
       note_type: '특이사항',
       note_date: noteDraft.date,
       content: noteDraft.content.trim(),
@@ -671,6 +705,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setSavingNote(false);
     if (error) { alert("저장 실패: " + error.message); return; }
     setNoteDraft({ date: new Date().toISOString().slice(0,10), content: '' });
+    setNoteStudentId('');
     await loadNotes();
   }
 
@@ -1685,6 +1720,83 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
           {/* 작성 폼 */}
           <div style={{ background: "#f9fafb", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
+            {/* 모드 토글 */}
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>대상</label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                {[
+                  { id: 'all', label: '전체 기록' },
+                  { id: 'student', label: '학생별 기록' },
+                ].map(opt => {
+                  const active = noteTargetMode === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setNoteTargetMode(opt.id)}
+                      style={{
+                        flex: 1,
+                        padding: "10px 14px",
+                        borderRadius: "8px",
+                        border: active ? "2px solid #006241" : "1px solid #e5e7eb",
+                        background: active ? "#f0fdf4" : "white",
+                        color: active ? "#065f46" : "#374151",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        fontFamily: "Manrope, sans-serif",
+                      }}
+                    >{opt.label}</button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 학생별 모드: 클래스 검색 + 클래스/학생 선택 */}
+            {noteTargetMode === 'student' && (
+              <>
+                <div style={{ marginBottom: "10px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>클래스 검색</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="클래스 이름으로 검색"
+                    value={noteClassSearch}
+                    onChange={e => setNoteClassSearch(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                  <div>
+                    <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>클래스</label>
+                    <select
+                      style={inputStyle}
+                      value={noteClassId}
+                      onChange={e => { setNoteClassId(e.target.value); loadNoteClassStudents(e.target.value); }}
+                    >
+                      <option value="">반 선택</option>
+                      {(availableClassCards || [])
+                        .filter(c => !noteClassSearch.trim() || String(c.name || '').toLowerCase().includes(noteClassSearch.trim().toLowerCase()))
+                        .map(cls => (
+                          <option key={cls.id} value={String(cls.id)}>{cls.name}{cls.grade ? ` (${cls.grade})` : ""}</option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>학생</label>
+                    <select
+                      style={inputStyle}
+                      value={noteStudentId}
+                      onChange={e => setNoteStudentId(e.target.value)}
+                      disabled={!noteClassId}
+                    >
+                      <option value="">{noteClassId ? (noteStudents.length === 0 ? "(학생 없음)" : "학생 선택") : "먼저 반을 선택하세요"}</option>
+                      {noteStudents.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}{s.grade ? ` (${s.grade})` : ""}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
             <div style={{ marginBottom: "10px", maxWidth: "200px" }}>
               <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>날짜</label>
               <input style={inputStyle} type="date" value={noteDraft.date} onChange={e => setNoteDraft(p => ({...p, date: e.target.value}))} />
