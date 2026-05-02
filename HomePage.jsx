@@ -19,28 +19,62 @@ function getBannerYoutubeId(url) {
 function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
   const isMobile = useIsMobile();
   const active = banners.filter(b => b.active);
-  const [idx, setIdx] = React.useState(0);
+  const hasMany = active.length > 1;
+  // 무한 캐러셀: [마지막 복제, ...실제, 첫 복제] 형태로 렌더해서 끝→처음 회전을 자연스럽게
+  const extended = hasMany ? [active[active.length - 1]].concat(active, [active[0]]) : active;
+  // idx 는 extended 배열의 위치. 다중 배너면 1번부터(첫 실제 카드) 시작
+  const [idx, setIdx] = React.useState(hasMany ? 1 : 0);
+  const [transition, setTransition] = React.useState(true);
   const touchRef = React.useRef({ startX: 0, startY: 0, locked: false, dragging: false });
 
-  // idx 가 범위 벗어나면 보정
+  // active 배너 개수가 바뀌면 idx 리셋
   React.useEffect(() => {
-    if (active.length === 0) return;
-    if (idx >= active.length) setIdx(0);
-  }, [active.length, idx]);
+    setIdx(hasMany ? 1 : 0);
+    setTransition(true);
+  }, [active.length]);
 
-  // 자동 슬라이드
+  // 자동 슬라이드 — 단순히 +1 (modulo 안 씀, 끝의 복제까지 가서 부드럽게 회전)
   React.useEffect(() => {
-    if (active.length < 2) return;
-    const t = setInterval(() => setIdx(i => (i + 1) % active.length), 5000);
+    if (!hasMany) return;
+    const t = setInterval(() => {
+      setTransition(true);
+      setIdx(i => i + 1);
+    }, 5000);
     return () => clearInterval(t);
   }, [active.length]);
 
+  // 실제 표시되는 배너 (dots, 색깔 등에 사용)
+  const realIdx = hasMany ? ((idx - 1 + active.length) % active.length) : 0;
   if (!active.length) return null;
-  const b = active[Math.min(idx, active.length - 1)];
+  const b = active[realIdx];
   const accentColor = b.bg || '#006241';
 
-  function next() { setIdx(i => (i + 1) % active.length); }
-  function prev() { setIdx(i => (i - 1 + active.length) % active.length); }
+  function next() { setTransition(true); setIdx(i => i + 1); }
+  function prev() { setTransition(true); setIdx(i => i - 1); }
+  function gotoReal(i) { setTransition(true); setIdx(hasMany ? i + 1 : i); }
+
+  // 트랜지션이 끝났을 때 복제 카드 위치면 실제 위치로 무음 점프
+  function onTransitionEnd() {
+    if (!hasMany) return;
+    if (idx >= extended.length - 1) {
+      // 오른쪽 끝(첫 카드 복제) → 실제 첫 카드(1)로 점프
+      setTransition(false);
+      setIdx(1);
+    } else if (idx <= 0) {
+      // 왼쪽 끝(마지막 카드 복제) → 실제 마지막 카드로 점프
+      setTransition(false);
+      setIdx(extended.length - 2);
+    }
+  }
+
+  // 점프 후 다음 프레임에 트랜지션 다시 활성화
+  React.useEffect(() => {
+    if (transition) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setTransition(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [transition]);
 
   function onTouchStart(e) {
     touchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, locked: false, dragging: true };
@@ -72,19 +106,20 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
       onTouchStart, onTouchMove, onTouchEnd,
     },
       React.createElement('div', {
+        onTransitionEnd: onTransitionEnd,
         style:{
           display:'flex',
           transform:`translateX(-${idx * 100}%)`,
-          transition:'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: transition ? 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
           willChange:'transform',
         }
       },
-        active.map(function(card, i) {
+        extended.map(function(card, i) {
           const ytId = getBannerYoutubeId(card.youtube);
           const directVideo = card.video_url || '';
           const isActive = i === idx;
           return React.createElement('div', {
-            key: card.id || i,
+            key: i,
             onClick: function() { if (onSelectBanner && isActive) onSelectBanner(card); },
             style:{
               flex:'0 0 100%',
@@ -161,7 +196,7 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
       active.map(function(_, i) {
         return React.createElement('button', {
           key:i,
-          onClick:function(){ setIdx(i); },
+          onClick:function(){ gotoReal(i); },
           'aria-label': '슬라이드 ' + (i+1),
           style:{
             border:'none',
@@ -173,10 +208,10 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
         },
           React.createElement('div', {
             style:{
-              width: i===idx ? 22 : 6,
+              width: i===realIdx ? 22 : 6,
               height: 6,
               borderRadius:'3px',
-              background: i===idx ? accentColor : 'rgba(0,0,0,0.18)',
+              background: i===realIdx ? accentColor : 'rgba(0,0,0,0.18)',
               transition:'all 0.35s ease'
             }
           })
