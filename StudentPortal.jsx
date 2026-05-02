@@ -818,23 +818,22 @@ function VideoPlayer({ lecture, course, onBack, studentName, userId }) {
 function SubjectSelect({ studentSubjects, coursesBySubject, onSelect }) {
   return React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'32px 16px' } },
     React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } }, '수강 과목 선택'),
-    React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(140px, 1fr))', gap:'10px' } },
       studentSubjects.map(function(sub) {
         var count = (coursesBySubject[sub] && coursesBySubject[sub].length) || 0;
         var color = SUBJECT_COLORS[sub] || '#006241';
         return React.createElement('div', {
           key: sub,
           onClick: function() { onSelect(sub); },
-          style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'center', transition:'transform 0.15s ease' },
-          onMouseEnter: function(e) { e.currentTarget.style.transform='translateX(3px)'; },
-          onMouseLeave: function(e) { e.currentTarget.style.transform='translateX(0)'; },
+          style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'stretch', transition:'transform 0.15s ease' },
+          onMouseEnter: function(e) { e.currentTarget.style.transform='translateY(-2px)'; },
+          onMouseLeave: function(e) { e.currentTarget.style.transform='translateY(0)'; },
         },
-          React.createElement('div', { style:{ width:'6px', alignSelf:'stretch', background: color, flexShrink:0 } }),
-          React.createElement('div', { style:{ flex:1, padding:'18px 16px' } },
-            React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, sub),
-            React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, '강좌 ' + count + '개')
-          ),
-          React.createElement('div', { style:{ padding:'0 20px', fontSize:'22px', color:'rgba(0,0,0,0.2)' } }, '\u203a')
+          React.createElement('div', { style:{ width:'5px', background: color, flexShrink:0 } }),
+          React.createElement('div', { style:{ flex:1, padding:'14px 12px', minWidth:0 } },
+            React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, sub),
+            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, '강좌 ' + count + '개')
+          )
         );
       })
     )
