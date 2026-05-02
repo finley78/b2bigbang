@@ -100,9 +100,9 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
     // 부드러운 컬러 워시 (배경에 반영)
     React.createElement('div', { style:{ position:'absolute', top:'6px', left:0, right:0, height:'160px', background:`linear-gradient(to bottom, ${accentColor}22, transparent)`, transition:'background 0.6s ease', pointerEvents:'none' } }),
 
-    // 카드 슬라이더
+    // 카드 슬라이더 (3D perspective 적용)
     React.createElement('div', {
-      style:{ overflow:'hidden', padding: isMobile ? '20px 12px 14px' : '32px 40px 22px', position:'relative' },
+      style:{ overflow:'hidden', padding: isMobile ? '20px 12px 14px' : '32px 40px 22px', position:'relative', perspective:'1200px' },
       onTouchStart, onTouchMove, onTouchEnd,
     },
       React.createElement('div', {
@@ -112,12 +112,20 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
           transform:`translateX(-${idx * 100}%)`,
           transition: transition ? 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
           willChange:'transform',
+          transformStyle:'preserve-3d',
         }
       },
         extended.map(function(card, i) {
           const ytId = getBannerYoutubeId(card.youtube);
           const directVideo = card.video_url || '';
           const isActive = i === idx;
+          // 활성 카드 기준 좌우 카드는 안쪽으로 살짝 회전 (마름모 효과)
+          const offset = i - idx;
+          const rotateDeg = Math.max(-25, Math.min(25, offset * 22));
+          // 거리에 따라 약간 어둡게 + 살짝 작아지게 (자연스러운 깊이감)
+          const isFar = Math.abs(offset) >= 1;
+          const cardScale = isFar ? 0.95 : 1;
+          const cardOpacity = Math.abs(offset) >= 2 ? 0 : 1; // 멀리 있는 건 숨김(성능/혼란 방지)
           return React.createElement('div', {
             key: i,
             onClick: function() { if (onSelectBanner && isActive) onSelectBanner(card); },
@@ -128,6 +136,11 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
               cursor: onSelectBanner ? 'pointer' : 'default',
               display:'flex',
               justifyContent:'center',
+              transform:`rotateY(${rotateDeg}deg) scale(${cardScale})`,
+              transformStyle:'preserve-3d',
+              transition: transition ? 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease' : 'none',
+              opacity: cardOpacity,
+              willChange:'transform',
             },
           },
             React.createElement('div', {
