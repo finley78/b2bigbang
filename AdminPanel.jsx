@@ -180,6 +180,8 @@ const [analysisStudentId, setAnalysisStudentId] = React.useState('');
 const [reportStudentId, setReportStudentId] = React.useState('');
 const [kakaoTarget, setKakaoTarget] = React.useState(null);
 const [adminNotificationLogs, setAdminNotificationLogs] = React.useState([]);
+const [adminAttachments, setAdminAttachments] = React.useState([]);
+const [adminAttachLoading, setAdminAttachLoading] = React.useState(false);
 const [classManageDrafts, setClassManageDrafts] = React.useState({}); // { teacher_id: { name, grade, subject, level } }
 const [expandedClassId, setExpandedClassId] = React.useState(null);
 const [classStudentSearch, setClassStudentSearch] = React.useState('');
@@ -277,6 +279,34 @@ const { data: scores, error: scoresError } = await sb.from('test_scores')
   .order('test_date', { ascending: false });
 if (scoresError) console.error('test_scores load error:', scoresError.message || scoresError);
 if (scores) setAdminAnalysis(scores);
+}
+
+async function loadAdminAttachments() {
+  setAdminAttachLoading(true);
+  var sb = window.supabase;
+  var { data } = await sb.from('attachments').select('*').order('created_at', { ascending:false });
+  setAdminAttachments(data || []);
+  setAdminAttachLoading(false);
+}
+function adminAttachmentPublicUrl(path) {
+  var sb = window.supabase;
+  var { data } = sb.storage.from('attachments').getPublicUrl(path);
+  return data.publicUrl;
+}
+function adminFormatBytes(n) {
+  var v = Number(n) || 0;
+  if (v < 1024) return v + ' B';
+  if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
+  return (v/1024/1024).toFixed(1) + ' MB';
+}
+async function deleteAdminAttachment(att) {
+  if (!confirm('이 자료를 삭제하시겠습니까?')) return;
+  var sb = window.supabase;
+  try {
+    await sb.storage.from('attachments').remove([att.file_path]);
+    await sb.from('attachments').delete().eq('id', att.id);
+    await loadAdminAttachments();
+  } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
 }
 
 async function createTeacherClass(teacher, draft) {
@@ -561,6 +591,7 @@ const tabs = [
 { id:'records', label:'선생님 기록' },
 { id:'analysis',label:'성적 분석' },
 { id:'views',   label:'학습 현황' },
+{ id:'files',   label:'자료실' },
 { id:'feature', label:'섹션 편집' },
 ];
 
@@ -622,7 +653,7 @@ React.createElement('button', { onClick:onLogout, style:{ background:'rgba(255,2
 
 React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'0 40px', display:'flex', gap:'0', overflowX:'auto' } },
 tabs.map(t =>
-React.createElement('button', { key:t.id, onClick:()=>setTab(t.id), style:{ padding:'16px 20px', background:'none', border:'none', borderBottom: tab===t.id?'2px solid #006241':'2px solid transparent', fontSize:'14px', fontWeight:'700', color: tab===t.id?'#006241':'rgba(0,0,0,0.55)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', marginBottom:'-1px', whiteSpace:'nowrap' } }, t.label)
+React.createElement('button', { key:t.id, onClick:()=>{ setTab(t.id); if (t.id === 'files') loadAdminAttachments(); }, style:{ padding:'16px 20px', background:'none', border:'none', borderBottom: tab===t.id?'2px solid #006241':'2px solid transparent', fontSize:'14px', fontWeight:'700', color: tab===t.id?'#006241':'rgba(0,0,0,0.55)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', marginBottom:'-1px', whiteSpace:'nowrap' } }, t.label)
 )
 ),
 
@@ -2317,6 +2348,27 @@ React.createElement('input', {
     })
   );
 })()
+),
+
+/* ── 자료실 TAB ── */
+tab==='files' && React.createElement('div', null,
+  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '자료실'),
+  React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '선생님들이 업로드한 학습 자료 전체를 확인하고 필요 시 삭제할 수 있습니다.'),
+  adminAttachLoading ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
+  adminAttachments.length === 0 ? React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '업로드된 자료가 없습니다.') :
+  adminAttachments.map(function(att){
+    var clsName = att.class_id ? ((teacherClasses||[]).find(function(c){ return String(c.id) === String(att.class_id); })||{}).name : '';
+    var uploader = (dbTeacherProfiles||[]).find(function(t){ return String(t.id) === String(att.uploaded_by); });
+    return React.createElement('div', { key:att.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', marginBottom:'8px', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap' } },
+      React.createElement('div', { style:{ flex:1, minWidth:'200px' } },
+        React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#1E3932', fontFamily:'Manrope, sans-serif' } }, att.title),
+        att.description && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, att.description),
+        React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, [(uploader && uploader.name ? uploader.name + ' 선생님' : ''), att.scope === 'class' ? '클래스: ' + (clsName || '-') : '개별 학생', att.file_name, adminFormatBytes(att.file_size), String(att.created_at||'').slice(0,10)].filter(Boolean).join(' · '))
+      ),
+      React.createElement('a', { href: adminAttachmentPublicUrl(att.file_path), target:'_blank', rel:'noopener', style:{ background:'#fff', color:'#006241', border:'1px solid #006241', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '⬇ 다운로드'),
+      React.createElement('button', { onClick:function(){ deleteAdminAttachment(att); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
+    );
+  })
 ),
 
 /* ── 섹션 편집 TAB ── */

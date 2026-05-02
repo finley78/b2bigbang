@@ -924,6 +924,97 @@ function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAu
   var [selectedSubject, setSelectedSubject] = React.useState(null);
   var [selectedCourse, setSelectedCourse] = React.useState(null);
   var [selectedLecture, setSelectedLecture] = React.useState(null);
+  var [portalView, setPortalView] = React.useState('main'); // 'main' | 'mypage' | 'files'
+  var [profileDraft, setProfileDraft] = React.useState(null);
+  var [savingProfile, setSavingProfile] = React.useState(false);
+  var [pwDraft, setPwDraft] = React.useState({ current:'', next:'', confirm:'' });
+  var [myAttachments, setMyAttachments] = React.useState([]);
+  var [loadingFiles, setLoadingFiles] = React.useState(false);
+
+  React.useEffect(function(){
+    if (portalView === 'mypage' && user && !profileDraft) {
+      (async function(){
+        var sb = window.supabase;
+        var { data } = await sb.from('students').select('*').eq('id', user.id).single();
+        if (data) setProfileDraft({
+          name: data.name || '', phone: data.phone || '', school: data.school || '',
+          grade: data.grade || '', address: data.address || '', parent_phone: data.parent_phone || '',
+          email: data.email || ''
+        });
+      })();
+    }
+  }, [portalView, user]);
+
+  React.useEffect(function(){
+    if (portalView === 'files' && user) {
+      (async function(){
+        setLoadingFiles(true);
+        var sb = window.supabase;
+        // 1) 학생이 속한 클래스 id들
+        var { data: cs } = await sb.from('class_students').select('class_id').eq('student_id', user.id);
+        var myClassIds = (cs || []).map(function(r){ return r.class_id; });
+        // 2) 명시적 수신자 첨부파일 ids
+        var { data: ar } = await sb.from('attachment_recipients').select('attachment_id').eq('student_id', user.id);
+        var directIds = (ar || []).map(function(r){ return r.attachment_id; });
+        // 3) class scope 첨부 (내 클래스 기준) + student scope 명시
+        var queries = [];
+        if (myClassIds.length > 0) queries.push(sb.from('attachments').select('*').eq('scope','class').in('class_id', myClassIds));
+        if (directIds.length > 0) queries.push(sb.from('attachments').select('*').eq('scope','student').in('id', directIds));
+        var all = [];
+        for (var i = 0; i < queries.length; i++) {
+          var r = await queries[i];
+          if (r.data) all = all.concat(r.data);
+        }
+        // 중복 제거
+        var seen = {};
+        var unique = all.filter(function(x){ if (seen[x.id]) return false; seen[x.id] = true; return true; });
+        unique.sort(function(a,b){ return String(b.created_at||'').localeCompare(String(a.created_at||'')); });
+        setMyAttachments(unique);
+        setLoadingFiles(false);
+      })();
+    }
+  }, [portalView, user]);
+
+  async function saveProfile() {
+    if (!profileDraft || !user) return;
+    setSavingProfile(true);
+    var sb = window.supabase;
+    var updates = {
+      name: (profileDraft.name||'').trim(),
+      phone: (profileDraft.phone||'').trim(),
+      school: (profileDraft.school||'').trim(),
+      grade: (profileDraft.grade||'').trim(),
+      address: (profileDraft.address||'').trim(),
+      parent_phone: (profileDraft.parent_phone||'').trim(),
+    };
+    var { error } = await sb.from('students').update(updates).eq('id', user.id);
+    setSavingProfile(false);
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    alert('정보가 저장되었습니다.');
+  }
+  async function changePassword() {
+    if (!user) return;
+    if (!pwDraft.current || !pwDraft.next) { alert('현재 비밀번호와 새 비밀번호를 입력해 주세요.'); return; }
+    if (pwDraft.next !== pwDraft.confirm) { alert('새 비밀번호 확인이 일치하지 않습니다.'); return; }
+    var sb = window.supabase;
+    var { data: row } = await sb.from('students').select('password_hash').eq('id', user.id).single();
+    if (!row || row.password_hash !== pwDraft.current) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
+    var { error } = await sb.from('students').update({ password_hash: pwDraft.next }).eq('id', user.id);
+    if (error) { alert('변경 실패: ' + error.message); return; }
+    alert('비밀번호가 변경되었습니다.');
+    setPwDraft({ current:'', next:'', confirm:'' });
+  }
+  function attachmentPublicUrl(path) {
+    var sb = window.supabase;
+    var { data } = sb.storage.from('attachments').getPublicUrl(path);
+    return data.publicUrl;
+  }
+  function formatBytes(n) {
+    var v = Number(n) || 0;
+    if (v < 1024) return v + ' B';
+    if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
+    return (v/1024/1024).toFixed(1) + ' MB';
+  }
 
   // 비로그인 상태
   if (!user) {
@@ -976,8 +1067,83 @@ function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAu
             isTeacherMode && React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.65)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, '내가 등록한 강의 보기')
           )
         ),
-        (studentGrade || isTeacherMode) && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 14px':'8px 20px' } },
-          React.createElement('span', { style:{ fontSize: small?'12px':'14px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, isTeacherMode ? '선생님' : studentGrade)
+        React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
+          !adminMode && React.createElement('button', { onClick:function(){ setPortalView('files'); }, style:{ background:'rgba(255,255,255,0.15)', color:'#fff', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 12px':'8px 16px', fontSize: small?'12px':'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📎 자료실'),
+          !adminMode && !isTeacherMode && React.createElement('button', { onClick:function(){ setPortalView('mypage'); setProfileDraft(null); }, style:{ background:'rgba(255,255,255,0.15)', color:'#fff', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 12px':'8px 16px', fontSize: small?'12px':'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '👤 마이페이지'),
+          (studentGrade || isTeacherMode) && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 14px':'8px 20px' } },
+            React.createElement('span', { style:{ fontSize: small?'12px':'14px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, isTeacherMode ? '선생님' : studentGrade)
+          )
+        )
+      )
+    );
+  }
+
+  // 마이페이지
+  if (portalView === 'mypage') {
+    var fld = function(label, key, type) {
+      return React.createElement('div', { key:key, style:{ marginBottom:'12px' } },
+        React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, label),
+        React.createElement('input', {
+          type: type || 'text',
+          value: (profileDraft && profileDraft[key]) || '',
+          onChange: function(e){ var v = e.target.value; setProfileDraft(function(p){ return Object.assign({}, p, (function(o){ o[key] = v; return o; })({})); }); },
+          style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' }
+        })
+      );
+    };
+    return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+      renderHeader(true),
+      React.createElement('div', { style:{ maxWidth:'640px', margin:'0 auto', padding:'24px 16px' } },
+        React.createElement('button', { onClick:function(){ setPortalView('main'); }, style:{ background:'none', border:'none', color:'#006241', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '← 홈으로'),
+        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' } },
+          React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '마이페이지'),
+          React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'16px', fontFamily:'Manrope, sans-serif' } }, '본인의 정보를 직접 수정하실 수 있습니다.'),
+          !profileDraft ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') : React.createElement('div', null,
+            React.createElement('div', { style:{ marginBottom:'12px' } },
+              React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '이메일 (변경 불가)'),
+              React.createElement('input', { value: profileDraft.email, disabled:true, style:{ width:'100%', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#f9fafb', color:'#9ca3af', boxSizing:'border-box' } })
+            ),
+            fld('이름', 'name'),
+            fld('전화번호', 'phone'),
+            fld('학교', 'school'),
+            fld('학년', 'grade'),
+            fld('주소', 'address'),
+            fld('학부모 전화번호', 'parent_phone'),
+            React.createElement('button', { onClick:saveProfile, disabled:savingProfile, style:{ background:'#006241', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 18px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, savingProfile ? '저장 중...' : '정보 저장')
+          ),
+          React.createElement('div', { style:{ borderTop:'1px solid #e5e7eb', marginTop:'24px', paddingTop:'18px' } },
+            React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '비밀번호 변경'),
+            React.createElement('div', { style:{ marginBottom:'8px' } }, React.createElement('input', { type:'password', placeholder:'현재 비밀번호', value:pwDraft.current, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { current:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
+            React.createElement('div', { style:{ marginBottom:'8px' } }, React.createElement('input', { type:'password', placeholder:'새 비밀번호', value:pwDraft.next, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { next:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
+            React.createElement('div', { style:{ marginBottom:'10px' } }, React.createElement('input', { type:'password', placeholder:'새 비밀번호 확인', value:pwDraft.confirm, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { confirm:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
+            React.createElement('button', { onClick:changePassword, style:{ background:'#fff', color:'#006241', border:'1px solid #006241', borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, '비밀번호 변경')
+          )
+        )
+      )
+    );
+  }
+
+  // 자료실 (학생/선생님 모두 본인 수신 자료 보기)
+  if (portalView === 'files') {
+    return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+      renderHeader(true),
+      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
+        React.createElement('button', { onClick:function(){ setPortalView('main'); }, style:{ background:'none', border:'none', color:'#006241', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '← 홈으로'),
+        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' } },
+          React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '자료실'),
+          React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'16px', fontFamily:'Manrope, sans-serif' } }, '담당 선생님이 보내주신 자료를 다운로드할 수 있습니다.'),
+          loadingFiles ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
+          myAttachments.length === 0 ? React.createElement('div', { style:{ padding:'30px', textAlign:'center', color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' } }, '받은 자료가 아직 없습니다.') :
+          myAttachments.map(function(a){
+            return React.createElement('div', { key:a.id, style:{ border:'1px solid #e5e7eb', borderRadius:'10px', padding:'14px', marginBottom:'10px', display:'flex', alignItems:'center', gap:'14px', flexWrap:'wrap' } },
+              React.createElement('div', { style:{ flex:1, minWidth:'200px' } },
+                React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'#1E3932', fontFamily:'Manrope, sans-serif', marginBottom:'2px' } }, a.title || a.file_name),
+                a.description && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, a.description),
+                React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, [a.file_name, formatBytes(a.file_size), String(a.created_at||'').slice(0,10)].filter(Boolean).join(' · '))
+              ),
+              React.createElement('a', { href: attachmentPublicUrl(a.file_path), target:'_blank', rel:'noopener', download: a.file_name || true, style:{ background:'#006241', color:'#fff', textDecoration:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '⬇ 다운로드')
+            );
+          })
         )
       )
     );

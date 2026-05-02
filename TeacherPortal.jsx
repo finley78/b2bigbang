@@ -43,6 +43,17 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [notificationLogs, setNotificationLogs] = React.useState([]);
   const [aiComments, setAiComments] = React.useState({}); // { student_id+test_score_id: comment }
 
+  // 자료실
+  const [attachments, setAttachments] = React.useState([]);
+  const [attachLoading, setAttachLoading] = React.useState(false);
+  const [attachUploading, setAttachUploading] = React.useState(false);
+  const [attachDraft, setAttachDraft] = React.useState({ title:'', description:'', scope:'class', class_id:'', student_ids:[], file:null });
+
+  // 마이페이지
+  const [profileDraft, setProfileDraft] = React.useState(null);
+  const [savingProfile, setSavingProfile] = React.useState(false);
+  const [pwDraft, setPwDraft] = React.useState({ current:'', next:'', confirm:'' });
+
   const [testInfo, setTestInfo] = React.useState({
     testType: "주간평가",
     testName: "",
@@ -753,6 +764,120 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return lines.join('\n');
   }
 
+  // ── 자료실 ──
+  async function loadAttachments() {
+    if (!teacherInfo) return;
+    setAttachLoading(true);
+    var { data } = await sb.from('attachments').select('*').eq('uploaded_by', teacherInfo.id).order('created_at', { ascending:false });
+    setAttachments(data || []);
+    setAttachLoading(false);
+  }
+  function attachmentPublicUrl(path) {
+    var { data } = sb.storage.from('attachments').getPublicUrl(path);
+    return data.publicUrl;
+  }
+  function formatBytes(n) {
+    var v = Number(n) || 0;
+    if (v < 1024) return v + ' B';
+    if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
+    return (v/1024/1024).toFixed(1) + ' MB';
+  }
+  async function uploadAttachment() {
+    var d = attachDraft;
+    if (!teacherInfo) { alert('선생님 정보가 없습니다.'); return; }
+    if (!d.file) { alert('파일을 선택해 주세요.'); return; }
+    if (!d.title.trim()) { alert('제목을 입력해 주세요.'); return; }
+    if (d.scope === 'class' && !d.class_id) { alert('클래스를 선택해 주세요.'); return; }
+    if (d.scope === 'student' && d.student_ids.length === 0) { alert('1명 이상의 학생을 선택해 주세요.'); return; }
+    setAttachUploading(true);
+    try {
+      var ext = d.file.name.split('.').pop() || 'bin';
+      var path = (d.scope === 'class' ? 'class/' + d.class_id : 'student/' + (teacherInfo.id || 'tx')) + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+      var up = await sb.storage.from('attachments').upload(path, d.file, { cacheControl:'3600', upsert:false });
+      if (up.error) throw up.error;
+      var insertRow = {
+        uploaded_by: teacherInfo.id,
+        title: d.title.trim(),
+        description: d.description.trim(),
+        file_path: path,
+        file_name: d.file.name,
+        file_size: d.file.size,
+        mime_type: d.file.type || null,
+        scope: d.scope,
+        class_id: d.scope === 'class' ? d.class_id : null,
+      };
+      var { data: created, error } = await sb.from('attachments').insert(insertRow).select().single();
+      if (error) throw error;
+      if (d.scope === 'student' && d.student_ids.length > 0) {
+        var rows = d.student_ids.map(function(sid){ return { attachment_id: created.id, student_id: sid }; });
+        await sb.from('attachment_recipients').insert(rows);
+      }
+      alert('업로드 완료');
+      setAttachDraft({ title:'', description:'', scope:'class', class_id:'', student_ids:[], file:null });
+      await loadAttachments();
+    } catch (e) {
+      alert('업로드 실패: ' + (e.message || e));
+    } finally {
+      setAttachUploading(false);
+    }
+  }
+  async function deleteAttachment(att) {
+    if (!confirm('이 자료를 삭제하시겠습니까?')) return;
+    try {
+      await sb.storage.from('attachments').remove([att.file_path]);
+      await sb.from('attachments').delete().eq('id', att.id);
+      await loadAttachments();
+    } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+  }
+
+  // ── 마이페이지 ──
+  async function loadMyProfile() {
+    if (!user) return;
+    var { data } = await sb.from('students').select('*').eq('email', user.email).maybeSingle();
+    var t = teacherInfo || {};
+    setProfileDraft({
+      name: (data && data.name) || t.name || user.name || '',
+      phone: (data && data.phone) || t.phone || '',
+      email: (data && data.email) || t.email || user.email || '',
+      school: (data && data.school) || t.school || '',
+      grade: (data && data.grade) || t.grade || '',
+      address: (data && data.address) || t.address || '',
+      _row_id: data ? data.id : null,
+    });
+  }
+  async function saveMyProfile() {
+    if (!profileDraft || !user) return;
+    setSavingProfile(true);
+    var updates = {
+      name: (profileDraft.name||'').trim(),
+      phone: (profileDraft.phone||'').trim(),
+      school: (profileDraft.school||'').trim(),
+      grade: (profileDraft.grade||'').trim(),
+      address: (profileDraft.address||'').trim(),
+    };
+    if (profileDraft._row_id) {
+      var { error } = await sb.from('students').update(updates).eq('id', profileDraft._row_id);
+      if (error) { setSavingProfile(false); alert('저장 실패: ' + error.message); return; }
+    }
+    if (teacherInfo && teacherInfo.id) {
+      var t = await sb.from('teachers').update({ name: updates.name, phone: updates.phone }).eq('id', teacherInfo.id);
+      // 일부 컬럼이 없을 수 있어 에러는 silent
+    }
+    setSavingProfile(false);
+    alert('정보가 저장되었습니다.');
+  }
+  async function changeMyPassword() {
+    if (!profileDraft || !profileDraft._row_id) { alert('계정 정보를 찾을 수 없습니다.'); return; }
+    if (!pwDraft.current || !pwDraft.next) { alert('현재/새 비밀번호를 모두 입력해 주세요.'); return; }
+    if (pwDraft.next !== pwDraft.confirm) { alert('새 비밀번호 확인이 일치하지 않습니다.'); return; }
+    var { data: row } = await sb.from('students').select('password_hash').eq('id', profileDraft._row_id).single();
+    if (!row || row.password_hash !== pwDraft.current) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
+    var { error } = await sb.from('students').update({ password_hash: pwDraft.next }).eq('id', profileDraft._row_id);
+    if (error) { alert('변경 실패: ' + error.message); return; }
+    alert('비밀번호가 변경되었습니다.');
+    setPwDraft({ current:'', next:'', confirm:'' });
+  }
+
   async function loadNotificationLogs() {
     var { data } = await sb.from('notification_logs').select('*').order('created_at', { ascending:false }).limit(200);
     setNotificationLogs(data || []);
@@ -862,6 +987,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     { id: "notes",    label: "특이사항" },
     { id: "stats",    label: "성적 등록" },
     { id: "analysis", label: "성적 분석" },
+    { id: "files",    label: "자료실" },
+    { id: "mypage",   label: "마이페이지" },
   ];
 
   return (
@@ -875,7 +1002,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       {/* 탭 네비 */}
       <div style={{ background: "#fff", borderBottom: "1px solid rgba(0,0,0,0.08)", display: "flex", gap: 0, overflowX: "auto" }}>
         {TABS.map(t =>
-          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); if(t.id==="analysis") loadScoreAnalysis(); }}
+          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); if(t.id==="analysis") loadScoreAnalysis(); if(t.id==="files") loadAttachments(); if(t.id==="mypage") loadMyProfile(); }}
             style={{ padding: "16px 24px", background: "none", border: "none", borderBottom: teacherView===t.id ? "2px solid #006241" : "2px solid transparent", fontSize: "14px", fontWeight: "700", color: teacherView===t.id ? "#006241" : "rgba(0,0,0,0.55)", cursor: "pointer", fontFamily: "Manrope, sans-serif", whiteSpace: "nowrap" }}>
             {t.label}
           </button>
@@ -1621,6 +1748,121 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </>
             );
           })()}
+        </div>
+      )}
+
+      {/* ── 탭6: 자료실 ── */}
+      {teacherView === "files" && (
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <h2 style={{ marginBottom: "4px" }}>자료실</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>학생들에게 학습 자료를 첨부파일로 전달할 수 있습니다.</p>
+
+          <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'16px', marginBottom:'18px' }}>
+            <h3 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'10px' }}>새 자료 업로드</h3>
+            <div style={{ marginBottom:'10px' }}>
+              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>제목</label>
+              <input style={inputStyle} value={attachDraft.title} onChange={e => setAttachDraft({ ...attachDraft, title: e.target.value })} placeholder="예: 1주차 영어 단어 정리" />
+            </div>
+            <div style={{ marginBottom:'10px' }}>
+              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>설명 (선택)</label>
+              <textarea style={{ ...inputStyle, minHeight:'60px', resize:'vertical' }} value={attachDraft.description} onChange={e => setAttachDraft({ ...attachDraft, description: e.target.value })} placeholder="자료 내용에 대한 간단한 설명" />
+            </div>
+            <div style={{ marginBottom:'10px' }}>
+              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>받는 대상</label>
+              <div style={{ display:'flex', gap:'12px', marginBottom:'8px' }}>
+                <label style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                  <input type="radio" checked={attachDraft.scope === 'class'} onChange={() => setAttachDraft({ ...attachDraft, scope:'class', student_ids:[] })} /> 클래스 전체
+                </label>
+                <label style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                  <input type="radio" checked={attachDraft.scope === 'student'} onChange={() => setAttachDraft({ ...attachDraft, scope:'student', class_id:'' })} /> 개별 학생 선택
+                </label>
+              </div>
+              {attachDraft.scope === 'class' ? (
+                <select style={inputStyle} value={attachDraft.class_id} onChange={e => setAttachDraft({ ...attachDraft, class_id: e.target.value })}>
+                  <option value="">클래스 선택</option>
+                  {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                </select>
+              ) : (
+                <div style={{ maxHeight:'160px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px', background:'#fff' }}>
+                  {(students || []).length === 0 ? (
+                    <div style={{ fontSize:'12px', color:'#9ca3af' }}>담당 클래스를 먼저 선택해 학생 목록을 불러와 주세요.</div>
+                  ) : (students || []).map(s => (
+                    <label key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
+                      <input type="checkbox" checked={attachDraft.student_ids.indexOf(s.id) >= 0} onChange={e => {
+                        var next = e.target.checked ? attachDraft.student_ids.concat([s.id]) : attachDraft.student_ids.filter(id => id !== s.id);
+                        setAttachDraft({ ...attachDraft, student_ids: next });
+                      }} />
+                      <span>{s.name}</span>
+                      {s.grade && <span style={{ color:'#9ca3af' }}>· {s.grade}</span>}
+                    </label>
+                  ))}
+                  <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' }}>{attachDraft.student_ids.length}명 선택됨</div>
+                </div>
+              )}
+            </div>
+            <div style={{ marginBottom:'12px' }}>
+              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>파일</label>
+              <input type="file" onChange={e => setAttachDraft({ ...attachDraft, file: e.target.files[0] || null })} style={{ fontFamily:'Manrope, sans-serif' }} />
+              {attachDraft.file && <span style={{ fontSize:'12px', color:'#6b7280', marginLeft:'10px' }}>{attachDraft.file.name} · {formatBytes(attachDraft.file.size)}</span>}
+            </div>
+            <button style={buttonStyle} onClick={uploadAttachment} disabled={attachUploading}>{attachUploading ? '업로드 중...' : '업로드'}</button>
+          </div>
+
+          <h3 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'10px' }}>업로드한 자료 · {attachments.length}개</h3>
+          {attachLoading ? <div style={{ color:'#9ca3af' }}>불러오는 중...</div> :
+            attachments.length === 0 ? <div style={{ padding:'20px', textAlign:'center', color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' }}>아직 업로드한 자료가 없습니다.</div> :
+            attachments.map(att => {
+              var clsName = att.class_id ? ((availableClassCards||[]).find(c => String(c.id) === String(att.class_id))||{}).name : '';
+              return (
+                <div key={att.id} style={{ border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', marginBottom:'8px', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap' }}>
+                  <div style={{ flex:1, minWidth:'200px' }}>
+                    <div style={{ fontSize:'13px', fontWeight:'700', color:'#1E3932', fontFamily:'Manrope, sans-serif' }}>{att.title}</div>
+                    {att.description && <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>{att.description}</div>}
+                    <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[att.scope === 'class' ? ('클래스: ' + (clsName || '-')) : '개별 학생', att.file_name, formatBytes(att.file_size), String(att.created_at||'').slice(0,10)].filter(Boolean).join(' · ')}</div>
+                  </div>
+                  <a href={attachmentPublicUrl(att.file_path)} target="_blank" rel="noopener" style={{ background:'#fff', color:'#006241', border:'1px solid #006241', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' }}>⬇ 다운로드</a>
+                  <button onClick={() => deleteAttachment(att)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>삭제</button>
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
+
+      {/* ── 탭7: 마이페이지 ── */}
+      {teacherView === "mypage" && (
+        <div style={{ ...cardStyle, marginBottom: "24px", maxWidth:'640px' }}>
+          <h2 style={{ marginBottom: "4px" }}>마이페이지</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>본인의 정보를 직접 수정하실 수 있습니다.</p>
+          {!profileDraft ? <div style={{ color:'#9ca3af' }}>불러오는 중...</div> : (
+            <>
+              <div style={{ marginBottom:'12px' }}>
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>이메일 (변경 불가)</label>
+                <input value={profileDraft.email} disabled style={{ ...inputStyle, background:'#f9fafb', color:'#9ca3af' }} />
+              </div>
+              <div style={{ marginBottom:'12px' }}>
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>이름</label>
+                <input style={inputStyle} value={profileDraft.name} onChange={e => setProfileDraft({ ...profileDraft, name: e.target.value })} />
+              </div>
+              <div style={{ marginBottom:'12px' }}>
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>전화번호</label>
+                <input style={inputStyle} value={profileDraft.phone} onChange={e => setProfileDraft({ ...profileDraft, phone: e.target.value })} />
+              </div>
+              <div style={{ marginBottom:'12px' }}>
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>주소</label>
+                <input style={inputStyle} value={profileDraft.address} onChange={e => setProfileDraft({ ...profileDraft, address: e.target.value })} />
+              </div>
+              <button style={buttonStyle} onClick={saveMyProfile} disabled={savingProfile}>{savingProfile ? '저장 중...' : '정보 저장'}</button>
+
+              <div style={{ borderTop:'1px solid #e5e7eb', marginTop:'24px', paddingTop:'18px' }}>
+                <h3 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'10px' }}>비밀번호 변경</h3>
+                <input type="password" placeholder="현재 비밀번호" value={pwDraft.current} onChange={e => setPwDraft({ ...pwDraft, current: e.target.value })} style={{ ...inputStyle, marginBottom:'8px' }} />
+                <input type="password" placeholder="새 비밀번호" value={pwDraft.next} onChange={e => setPwDraft({ ...pwDraft, next: e.target.value })} style={{ ...inputStyle, marginBottom:'8px' }} />
+                <input type="password" placeholder="새 비밀번호 확인" value={pwDraft.confirm} onChange={e => setPwDraft({ ...pwDraft, confirm: e.target.value })} style={{ ...inputStyle, marginBottom:'10px' }} />
+                <button style={lightButtonStyle} onClick={changeMyPassword}>비밀번호 변경</button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
