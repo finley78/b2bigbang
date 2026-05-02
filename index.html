@@ -23,14 +23,13 @@ body { font-family: 'Manrope', sans-serif; background: #f2f0eb; min-height: 100v
 <body>
 <div id="root"></div>
 
-<!-- JSX 캐시 버스팅: 배포할 때마다 ASSET_VERSION 숫자/문자열을 바꿔 주세요 -->
-<script>window.__ASSET_VERSION = '20260501a';</script>
-<script type="text/babel" src="TopNav.jsx?v=20260502m"></script>
-<script type="text/babel" src="HomePage.jsx?v=20260502m"></script>
-<script type="text/babel" src="Pages.jsx?v=20260502m"></script>
-<script type="text/babel" src="StudentPortal.jsx?v=20260502m"></script>
-<script type="text/babel" src="TeacherPortal.jsx?v=20260502m"></script>
-<script type="text/babel" src="AdminPanel.jsx?v=20260502m"></script>
+<!-- JSX 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
+<script type="text/babel" src="TopNav.jsx?v=20260502n"></script>
+<script type="text/babel" src="HomePage.jsx?v=20260502n"></script>
+<script type="text/babel" src="Pages.jsx?v=20260502n"></script>
+<script type="text/babel" src="StudentPortal.jsx?v=20260502n"></script>
+<script type="text/babel" src="TeacherPortal.jsx?v=20260502n"></script>
+<script type="text/babel" src="AdminPanel.jsx?v=20260502n"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -58,7 +57,6 @@ announcements: [
 { id:4, title:'수능 D-208 특별 학습 관리 프로그램 시작', date:'2026.04.09' },
 ],
 courses: [],
-students: [],
 slides: [
 { bg:'#1E3932', text1:'최고의 결과를 만든다', text2:'B2빅뱅 학습 시스템', accent:'2027 합격이 보인다', image:'', youtube:'' },
 { bg:'#006241', text1:'체계적인 커리큘럼', text2:'전문 강사진의 1:1 관리', accent:'목표 대학을 향해', image:'', youtube:'' },
@@ -255,13 +253,6 @@ onSignup: handleSignup,
 }),
 
 // 상단 네비
-React.createElement(TopBar, {
-user: effectiveUser,
-onLoginClick: ()=>setShowLogin(true),
-onLogout: handleLogout,
-onAdminClick: handleAdminClick,
-examDate: EXAM_DATE,
-}),
 React.createElement(MainNav, {
 page,
 setPage: navigate,
@@ -321,7 +312,6 @@ user: effectiveUser,
 isAdmin: adminAuthed || isTeacherUser(effectiveUser),
 adminAuthed,
 courses: state.courses,
-students: state.students,
 onLoginClick: ()=>setShowLogin(true),
 }),
 

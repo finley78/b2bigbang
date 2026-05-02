@@ -10,21 +10,6 @@ function dDay(targetDateStr) {
   return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
 }
 
-function TopBar({ user, onLoginClick, onLogout, onAdminClick, examDate }) {
-  return null;
-}
-
-const tbStyles = {
-  wrap:  { background:'#f9f9f9', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'0 40px' },
-  inner: { maxWidth:'1280px', margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between', height:'34px' },
-  left:  { display:'flex', gap:'16px' },
-  right: { display:'flex', gap:'8px', alignItems:'center', flexShrink:0, overflow:'hidden' },
-  branch:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em', cursor:'pointer' },
-  dday:  { fontSize:'12px', fontWeight:'700', color:'#006241', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em', whiteSpace:'nowrap' },
-  link:  { fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' },
-  divider:{ fontSize:'12px', color:'rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif' },
-};
-
 function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick, onAdminClick, onLogout, examDate }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);

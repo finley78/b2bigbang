@@ -373,9 +373,6 @@ function ContactPage() {
   );
 }
 
-Object.assign(window, { ServicePage, ContactPage, AboutPage, RecruitPage });
-
-
 /* ── About Page (학원안내) ───────────────────── */
 function AboutPage() {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
@@ -510,3 +507,5 @@ function RecruitPage({ setPage }) {
     )
   );
 }
+
+Object.assign(window, { ServicePage, ContactPage, AboutPage, RecruitPage });

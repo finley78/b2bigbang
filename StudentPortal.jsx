@@ -940,7 +940,7 @@ function LectureList({ course, onSelectLecture, onBack }) {
 }
 
 /* ── Student Portal ───────────────────────────── */
-function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAuthed }) {
+function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   var [selectedSubject, setSelectedSubject] = React.useState(null);
   var [selectedCourse, setSelectedCourse] = React.useState(null);
   var [selectedLecture, setSelectedLecture] = React.useState(null);
