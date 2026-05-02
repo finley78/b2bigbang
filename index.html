@@ -47,6 +47,29 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+<!-- 동영상 전체화면 진입 시 가로(landscape)로 자동 회전 (Android Chrome / 데스크톱) -->
+<!-- iOS는 PWA에서 Screen Orientation API를 막아놨음 → 유튜브 자체 전체화면 버튼이 native로 처리 -->
+<script>
+(function() {
+  function lockLandscape() {
+    if (screen.orientation && typeof screen.orientation.lock === 'function') {
+      screen.orientation.lock('landscape').catch(function() { /* 무시 */ });
+    }
+  }
+  function unlockOrientation() {
+    if (screen.orientation && typeof screen.orientation.unlock === 'function') {
+      try { screen.orientation.unlock(); } catch (e) {}
+    }
+  }
+  function onChange() {
+    var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fsEl) lockLandscape(); else unlockOrientation();
+  }
+  document.addEventListener('fullscreenchange', onChange);
+  document.addEventListener('webkitfullscreenchange', onChange);
+})();
+</script>
+
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
 <script src="Utils.js?v=20260502p"></script>
