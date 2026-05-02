@@ -607,9 +607,19 @@ React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:
 
 /* ── BANNER TAB ── */
 tab==='banner' && React.createElement('div', null,
-React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' } },
+React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' } },
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '히어로 배너'),
 React.createElement('button', { onClick:addBanner, style:btnS() }, '+ 배너 추가')
+),
+// 이미지/영상 권장 사이즈 안내
+React.createElement('div', { style:{ background:'#eef6f1', border:'1px solid #d4e9e2', borderRadius:'10px', padding:'12px 14px', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } },
+React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#006241', marginBottom:'6px' } }, '📐 배너 이미지/영상 권장 사이즈'),
+React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.7)', lineHeight:'1.7' } },
+React.createElement('div', null, '• 비율: 가로 : 세로 = 2 : 3 (세로가 가로보다 1.5배 길게)'),
+React.createElement('div', null, '• 권장 크기: 1080 × 1620 px (또는 720 × 1080 px)'),
+React.createElement('div', null, '• 카드에는 사진/영상만 보이고 글자 영역이 없으니 ', React.createElement('strong', null, '제목·뱃지·설명은 사진 안에 직접 디자인'), '해서 올려주세요.'),
+React.createElement('div', { style:{ marginTop:'4px', color:'rgba(0,0,0,0.5)' } }, '※ 영상은 가로 1080 × 세로 1620 (2:3 비율)로 만들어 올리시면 깔끔합니다.')
+)
 ),
 state.banners.map(b =>
 React.createElement('div', { key:b.id, style:cardS },

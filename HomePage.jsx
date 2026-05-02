@@ -91,26 +91,27 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
               padding:'0 6px',
               boxSizing:'border-box',
               cursor: onSelectBanner ? 'pointer' : 'default',
+              display:'flex',
+              justifyContent:'center',
             },
           },
             React.createElement('div', {
               style:{
-                background:'#fff',
+                width:'100%',
+                maxWidth: isMobile ? 'none' : '480px',
                 borderRadius:'16px',
                 overflow:'hidden',
                 boxShadow:`0 1px 2px rgba(0,0,0,0.08), 0 10px 28px ${card.bg}1A`,
                 position:'relative',
                 transition:'box-shadow 0.4s ease',
+                aspectRatio:'2/3',
+                background:`linear-gradient(135deg, ${card.bg}, ${card.bg}DD)`,
               }
             },
-              // 카드 상단 컬러 strip
-              React.createElement('div', { style:{ height:'4px', background: card.bg } }),
-              // 미디어 영역 (영상 우선, 없으면 이미지, 둘 다 없으면 컬러)
+              // 미디어 영역 — 카드 전체를 덮음 (텍스트 영역 제거됨, 사진에 직접 글씨 넣을 것)
               React.createElement('div', {
                 style:{
-                  position:'relative',
-                  aspectRatio: isMobile ? '16/9' : '21/9',
-                  background:`linear-gradient(135deg, ${card.bg}, ${card.bg}DD)`,
+                  position:'absolute', inset:0,
                   overflow:'hidden',
                 }
               },
@@ -145,30 +146,8 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
                         ),
                 // 영상 인디케이터 (직접 영상이거나 유튜브일 때)
                 (directVideo || ytId) && React.createElement('div', {
-                  style:{ position:'absolute', top:'10px', left:'10px', background:'rgba(0,0,0,0.55)', color:'#fff', fontSize:'10px', fontWeight:'700', padding:'3px 8px', borderRadius:'6px', fontFamily:'Manrope, sans-serif' }
+                  style:{ position:'absolute', top:'10px', left:'10px', background:'rgba(0,0,0,0.55)', color:'#fff', fontSize:'10px', fontWeight:'700', padding:'3px 8px', borderRadius:'6px', fontFamily:'Manrope, sans-serif', zIndex:2 }
                 }, '▶ 영상')
-              ),
-              // 본문
-              React.createElement('div', {
-                style:{ padding: isMobile ? '14px 16px 16px' : '18px 22px 20px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'12px' }
-              },
-                React.createElement('div', { style:{ flex:1, minWidth:0 } },
-                  card.badge && React.createElement('div', {
-                    style:{ display:'inline-block', background:`${card.bg}18`, color: card.bg, borderRadius:'6px', padding:'3px 10px', fontSize:'11px', fontWeight:'700', letterSpacing:'0.04em', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }
-                  }, card.badge),
-                  card.subtitle && React.createElement('div', {
-                    style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginBottom:'4px' }
-                  }, card.subtitle),
-                  React.createElement('div', {
-                    style:{ fontSize: isMobile ? '17px' : '20px', fontWeight:'800', color:'rgba(0,0,0,0.87)', letterSpacing:'-0.16px', lineHeight:'1.3', fontFamily:'Manrope, sans-serif' }
-                  }, card.title)
-                ),
-                card.label && React.createElement('div', {
-                  style:{ flexShrink:0, background:`${card.bg}10`, border:`1px solid ${card.bg}30`, borderRadius:'10px', padding: isMobile ? '6px 10px' : '8px 14px', textAlign:'center' }
-                },
-                  React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginBottom:'2px' } }, '개강'),
-                  React.createElement('div', { style:{ fontSize: isMobile ? '12px' : '13px', fontWeight:'800', color: card.bg, fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, card.label)
-                )
               )
             )
           );
