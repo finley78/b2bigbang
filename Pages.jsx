@@ -47,7 +47,7 @@ function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh
           course.badge && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'rgba(255,255,255,0.2)', color:'#fff', borderRadius:'8px', padding:'2px 10px', fontFamily:'Manrope, sans-serif' } }, course.badge)
         ),
         React.createElement('h1', { style:{ fontSize: isMobile ? '26px' : '36px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px', lineHeight:'1.2', marginBottom:'12px' } }, course.name),
-        React.createElement('p', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.75)', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, course.desc),
+        React.createElement('p', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.75)', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, course.description ?? course.desc),
         React.createElement('div', { style:{ display:'flex', gap:'24px', marginTop:'20px', flexWrap:'wrap' } },
           [
             { label:'수업 횟수', val:`주 ${course.days}회` },

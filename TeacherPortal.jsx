@@ -434,7 +434,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           const alreadySet = new Set((existing || []).map(e => e.student_id));
           const toAdd = studentIds.filter(sid => !alreadySet.has(sid));
           if (toAdd.length > 0) {
-            await sb.from("enrollments").insert(toAdd.map(sid => ({ student_id: sid, course_id: courseId })));
+            await sb.from("enrollments").insert(toAdd.map(sid => ({ student_id: sid, course_id: courseId, is_active: true })));
           }
         }
       } catch(autoErr) {
