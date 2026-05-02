@@ -24,6 +24,7 @@ body { font-family: 'Manrope', sans-serif; background: #f2f0eb; min-height: 100v
 <div id="root"></div>
 
 <!-- JSX 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
+<script type="text/babel" src="Utils.jsx?v=20260502n"></script>
 <script type="text/babel" src="TopNav.jsx?v=20260502n"></script>
 <script type="text/babel" src="HomePage.jsx?v=20260502n"></script>
 <script type="text/babel" src="Pages.jsx?v=20260502n"></script>
@@ -72,14 +73,6 @@ featureCta2:'프로그램 보기',
 
 const EXAM_DATE = '2026-11-12';
 
-function appLectureVideoUrl(v) {
-  var raw = String((v && (v.video_url || v.youtube_id)) || '').trim();
-  if (!raw) return '';
-  if (/youtube\.com|youtu\.be/i.test(raw)) return raw;
-  if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) return 'https://www.youtube.com/watch?v=' + raw;
-  return raw;
-}
-
 function App() {
 const [page, setPage] = React.useState(() => {
   try { return sessionStorage.getItem('b2_page') || 'home'; } catch { return 'home'; }
@@ -127,7 +120,7 @@ lectures: (c.videos || [])
 .sort((a,b) => a.sort_order - b.sort_order).map(v => ({
 id: v.id,
 title: v.title,
-videoUrl: appLectureVideoUrl(v),
+videoUrl: B2Utils.lectureVideoUrl(v),
 youtubeId: v.youtube_id || '',
 expires_at: v.expires_at || null,
 })),

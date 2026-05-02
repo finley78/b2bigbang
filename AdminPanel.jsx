@@ -23,75 +23,6 @@ const SCHOOL_LEVELS = {
 function adminGradeBucket(score) { var s = Number(score); if (isNaN(s)) return null; if (s>=90) return 1; if (s>=80) return 2; if (s>=70) return 3; return 0; }
 function adminDistBucket(score) { var s = Number(score); if (isNaN(s)) return null; if (s>=90) return '90-100'; if (s>=80) return '80-89'; if (s>=70) return '70-79'; if (s>=60) return '60-69'; return '0-59'; }
 function adminColorForScore(score) { var s = Number(score); if (isNaN(s)) return '#9ca3af'; if (s>=90) return '#006241'; if (s>=70) return '#cba258'; return '#c82014'; }
-function adminGenerateComment(args) {
-  var name = args.studentName || '학생';
-  var score = Number(args.score);
-  var prev = args.prevScore != null ? Number(args.prevScore) : null;
-  var classAvg = args.classAvg != null ? Number(args.classAvg) : null;
-  var trend3 = Array.isArray(args.recentTrend) ? args.recentTrend.slice(-3).map(Number).filter(function(v){return !isNaN(v);}) : [];
-  var subject = args.subject || '';
-  var testName = args.testName || '시험';
-  var lines = [];
-  if (!isNaN(score)) lines.push(name + ' 학생은 이번 ' + testName + '에서 ' + score + '점을 받았습니다.');
-  if (prev != null && !isNaN(prev)) {
-    var diff = score - prev;
-    if (diff > 0) lines.push('지난 시험(' + prev + '점) 대비 ' + diff + '점 향상되어 꾸준한 성장을 보이고 있습니다.');
-    else if (diff < 0) lines.push('지난 시험(' + prev + '점) 대비 ' + Math.abs(diff) + '점 하락하여 학습 점검이 필요합니다.');
-    else lines.push('지난 시험(' + prev + '점)과 동일한 점수를 유지하고 있습니다.');
-  }
-  if (trend3.length >= 3) {
-    var allDown = trend3[0] > trend3[1] && trend3[1] > trend3[2];
-    var allUp = trend3[0] < trend3[1] && trend3[1] < trend3[2];
-    if (allDown) lines.push('최근 3회 시험에서 점수가 연속 하락하고 있어 집중적인 관리가 필요한 시점입니다.');
-    else if (allUp) lines.push('최근 3회 연속 점수가 상승하며 학습 흐름이 매우 긍정적입니다.');
-  }
-  if (classAvg != null && !isNaN(classAvg)) {
-    var gap = score - classAvg;
-    if (gap >= 5) lines.push('반 평균(' + classAvg.toFixed(1) + '점) 대비 ' + gap.toFixed(1) + '점 높아 상위권을 유지하고 있습니다.');
-    else if (gap <= -5) lines.push('반 평균(' + classAvg.toFixed(1) + '점) 대비 ' + Math.abs(gap).toFixed(1) + '점 낮아 기초 보강이 필요합니다.');
-    else lines.push('반 평균(' + classAvg.toFixed(1) + '점)에 근접한 점수로 안정적인 흐름을 유지하고 있습니다.');
-  }
-  if (!isNaN(score)) {
-    if (score >= 90) lines.push('현재 우수한 흐름을 유지하고 있으니 심화 문제와 기출 위주의 학습을 권장드립니다.');
-    else if (score >= 70) lines.push((subject || '해당 과목') + ' 약점 단원을 정리하고, 주 2회 추가 연습을 권장드립니다.');
-    else lines.push('기본 개념 정리를 우선하여 주 3회 이상 복습 및 반복 풀이를 권장드립니다.');
-  }
-  return lines.join(' ');
-}
-function adminFormatKakao(args) {
-  var lines = [];
-  lines.push('[B2빅뱅학원] 성적 안내'); lines.push('');
-  lines.push((args.studentName || '학생') + ' 학생 성적 안내드립니다.'); lines.push('');
-  lines.push('▶ 시험명: ' + (args.testName || '-'));
-  lines.push('▶ 응시일: ' + (args.testDate || '-'));
-  lines.push('▶ 점수: ' + (args.score != null ? args.score + '점' : '-'));
-  if (args.prevScore != null) { var diff = Number(args.score) - Number(args.prevScore); lines.push('▶ 전회 대비: ' + (diff >= 0 ? '+' : '') + diff + '점'); }
-  else lines.push('▶ 전회 대비: -');
-  lines.push('');
-  var summary = String(args.comment || '').split('. ').slice(0,2).join('. ');
-  if (summary && !summary.endsWith('.')) summary += '.';
-  lines.push(summary || '자세한 내용은 학원으로 문의해 주세요.'); lines.push('');
-  lines.push('자세한 내용은 학원으로 문의해 주세요.'); lines.push('☎ 학원 연락처');
-  return lines.join('\n');
-}
-
-function adminExtractYoutubeId(value) {
-var raw = String(value || '').trim();
-if (!raw) return '';
-var match = raw.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{6,})/);
-if (match && match[1]) return match[1];
-if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) return raw;
-return raw;
-}
-
-function adminLectureVideoUrl(v) {
-var raw = String((v && (v.video_url || v.youtube_id)) || '').trim();
-if (!raw) return '';
-if (/youtube\.com|youtu\.be/i.test(raw)) return raw;
-if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) return 'https://www.youtube.com/watch?v=' + raw;
-return raw;
-}
-
 
 /* ── Admin Login ────────────────────────────── */
 function AdminLogin({ onLogin }) {
@@ -213,7 +144,7 @@ price: c.price || '', badge: c.badge || null, intro: c.intro || '',
 target: c.target || '', curriculum: c.curriculum || '', teacherDesc: c.teacher_desc || '',
 youtube: c.youtube || '',
 lectures: (c.videos || []).sort((a,b) => a.sort_order - b.sort_order).map(v => ({
-id: v.id, title: v.title, videoUrl: adminLectureVideoUrl(v), youtubeId: v.youtube_id || '',
+id: v.id, title: v.title, videoUrl: B2Utils.lectureVideoUrl(v), youtubeId: v.youtube_id || '',
 })),
 }));
 setState(s => ({ ...s, courses: mapped }));
@@ -866,7 +797,7 @@ React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'
 React.createElement('input', { value:lec.title||'', onChange:function(e){ var val=e.target.value; setState(function(s){ return {...s,courses:s.courses.map(function(x){ return x.id===c.id?{...x,lectures:x.lectures.map(function(l){ return l.id===lec.id?{...l,title:val}:l; })}:x; })}; }); }, onBlur:async function(e){ await window.supabase.from('videos').update({title:e.target.value}).eq('id',lec.id); }, placeholder:'강의 제목', style:{...inputS,marginBottom:0,flex:1} }),
 React.createElement('button', { onClick:async function(){ await window.supabase.from('videos').delete().eq('id',lec.id); setState(function(s){ return {...s,courses:s.courses.map(function(x){ return x.id===c.id?{...x,lectures:x.lectures.filter(function(l){ return l.id!==lec.id; })}:x; })}; }); }, style:{...btnOutS,padding:'4px 10px',fontSize:'12px'} }, '삭제')
 ),
-React.createElement('input', { value:lec.youtubeId||'', onChange:function(e){ var val=e.target.value; setState(function(s){ return {...s,courses:s.courses.map(function(x){ return x.id===c.id?{...x,lectures:x.lectures.map(function(l){ return l.id===lec.id?{...l,youtubeId:val,videoUrl:adminLectureVideoUrl({ youtube_id: val })}:l; })}:x; })}; }); }, onBlur:async function(e){ await window.supabase.from('videos').update({youtube_id:adminExtractYoutubeId(e.target.value)}).eq('id',lec.id); }, placeholder:'YouTube 링크/ID 또는 시놀로지 영상 URL', style:{...inputS,marginBottom:0,fontSize:'12px'} })
+React.createElement('input', { value:lec.youtubeId||'', onChange:function(e){ var val=e.target.value; setState(function(s){ return {...s,courses:s.courses.map(function(x){ return x.id===c.id?{...x,lectures:x.lectures.map(function(l){ return l.id===lec.id?{...l,youtubeId:val,videoUrl:B2Utils.lectureVideoUrl({ youtube_id: val })}:l; })}:x; })}; }); }, onBlur:async function(e){ await window.supabase.from('videos').update({youtube_id:B2Utils.extractYoutubeId(e.target.value)}).eq('id',lec.id); }, placeholder:'YouTube 링크/ID 또는 시놀로지 영상 URL', style:{...inputS,marginBottom:0,fontSize:'12px'} })
 );
 })
 )
@@ -2132,7 +2063,7 @@ React.createElement('input', {
       var lastScore = r.last ? Number(r.last.score) : null;
       var prevScore = r.prev ? Number(r.prev.score) : null;
       var trendVals = r.scores.map(function(s){return Number(s.score);}).filter(function(v){return !isNaN(v);});
-      var aiComment = adminGenerateComment({
+      var aiComment = B2Utils.generateComment({
         studentName: r.name, score: lastScore, prevScore: prevScore, classAvg: lastAvg, recentTrend: trendVals,
         subject: r.last ? r.last.subject : '', testName: r.last ? r.last.test_name : ''
       });
@@ -2405,7 +2336,7 @@ reportStudentId && (function(){
   var prev = allScoresForStudent[allScoresForStudent.length-2];
   var vals = allScoresForStudent.map(function(s){ return Number(s.score); }).filter(function(v){return !isNaN(v);});
   var avgPersonal = vals.length ? vals.reduce(function(a,b){return a+b;},0)/vals.length : null;
-  var aiC = adminGenerateComment({ studentName:name, score: last ? Number(last.score) : null, prevScore: prev ? Number(prev.score) : null, classAvg: null, recentTrend: vals, subject: last ? last.subject : '', testName: last ? last.test_name : '' });
+  var aiC = B2Utils.generateComment({ studentName:name, score: last ? Number(last.score) : null, prevScore: prev ? Number(prev.score) : null, classAvg: null, recentTrend: vals, subject: last ? last.subject : '', testName: last ? last.test_name : '' });
   return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' } },
     React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', maxWidth:'640px', width:'100%', maxHeight:'90vh', overflowY:'auto' } },
       React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' } },
@@ -2450,8 +2381,8 @@ kakaoTarget && (function(){
     var lastScore = s.last ? Number(s.last.score) : null;
     var prevScore = s.prev ? Number(s.prev.score) : null;
     var allScores = (adminAnalysis || []).filter(function(x){ return String(x.student_id) === sid; }).map(function(x){ return Number(x.score); }).filter(function(v){return !isNaN(v);});
-    var comment = adminGenerateComment({ studentName: s.name || stu.name, score: lastScore, prevScore: prevScore, classAvg: null, recentTrend: allScores, subject: s.last ? s.last.subject : '', testName: s.last ? s.last.test_name : '' });
-    var msg = adminFormatKakao({ studentName: s.name || stu.name, testName: s.last ? s.last.test_name : '-', testDate: s.last ? s.last.test_date : '-', score: lastScore, prevScore: prevScore, comment: comment });
+    var comment = B2Utils.generateComment({ studentName: s.name || stu.name, score: lastScore, prevScore: prevScore, classAvg: null, recentTrend: allScores, subject: s.last ? s.last.subject : '', testName: s.last ? s.last.test_name : '' });
+    var msg = B2Utils.formatKakao({ studentName: s.name || stu.name, testName: s.last ? s.last.test_name : '-', testDate: s.last ? s.last.test_date : '-', score: lastScore, prevScore: prevScore, comment: comment });
     return { student_id: sid, parent_phone: s.parent_phone || stu.parent_phone || stu.phone || null, message_content: msg, test_score_id: s.last ? s.last.id : null };
   });
   return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' } },

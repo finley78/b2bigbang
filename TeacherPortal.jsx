@@ -99,23 +99,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return String(value || "").trim().toLowerCase();
   }
 
-  function extractYoutubeId(value) {
-    const raw = String(value || "").trim();
-    if (!raw) return "";
-    const match = raw.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{6,})/);
-    if (match && match[1]) return match[1];
-    if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) return raw;
-    return raw;
-  }
-
-  function lectureVideoUrl(video) {
-    const raw = String((video && (video.video_url || video.youtube_id)) || "").trim();
-    if (!raw) return "";
-    if (/youtube\.com|youtu\.be/i.test(raw)) return raw;
-    if (/^[A-Za-z0-9_-]{6,}$/.test(raw) && !/^https?:\/\//i.test(raw)) return "https://www.youtube.com/watch?v=" + raw;
-    return raw;
-  }
-
   function splitList(value) {
     if (Array.isArray(value)) return value.filter(Boolean).map((v) => String(v).trim()).filter(Boolean);
     return String(value || "")
@@ -220,7 +203,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         title: video.title || "",
         category: video.category || "",
         youtubeId: video.youtube_id || "",
-        videoUrl: lectureVideoUrl(video),
+        videoUrl: B2Utils.lectureVideoUrl(video),
         expires_at: video.expires_at || null,
       })),
     };
@@ -402,12 +385,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       const expiresAt = days > 0 ? new Date(Date.now() + days*24*60*60*1000).toISOString() : null;
       const { data: video, error: videoError } = await sb
         .from("videos")
-        .insert({ course_id: courseId, title, youtube_id: extractYoutubeId(link), sort_order: nextOrder, expires_at: expiresAt })
+        .insert({ course_id: courseId, title, youtube_id: B2Utils.extractYoutubeId(link), sort_order: nextOrder, expires_at: expiresAt })
         .select()
         .single();
       if (videoError) throw videoError;
 
-      const lecture = { id: video.id, title: video.title, category: video.category || "", youtubeId: video.youtube_id || "", videoUrl: lectureVideoUrl(video) };
+      const lecture = { id: video.id, title: video.title, category: video.category || "", youtubeId: video.youtube_id || "", videoUrl: B2Utils.lectureVideoUrl(video) };
       setTeacherCourses(prev => prev.map(c =>
         String(c.id) === String(courseId) ? { ...c, lectures: [...(c.lectures || []), lecture] } : c
       ));
@@ -467,7 +450,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
     setTeacherCourses((prev) => prev.map((course) =>
       String(course.id) === String(courseId)
-        ? { ...course, lectures: [...(course.lectures || []), { id: data.id, title: data.title, youtubeId: data.youtube_id || "", videoUrl: lectureVideoUrl(data) }] }
+        ? { ...course, lectures: [...(course.lectures || []), { id: data.id, title: data.title, youtubeId: data.youtube_id || "", videoUrl: B2Utils.lectureVideoUrl(data) }] }
         : course
     ));
   }
@@ -480,14 +463,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         lectures: (course.lectures || []).map((lecture) => {
           if (String(lecture.id) !== String(lectureId)) return lecture;
           const next = { ...lecture, [field]: value };
-          if (field === "youtubeId") next.videoUrl = lectureVideoUrl({ youtube_id: value });
+          if (field === "youtubeId") next.videoUrl = B2Utils.lectureVideoUrl({ youtube_id: value });
           return next;
         }),
       };
     }));
 
     if (!saveToDB) return;
-    const payload = field === "title" ? { title: value } : { youtube_id: extractYoutubeId(value) };
+    const payload = field === "title" ? { title: value } : { youtube_id: B2Utils.extractYoutubeId(value) };
     const { error } = await sb.from("videos").update(payload).eq("id", lectureId);
     if (error) alert("강의 저장 실패: " + error.message);
   }
@@ -752,69 +735,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       .sort(function(a,b){ return String(a.test_date||'').localeCompare(String(b.test_date||'')); });
   }
   // 템플릿 기반 코멘트 생성기 (AI 자리, 운영 시 백엔드 통한 Claude API로 교체)
-  function generateComment(args) {
-    var name = args.studentName || '학생';
-    var score = Number(args.score);
-    var prev = args.prevScore != null ? Number(args.prevScore) : null;
-    var classAvg = args.classAvg != null ? Number(args.classAvg) : null;
-    var trend3 = Array.isArray(args.recentTrend) ? args.recentTrend.slice(-3).map(Number).filter(function(v){return !isNaN(v);}) : [];
-    var subject = args.subject || '';
-    var testName = args.testName || '시험';
-
-    var lines = [];
-    if (!isNaN(score)) {
-      lines.push(name + ' 학생은 이번 ' + testName + '에서 ' + score + '점을 받았습니다.');
-    }
-    if (prev != null && !isNaN(prev)) {
-      var diff = score - prev;
-      if (diff > 0) lines.push('지난 시험(' + prev + '점) 대비 ' + diff + '점 향상되어 꾸준한 성장을 보이고 있습니다.');
-      else if (diff < 0) lines.push('지난 시험(' + prev + '점) 대비 ' + Math.abs(diff) + '점 하락하여 학습 점검이 필요합니다.');
-      else lines.push('지난 시험(' + prev + '점)과 동일한 점수를 유지하고 있습니다.');
-    }
-    if (trend3.length >= 3) {
-      var allDown = trend3[0] > trend3[1] && trend3[1] > trend3[2];
-      var allUp = trend3[0] < trend3[1] && trend3[1] < trend3[2];
-      if (allDown) lines.push('최근 3회 시험에서 점수가 연속 하락하고 있어 집중적인 관리가 필요한 시점입니다.');
-      else if (allUp) lines.push('최근 3회 연속 점수가 상승하며 학습 흐름이 매우 긍정적입니다.');
-    }
-    if (classAvg != null && !isNaN(classAvg)) {
-      var gap = score - classAvg;
-      if (gap >= 5) lines.push('반 평균(' + classAvg.toFixed(1) + '점) 대비 ' + gap.toFixed(1) + '점 높아 상위권을 유지하고 있습니다.');
-      else if (gap <= -5) lines.push('반 평균(' + classAvg.toFixed(1) + '점) 대비 ' + Math.abs(gap).toFixed(1) + '점 낮아 기초 보강이 필요합니다.');
-      else lines.push('반 평균(' + classAvg.toFixed(1) + '점)에 근접한 점수로 안정적인 흐름을 유지하고 있습니다.');
-    }
-    if (!isNaN(score)) {
-      if (score >= 90) lines.push('현재 우수한 흐름을 유지하고 있으니 심화 문제와 기출 위주의 학습을 권장드립니다.');
-      else if (score >= 70) lines.push((subject || '해당 과목') + ' 약점 단원을 정리하고, 주 2회 추가 연습을 권장드립니다.');
-      else lines.push('기본 개념 정리를 우선하여 주 3회 이상 복습 및 반복 풀이를 권장드립니다.');
-    }
-    return lines.join(' ');
-  }
-  function formatKakaoMessage(args) {
-    var lines = [];
-    lines.push('[B2빅뱅학원] 성적 안내');
-    lines.push('');
-    lines.push((args.studentName || '학생') + ' 학생 성적 안내드립니다.');
-    lines.push('');
-    lines.push('▶ 시험명: ' + (args.testName || '-'));
-    lines.push('▶ 응시일: ' + (args.testDate || '-'));
-    lines.push('▶ 점수: ' + (args.score != null ? args.score + '점' : '-'));
-    if (args.prevScore != null) {
-      var diff = Number(args.score) - Number(args.prevScore);
-      lines.push('▶ 전회 대비: ' + (diff >= 0 ? '+' : '') + diff + '점');
-    } else {
-      lines.push('▶ 전회 대비: -');
-    }
-    lines.push('');
-    var summary = String(args.comment || '').split('. ').slice(0,2).join('. ');
-    if (summary && !summary.endsWith('.')) summary += '.';
-    lines.push(summary || '자세한 내용은 학원으로 문의해 주세요.');
-    lines.push('');
-    lines.push('자세한 내용은 학원으로 문의해 주세요.');
-    lines.push('☎ 학원 연락처');
-    return lines.join('\n');
-  }
-
   // 클래스 ID로 학생 목록 로드 (전역 state에 영향 없이 캐시)
   async function loadClassStudentsCached(classId) {
     if (!classId) return [];
@@ -2228,7 +2148,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   var lastScore = r.last ? Number(r.last.score) : null;
                   var prevScore = r.prev ? Number(r.prev.score) : null;
                   var trendVals = r.scores.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
-                  var aiComment = generateComment({
+                  var aiComment = B2Utils.generateComment({
                     studentName: r.name,
                     score: lastScore,
                     prevScore: prevScore,
@@ -2429,7 +2349,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         var prev = allScoresForStudent[allScoresForStudent.length-2];
         var vals = allScoresForStudent.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
         var avgPersonal = vals.length ? vals.reduce(function(a,b){return a+b;},0)/vals.length : null;
-        var aiC = generateComment({
+        var aiC = B2Utils.generateComment({
           studentName: name,
           score: last ? Number(last.score) : null,
           prevScore: prev ? Number(prev.score) : null,
@@ -2520,7 +2440,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           var lastScore = s.last ? Number(s.last.score) : null;
           var prevScore = s.prev ? Number(s.prev.score) : null;
           var allScores = (scoreAnalysis || []).filter(function(x){ return String(x.student_id) === sid; }).map(function(x){ return Number(x.score); }).filter(function(v){ return !isNaN(v); });
-          var comment = generateComment({
+          var comment = B2Utils.generateComment({
             studentName: s.name || std.name,
             score: lastScore,
             prevScore: prevScore,
@@ -2529,7 +2449,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             subject: s.last ? s.last.subject : '',
             testName: s.last ? s.last.test_name : ''
           });
-          var msg = formatKakaoMessage({
+          var msg = B2Utils.formatKakao({
             studentName: s.name || std.name,
             testName: s.last ? s.last.test_name : '-',
             testDate: s.last ? s.last.test_date : '-',
