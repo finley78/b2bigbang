@@ -101,7 +101,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
   }
   const ytId = getYoutubeId(s.youtube);
 
-  return React.createElement('div', { style: { background:'#f2f0eb', padding: isMobile ? '16px' : '24px 40px', overflow:'hidden' } },
+  return React.createElement('div', { style: { background:'#f8fafc', padding: isMobile ? '16px' : '24px 40px', overflow:'hidden' } },
     React.createElement('div', { style: { maxWidth:'1280px', margin:'0 auto', display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', width:'100%', alignItems:'stretch' } },
       !isMobile && React.createElement('div', { style: { borderRadius:'12px', overflow:'hidden', position:'relative', minHeight:'280px', background: s.bg } },
         // 배경 이미지
@@ -223,7 +223,7 @@ function NoticeDetailPage({ notice, onBack }) {
 
   const ytId = getYoutubeId(notice.youtube);
 
-  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     // 뒤로가기
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
       React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#006241', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } }, '← 목록으로')

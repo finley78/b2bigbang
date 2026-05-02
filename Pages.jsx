@@ -34,7 +34,7 @@ function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh
   const isMobile = window.innerWidth < 768;
   const color = course.color || '#006241';
 
-  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     // 뒤로가기
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
       React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '← 강좌 목록으로')
@@ -176,7 +176,7 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
     return true;
   });
 
-  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     React.createElement('div', { style:{ background:'#1E3932', padding: isMob ? '32px 16px' : '56px 40px' } },
       React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } },
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'Programs'),
@@ -293,7 +293,7 @@ function ContactPage() {
     if (validate()) setSent(true);
   }
 
-  if (sent) return React.createElement('div', { style:{ minHeight:'70vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'16px', background:'#f2f0eb' } },
+  if (sent) return React.createElement('div', { style:{ minHeight:'70vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'16px', background:'#f8fafc' } },
     React.createElement('div', { style:{ width:'72px', height:'72px', borderRadius:'50%', background:'#d4e9e2', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'32px' } }, '✓'),
     React.createElement('h2', { style:{ fontSize:'28px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px' } }, '문의가 접수되었습니다'),
     React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', textAlign:'center', lineHeight:'1.7' } }, '빠른 시일 내에 담당자가 연락드리겠습니다.\n평균 응대 시간: 영업일 기준 1~2일'),
@@ -312,7 +312,7 @@ function ContactPage() {
     );
   }
 
-  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     React.createElement('div', { style:{ background:'#1E3932', padding:'48px 40px' } },
       React.createElement('div', { style:{ maxWidth:'640px', margin:'0 auto' } },
         React.createElement('h1', { style:{ fontSize:'36px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '무료 상담 신청'),
@@ -396,7 +396,7 @@ function AboutPage() {
     { name:'과학', color:'#1E3932', desc:'물리·화학·생물·지구과학 / 내신 집중 대비' },
   ];
 
-  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     // 헤더
     React.createElement('div', { style:{ background:'#1E3932', padding: isMobile ? '40px 16px' : '64px 40px' } },
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto' } },
@@ -461,7 +461,7 @@ function RecruitPage({ setPage }) {
     { grade:'재수·반수', icon:'', desc:'수능 집중 완성 과정\n취약 과목 집중 공략\n정시·수시 동시 대비' },
   ];
 
-  return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     React.createElement('div', { style:{ background:'#1E3932', padding: isMobile ? '40px 16px' : '64px 40px' } },
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto' } },
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'Recruit'),
