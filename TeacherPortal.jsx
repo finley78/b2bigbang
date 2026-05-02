@@ -925,6 +925,29 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setSavingProfile(false);
     alert('정보가 저장되었습니다.');
   }
+  async function withdrawMyAccount() {
+    if (!profileDraft) { alert('계정 정보를 불러올 수 없습니다.'); return; }
+    var displayName = profileDraft.name || (user && user.name) || '';
+    var name = prompt('정말 탈퇴하시겠습니까?\n탈퇴를 진행하시려면 본인 이름 "' + displayName + '"을(를) 입력해 주세요.\n탈퇴 후에는 로그인할 수 없으며 담당 강좌·기록 등은 비활성화 처리됩니다.');
+    if (name == null) return;
+    if (String(name).trim() !== String(displayName).trim()) { alert('이름이 일치하지 않습니다. 탈퇴가 취소되었습니다.'); return; }
+    if (profileDraft._row_id) {
+      var { error } = await sb.from('students').update({ is_active:false, withdrawn_at: new Date().toISOString() }).eq('id', profileDraft._row_id);
+      if (error) { alert('탈퇴 처리 실패: ' + error.message); return; }
+    }
+    // teachers 테이블에도 마킹 시도 (컬럼 없으면 silent)
+    if (teacherInfo && teacherInfo.id) {
+      try { await sb.from('teachers').update({ is_active:false }).eq('id', teacherInfo.id); } catch(e) {}
+    }
+    alert('탈퇴가 완료되었습니다.');
+    try {
+      sessionStorage.removeItem('b2_user');
+      sessionStorage.removeItem('b2_is_admin');
+      sessionStorage.removeItem('b2_admin_authed');
+      sessionStorage.removeItem('b2_page');
+    } catch (e) {}
+    window.location.href = '/';
+  }
   async function changeMyPassword() {
     if (!profileDraft || !profileDraft._row_id) { alert('계정 정보를 찾을 수 없습니다.'); return; }
     if (!pwDraft.current || !pwDraft.next) { alert('현재/새 비밀번호를 모두 입력해 주세요.'); return; }
@@ -2017,6 +2040,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <input type="password" placeholder="새 비밀번호" value={pwDraft.next} onChange={e => setPwDraft({ ...pwDraft, next: e.target.value })} style={{ ...inputStyle, marginBottom:'8px' }} />
                 <input type="password" placeholder="새 비밀번호 확인" value={pwDraft.confirm} onChange={e => setPwDraft({ ...pwDraft, confirm: e.target.value })} style={{ ...inputStyle, marginBottom:'10px' }} />
                 <button style={lightButtonStyle} onClick={changeMyPassword}>비밀번호 변경</button>
+              </div>
+
+              <div style={{ borderTop:'1px solid #fef2f2', marginTop:'24px', paddingTop:'18px' }}>
+                <h3 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'6px', color:'#c82014' }}>회원 탈퇴</h3>
+                <p style={{ fontSize:'12px', color:'#6b7280', marginBottom:'10px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' }}>탈퇴 시 로그인이 차단되며 담당 강좌·기록 등은 계정이 비활성화 처리됩니다. 복구가 어려우니 신중히 결정해 주세요.</p>
+                <button onClick={withdrawMyAccount} style={{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' }}>회원 탈퇴</button>
               </div>
             </>
           )}

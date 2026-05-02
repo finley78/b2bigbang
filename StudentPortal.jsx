@@ -35,6 +35,7 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
       const { data: user, error } = await sb.from('students')
         .select('*').eq('email', email.trim()).single();
       if (error || !user) { setMsg('등록된 계정이 없습니다.'); setLoading(false); return; }
+      if (user.withdrawn_at || user.is_active === false) { setMsg('탈퇴 처리된 계정입니다.'); setLoading(false); return; }
       if (user.role === 'pending_teacher') { setMsg('관리자 승인 대기 중입니다.'); setLoading(false); return; }
       if (user.role === 'pending_student' || user.role === 'pending_parent') { setMsg('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); setLoading(false); return; }
       if (user.password_hash !== password) { setMsg('비밀번호가 틀렸습니다.'); setLoading(false); return; }
@@ -992,6 +993,23 @@ function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAu
     if (error) { alert('저장 실패: ' + error.message); return; }
     alert('정보가 저장되었습니다.');
   }
+  async function withdrawAccount() {
+    if (!user) return;
+    var name = prompt('정말 탈퇴하시겠습니까?\n탈퇴를 진행하시려면 본인 이름 "' + user.name + '"을(를) 입력해 주세요.\n탈퇴 후에는 로그인할 수 없으며 데이터 복구가 어렵습니다.');
+    if (name == null) return;
+    if (String(name).trim() !== String(user.name).trim()) { alert('이름이 일치하지 않습니다. 탈퇴가 취소되었습니다.'); return; }
+    var sb = window.supabase;
+    var { error } = await sb.from('students').update({ is_active: false, withdrawn_at: new Date().toISOString() }).eq('id', user.id);
+    if (error) { alert('탈퇴 처리 실패: ' + error.message); return; }
+    alert('탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.');
+    try {
+      sessionStorage.removeItem('b2_user');
+      sessionStorage.removeItem('b2_is_admin');
+      sessionStorage.removeItem('b2_admin_authed');
+      sessionStorage.removeItem('b2_page');
+    } catch (e) {}
+    window.location.href = '/';
+  }
   async function changePassword() {
     if (!user) return;
     if (!pwDraft.current || !pwDraft.next) { alert('현재 비밀번호와 새 비밀번호를 입력해 주세요.'); return; }
@@ -1117,6 +1135,11 @@ function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAu
             React.createElement('div', { style:{ marginBottom:'8px' } }, React.createElement('input', { type:'password', placeholder:'새 비밀번호', value:pwDraft.next, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { next:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
             React.createElement('div', { style:{ marginBottom:'10px' } }, React.createElement('input', { type:'password', placeholder:'새 비밀번호 확인', value:pwDraft.confirm, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { confirm:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
             React.createElement('button', { onClick:changePassword, style:{ background:'#fff', color:'#006241', border:'1px solid #006241', borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, '비밀번호 변경')
+          ),
+          React.createElement('div', { style:{ borderTop:'1px solid #fef2f2', marginTop:'24px', paddingTop:'18px' } },
+            React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'6px', color:'#c82014', fontFamily:'Manrope, sans-serif' } }, '회원 탈퇴'),
+            React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'10px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } }, '탈퇴 시 로그인이 차단되며 등록된 수강 정보·기록 등은 계정이 비활성화 처리됩니다. 복구가 어려우니 신중히 결정해 주세요.'),
+            React.createElement('button', { onClick:withdrawAccount, style:{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, '회원 탈퇴')
           )
         )
       )
