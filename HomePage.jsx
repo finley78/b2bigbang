@@ -350,20 +350,44 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
             )
           )
         ),
-        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden' } },
+        // 공지사항: 2x2 사진 카드 그리드
+        React.createElement('div', null,
           React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' } },
             React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '공지사항'),
             isAdmin && React.createElement('button', { onClick:onEditNotices, style:{ background:'rgba(203,162,88,0.15)', color:'#cba258', border:'1px solid #cba258', borderRadius:'8px', padding:'3px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
           ),
-          React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'7px' } },
-            announcements.slice(0,4).map((a,i) =>
-              React.createElement('div', { key:i, onClick:()=>onSelectNotice(a), style:{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:i<3?'1px solid rgba(0,0,0,0.05)':'none', paddingBottom:'7px', cursor:'pointer' },
-                onMouseEnter:e=>e.currentTarget.style.opacity='0.7',
-                onMouseLeave:e=>e.currentTarget.style.opacity='1' },
-                React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.75)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 } }, a.title),
-                React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0, marginLeft:'8px' } }, a.date)
-              )
-            )
+          React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' } },
+            announcements.slice(0,4).map(function(a, i) {
+              var bg = a.image ? `url(${a.image})` : null;
+              var fallbackBgs = ['#1E3932','#cba258','#e8e3d3','#a988a3'];
+              return React.createElement('div', {
+                key: a.id || i,
+                onClick: function(){ onSelectNotice(a); },
+                style:{
+                  position:'relative',
+                  aspectRatio:'1/1',
+                  borderRadius:'14px',
+                  overflow:'hidden',
+                  cursor:'pointer',
+                  background: bg ? '#000' : fallbackBgs[i % fallbackBgs.length],
+                  boxShadow:'0 1px 2px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.08)',
+                  transition:'transform 0.2s ease',
+                },
+                onMouseEnter: function(e){ e.currentTarget.style.transform='translateY(-2px)'; },
+                onMouseLeave: function(e){ e.currentTarget.style.transform='translateY(0)'; },
+              },
+                bg && React.createElement('div', { style:{ position:'absolute', inset:0, backgroundImage: bg, backgroundSize:'cover', backgroundPosition:'center' } }),
+                bg && React.createElement('div', { style:{ position:'absolute', inset:0, background:'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0) 100%)' } }),
+                // 제목 (좌상단)
+                React.createElement('div', {
+                  style:{ position:'absolute', top:'14px', left:'14px', right:'56px', fontSize: isMobile?'15px':'17px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', lineHeight:'1.25', letterSpacing:'-0.16px', textShadow:'0 1px 4px rgba(0,0,0,0.35)', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical' }
+                }, a.title),
+                // 화살표 (우상단)
+                React.createElement('div', {
+                  style:{ position:'absolute', top:'12px', right:'12px', width:'34px', height:'34px', borderRadius:'50%', background:'rgba(0,0,0,0.8)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'700' }
+                }, '→')
+              );
+            })
           )
         )
       )

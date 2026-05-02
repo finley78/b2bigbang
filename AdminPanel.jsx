@@ -746,11 +746,38 @@ React.createElement('div', null,
 React.createElement('label',{style:labelS},'외부 링크 (선택)'),
 React.createElement('input',{value:editingNotice.link||'',onChange:e=>{ const v=e.target.value; setEditingNotice(n=>({...n,link:v})); setState(s=>({ ...s, notices:s.notices.map(x=>x.id===editingNotice.id?{...x,link:v}:x), announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,link:v}:x) })); },placeholder:'https://blog.naver.com/...',style:inputS})
 ),
+// 공지사항(announcements)일 때만 카드 이미지 업로드
+editingNotice.type === undefined && React.createElement('div', { style:{ background:'#f8fafc', padding:'12px', borderRadius:'10px' } },
+React.createElement('label',{style:{...labelS, display:'block', marginBottom:'8px'}},'카드 배경 이미지 (메인 화면 2x2 카드에 사용 — 권장 1:1 정사각, 800×800 px 이상)'),
+editingNotice.image
+? React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' } },
+    React.createElement('img', { src: editingNotice.image, style:{ width:'100px', height:'100px', objectFit:'cover', borderRadius:'8px' } }),
+    React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, editingNotice.image),
+    React.createElement('button', { onClick: async()=>{
+      if (!confirm('이미지를 제거하시겠습니까?')) return;
+      setEditingNotice(n=>({...n,image:''}));
+      setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,image:''}:x)}));
+      await sb.from('announcements').update({ image: null }).eq('id', editingNotice.id);
+    }, style: btnOutS }, '이미지 제거')
+  )
+: React.createElement('input', { type:'file', accept:'image/*', onChange: async (e)=>{
+    var f = e.target.files && e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    var ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+    var path = 'announcements/' + editingNotice.id + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+    var up = await sb.storage.from('attachments').upload(path, f, { cacheControl:'3600', upsert:false });
+    if (up.error) { alert('업로드 실패: ' + up.error.message); return; }
+    var url = sb.storage.from('attachments').getPublicUrl(path)?.data?.publicUrl || '';
+    setEditingNotice(n=>({...n,image:url}));
+    setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,image:url}:x)}));
+    await sb.from('announcements').update({ image: url }).eq('id', editingNotice.id);
+  }, style:{ fontSize:'12px', fontFamily:'Manrope, sans-serif' } })
+),
 React.createElement('button', { onClick: async ()=>{
 if (editingNotice.type !== undefined) {
 await window.supabase.from('notices').update({ type:editingNotice.type, text:editingNotice.text, date:editingNotice.date }).eq('id', editingNotice.id);
 } else {
-await window.supabase.from('announcements').update({ title:editingNotice.title, date:editingNotice.date }).eq('id', editingNotice.id);
+await window.supabase.from('announcements').update({ title:editingNotice.title, date:editingNotice.date, image: editingNotice.image || null }).eq('id', editingNotice.id);
 }
 setEditingNotice(null);
 }, style:{ ...btnS(), alignSelf:'flex-start' } }, '✓ 저장 완료')
