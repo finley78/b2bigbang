@@ -73,13 +73,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260503u"></script>
-<script src="TopNav.js?v=20260503u"></script>
-<script src="HomePage.js?v=20260503u"></script>
-<script src="Pages.js?v=20260503u"></script>
-<script src="StudentPortal.js?v=20260503u"></script>
-<script src="TeacherPortal.js?v=20260503u"></script>
-<script src="AdminPanel.js?v=20260503u"></script>
+<script src="Utils.js?v=20260503v"></script>
+<script src="TopNav.js?v=20260503v"></script>
+<script src="HomePage.js?v=20260503v"></script>
+<script src="Pages.js?v=20260503v"></script>
+<script src="StudentPortal.js?v=20260503v"></script>
+<script src="TeacherPortal.js?v=20260503v"></script>
+<script src="AdminPanel.js?v=20260503v"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -140,9 +140,23 @@ const [adminAuthed, setAdminAuthed] = React.useState(() => {
 const [state, setState] = React.useState(INITIAL_STATE);
 const [dbLoaded, setDbLoaded] = React.useState(false);
 
-// Supabase에서 subjects, courses, videos 로드
+// Supabase에서 subjects, courses, videos, banners, notices, announcements 로드
 async function loadFromDB() {
 try {
+// 배너/공지/발표를 병렬로 로드 (관리자 페이지에 안 들어가도 일반 사용자가 최신 데이터 보게)
+const [bannersRes, noticesRes, announcementsRes] = await Promise.all([
+window.supabase.from('banners').select('*').order('sort_order'),
+window.supabase.from('notices').select('*').order('id', { ascending: false }),
+window.supabase.from('announcements').select('*').order('created_at', { ascending: false }),
+]);
+setState(s => {
+const next = { ...s };
+if (bannersRes.data && bannersRes.data.length > 0) next.banners = bannersRes.data;
+if (noticesRes.data && noticesRes.data.length > 0) next.notices = noticesRes.data;
+if (announcementsRes.data && announcementsRes.data.length > 0) next.announcements = announcementsRes.data;
+return next;
+});
+
 const { data: subjects } = await window.supabase
 .from('subjects').select('*').order('sort_order');
 
