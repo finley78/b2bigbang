@@ -37,6 +37,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [analysisSearch, setAnalysisSearch] = React.useState('');
   const [analysisClassStudents, setAnalysisClassStudents] = React.useState({}); // { class_id: [student_id, ...] }
   const [analysisAllStudents, setAnalysisAllStudents] = React.useState({}); // { id: {name, grade, school} }
+  const [analysisStudentId, setAnalysisStudentId] = React.useState(''); // 개인 추이용
+  const [reportStudentId, setReportStudentId] = React.useState(''); // 학부모 리포트 모달
+  const [kakaoTarget, setKakaoTarget] = React.useState(null); // { mode:'single'|'bulk', studentIds:[] }
+  const [notificationLogs, setNotificationLogs] = React.useState([]);
+  const [aiComments, setAiComments] = React.useState({}); // { student_id+test_score_id: comment }
 
   const [testInfo, setTestInfo] = React.useState({
     testType: "주간평가",
@@ -648,6 +653,131 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     await loadNotes();
   }
 
+  // ── 성적 분석 헬퍼 ──
+  function gradeBucketOf(score) {
+    var s = Number(score);
+    if (isNaN(s)) return null;
+    if (s >= 90) return 1; // 1등급
+    if (s >= 80) return 2;
+    if (s >= 70) return 3;
+    return 0; // 미달
+  }
+  function distributionBucketOf(score) {
+    var s = Number(score);
+    if (isNaN(s)) return null;
+    if (s >= 90) return '90-100';
+    if (s >= 80) return '80-89';
+    if (s >= 70) return '70-79';
+    if (s >= 60) return '60-69';
+    return '0-59';
+  }
+  function colorForScore(score) {
+    var s = Number(score);
+    if (isNaN(s)) return '#9ca3af';
+    if (s >= 90) return '#006241';
+    if (s >= 70) return '#cba258';
+    return '#c82014';
+  }
+  // 학생별 시간순 정렬된 점수 배열 반환 (오래된→최신)
+  function studentScoresSorted(allScores, studentId, subject, testName) {
+    return (allScores || [])
+      .filter(function(s){
+        if (String(s.student_id) !== String(studentId)) return false;
+        if (subject && subject !== '전체' && s.subject !== subject) return false;
+        if (testName && testName !== '전체' && s.test_name !== testName) return false;
+        return true;
+      })
+      .sort(function(a,b){ return String(a.test_date||'').localeCompare(String(b.test_date||'')); });
+  }
+  // 템플릿 기반 코멘트 생성기 (AI 자리, 운영 시 백엔드 통한 Claude API로 교체)
+  function generateComment(args) {
+    var name = args.studentName || '학생';
+    var score = Number(args.score);
+    var prev = args.prevScore != null ? Number(args.prevScore) : null;
+    var classAvg = args.classAvg != null ? Number(args.classAvg) : null;
+    var trend3 = Array.isArray(args.recentTrend) ? args.recentTrend.slice(-3).map(Number).filter(function(v){return !isNaN(v);}) : [];
+    var subject = args.subject || '';
+    var testName = args.testName || '시험';
+
+    var lines = [];
+    if (!isNaN(score)) {
+      lines.push(name + ' 학생은 이번 ' + testName + '에서 ' + score + '점을 받았습니다.');
+    }
+    if (prev != null && !isNaN(prev)) {
+      var diff = score - prev;
+      if (diff > 0) lines.push('지난 시험(' + prev + '점) 대비 ' + diff + '점 향상되어 꾸준한 성장을 보이고 있습니다.');
+      else if (diff < 0) lines.push('지난 시험(' + prev + '점) 대비 ' + Math.abs(diff) + '점 하락하여 학습 점검이 필요합니다.');
+      else lines.push('지난 시험(' + prev + '점)과 동일한 점수를 유지하고 있습니다.');
+    }
+    if (trend3.length >= 3) {
+      var allDown = trend3[0] > trend3[1] && trend3[1] > trend3[2];
+      var allUp = trend3[0] < trend3[1] && trend3[1] < trend3[2];
+      if (allDown) lines.push('최근 3회 시험에서 점수가 연속 하락하고 있어 집중적인 관리가 필요한 시점입니다.');
+      else if (allUp) lines.push('최근 3회 연속 점수가 상승하며 학습 흐름이 매우 긍정적입니다.');
+    }
+    if (classAvg != null && !isNaN(classAvg)) {
+      var gap = score - classAvg;
+      if (gap >= 5) lines.push('반 평균(' + classAvg.toFixed(1) + '점) 대비 ' + gap.toFixed(1) + '점 높아 상위권을 유지하고 있습니다.');
+      else if (gap <= -5) lines.push('반 평균(' + classAvg.toFixed(1) + '점) 대비 ' + Math.abs(gap).toFixed(1) + '점 낮아 기초 보강이 필요합니다.');
+      else lines.push('반 평균(' + classAvg.toFixed(1) + '점)에 근접한 점수로 안정적인 흐름을 유지하고 있습니다.');
+    }
+    if (!isNaN(score)) {
+      if (score >= 90) lines.push('현재 우수한 흐름을 유지하고 있으니 심화 문제와 기출 위주의 학습을 권장드립니다.');
+      else if (score >= 70) lines.push((subject || '해당 과목') + ' 약점 단원을 정리하고, 주 2회 추가 연습을 권장드립니다.');
+      else lines.push('기본 개념 정리를 우선하여 주 3회 이상 복습 및 반복 풀이를 권장드립니다.');
+    }
+    return lines.join(' ');
+  }
+  function formatKakaoMessage(args) {
+    var lines = [];
+    lines.push('[B2빅뱅학원] 성적 안내');
+    lines.push('');
+    lines.push((args.studentName || '학생') + ' 학생 성적 안내드립니다.');
+    lines.push('');
+    lines.push('▶ 시험명: ' + (args.testName || '-'));
+    lines.push('▶ 응시일: ' + (args.testDate || '-'));
+    lines.push('▶ 점수: ' + (args.score != null ? args.score + '점' : '-'));
+    if (args.prevScore != null) {
+      var diff = Number(args.score) - Number(args.prevScore);
+      lines.push('▶ 전회 대비: ' + (diff >= 0 ? '+' : '') + diff + '점');
+    } else {
+      lines.push('▶ 전회 대비: -');
+    }
+    lines.push('');
+    var summary = String(args.comment || '').split('. ').slice(0,2).join('. ');
+    if (summary && !summary.endsWith('.')) summary += '.';
+    lines.push(summary || '자세한 내용은 학원으로 문의해 주세요.');
+    lines.push('');
+    lines.push('자세한 내용은 학원으로 문의해 주세요.');
+    lines.push('☎ 학원 연락처');
+    return lines.join('\n');
+  }
+
+  async function loadNotificationLogs() {
+    var { data } = await sb.from('notification_logs').select('*').order('created_at', { ascending:false }).limit(200);
+    setNotificationLogs(data || []);
+  }
+
+  async function sendKakaoNotifications(items) {
+    // items: [{ student_id, parent_phone, message_content, test_score_id }]
+    if (!items || items.length === 0) return;
+    var rows = items.map(function(it){
+      return {
+        student_id: it.student_id || null,
+        parent_phone: it.parent_phone || null,
+        message_content: it.message_content || '',
+        test_score_id: it.test_score_id || null,
+        sent_by: teacherInfo?.id || null,
+        sent_at: null,
+        status: 'pending',
+      };
+    });
+    var { error } = await sb.from('notification_logs').insert(rows);
+    if (error) { alert('발송 이력 저장 실패: ' + error.message); return; }
+    alert('알림톡 연동 준비 중입니다.\n발송 이력은 저장되었습니다 (상태: 미발송).');
+    await loadNotificationLogs();
+  }
+
   async function loadScoreAnalysis() {
     setAnalysisLoading(true);
     const { data, error } = await sb
@@ -672,6 +802,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       setAnalysisAllStudents(m);
     }
     setAnalysisLoading(false);
+    await loadNotificationLogs();
   }
 
   async function loadScoreHistory() {
@@ -1091,15 +1222,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         </div>
       )}
 
-      {/* ── 탭5: 성적 분석 ── */}
+      {/* ── 탭5: 성적 분석 (종합 대시보드) ── */}
       {teacherView === "analysis" && (
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
           <h2 style={{ marginBottom: "4px" }}>성적 분석</h2>
-          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>모든 선생님이 등록한 성적을 함께 확인할 수 있습니다.</p>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>등록된 성적을 기반으로 자동 생성되는 리포트입니다.</p>
 
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
-            <select style={{ ...inputStyle, maxWidth: "200px" }} value={analysisClassId} onChange={e => setAnalysisClassId(e.target.value)}>
-              <option value="">반 전체</option>
+            <select style={{ ...inputStyle, maxWidth: "200px" }} value={analysisClassId} onChange={e => { setAnalysisClassId(e.target.value); setAnalysisStudentId(''); }}>
+              <option value="">반 선택</option>
               {availableClassCards.map(cls => <option key={cls.id} value={String(cls.id)}>{cls.name}</option>)}
             </select>
             <select style={{ ...inputStyle, maxWidth: "140px" }} value={analysisSubject} onChange={e => setAnalysisSubject(e.target.value)}>
@@ -1110,7 +1241,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <option value="전체">시험 전체</option>
               {["주간평가","월말평가","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(n => <option key={n} value={n}>{n}</option>)}
             </select>
-            <input style={{ ...inputStyle, minWidth: "180px", flex: 1 }} placeholder="학생명·선생님명 검색" value={analysisSearch} onChange={e => setAnalysisSearch(e.target.value)} />
+            <input style={{ ...inputStyle, minWidth: "180px", flex: 1 }} placeholder="학생명 검색" value={analysisSearch} onChange={e => setAnalysisSearch(e.target.value)} />
             <button style={lightButtonStyle} onClick={loadScoreAnalysis}>{analysisLoading ? "로딩 중..." : "새로고침"}</button>
           </div>
 
@@ -1120,94 +1251,373 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             <div style={{ color: "#6b7280", textAlign: "center", padding: "32px", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>반을 선택해 주세요</div>
           ) : (() => {
             const q = analysisSearch.trim().toLowerCase();
-            // 1. 점수 데이터에 비-반 필터(과목/시험명) 적용
             const scoresFiltered = scoreAnalysis.filter(s => {
               if (analysisSubject !== "전체" && s.subject !== analysisSubject) return false;
               if (analysisTestName !== "전체" && s.test_name !== analysisTestName) return false;
               return true;
             });
-            // 2. 표시 대상 학생: 선택된 반의 학생들
             const targetIds = (analysisClassStudents[analysisClassId] || []).map(String);
-            // 3. 학생별 행 구성 + 검색 필터
             const subjectActive = analysisSubject !== "전체";
             const testNameActive = analysisTestName !== "전체";
+
+            // 학생 행 구성
             const rows = targetIds.map(sid => {
               const std = analysisAllStudents[sid];
               const studentName = (std && std.name) || (scoreAnalysis.find(s => String(s.student_id) === sid)?.students?.name) || "학생";
               const studentGrade = (std && std.grade) || "";
-              const myScores = scoresFiltered.filter(s => String(s.student_id) === sid);
-              // 과목·시험명 필터가 활성화된 경우 매칭 점수가 없는 학생은 제외
+              const myScores = scoresFiltered.filter(s => String(s.student_id) === sid)
+                .slice().sort((a,b) => (a.test_date||"").localeCompare(b.test_date||""));
               if ((subjectActive || testNameActive) && myScores.length === 0) return null;
-              if (q) {
-                const teacherNames = myScores.map(s => s.teachers?.name).filter(Boolean);
-                const hay = [studentName, ...teacherNames].join(" ").toLowerCase();
-                if (hay.indexOf(q) < 0) return null;
-              }
-              return { id: sid, name: studentName, grade: studentGrade, scores: myScores };
+              if (q && studentName.toLowerCase().indexOf(q) < 0) return null;
+              const myVals = myScores.map(s => Number(s.score)).filter(v => !isNaN(v));
+              const myAvg = myVals.length ? (myVals.reduce((a,b)=>a+b,0)/myVals.length) : null;
+              const last = myScores[myScores.length-1];
+              const prev = myScores[myScores.length-2];
+              return { id: sid, name: studentName, grade: studentGrade, scores: myScores, avg: myAvg, last, prev };
             }).filter(Boolean);
 
             if (rows.length === 0) return <div style={{ color: "#6b7280", textAlign: "center", padding: "32px" }}>표시할 학생이 없습니다.</div>;
 
+            // 1) 요약 카드
             const allVals = rows.flatMap(r => r.scores.map(s => Number(s.score))).filter(v => !isNaN(v));
-            const avg = allVals.length ? (allVals.reduce((a,b)=>a+b,0)/allVals.length).toFixed(1) : "-";
-            const max = allVals.length ? Math.max(...allVals) : "-";
-            const min = allVals.length ? Math.min(...allVals) : "-";
-            const totalTests = new Set(rows.flatMap(r => r.scores.map(s => `${s.test_date}_${s.test_name}_${s.subject}`))).size;
+            const avg = allVals.length ? (allVals.reduce((a,b)=>a+b,0)/allVals.length) : null;
+            const max = allVals.length ? Math.max(...allVals) : null;
+            const min = allVals.length ? Math.min(...allVals) : null;
+            // 시험 회차 키 (날짜·시험명·과목 단위)
+            const testKeys = Array.from(new Set(scoresFiltered.filter(s => targetIds.indexOf(String(s.student_id)) >= 0).map(s => `${s.test_date||''}|${s.test_name||''}|${s.subject||''}`))).filter(Boolean).sort();
+            const lastKey = testKeys[testKeys.length-1] || null;
+            const prevKey = testKeys[testKeys.length-2] || null;
+            function avgForKey(key){ if(!key) return null; var arr = scoresFiltered.filter(s => `${s.test_date||''}|${s.test_name||''}|${s.subject||''}` === key && targetIds.indexOf(String(s.student_id))>=0).map(s => Number(s.score)).filter(v=>!isNaN(v)); return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+            const lastAvg = avgForKey(lastKey);
+            const prevAvg = avgForKey(prevKey);
+            const avgChange = (lastAvg != null && prevAvg != null) ? lastAvg - prevAvg : null;
+            const lastVals = lastKey ? scoresFiltered.filter(s => `${s.test_date||''}|${s.test_name||''}|${s.subject||''}` === lastKey && targetIds.indexOf(String(s.student_id))>=0).map(s => Number(s.score)).filter(v=>!isNaN(v)) : [];
+            const lastMax = lastVals.length ? Math.max(...lastVals) : null;
+            const lastMin = lastVals.length ? Math.min(...lastVals) : null;
+            const lastTakers = lastVals.length;
+            // 등급별 인원 (이번 시험 기준)
+            const buckets = { g1:0, g2:0, g3:0, fail:0 };
+            lastVals.forEach(function(v){ var b = gradeBucketOf(v); if(b===1) buckets.g1++; else if(b===2) buckets.g2++; else if(b===3) buckets.g3++; else buckets.fail++; });
+            // 점수 분포 (이번 시험)
+            const distLabels = ['0-59','60-69','70-79','80-89','90-100'];
+            const dist = { '0-59':0,'60-69':0,'70-79':0,'80-89':0,'90-100':0 };
+            lastVals.forEach(function(v){ var b = distributionBucketOf(v); if(b) dist[b]++; });
+            const distMax = Math.max(1, ...distLabels.map(function(l){ return dist[l]; }));
+            // 학생별 (이번 시험) 정렬
+            const lastStudentScores = lastKey ? rows.map(function(r){
+              var s = r.scores.find(function(x){ return `${x.test_date||''}|${x.test_name||''}|${x.subject||''}` === lastKey; });
+              return s ? { id:r.id, name:r.name, score: Number(s.score) } : null;
+            }).filter(Boolean).sort(function(a,b){ return b.score - a.score; }) : [];
+            // 시험 회차별 평균 추이 (최근 5회)
+            const trendKeys = testKeys.slice(-5);
+            const trend = trendKeys.map(function(k){ return { key:k, label: k.split('|')[0] || '-', avg: avgForKey(k) }; });
+            // 누적 분석
+            const stuStats = rows.map(function(r){
+              var firstHalf = r.scores.slice(0, Math.max(1, Math.floor(r.scores.length/2))).map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
+              var secondHalf = r.scores.slice(Math.floor(r.scores.length/2)).map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
+              var firstAvg = firstHalf.length ? firstHalf.reduce(function(a,b){return a+b;},0)/firstHalf.length : null;
+              var secondAvg = secondHalf.length ? secondHalf.reduce(function(a,b){return a+b;},0)/secondHalf.length : null;
+              var change = (firstAvg!=null && secondAvg!=null) ? secondAvg - firstAvg : null;
+              // 최근 3회 연속 하락
+              var last3 = r.scores.slice(-3).map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
+              var consecutiveDrop = last3.length === 3 && last3[0] > last3[1] && last3[1] > last3[2];
+              // 꾸준히 상위권 (모든 시험 80점 이상)
+              var allHigh = r.scores.length >= 2 && r.scores.every(function(s){ return Number(s.score) >= 80; });
+              return { id:r.id, name:r.name, avg:r.avg, change:change, consecutiveDrop:consecutiveDrop, allHigh:allHigh };
+            });
+            const ranked = stuStats.slice().filter(function(s){ return s.avg != null; }).sort(function(a,b){ return b.avg - a.avg; });
+            const movers = stuStats.slice().filter(function(s){ return s.change != null; }).sort(function(a,b){ return b.change - a.change; });
+            const topUp = movers.slice(0,3).filter(function(s){ return s.change > 0; });
+            const topDown = movers.slice(-3).filter(function(s){ return s.change < 0; }).reverse();
+            const stars = stuStats.filter(function(s){ return s.allHigh; });
+            const watch = stuStats.filter(function(s){ return s.consecutiveDrop; });
+            // 개인 추이 (선택된 학생)
+            const focusStudent = analysisStudentId ? rows.find(function(r){ return String(r.id) === String(analysisStudentId); }) : null;
+
+            const cardLabel = { fontSize:'12px', color:'#6b7280', marginTop:'4px', fontFamily:'Manrope, sans-serif' };
+            const cardVal = { fontSize:'18px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' };
 
             return (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px", marginBottom: "20px" }}>
-                  {[
-                    {label:"학생", val: rows.length+"명"},
-                    {label:"총 시험", val: totalTests+"회"},
-                    {label:"평균", val: avg+"점"},
-                    {label:"최고", val: max+"점"},
-                    {label:"최저", val: min+"점"},
-                  ].map(item => (
-                    <div key={item.label} style={{ background: "#f9fafb", borderRadius: "10px", padding: "14px", textAlign: "center" }}>
-                      <div style={{ fontSize: "18px", fontWeight: "800", color: "#006241", fontFamily: "Manrope, sans-serif" }}>{item.val}</div>
-                      <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px", fontFamily: "Manrope, sans-serif" }}>{item.label}</div>
-                    </div>
-                  ))}
-                </div>
-                {rows.map(r => {
-                  const myVals = r.scores.map(s => Number(s.score)).filter(v => !isNaN(v));
-                  const myAvg = myVals.length ? (myVals.reduce((a,b)=>a+b,0)/myVals.length).toFixed(1) : "-";
-                  return (
-                    <div key={r.id} style={{ marginBottom: "12px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
-                      <div style={{ background: "#1E3932", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                        <div>
-                          <span style={{ fontWeight: "800", color: "#fff", fontSize: "14px", fontFamily: "Manrope, sans-serif" }}>{r.name}</span>
-                          {r.grade && <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginLeft: "8px", fontFamily: "Manrope, sans-serif" }}>{r.grade}</span>}
-                        </div>
-                        <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "12px", fontFamily: "Manrope, sans-serif" }}>{r.scores.length}회 응시{myVals.length > 0 ? ` · 평균 ${myAvg}점` : ""}</span>
+                {/* 1) 요약 카드 */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '14px' }}>
+                  <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'14px', textAlign:'center' }}>
+                    <div style={cardVal}>{lastAvg != null ? lastAvg.toFixed(1)+'점' : '-'}</div>
+                    <div style={cardLabel}>이번 시험 평균</div>
+                    {avgChange != null && (
+                      <div style={{ fontSize:'11px', marginTop:'4px', fontWeight:'700', color: avgChange >= 0 ? '#006241' : '#c82014', fontFamily:'Manrope, sans-serif' }}>
+                        {avgChange >= 0 ? '▲' : '▼'} {Math.abs(avgChange).toFixed(1)}점 (전회 대비)
                       </div>
-                      <div style={{ padding: "12px 16px" }}>
+                    )}
+                  </div>
+                  <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'14px', textAlign:'center' }}>
+                    <div style={cardVal}>{lastMax != null ? lastMax+'점' : '-'}</div>
+                    <div style={cardLabel}>이번 시험 최고점</div>
+                  </div>
+                  <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'14px', textAlign:'center' }}>
+                    <div style={cardVal}>{lastMin != null ? lastMin+'점' : '-'}</div>
+                    <div style={cardLabel}>이번 시험 최저점</div>
+                  </div>
+                  <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'14px', textAlign:'center' }}>
+                    <div style={cardVal}>{lastTakers || '-'}명</div>
+                    <div style={cardLabel}>응시 인원</div>
+                  </div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'10px', marginBottom:'20px' }}>
+                  {[
+                    { label:'1등급(90+)', val: buckets.g1, color:'#006241' },
+                    { label:'2등급(80+)', val: buckets.g2, color:'#2b5148' },
+                    { label:'3등급(70+)', val: buckets.g3, color:'#cba258' },
+                    { label:'미달(<70)', val: buckets.fail, color:'#c82014' },
+                  ].map(function(b){ return (
+                    <div key={b.label} style={{ background:'#fff', border:'1px solid '+b.color+'33', borderRadius:'10px', padding:'12px', textAlign:'center' }}>
+                      <div style={{ fontSize:'16px', fontWeight:'800', color:b.color, fontFamily:'Manrope, sans-serif' }}>{b.val}명</div>
+                      <div style={cardLabel}>{b.label}</div>
+                    </div>
+                  ); })}
+                </div>
+
+                {/* 2-a) 점수 분포 막대 */}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>점수 분포 (이번 시험)</div>
+                  {lastVals.length === 0 ? (
+                    <div style={{ color:'#9ca3af', fontSize:'12px' }}>이번 시험 응시 데이터가 없습니다.</div>
+                  ) : (
+                    <div style={{ display:'flex', alignItems:'flex-end', gap:'10px', height:'140px', borderBottom:'2px solid #e5e7eb', padding:'0 8px' }}>
+                      {distLabels.map(function(l){
+                        var v = dist[l];
+                        var h = Math.round((v / distMax) * 120);
+                        var color = l === '90-100' ? '#006241' : l === '80-89' ? '#2b5148' : l === '70-79' ? '#cba258' : l === '60-69' ? '#dd6b20' : '#c82014';
+                        return (
+                          <div key={l} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%' }}>
+                            <div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>{v}명</div>
+                            <div style={{ width:'100%', height:h+'px', background:color, borderRadius:'6px 6px 0 0' }} />
+                            <div style={{ fontSize:'11px', color:'#6b7280', marginTop:'6px', fontFamily:'Manrope, sans-serif' }}>{l}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2-b) 학생별 점수 가로 바 (이번 시험) */}
+                {lastStudentScores.length > 0 && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>학생별 점수 (이번 시험, 높은순)</div>
+                    {lastStudentScores.map(function(it){
+                      var pct = Math.max(0, Math.min(100, it.score));
+                      return (
+                        <div key={it.id} style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'4px' }}>
+                          <span style={{ width:'80px', fontSize:'12px', color:'#374151', fontWeight:'600', fontFamily:'Manrope, sans-serif' }}>{it.name}</span>
+                          <div style={{ flex:1, height:'14px', background:'#f3f4f6', borderRadius:'7px', overflow:'hidden' }}>
+                            <div style={{ width:pct+'%', height:'100%', background: colorForScore(it.score) }} />
+                          </div>
+                          <span style={{ width:'44px', fontSize:'12px', fontWeight:'700', color:colorForScore(it.score), textAlign:'right', fontFamily:'Manrope, sans-serif' }}>{it.score}점</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 2-c) 시험 회차별 평균 추이 (꺾은선) */}
+                {trend.length >= 2 && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>시험 회차별 평균 추이 (최근 {trend.length}회)</div>
+                    <svg viewBox={"0 0 600 160"} style={{ width:'100%', height:'160px', background:'#f9fafb', borderRadius:'10px' }}>
+                      {(() => {
+                        var w = 600, h = 160, padL = 40, padR = 20, padT = 16, padB = 30;
+                        var n = trend.length;
+                        var avgs = trend.map(function(t){ return t.avg; });
+                        var validAvgs = avgs.filter(function(v){ return v != null; });
+                        if (!validAvgs.length) return null;
+                        var minY = 0, maxY = 100;
+                        var xs = trend.map(function(_, i){ return n === 1 ? (w-padL-padR)/2 + padL : padL + i * ((w-padL-padR)/(n-1)); });
+                        var ys = avgs.map(function(v){ return v == null ? null : (h - padB - ((v - minY) / (maxY - minY)) * (h - padT - padB)); });
+                        var pathD = '';
+                        ys.forEach(function(y, i){ if (y != null) pathD += (pathD ? ' L ' : 'M ') + xs[i] + ',' + y; });
+                        return (
+                          <g>
+                            {[0,25,50,75,100].map(function(g){
+                              var y = h - padB - ((g - minY) / (maxY - minY)) * (h - padT - padB);
+                              return <g key={g}>
+                                <line x1={padL} y1={y} x2={w-padR} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                                <text x={padL-4} y={y+4} textAnchor="end" fontSize="10" fill="#9ca3af">{g}</text>
+                              </g>;
+                            })}
+                            <path d={pathD} fill="none" stroke="#006241" strokeWidth="2.5" />
+                            {ys.map(function(y, i){ return y == null ? null : (
+                              <g key={i}>
+                                <circle cx={xs[i]} cy={y} r="4" fill="#006241" />
+                                <text x={xs[i]} y={y-8} textAnchor="middle" fontSize="11" fontWeight="700" fill="#006241">{avgs[i].toFixed(1)}</text>
+                                <text x={xs[i]} y={h-padB+16} textAnchor="middle" fontSize="10" fill="#6b7280">{trend[i].label}</text>
+                              </g>
+                            ); })}
+                          </g>
+                        );
+                      })()}
+                    </svg>
+                  </div>
+                )}
+
+                {/* 3) 누적 분석 */}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>누적 분석 (전체 시험 기록 기반)</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                    <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'12px' }}>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#006241', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>📈 가장 많이 오른 학생 TOP 3</div>
+                      {topUp.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
+                        topUp.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#006241', fontWeight:'700'}}>+{s.change.toFixed(1)}점</span></div>; })
+                      }
+                    </div>
+                    <div style={{ background:'#fef2f2', borderRadius:'10px', padding:'12px' }}>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#c82014', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>📉 가장 많이 떨어진 학생 TOP 3</div>
+                      {topDown.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
+                        topDown.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#c82014', fontWeight:'700'}}>{s.change.toFixed(1)}점</span></div>; })
+                      }
+                    </div>
+                    <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'12px' }}>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#006241', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>⭐ 꾸준히 상위권 유지</div>
+                      {stars.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
+                        stars.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#006241', fontWeight:'700'}}>평균 {s.avg.toFixed(1)}점</span></div>; })
+                      }
+                    </div>
+                    <div style={{ background:'#fff7ed', borderRadius:'10px', padding:'12px' }}>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#c2410c', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>⚠️ 최근 3회 연속 하락 (관리 필요)</div>
+                      {watch.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
+                        watch.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name}</div>; })
+                      }
+                    </div>
+                  </div>
+                  <div style={{ marginTop:'10px' }}>
+                    <div style={{ fontSize:'12px', fontWeight:'800', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>학생별 평균 누적 순위</div>
+                    {ranked.map(function(s, i){ return (
+                      <div key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 0', borderBottom: i < ranked.length-1 ? '1px solid #f3f4f6' : 'none' }}>
+                        <span style={{ width:'24px', fontSize:'12px', fontWeight:'700', color: i<3?'#006241':'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{i+1}위</span>
+                        <span style={{ flex:1, fontSize:'12px', color:'#374151', fontFamily:'Manrope, sans-serif' }}>{s.name}</span>
+                        <span style={{ fontSize:'12px', fontWeight:'700', color: colorForScore(s.avg), fontFamily:'Manrope, sans-serif' }}>{s.avg.toFixed(1)}점</span>
+                      </div>
+                    ); })}
+                  </div>
+                </div>
+
+                {/* 2-d) 학생 개인별 성적 추이 */}
+                <div style={{ marginBottom: '20px', background:'#f9fafb', borderRadius:'10px', padding:'14px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px' }}>
+                    <span style={{ fontSize:'13px', fontWeight:'800', color:'#374151', fontFamily:'Manrope, sans-serif' }}>학생 개인별 추이</span>
+                    <select style={{ ...inputStyle, maxWidth:'180px', marginBottom:0 }} value={analysisStudentId} onChange={e => setAnalysisStudentId(e.target.value)}>
+                      <option value="">학생 선택</option>
+                      {rows.map(function(r){ return <option key={r.id} value={r.id}>{r.name}</option>; })}
+                    </select>
+                  </div>
+                  {!focusStudent ? (
+                    <div style={{ fontSize:'12px', color:'#9ca3af' }}>학생을 선택하면 개인 추이가 표시됩니다.</div>
+                  ) : (
+                    <svg viewBox={"0 0 600 160"} style={{ width:'100%', height:'160px', background:'#fff', borderRadius:'8px' }}>
+                      {(() => {
+                        var w = 600, h = 160, padL = 40, padR = 20, padT = 16, padB = 30;
+                        var ss = focusStudent.scores;
+                        var n = ss.length;
+                        if (n === 0) return null;
+                        var vals = ss.map(function(s){ return Number(s.score); });
+                        var xs = ss.map(function(_, i){ return n === 1 ? (w-padL-padR)/2 + padL : padL + i * ((w-padL-padR)/(n-1)); });
+                        var ys = vals.map(function(v){ return isNaN(v) ? null : (h - padB - (v / 100) * (h - padT - padB)); });
+                        var pathD = '';
+                        ys.forEach(function(y, i){ if (y != null) pathD += (pathD ? ' L ' : 'M ') + xs[i] + ',' + y; });
+                        return (
+                          <g>
+                            {[0,25,50,75,100].map(function(g){
+                              var y = h - padB - (g / 100) * (h - padT - padB);
+                              return <g key={g}>
+                                <line x1={padL} y1={y} x2={w-padR} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                                <text x={padL-4} y={y+4} textAnchor="end" fontSize="10" fill="#9ca3af">{g}</text>
+                              </g>;
+                            })}
+                            <path d={pathD} fill="none" stroke="#cba258" strokeWidth="2.5" />
+                            {ys.map(function(y, i){ return y == null ? null : (
+                              <g key={i}>
+                                <circle cx={xs[i]} cy={y} r="4" fill={colorForScore(vals[i])} />
+                                <text x={xs[i]} y={y-8} textAnchor="middle" fontSize="11" fontWeight="700" fill={colorForScore(vals[i])}>{vals[i]}</text>
+                                <text x={xs[i]} y={h-padB+16} textAnchor="middle" fontSize="10" fill="#6b7280">{ss[i].test_name || '-'}</text>
+                              </g>
+                            ); })}
+                          </g>
+                        );
+                      })()}
+                    </svg>
+                  )}
+                </div>
+
+                {/* 학부모 일괄 발송 버튼 */}
+                <div style={{ display:'flex', justifyContent:'flex-end', gap:'8px', marginBottom:'12px' }}>
+                  <button style={{ ...lightButtonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev }; }) }); }}>📨 전체 학부모 일괄 발송</button>
+                </div>
+
+                {/* 학생별 카드 (점수목록 + AI코멘트 + 발송/리포트 버튼) */}
+                {rows.map(function(r){
+                  var lastScore = r.last ? Number(r.last.score) : null;
+                  var prevScore = r.prev ? Number(r.prev.score) : null;
+                  var trendVals = r.scores.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
+                  var aiComment = generateComment({
+                    studentName: r.name,
+                    score: lastScore,
+                    prevScore: prevScore,
+                    classAvg: lastAvg,
+                    recentTrend: trendVals,
+                    subject: r.last ? r.last.subject : '',
+                    testName: r.last ? r.last.test_name : ''
+                  });
+                  return (
+                    <div key={r.id} style={{ marginBottom: '12px', border: '1px solid #e5e7eb', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ background: '#1E3932', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          <span style={{ fontWeight: '800', color: '#fff', fontSize: '14px', fontFamily: 'Manrope, sans-serif' }}>{r.name}</span>
+                          {r.grade && <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', marginLeft: '8px', fontFamily: 'Manrope, sans-serif' }}>{r.grade}</span>}
+                          <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px', marginLeft: '12px', fontFamily: 'Manrope, sans-serif' }}>{r.scores.length}회 · 평균 {r.avg != null ? r.avg.toFixed(1)+'점' : '-'}</span>
+                        </div>
+                        <div style={{ display:'flex', gap:'6px' }}>
+                          <button style={{ background:'#fff', color:'#1E3932', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setReportStudentId(r.id); }}>📄 학부모 리포트</button>
+                          <button style={{ background:'#cba258', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev }] }); }}>📨 알림톡</button>
+                        </div>
+                      </div>
+                      <div style={{ padding: '12px 16px' }}>
                         {r.scores.length === 0 ? (
-                          <div style={{ color: "#9ca3af", fontSize: "13px", fontStyle: "italic", fontFamily: "Manrope, sans-serif" }}>아직 등록된 성적이 없습니다 (미응시)</div>
+                          <div style={{ color: '#9ca3af', fontSize: '13px', fontStyle: 'italic', fontFamily: 'Manrope, sans-serif' }}>아직 등록된 성적이 없습니다 (미응시)</div>
                         ) : (
-                          r.scores.slice().sort((a,b) => (b.test_date||"").localeCompare(a.test_date||"")).map((s, si) => {
-                            const pct = Math.max(0, Math.min(100, Math.round(Number(s.score) || 0)));
-                            const color = s.score >= 90 ? "#006241" : s.score >= 70 ? "#2b5148" : s.score >= 50 ? "#cba258" : "#c82014";
-                            return (
-                              <div key={si} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                                <div style={{ width: "180px", flexShrink: 0 }}>
-                                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#374151", fontFamily: "Manrope, sans-serif" }}>{s.test_name || "(무제)"}</div>
-                                  <div style={{ fontSize: "11px", color: "#9ca3af", fontFamily: "Manrope, sans-serif" }}>{[s.subject, s.test_date].filter(Boolean).join(" · ")}</div>
+                          <>
+                            {r.scores.slice().sort(function(a,b){ return (b.test_date||'').localeCompare(a.test_date||''); }).map(function(s, si){
+                              var pct = Math.max(0, Math.min(100, Math.round(Number(s.score) || 0)));
+                              return (
+                                <div key={si} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                                  <div style={{ width: '180px', flexShrink: 0 }}>
+                                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', fontFamily: 'Manrope, sans-serif' }}>{s.test_name || '(무제)'}</div>
+                                    <div style={{ fontSize: '11px', color: '#9ca3af', fontFamily: 'Manrope, sans-serif' }}>{[s.subject, s.test_date].filter(Boolean).join(' · ')}</div>
+                                  </div>
+                                  <span style={{ width: '78px', fontSize: '11px', color: '#9ca3af', flexShrink: 0, fontFamily: 'Manrope, sans-serif' }}>{s.teachers?.name ? s.teachers.name + ' 선생님' : ''}</span>
+                                  <div style={{ flex: 1, height: '14px', background: '#f3f4f6', borderRadius: '7px', overflow: 'hidden' }}>
+                                    <div style={{ width: pct+'%', height: '100%', background: colorForScore(s.score) }} />
+                                  </div>
+                                  <span style={{ width: '44px', fontSize: '13px', fontWeight: '700', color: colorForScore(s.score), textAlign: 'right', flexShrink: 0, fontFamily: 'Manrope, sans-serif' }}>{s.score}점</span>
                                 </div>
-                                <span style={{ width: "78px", fontSize: "11px", color: "#9ca3af", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.teachers?.name ? `${s.teachers.name} 선생님` : ""}</span>
-                                <div style={{ flex: 1, height: "14px", background: "#f3f4f6", borderRadius: "7px", overflow: "hidden" }}>
-                                  <div style={{ width: pct+"%", height: "100%", background: color, borderRadius: "7px" }} />
-                                </div>
-                                <span style={{ width: "44px", fontSize: "13px", fontWeight: "700", color, textAlign: "right", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{s.score}점</span>
-                              </div>
-                            );
-                          })
+                              );
+                            })}
+                            <div style={{ marginTop:'10px', padding:'10px 12px', background:'#fef9ec', border:'1px solid #f0e1ad', borderRadius:'8px' }}>
+                              <div style={{ fontSize:'11px', fontWeight:'800', color:'#7a5c0e', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>🤖 AI 자동 코멘트 (학부모 전달용)</div>
+                              <div style={{ fontSize:'13px', color:'#374151', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' }}>{aiComment}</div>
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
                   );
                 })}
+
+                {/* 5) 시험지 분석 자리 (PDF 업로드 준비) */}
+                <div style={{ marginTop:'24px', padding:'18px', background:'#f9fafb', border:'1px dashed #d6dbde', borderRadius:'12px', textAlign:'center' }}>
+                  <div style={{ fontSize:'14px', fontWeight:'800', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>📋 시험지 분석</div>
+                  <div style={{ fontSize:'12px', color:'#6b7280', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }}>문제별 정답률 · 유형별 취약점 · 학생별 약점 개념 · 학습 우선순위 제안</div>
+                  <button disabled style={{ background:'#e5e7eb', color:'#9ca3af', border:'none', borderRadius:'6px', padding:'8px 16px', fontSize:'12px', fontWeight:'700', cursor:'not-allowed', fontFamily:'Manrope, sans-serif' }}>시험지 PDF 업로드 (준비 중)</button>
+                  <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'8px', fontFamily:'Manrope, sans-serif' }}>시험지 분석 기능은 준비 중입니다.</div>
+                </div>
               </>
             );
           })()}
@@ -1215,6 +1625,159 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       )}
 
       </>)}
+
+      {/* 학부모 리포트 모달 (개별 학생) */}
+      {reportStudentId && (() => {
+        var sid = String(reportStudentId);
+        var std = analysisAllStudents[sid] || {};
+        var name = std.name || '학생';
+        var grade = std.grade || '';
+        var allScoresForStudent = (scoreAnalysis || []).filter(function(s){ return String(s.student_id) === sid; }).slice().sort(function(a,b){ return (a.test_date||'').localeCompare(b.test_date||''); });
+        var last = allScoresForStudent[allScoresForStudent.length-1];
+        var prev = allScoresForStudent[allScoresForStudent.length-2];
+        var vals = allScoresForStudent.map(function(s){ return Number(s.score); }).filter(function(v){ return !isNaN(v); });
+        var avgPersonal = vals.length ? vals.reduce(function(a,b){return a+b;},0)/vals.length : null;
+        var aiC = generateComment({
+          studentName: name,
+          score: last ? Number(last.score) : null,
+          prevScore: prev ? Number(prev.score) : null,
+          classAvg: null,
+          recentTrend: vals,
+          subject: last ? last.subject : '',
+          testName: last ? last.test_name : ''
+        });
+        return (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
+            <div style={{ background:'#fff', borderRadius:'12px', padding:'24px', maxWidth:'640px', width:'100%', maxHeight:'90vh', overflowY:'auto' }} className="parent-report">
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+                <h2 style={{ margin:0, fontFamily:'Manrope, sans-serif' }}>학부모 전달용 리포트</h2>
+                <div style={{ display:'flex', gap:'6px' }} className="no-print">
+                  <button style={{ ...lightButtonStyle, padding:'6px 12px', fontSize:'12px' }} onClick={function(){ window.print(); }}>🖨 인쇄/PDF</button>
+                  <button style={{ ...lightButtonStyle, padding:'6px 12px', fontSize:'12px' }} onClick={function(){ setReportStudentId(''); }}>닫기</button>
+                </div>
+              </div>
+              <div style={{ borderTop:'2px solid #006241', paddingTop:'14px' }}>
+                <div style={{ fontSize:'18px', fontWeight:'800', color:'#1E3932', fontFamily:'Manrope, sans-serif' }}>{name} {grade && <span style={{fontSize:'13px', color:'#6b7280', marginLeft:'8px'}}>{grade}</span>}</div>
+                <div style={{ fontSize:'12px', color:'#9ca3af', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>발행일: {new Date().toISOString().slice(0,10)} · B2빅뱅학원</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'10px', marginBottom:'14px' }}>
+                  <div style={{ background:'#f9fafb', borderRadius:'8px', padding:'10px', textAlign:'center' }}>
+                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' }}>{last ? last.score+'점' : '-'}</div>
+                    <div style={{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>최근 점수</div>
+                  </div>
+                  <div style={{ background:'#f9fafb', borderRadius:'8px', padding:'10px', textAlign:'center' }}>
+                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' }}>{avgPersonal != null ? avgPersonal.toFixed(1)+'점' : '-'}</div>
+                    <div style={{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>개인 평균</div>
+                  </div>
+                  <div style={{ background:'#f9fafb', borderRadius:'8px', padding:'10px', textAlign:'center' }}>
+                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' }}>{allScoresForStudent.length}회</div>
+                    <div style={{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>응시 횟수</div>
+                  </div>
+                </div>
+                <div style={{ marginBottom:'14px' }}>
+                  <div style={{ fontSize:'12px', fontWeight:'800', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>개인 성적 추이</div>
+                  {allScoresForStudent.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>등록된 점수가 없습니다.</div> : (
+                    <svg viewBox={"0 0 600 160"} style={{ width:'100%', height:'160px', background:'#f9fafb', borderRadius:'8px' }}>
+                      {(() => {
+                        var w = 600, h = 160, padL = 40, padR = 20, padT = 16, padB = 30;
+                        var ss = allScoresForStudent;
+                        var n = ss.length;
+                        var v = ss.map(function(s){ return Number(s.score); });
+                        var xs = ss.map(function(_, i){ return n === 1 ? (w-padL-padR)/2 + padL : padL + i * ((w-padL-padR)/(n-1)); });
+                        var ys = v.map(function(x){ return isNaN(x) ? null : (h - padB - (x / 100) * (h - padT - padB)); });
+                        var pathD = '';
+                        ys.forEach(function(y, i){ if (y != null) pathD += (pathD ? ' L ' : 'M ') + xs[i] + ',' + y; });
+                        return (
+                          <g>
+                            {[0,50,100].map(function(g){
+                              var y = h - padB - (g / 100) * (h - padT - padB);
+                              return <g key={g}>
+                                <line x1={padL} y1={y} x2={w-padR} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                                <text x={padL-4} y={y+4} textAnchor="end" fontSize="10" fill="#9ca3af">{g}</text>
+                              </g>;
+                            })}
+                            <path d={pathD} fill="none" stroke="#006241" strokeWidth="2.5" />
+                            {ys.map(function(y, i){ return y == null ? null : (
+                              <g key={i}>
+                                <circle cx={xs[i]} cy={y} r="4" fill={colorForScore(v[i])} />
+                                <text x={xs[i]} y={y-8} textAnchor="middle" fontSize="11" fontWeight="700" fill={colorForScore(v[i])}>{v[i]}</text>
+                                <text x={xs[i]} y={h-padB+16} textAnchor="middle" fontSize="9" fill="#6b7280">{ss[i].test_name || '-'}</text>
+                              </g>
+                            ); })}
+                          </g>
+                        );
+                      })()}
+                    </svg>
+                  )}
+                </div>
+                <div style={{ padding:'12px', background:'#fef9ec', border:'1px solid #f0e1ad', borderRadius:'8px' }}>
+                  <div style={{ fontSize:'12px', fontWeight:'800', color:'#7a5c0e', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>담당 선생님 코멘트</div>
+                  <div style={{ fontSize:'13px', color:'#374151', lineHeight:'1.7', fontFamily:'Manrope, sans-serif' }}>{aiC}</div>
+                </div>
+                <div style={{ marginTop:'14px', fontSize:'11px', color:'#9ca3af', textAlign:'center', fontFamily:'Manrope, sans-serif' }}>본 리포트는 학습 지도 참고용입니다. 자세한 상담은 학원으로 문의해 주세요.</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 카카오 알림톡 미리보기 모달 */}
+      {kakaoTarget && (() => {
+        var items = (kakaoTarget.students || []).map(function(s){
+          var sid = String(s.id);
+          var std = analysisAllStudents[sid] || {};
+          var lastScore = s.last ? Number(s.last.score) : null;
+          var prevScore = s.prev ? Number(s.prev.score) : null;
+          var allScores = (scoreAnalysis || []).filter(function(x){ return String(x.student_id) === sid; }).map(function(x){ return Number(x.score); }).filter(function(v){ return !isNaN(v); });
+          var comment = generateComment({
+            studentName: s.name || std.name,
+            score: lastScore,
+            prevScore: prevScore,
+            classAvg: null,
+            recentTrend: allScores,
+            subject: s.last ? s.last.subject : '',
+            testName: s.last ? s.last.test_name : ''
+          });
+          var msg = formatKakaoMessage({
+            studentName: s.name || std.name,
+            testName: s.last ? s.last.test_name : '-',
+            testDate: s.last ? s.last.test_date : '-',
+            score: lastScore,
+            prevScore: prevScore,
+            comment: comment
+          });
+          return {
+            student_id: sid,
+            parent_phone: std.parent_phone || std.phone || null,
+            message_content: msg,
+            test_score_id: s.last ? s.last.id : null,
+          };
+        });
+        return (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
+            <div style={{ background:'#fff', borderRadius:'12px', padding:'20px', maxWidth:'520px', width:'100%', maxHeight:'90vh', overflowY:'auto' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' }}>
+                <h3 style={{ margin:0, fontSize:'15px', fontFamily:'Manrope, sans-serif' }}>알림톡 발송 미리보기 ({items.length}명)</h3>
+                <button style={{ background:'none', border:'none', fontSize:'18px', cursor:'pointer' }} onClick={function(){ setKakaoTarget(null); }}>×</button>
+              </div>
+              <div style={{ marginBottom:'10px', padding:'10px', background:'#fff7ed', borderRadius:'8px', fontSize:'12px', color:'#7a3e0c', fontFamily:'Manrope, sans-serif' }}>실제 카카오 알림톡 API 연동은 추후 진행됩니다. 지금은 발송 이력만 저장됩니다.</div>
+              {items.map(function(it, i){
+                var st = analysisAllStudents[it.student_id] || {};
+                return (
+                  <div key={i} style={{ marginBottom:'10px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' }}>
+                    <div style={{ fontSize:'12px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>{st.name || '학생'} · {it.parent_phone || '연락처 없음'}</div>
+                    <pre style={{ margin:0, fontSize:'12px', color:'#374151', whiteSpace:'pre-wrap', fontFamily:'Manrope, sans-serif', lineHeight:'1.6', background:'#fef7e0', padding:'10px', borderRadius:'6px' }}>{it.message_content}</pre>
+                  </div>
+                );
+              })}
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:'8px', marginTop:'10px' }}>
+                <button style={{ ...lightButtonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={function(){ setKakaoTarget(null); }}>취소</button>
+                <button style={{ ...buttonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={async function(){ await sendKakaoNotifications(items); setKakaoTarget(null); }}>📨 발송 이력 저장</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       </div>
     </div>
   );
