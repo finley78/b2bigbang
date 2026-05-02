@@ -81,6 +81,7 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
       },
         active.map(function(card, i) {
           const ytId = getBannerYoutubeId(card.youtube);
+          const directVideo = card.video_url || '';
           const isActive = i === idx;
           return React.createElement('div', {
             key: card.id || i,
@@ -113,30 +114,37 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
                   overflow:'hidden',
                 }
               },
-                ytId
-                  ? React.createElement('iframe', {
-                      src:`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&modestbranding=1&rel=0`,
-                      style:{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'177.78%', height:'100%', border:'none', pointerEvents:'none' },
-                      allow:'autoplay; encrypted-media',
-                      title: card.title || '',
+                directVideo
+                  ? React.createElement('video', {
+                      src: directVideo,
+                      style:{ width:'100%', height:'100%', objectFit:'cover', display:'block', pointerEvents:'none' },
+                      autoPlay: true, muted: true, loop: true, playsInline: true,
+                      preload: 'metadata',
                     })
-                  : card.image
-                    ? React.createElement('img', {
-                        src: card.image,
-                        alt: card.title || '',
-                        style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' },
-                        loading: i === 0 ? 'eager' : 'lazy',
+                  : ytId
+                    ? React.createElement('iframe', {
+                        src:`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&modestbranding=1&rel=0`,
+                        style:{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'177.78%', height:'100%', border:'none', pointerEvents:'none' },
+                        allow:'autoplay; encrypted-media',
+                        title: card.title || '',
                       })
-                    : React.createElement('div', { style:{ position:'absolute', inset:0, opacity:0.12 } },
-                        React.createElement('svg', { width:'100%', height:'100%' },
-                          React.createElement('pattern', { id:'gridb-'+i, x:0, y:0, width:40, height:40, patternUnits:'userSpaceOnUse' },
-                            React.createElement('path', { d:'M 40 0 L 0 0 0 40', fill:'none', stroke:'#fff', strokeWidth:'0.5' })
-                          ),
-                          React.createElement('rect', { width:'100%', height:'100%', fill:'url(#gridb-'+i+')' })
-                        )
-                      ),
-                // 영상 인디케이터
-                ytId && React.createElement('div', {
+                    : card.image
+                      ? React.createElement('img', {
+                          src: card.image,
+                          alt: card.title || '',
+                          style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' },
+                          loading: i === 0 ? 'eager' : 'lazy',
+                        })
+                      : React.createElement('div', { style:{ position:'absolute', inset:0, opacity:0.12 } },
+                          React.createElement('svg', { width:'100%', height:'100%' },
+                            React.createElement('pattern', { id:'gridb-'+i, x:0, y:0, width:40, height:40, patternUnits:'userSpaceOnUse' },
+                              React.createElement('path', { d:'M 40 0 L 0 0 0 40', fill:'none', stroke:'#fff', strokeWidth:'0.5' })
+                            ),
+                            React.createElement('rect', { width:'100%', height:'100%', fill:'url(#gridb-'+i+')' })
+                          )
+                        ),
+                // 영상 인디케이터 (직접 영상이거나 유튜브일 때)
+                (directVideo || ytId) && React.createElement('div', {
                   style:{ position:'absolute', top:'10px', left:'10px', background:'rgba(0,0,0,0.55)', color:'#fff', fontSize:'10px', fontWeight:'700', padding:'3px 8px', borderRadius:'6px', fontFamily:'Manrope, sans-serif' }
                 }, '▶ 영상')
               ),
@@ -206,6 +214,7 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
 function BannerDetailPage({ banner, onBack, setPage }) {
   const isMobile = useIsMobile();
   const ytId = getBannerYoutubeId(banner.youtube);
+  const directVideo = banner.video_url || '';
   const accent = banner.bg || '#006241';
 
   function handleCta() {
@@ -220,12 +229,14 @@ function BannerDetailPage({ banner, onBack, setPage }) {
       React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color: accent, fontFamily:'Manrope, sans-serif' } }, '← 홈으로')
     ),
     React.createElement('div', { style:{ maxWidth:'820px', margin:'0 auto', padding: isMobile ? '20px 16px' : '32px' } },
-      (ytId || banner.image) && React.createElement('div', {
+      (directVideo || ytId || banner.image) && React.createElement('div', {
         style:{ borderRadius:'14px', overflow:'hidden', aspectRatio:'16/9', marginBottom:'22px', background:`linear-gradient(135deg, ${accent}, ${accent}DD)` }
       },
-        ytId
-          ? React.createElement('iframe', { width:'100%', height:'100%', src:`https://www.youtube.com/embed/${ytId}?autoplay=1`, frameBorder:'0', allowFullScreen:true, style:{ display:'block', border:'none' } })
-          : React.createElement('img', { src: banner.image, alt: banner.title || '', style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' } })
+        directVideo
+          ? React.createElement('video', { src: directVideo, controls:true, autoPlay:true, playsInline:true, style:{ width:'100%', height:'100%', objectFit:'contain', background:'#000', display:'block' } })
+          : ytId
+            ? React.createElement('iframe', { width:'100%', height:'100%', src:`https://www.youtube.com/embed/${ytId}?autoplay=1`, frameBorder:'0', allowFullScreen:true, style:{ display:'block', border:'none' } })
+            : React.createElement('img', { src: banner.image, alt: banner.title || '', style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' } })
       ),
       banner.badge && React.createElement('span', {
         style:{ display:'inline-block', background:`${accent}22`, color: accent, borderRadius:'6px', padding:'4px 12px', fontSize:'12px', fontWeight:'700', letterSpacing:'0.04em', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }
