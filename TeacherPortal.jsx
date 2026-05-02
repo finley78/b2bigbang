@@ -65,7 +65,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [attachments, setAttachments] = React.useState([]);
   const [attachLoading, setAttachLoading] = React.useState(false);
   const [attachUploading, setAttachUploading] = React.useState(false);
-  const [attachDraft, setAttachDraft] = React.useState({ title:'', description:'', scope:'class', class_id:'', student_ids:[], file:null });
+  const [attachDraft, setAttachDraft] = React.useState({ title:'', description:'', scope:'class', class_id:'', student_ids:[], course_id:'', video_id:'', file:null });
 
   // 마이페이지
   const [profileDraft, setProfileDraft] = React.useState(null);
@@ -913,10 +913,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!d.title.trim()) { alert('제목을 입력해 주세요.'); return; }
     if (d.scope === 'class' && !d.class_id) { alert('클래스를 선택해 주세요.'); return; }
     if (d.scope === 'student' && d.student_ids.length === 0) { alert('1명 이상의 학생을 선택해 주세요.'); return; }
+    if (d.scope === 'video' && !d.video_id) { alert('강의 영상을 선택해 주세요.'); return; }
     setAttachUploading(true);
     try {
       var ext = d.file.name.split('.').pop() || 'bin';
-      var path = (d.scope === 'class' ? 'class/' + d.class_id : 'student/' + (teacherInfo.id || 'tx')) + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+      var pathPrefix = d.scope === 'class' ? 'class/' + d.class_id
+        : d.scope === 'video' ? 'video/' + d.video_id
+        : 'student/' + (teacherInfo.id || 'tx');
+      var path = pathPrefix + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
       var up = await sb.storage.from('attachments').upload(path, d.file, { cacheControl:'3600', upsert:false });
       if (up.error) throw up.error;
       var insertRow = {
@@ -929,6 +933,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         mime_type: d.file.type || null,
         scope: d.scope,
         class_id: d.scope === 'class' ? d.class_id : null,
+        video_id: d.scope === 'video' ? d.video_id : null,
       };
       var { data: created, error } = await sb.from('attachments').insert(insertRow).select().single();
       if (error) throw error;
@@ -937,7 +942,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         await sb.from('attachment_recipients').insert(rows);
       }
       alert('업로드 완료');
-      setAttachDraft({ title:'', description:'', scope:'class', class_id:'', student_ids:[], file:null });
+      setAttachDraft({ title:'', description:'', scope:'class', class_id:'', student_ids:[], course_id:'', video_id:'', file:null });
       await loadAttachments();
     } catch (e) {
       alert('업로드 실패: ' + (e.message || e));
@@ -2233,12 +2238,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             </div>
             <div style={{ marginBottom:'10px' }}>
               <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>받는 대상</label>
-              <div style={{ display:'flex', gap:'12px', marginBottom:'8px' }}>
+              <div style={{ display:'flex', gap:'12px', marginBottom:'8px', flexWrap:'wrap' }}>
                 <label style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                  <input type="radio" checked={attachDraft.scope === 'class'} onChange={() => setAttachDraft({ ...attachDraft, scope:'class', student_ids:[] })} /> 클래스 전체
+                  <input type="radio" checked={attachDraft.scope === 'class'} onChange={() => setAttachDraft({ ...attachDraft, scope:'class', student_ids:[], course_id:'', video_id:'' })} /> 클래스 전체
                 </label>
                 <label style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                  <input type="radio" checked={attachDraft.scope === 'student'} onChange={() => setAttachDraft({ ...attachDraft, scope:'student', class_id:'' })} /> 개별 학생 선택
+                  <input type="radio" checked={attachDraft.scope === 'student'} onChange={() => setAttachDraft({ ...attachDraft, scope:'student', class_id:'', course_id:'', video_id:'' })} /> 개별 학생 선택
+                </label>
+                <label style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                  <input type="radio" checked={attachDraft.scope === 'video'} onChange={() => setAttachDraft({ ...attachDraft, scope:'video', class_id:'', student_ids:[] })} /> 특정 강의
                 </label>
               </div>
               {attachDraft.scope === 'class' ? (
@@ -2246,6 +2254,21 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <option value="">클래스 선택</option>
                   {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
                 </select>
+              ) : attachDraft.scope === 'video' ? (
+                <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                  <select style={inputStyle} value={attachDraft.course_id} onChange={e => setAttachDraft({ ...attachDraft, course_id: e.target.value, video_id:'' })}>
+                    <option value="">강좌 선택</option>
+                    {(teacherCourses || []).map(c => <option key={c.id} value={c.id}>{c.title || c.name}</option>)}
+                  </select>
+                  <select style={inputStyle} value={attachDraft.video_id} onChange={e => setAttachDraft({ ...attachDraft, video_id: e.target.value })} disabled={!attachDraft.course_id}>
+                    <option value="">{attachDraft.course_id ? '강의 영상 선택' : '먼저 강좌를 선택하세요'}</option>
+                    {(() => {
+                      var c = (teacherCourses || []).find(x => String(x.id) === String(attachDraft.course_id));
+                      var lectures = (c && c.lectures) || [];
+                      return lectures.map(v => <option key={v.id} value={v.id}>{v.title || '제목 없음'}</option>);
+                    })()}
+                  </select>
+                </div>
               ) : (
                 <div style={{ maxHeight:'160px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px', background:'#fff' }}>
                   {(students || []).length === 0 ? (
@@ -2277,12 +2300,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             attachments.length === 0 ? <div style={{ padding:'20px', textAlign:'center', color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' }}>아직 업로드한 자료가 없습니다.</div> :
             attachments.map(att => {
               var clsName = att.class_id ? ((availableClassCards||[]).find(c => String(c.id) === String(att.class_id))||{}).name : '';
+              var videoLabel = '';
+              if (att.video_id) {
+                for (var i = 0; i < (teacherCourses || []).length; i++) {
+                  var found = ((teacherCourses[i].lectures) || []).find(v => String(v.id) === String(att.video_id));
+                  if (found) { videoLabel = (teacherCourses[i].title || teacherCourses[i].name || '강좌') + ' · ' + (found.title || '강의'); break; }
+                }
+                if (!videoLabel) videoLabel = '강의 (삭제됨)';
+              }
+              var scopeText = att.scope === 'class' ? ('클래스: ' + (clsName || '-'))
+                : att.scope === 'video' ? ('강의: ' + videoLabel)
+                : '개별 학생';
               return (
                 <div key={att.id} style={{ border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', marginBottom:'8px', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap' }}>
                   <div style={{ flex:1, minWidth:'200px' }}>
                     <div style={{ fontSize:'13px', fontWeight:'700', color:'#1E3932', fontFamily:'Manrope, sans-serif' }}>{att.title}</div>
                     {att.description && <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>{att.description}</div>}
-                    <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[att.scope === 'class' ? ('클래스: ' + (clsName || '-')) : '개별 학생', att.file_name, formatBytes(att.file_size), String(att.created_at||'').slice(0,10)].filter(Boolean).join(' · ')}</div>
+                    <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[scopeText, att.file_name, formatBytes(att.file_size), String(att.created_at||'').slice(0,10)].filter(Boolean).join(' · ')}</div>
                   </div>
                   <a href={attachmentPublicUrl(att.file_path)} target="_blank" rel="noopener" style={{ background:'#fff', color:'#006241', border:'1px solid #006241', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' }}>⬇ 다운로드</a>
                   <button onClick={() => deleteAttachment(att)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>삭제</button>

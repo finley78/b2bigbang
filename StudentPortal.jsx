@@ -443,6 +443,33 @@ function VideoPlayer({ lecture, course, onBack, studentName, userId }) {
   var [showControls, setShowControls] = React.useState(true);
   var [seekDragging, setSeekDragging] = React.useState(false);
   var [skipAnim, setSkipAnim] = React.useState(null);
+  var [videoAttachments, setVideoAttachments] = React.useState([]);
+
+  // 이 영상에 첨부된 파일 로드
+  React.useEffect(function() {
+    if (!lecture || !lecture.id) return;
+    var sb = window.supabase;
+    if (!sb) return;
+    var cancelled = false;
+    sb.from('attachments').select('*').eq('video_id', lecture.id).order('created_at', { ascending:true })
+      .then(function(res) {
+        if (!cancelled) setVideoAttachments(res.data || []);
+      });
+    return function() { cancelled = true; };
+  }, [lecture && lecture.id]);
+
+  function videoAttachmentUrl(path) {
+    var sb = window.supabase;
+    if (!sb || !path) return '';
+    var d = sb.storage.from('attachments').getPublicUrl(path);
+    return (d && d.data && d.data.publicUrl) || '';
+  }
+  function fmtBytes(n) {
+    var v = Number(n) || 0;
+    if (v < 1024) return v + ' B';
+    if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
+    return (v/1024/1024).toFixed(1) + ' MB';
+  }
 
   var storageKey = 'lec_progress_' + lecture.id;
   var progress = duration > 0 ? Math.min((currentSec / duration) * 100, 100) : 0;
@@ -807,6 +834,30 @@ function VideoPlayer({ lecture, course, onBack, studentName, userId }) {
           React.createElement('div', { style:{ height:'100%', background:color, borderRadius:'3px', width:progress+'%', transition:'width 0.3s ease' } })
         ),
         React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:color, fontFamily:'Manrope, sans-serif', flexShrink:0 } }, Math.round(progress)+'%')
+      ),
+      // \uac15\uc758 \ucca8\ubd80 \uc790\ub8cc
+      videoAttachments.length > 0 && React.createElement('div', { style:{ background:'#fff', borderRadius:'8px', padding:'14px 16px', marginTop:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14)' } },
+        React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'rgba(0,0,0,0.7)', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '\ud83d\udcce \uac15\uc758 \uc790\ub8cc'),
+        React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+          videoAttachments.map(function(att) {
+            return React.createElement('a', {
+              key: att.id,
+              href: videoAttachmentUrl(att.file_path),
+              target: '_blank',
+              rel: 'noopener',
+              download: att.file_name || true,
+              style:{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', borderRadius:'8px', border:'1px solid #e5e7eb', background:'#f8fafc', textDecoration:'none', color:'inherit' },
+            },
+              React.createElement('span', { style:{ fontSize:'18px', flexShrink:0 } }, '\ud83d\udcc4'),
+              React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#1E3932', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, att.title || att.file_name),
+                att.description ? React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, att.description) : null,
+                React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, [att.file_name, fmtBytes(att.file_size)].filter(Boolean).join(' \u00b7 '))
+              ),
+              React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#006241', flexShrink:0 } }, '\u2b07 \ub2e4\uc6b4\ub85c\ub4dc')
+            );
+          })
+        )
       )
     )
   );
@@ -944,12 +995,10 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   var [selectedSubject, setSelectedSubject] = React.useState(null);
   var [selectedCourse, setSelectedCourse] = React.useState(null);
   var [selectedLecture, setSelectedLecture] = React.useState(null);
-  var [portalView, setPortalView] = React.useState('main'); // 'main' | 'mypage' | 'files'
+  var [portalView, setPortalView] = React.useState('main'); // 'main' | 'mypage'
   var [profileDraft, setProfileDraft] = React.useState(null);
   var [savingProfile, setSavingProfile] = React.useState(false);
   var [pwDraft, setPwDraft] = React.useState({ current:'', next:'', confirm:'' });
-  var [myAttachments, setMyAttachments] = React.useState([]);
-  var [loadingFiles, setLoadingFiles] = React.useState(false);
 
   React.useEffect(function(){
     if (portalView === 'mypage' && user && !profileDraft) {
@@ -961,36 +1010,6 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           grade: data.grade || '', address: data.address || '', parent_phone: data.parent_phone || '',
           email: data.email || ''
         });
-      })();
-    }
-  }, [portalView, user]);
-
-  React.useEffect(function(){
-    if (portalView === 'files' && user) {
-      (async function(){
-        setLoadingFiles(true);
-        var sb = window.supabase;
-        // 1) 학생이 속한 클래스 id들
-        var { data: cs } = await sb.from('class_students').select('class_id').eq('student_id', user.id);
-        var myClassIds = (cs || []).map(function(r){ return r.class_id; });
-        // 2) 명시적 수신자 첨부파일 ids
-        var { data: ar } = await sb.from('attachment_recipients').select('attachment_id').eq('student_id', user.id);
-        var directIds = (ar || []).map(function(r){ return r.attachment_id; });
-        // 3) class scope 첨부 (내 클래스 기준) + student scope 명시
-        var queries = [];
-        if (myClassIds.length > 0) queries.push(sb.from('attachments').select('*').eq('scope','class').in('class_id', myClassIds));
-        if (directIds.length > 0) queries.push(sb.from('attachments').select('*').eq('scope','student').in('id', directIds));
-        var all = [];
-        for (var i = 0; i < queries.length; i++) {
-          var r = await queries[i];
-          if (r.data) all = all.concat(r.data);
-        }
-        // 중복 제거
-        var seen = {};
-        var unique = all.filter(function(x){ if (seen[x.id]) return false; seen[x.id] = true; return true; });
-        unique.sort(function(a,b){ return String(b.created_at||'').localeCompare(String(a.created_at||'')); });
-        setMyAttachments(unique);
-        setLoadingFiles(false);
       })();
     }
   }, [portalView, user]);
@@ -1041,18 +1060,6 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     alert('비밀번호가 변경되었습니다.');
     setPwDraft({ current:'', next:'', confirm:'' });
   }
-  function attachmentPublicUrl(path) {
-    var sb = window.supabase;
-    var { data } = sb.storage.from('attachments').getPublicUrl(path);
-    return data.publicUrl;
-  }
-  function formatBytes(n) {
-    var v = Number(n) || 0;
-    if (v < 1024) return v + ' B';
-    if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
-    return (v/1024/1024).toFixed(1) + ' MB';
-  }
-
   var adminMode = !!(isAdmin || adminAuthed || user?.role === 'admin' || user?.isAdmin);
   var isTeacherMode = !adminMode && (user?.role === 'teacher' || user?.role === 'teachers');
 
@@ -1177,31 +1184,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     );
   }
 
-  // 자료실 (학생/선생님 모두 본인 수신 자료 보기)
-  if (portalView === 'files') {
-    return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
-      renderHeader(true),
-      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
-        React.createElement('button', { onClick:function(){ setPortalView('main'); }, style:{ background:'none', border:'none', color:'#006241', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '← 홈으로'),
-        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' } },
-          React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '자료실'),
-          React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'16px', fontFamily:'Manrope, sans-serif' } }, '담당 선생님이 보내주신 자료를 다운로드할 수 있습니다.'),
-          loadingFiles ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
-          myAttachments.length === 0 ? React.createElement('div', { style:{ padding:'30px', textAlign:'center', color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' } }, '받은 자료가 아직 없습니다.') :
-          myAttachments.map(function(a){
-            return React.createElement('div', { key:a.id, style:{ border:'1px solid #e5e7eb', borderRadius:'10px', padding:'14px', marginBottom:'10px', display:'flex', alignItems:'center', gap:'14px', flexWrap:'wrap' } },
-              React.createElement('div', { style:{ flex:1, minWidth:'200px' } },
-                React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'#1E3932', fontFamily:'Manrope, sans-serif', marginBottom:'2px' } }, a.title || a.file_name),
-                a.description && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, a.description),
-                React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, [a.file_name, formatBytes(a.file_size), String(a.created_at||'').slice(0,10)].filter(Boolean).join(' · '))
-              ),
-              React.createElement('a', { href: attachmentPublicUrl(a.file_path), target:'_blank', rel:'noopener', download: a.file_name || true, style:{ background:'#006241', color:'#fff', textDecoration:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '⬇ 다운로드')
-            );
-          })
-        )
-      )
-    );
-  }
+  // (자료실 뷰는 영상별 첨부로 대체되어 제거됨 — 영상 아래에 첨부 자료가 표시됨)
 
   // 4단계: 영상 시청
   if (selectedLecture) {
