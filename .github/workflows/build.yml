@@ -1,0 +1,47 @@
+name: JSX 자동 빌드
+
+# .jsx 파일 또는 빌드 설정이 바뀌면 자동으로 .js 컴파일하고 커밋
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.jsx'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'build.js'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: JSX → JS 빌드
+        run: npm run build
+
+      - name: 빌드 결과를 자동 커밋 (변경 있을 때만)
+        run: |
+          if [[ -n "$(git status --porcelain '*.js')" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add '*.js'
+            git commit -m "chore: JSX 자동 컴파일 [skip ci]"
+            git push
+          else
+            echo "변경된 .js 파일 없음 - 커밋 생략"
+          fi

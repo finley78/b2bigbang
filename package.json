@@ -1,0 +1,13 @@
+{
+  "name": "b2-bigbang-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "B2빅뱅학원 웹앱 - JSX 사전 컴파일 빌드 스크립트",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-v2';
+const CACHE_VERSION = 'b2-bigbang-v3';
 const OFFLINE_URLS = [
   './',
   './index.html',
@@ -39,8 +39,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // .jsx 파일은 항상 최신 (네트워크 우선, 실패하면 캐시)
-  if (url.pathname.endsWith('.jsx') || url.pathname.endsWith('.html')) {
+  // 우리 앱 코드(.js, .jsx, .html)는 네트워크 우선 - 업데이트가 바로 반영되게
+  // (외부 CDN의 .js는 다음 분기에서 캐시 우선으로 처리됨 - hostname이 다르므로)
+  const sameOrigin = url.origin === self.location.origin;
+  if (sameOrigin && (url.pathname.endsWith('.js') || url.pathname.endsWith('.jsx') || url.pathname.endsWith('.html'))) {
     event.respondWith(
       fetch(req)
         .then((res) => {
