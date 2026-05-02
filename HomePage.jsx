@@ -110,7 +110,7 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
         style:{
           display:'flex',
           transform:`translateX(-${idx * 100}%)`,
-          transition: transition ? 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+          transition: transition ? 'transform 0.75s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
           willChange:'transform',
           transformStyle:'preserve-3d',
         }
@@ -138,7 +138,7 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
               justifyContent:'center',
               transform:`rotateY(${rotateDeg}deg) scale(${cardScale})`,
               transformStyle:'preserve-3d',
-              transition: transition ? 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease' : 'none',
+              transition: transition ? 'transform 0.75s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease' : 'none',
               opacity: cardOpacity,
               willChange:'transform',
             },
