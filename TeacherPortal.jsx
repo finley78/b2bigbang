@@ -25,7 +25,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [savingNote, setSavingNote] = React.useState(false);
   const [noteTargetMode, setNoteTargetMode] = React.useState('all'); // 'all' | 'student'
   const [noteClassId, setNoteClassId] = React.useState('');
-  const [noteClassSearch, setNoteClassSearch] = React.useState('');
   const [noteStudents, setNoteStudents] = React.useState([]);
   const [noteStudentId, setNoteStudentId] = React.useState('');
   // 성적 현황/통계
@@ -1751,50 +1750,37 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </div>
             </div>
 
-            {/* 학생별 모드: 클래스 검색 + 클래스/학생 선택 */}
+            {/* 학생별 모드: 반/학생 선택 */}
             {noteTargetMode === 'student' && (
-              <>
-                <div style={{ marginBottom: "10px" }}>
-                  <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>클래스 검색</label>
-                  <input
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                <div>
+                  <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>반</label>
+                  <select
                     style={inputStyle}
-                    placeholder="클래스 이름으로 검색"
-                    value={noteClassSearch}
-                    onChange={e => setNoteClassSearch(e.target.value)}
-                  />
+                    value={noteClassId}
+                    onChange={e => { setNoteClassId(e.target.value); loadNoteClassStudents(e.target.value); }}
+                  >
+                    <option value="">반 선택</option>
+                    {(availableClassCards || []).map(cls => (
+                      <option key={cls.id} value={String(cls.id)}>{cls.name}{cls.grade ? ` (${cls.grade})` : ""}</option>
+                    ))}
+                  </select>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>클래스</label>
-                    <select
-                      style={inputStyle}
-                      value={noteClassId}
-                      onChange={e => { setNoteClassId(e.target.value); loadNoteClassStudents(e.target.value); }}
-                    >
-                      <option value="">반 선택</option>
-                      {(availableClassCards || [])
-                        .filter(c => !noteClassSearch.trim() || String(c.name || '').toLowerCase().includes(noteClassSearch.trim().toLowerCase()))
-                        .map(cls => (
-                          <option key={cls.id} value={String(cls.id)}>{cls.name}{cls.grade ? ` (${cls.grade})` : ""}</option>
-                        ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>학생</label>
-                    <select
-                      style={inputStyle}
-                      value={noteStudentId}
-                      onChange={e => setNoteStudentId(e.target.value)}
-                      disabled={!noteClassId}
-                    >
-                      <option value="">{noteClassId ? (noteStudents.length === 0 ? "(학생 없음)" : "학생 선택") : "먼저 반을 선택하세요"}</option>
-                      {noteStudents.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}{s.grade ? ` (${s.grade})` : ""}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "4px" }}>학생</label>
+                  <select
+                    style={inputStyle}
+                    value={noteStudentId}
+                    onChange={e => setNoteStudentId(e.target.value)}
+                    disabled={!noteClassId}
+                  >
+                    <option value="">{noteClassId ? (noteStudents.length === 0 ? "(학생 없음)" : "학생 선택") : "먼저 반을 선택하세요"}</option>
+                    {noteStudents.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}{s.grade ? ` (${s.grade})` : ""}</option>
+                    ))}
+                  </select>
                 </div>
-              </>
+              </div>
             )}
 
             <div style={{ marginBottom: "10px", maxWidth: "200px" }}>
