@@ -32,9 +32,24 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f8fafc; }
 ::-webkit-scrollbar-thumb { background: #d4e9e2; border-radius: 3px; }
+/* 앱 첫 진입 스플래시 — 1초 후 자동 사라짐 */
+#b2-splash { position: fixed; inset: 0; background: #f8fafc; display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.3s ease; }
+#b2-splash img { width: 128px; height: 128px; border-radius: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.10); }
 </style>
 </head>
 <body>
+<div id="b2-splash">
+  <img src="icons/web-app-manifest-192x192.png" alt="B2빅뱅학원" />
+</div>
+<script>
+  // 시스템 PWA 스플래시 직후 화면이 바로 main으로 튀지 않도록, 자체 스플래시 1초 보장
+  setTimeout(function() {
+    var s = document.getElementById('b2-splash');
+    if (!s) return;
+    s.style.opacity = '0';
+    setTimeout(function() { if (s.parentNode) s.parentNode.removeChild(s); }, 300);
+  }, 700);
+</script>
 <div id="root"></div>
 
 <!-- PWA Service Worker 등록 -->
@@ -73,13 +88,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260503r"></script>
-<script src="TopNav.js?v=20260503r"></script>
-<script src="HomePage.js?v=20260503r"></script>
-<script src="Pages.js?v=20260503r"></script>
-<script src="StudentPortal.js?v=20260503r"></script>
-<script src="TeacherPortal.js?v=20260503r"></script>
-<script src="AdminPanel.js?v=20260503r"></script>
+<script src="Utils.js?v=20260503s"></script>
+<script src="TopNav.js?v=20260503s"></script>
+<script src="HomePage.js?v=20260503s"></script>
+<script src="Pages.js?v=20260503s"></script>
+<script src="StudentPortal.js?v=20260503s"></script>
+<script src="TeacherPortal.js?v=20260503s"></script>
+<script src="AdminPanel.js?v=20260503s"></script>
 
 <script>
 // Supabase 클라이언트 초기화
