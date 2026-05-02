@@ -10,71 +10,244 @@ function useIsMobile() {
   return isMobile;
 }
 
-function HeroBanner({ banners, isAdmin, onEdit }) {
-  const [idx, setIdx] = React.useState(0);
+function getBannerYoutubeId(url) {
+  if (!url) return null;
+  const match = String(url).match(/(?:v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);
+  return match ? match[1] : null;
+}
+
+function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
   const isMobile = useIsMobile();
   const active = banners.filter(b => b.active);
+  const [idx, setIdx] = React.useState(0);
+  const touchRef = React.useRef({ startX: 0, startY: 0, locked: false, dragging: false });
 
+  // idx 가 범위 벗어나면 보정
+  React.useEffect(() => {
+    if (active.length === 0) return;
+    if (idx >= active.length) setIdx(0);
+  }, [active.length, idx]);
+
+  // 자동 슬라이드
   React.useEffect(() => {
     if (active.length < 2) return;
-    const t = setInterval(() => setIdx(i => (i + 1) % active.length), 4000);
+    const t = setInterval(() => setIdx(i => (i + 1) % active.length), 5000);
     return () => clearInterval(t);
   }, [active.length]);
 
   if (!active.length) return null;
-  const b = active[idx];
+  const b = active[Math.min(idx, active.length - 1)];
+  const accentColor = b.bg || '#006241';
 
-  function getYoutubeId(url) {
-    if (!url) return null;
-    const match = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
-    return match ? match[1] : null;
+  function next() { setIdx(i => (i + 1) % active.length); }
+  function prev() { setIdx(i => (i - 1 + active.length) % active.length); }
+
+  function onTouchStart(e) {
+    touchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, locked: false, dragging: true };
   }
-  const ytId = getYoutubeId(b.youtube);
+  function onTouchMove(e) {
+    if (!touchRef.current.dragging || touchRef.current.locked) return;
+    const dx = Math.abs(e.touches[0].clientX - touchRef.current.startX);
+    const dy = Math.abs(e.touches[0].clientY - touchRef.current.startY);
+    if (dx > dy && dx > 8) touchRef.current.locked = true;
+  }
+  function onTouchEnd(e) {
+    if (!touchRef.current.dragging) return;
+    const diff = touchRef.current.startX - e.changedTouches[0].clientX;
+    touchRef.current.dragging = false;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) next(); else prev();
+    }
+  }
 
-  return React.createElement('div', { style: { position:'relative', overflow:'hidden', height: isMobile ? '220px' : '300px', background: b.bg } },
-    // 배경 이미지
-    b.image && React.createElement('div', { style:{ position:'absolute', inset:0, backgroundImage:`url(${b.image})`, backgroundSize:'cover', backgroundPosition:'center', opacity:0.4 } }),
-    // 배경 유튜브
-    ytId && React.createElement('div', { style:{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' } },
-      React.createElement('iframe', { src:`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0`, style:{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'177.78vh', height:'100vh', minWidth:'100%', minHeight:'100%', opacity:0.4, border:'none' }, allow:'autoplay' })
-    ),
-    // 그리드 패턴 (이미지 없을 때)
-    !b.image && !ytId && React.createElement('div', { style: { position:'absolute', inset:0, opacity:0.07 } },
-      React.createElement('svg', { width:'100%', height:'100%', style:{position:'absolute',inset:0} },
-        React.createElement('pattern', { id:'grid', x:0, y:0, width:40, height:40, patternUnits:'userSpaceOnUse' },
-          React.createElement('path', { d:'M 40 0 L 0 0 0 40', fill:'none', stroke:'white', strokeWidth:'0.5' })
-        ),
-        React.createElement('rect', { width:'100%', height:'100%', fill:'url(#grid)' })
+  return React.createElement('div', { style: { position:'relative', background:'#f8fafc' } },
+    // 상단 컬러 액센트 (활성 카드 색)
+    React.createElement('div', { style:{ height:'6px', background: accentColor, transition:'background-color 0.6s ease' } }),
+    // 부드러운 컬러 워시 (배경에 반영)
+    React.createElement('div', { style:{ position:'absolute', top:'6px', left:0, right:0, height:'160px', background:`linear-gradient(to bottom, ${accentColor}22, transparent)`, transition:'background 0.6s ease', pointerEvents:'none' } }),
+
+    // 카드 슬라이더
+    React.createElement('div', {
+      style:{ overflow:'hidden', padding: isMobile ? '20px 12px 14px' : '32px 40px 22px', position:'relative' },
+      onTouchStart, onTouchMove, onTouchEnd,
+    },
+      React.createElement('div', {
+        style:{
+          display:'flex',
+          transform:`translateX(-${idx * 100}%)`,
+          transition:'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange:'transform',
+        }
+      },
+        active.map(function(card, i) {
+          const ytId = getBannerYoutubeId(card.youtube);
+          const isActive = i === idx;
+          return React.createElement('div', {
+            key: card.id || i,
+            onClick: function() { if (onSelectBanner && isActive) onSelectBanner(card); },
+            style:{
+              flex:'0 0 100%',
+              padding:'0 6px',
+              boxSizing:'border-box',
+              cursor: onSelectBanner ? 'pointer' : 'default',
+            },
+          },
+            React.createElement('div', {
+              style:{
+                background:'#fff',
+                borderRadius:'16px',
+                overflow:'hidden',
+                boxShadow:`0 1px 2px rgba(0,0,0,0.08), 0 10px 28px ${card.bg}1A`,
+                position:'relative',
+                transition:'box-shadow 0.4s ease',
+              }
+            },
+              // 카드 상단 컬러 strip
+              React.createElement('div', { style:{ height:'4px', background: card.bg } }),
+              // 미디어 영역 (영상 우선, 없으면 이미지, 둘 다 없으면 컬러)
+              React.createElement('div', {
+                style:{
+                  position:'relative',
+                  aspectRatio: isMobile ? '16/9' : '21/9',
+                  background:`linear-gradient(135deg, ${card.bg}, ${card.bg}DD)`,
+                  overflow:'hidden',
+                }
+              },
+                ytId
+                  ? React.createElement('iframe', {
+                      src:`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&modestbranding=1&rel=0`,
+                      style:{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'177.78%', height:'100%', border:'none', pointerEvents:'none' },
+                      allow:'autoplay; encrypted-media',
+                      title: card.title || '',
+                    })
+                  : card.image
+                    ? React.createElement('img', {
+                        src: card.image,
+                        alt: card.title || '',
+                        style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' },
+                        loading: i === 0 ? 'eager' : 'lazy',
+                      })
+                    : React.createElement('div', { style:{ position:'absolute', inset:0, opacity:0.12 } },
+                        React.createElement('svg', { width:'100%', height:'100%' },
+                          React.createElement('pattern', { id:'gridb-'+i, x:0, y:0, width:40, height:40, patternUnits:'userSpaceOnUse' },
+                            React.createElement('path', { d:'M 40 0 L 0 0 0 40', fill:'none', stroke:'#fff', strokeWidth:'0.5' })
+                          ),
+                          React.createElement('rect', { width:'100%', height:'100%', fill:'url(#gridb-'+i+')' })
+                        )
+                      ),
+                // 영상 인디케이터
+                ytId && React.createElement('div', {
+                  style:{ position:'absolute', top:'10px', left:'10px', background:'rgba(0,0,0,0.55)', color:'#fff', fontSize:'10px', fontWeight:'700', padding:'3px 8px', borderRadius:'6px', fontFamily:'Manrope, sans-serif' }
+                }, '▶ 영상')
+              ),
+              // 본문
+              React.createElement('div', {
+                style:{ padding: isMobile ? '14px 16px 16px' : '18px 22px 20px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'12px' }
+              },
+                React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                  card.badge && React.createElement('div', {
+                    style:{ display:'inline-block', background:`${card.bg}18`, color: card.bg, borderRadius:'6px', padding:'3px 10px', fontSize:'11px', fontWeight:'700', letterSpacing:'0.04em', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }
+                  }, card.badge),
+                  card.subtitle && React.createElement('div', {
+                    style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginBottom:'4px' }
+                  }, card.subtitle),
+                  React.createElement('div', {
+                    style:{ fontSize: isMobile ? '17px' : '20px', fontWeight:'800', color:'rgba(0,0,0,0.87)', letterSpacing:'-0.16px', lineHeight:'1.3', fontFamily:'Manrope, sans-serif' }
+                  }, card.title)
+                ),
+                card.label && React.createElement('div', {
+                  style:{ flexShrink:0, background:`${card.bg}10`, border:`1px solid ${card.bg}30`, borderRadius:'10px', padding: isMobile ? '6px 10px' : '8px 14px', textAlign:'center' }
+                },
+                  React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginBottom:'2px' } }, '개강'),
+                  React.createElement('div', { style:{ fontSize: isMobile ? '12px' : '13px', fontWeight:'800', color: card.bg, fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, card.label)
+                )
+              )
+            )
+          );
+        })
       )
     ),
-    // 어두운 오버레이 (이미지/영상 있을 때)
-    (b.image || ytId) && React.createElement('div', { style:{ position:'absolute', inset:0, background:'rgba(0,0,0,0.4)' } }),
-    // 콘텐츠
-    React.createElement('div', { style: { position:'relative', zIndex:2, width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding: isMobile ? '0 16px' : '0 40px', boxSizing:'border-box' } },
-      React.createElement('div', { style:{ flex:1, minWidth:0 } },
-        b.badge && React.createElement('div', { style: { display:'inline-block', background:'rgba(255,255,255,0.2)', color:'#fff', borderRadius:'8px', padding:'3px 12px', fontSize:'11px', fontWeight:'700', letterSpacing:'0.05em', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, b.badge),
-        React.createElement('div', { style: { fontSize:'12px', color:'rgba(255,255,255,0.75)', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, b.subtitle),
-        React.createElement('div', { style: { fontSize: isMobile ? '22px' : '34px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif' } }, b.title),
-        b.cta && React.createElement('button', {
-          style: { marginTop:'12px', background:'#fff', color: b.bg, border:'none', borderRadius:'8px', padding:'7px 18px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
-          onMouseDown: e => e.currentTarget.style.transform='scale(0.95)',
-          onMouseUp: e => e.currentTarget.style.transform='scale(1)',
-        }, b.cta)
+    // 페이지네이션 닷
+    active.length > 1 && React.createElement('div', {
+      style:{ display:'flex', justifyContent:'center', alignItems:'center', gap:'4px', padding:'2px 0 18px' }
+    },
+      active.map(function(_, i) {
+        return React.createElement('button', {
+          key:i,
+          onClick:function(){ setIdx(i); },
+          'aria-label': '슬라이드 ' + (i+1),
+          style:{
+            border:'none',
+            background:'none',
+            padding:'8px 4px',
+            cursor:'pointer',
+            WebkitTapHighlightColor:'transparent',
+          }
+        },
+          React.createElement('div', {
+            style:{
+              width: i===idx ? 22 : 6,
+              height: 6,
+              borderRadius:'3px',
+              background: i===idx ? accentColor : 'rgba(0,0,0,0.18)',
+              transition:'all 0.35s ease'
+            }
+          })
+        );
+      })
+    ),
+    isAdmin && React.createElement('button', {
+      onClick: function(e){ e.stopPropagation(); onEdit && onEdit(); },
+      style:{ position:'absolute', top:'14px', right:'14px', zIndex:4, background:'rgba(203,162,88,0.9)', color:'#fff', border:'none', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+    }, '✏ 배너 편집')
+  );
+}
+
+function BannerDetailPage({ banner, onBack, setPage }) {
+  const isMobile = useIsMobile();
+  const ytId = getBannerYoutubeId(banner.youtube);
+  const accent = banner.bg || '#006241';
+
+  function handleCta() {
+    if (banner.linkPage && setPage) { setPage(banner.linkPage); return; }
+    if (banner.link) { window.open(banner.link, '_blank', 'noopener'); return; }
+    if (setPage) setPage('contact');
+  }
+
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
+    React.createElement('div', { style:{ height:'4px', background: accent } }),
+    React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
+      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color: accent, fontFamily:'Manrope, sans-serif' } }, '← 홈으로')
+    ),
+    React.createElement('div', { style:{ maxWidth:'820px', margin:'0 auto', padding: isMobile ? '20px 16px' : '32px' } },
+      (ytId || banner.image) && React.createElement('div', {
+        style:{ borderRadius:'14px', overflow:'hidden', aspectRatio:'16/9', marginBottom:'22px', background:`linear-gradient(135deg, ${accent}, ${accent}DD)` }
+      },
+        ytId
+          ? React.createElement('iframe', { width:'100%', height:'100%', src:`https://www.youtube.com/embed/${ytId}?autoplay=1`, frameBorder:'0', allowFullScreen:true, style:{ display:'block', border:'none' } })
+          : React.createElement('img', { src: banner.image, alt: banner.title || '', style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' } })
       ),
-      React.createElement('div', { style: { flexShrink:0, marginLeft:'12px' } },
-        React.createElement('div', { style: { background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', padding: isMobile ? '8px 12px' : '10px 18px', textAlign:'center' } },
-          React.createElement('div', { style: { fontSize:'10px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif', marginBottom:'2px' } }, '개강'),
-          React.createElement('div', { style: { fontSize: isMobile ? '13px' : '15px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, b.label)
-        )
-      )
-    ),
-    React.createElement('div', { style: { position:'absolute', bottom:'12px', right:'16px', display:'flex', gap:'6px', alignItems:'center', zIndex:3 } },
-      React.createElement('span', { style: { fontSize:'11px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif' } }, `${idx+1}/${active.length}`),
-      active.map((_,i) =>
-        React.createElement('div', { key:i, onClick:()=>setIdx(i), style: { width:i===idx?18:5, height:5, borderRadius:'3px', background:i===idx?'#fff':'rgba(255,255,255,0.35)', cursor:'pointer', transition:'all 0.3s ease' } })
-      )
-    ),
-    isAdmin && React.createElement('button', { onClick:onEdit, style:{ position:'absolute', top:'12px', right:'12px', zIndex:4, background:'rgba(203,162,88,0.9)', color:'#fff', border:'none', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 배너 편집')
+      banner.badge && React.createElement('span', {
+        style:{ display:'inline-block', background:`${accent}22`, color: accent, borderRadius:'6px', padding:'4px 12px', fontSize:'12px', fontWeight:'700', letterSpacing:'0.04em', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }
+      }, banner.badge),
+      banner.subtitle && React.createElement('div', {
+        style:{ fontSize:'14px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginBottom:'6px' }
+      }, banner.subtitle),
+      React.createElement('h1', { style:{ fontSize: isMobile?'24px':'30px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.2px', lineHeight:'1.3', marginBottom:'18px' } }, banner.title),
+      banner.label && React.createElement('div', {
+        style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#fff', border:`1px solid ${accent}30`, borderRadius:'10px', padding:'10px 16px', marginBottom:'24px' }
+      },
+        React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif' } }, '개강'),
+        React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color: accent, fontFamily:'Manrope, sans-serif' } }, banner.label)
+      ),
+      banner.description && React.createElement('div', {
+        style:{ fontSize:'15px', color:'rgba(0,0,0,0.75)', lineHeight:'1.8', fontFamily:'Manrope, sans-serif', marginBottom:'24px', whiteSpace:'pre-line' }
+      }, banner.description),
+      banner.cta && React.createElement('button', {
+        onClick: handleCta,
+        style:{ background: accent, color:'#fff', border:'none', borderRadius:'10px', padding:'14px 28px', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+      }, banner.cta)
+    )
   );
 }
 
@@ -250,13 +423,17 @@ function NoticeDetailPage({ notice, onBack }) {
 
 function HomePage({ banners, slides, categories, notices, announcements, setPage, isAdmin, content, onAdminAction }) {
   const [selectedNotice, setSelectedNotice] = React.useState(null);
+  const [selectedBanner, setSelectedBanner] = React.useState(null);
 
   if (selectedNotice) {
     return React.createElement(NoticeDetailPage, { notice:selectedNotice, onBack:()=>setSelectedNotice(null) });
   }
+  if (selectedBanner) {
+    return React.createElement(BannerDetailPage, { banner:selectedBanner, setPage, onBack:()=>setSelectedBanner(null) });
+  }
 
   return React.createElement('div', null,
-    React.createElement(HeroBanner, { banners, isAdmin, onEdit:()=>onAdminAction('banner') }),
+    React.createElement(HeroBanner, { banners, isAdmin, onEdit:()=>onAdminAction('banner'), onSelectBanner:setSelectedBanner }),
     React.createElement(SplitSection, { notices, announcements, isAdmin, onEditNotices:()=>onAdminAction('notice'), onSelectNotice:setSelectedNotice, slides }),
     React.createElement(StatsBand),
     React.createElement(FeatureBand, { setPage, isAdmin, content, onEdit:()=>onAdminAction('feature') })
