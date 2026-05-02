@@ -748,7 +748,7 @@ React.createElement('input',{value:editingNotice.link||'',onChange:e=>{ const v=
 ),
 // 공지사항(announcements)일 때만 카드 이미지 업로드
 editingNotice.type === undefined && React.createElement('div', { style:{ background:'#f8fafc', padding:'12px', borderRadius:'10px' } },
-React.createElement('label',{style:{...labelS, display:'block', marginBottom:'8px'}},'카드 배경 이미지 (메인 화면 2x2 카드에 사용 — 권장 1:1 정사각, 800×800 px 이상)'),
+React.createElement('label',{style:{...labelS, display:'block', marginBottom:'8px'}},'카드 배경 이미지 (메인 화면 2x2 카드에 사용 — 권장 가로:세로 = 2:3 (1080×1620 px))'),
 editingNotice.image
 ? React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' } },
     React.createElement('img', { src: editingNotice.image, style:{ width:'100px', height:'100px', objectFit:'cover', borderRadius:'8px' } }),
