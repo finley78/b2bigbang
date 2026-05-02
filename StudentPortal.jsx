@@ -1118,10 +1118,9 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           )
         ),
         React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
-          !adminMode && React.createElement('button', { onClick:function(){ setPortalView('files'); }, style:{ background:'rgba(255,255,255,0.15)', color:'#fff', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 12px':'8px 16px', fontSize: small?'12px':'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📎 자료실'),
           !adminMode && !isTeacherMode && React.createElement('button', { onClick:function(){ setPortalView('mypage'); setProfileDraft(null); }, style:{ background:'rgba(255,255,255,0.15)', color:'#fff', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 12px':'8px 16px', fontSize: small?'12px':'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '👤 마이페이지'),
-          (studentGrade || isTeacherMode) && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 14px':'8px 20px' } },
-            React.createElement('span', { style:{ fontSize: small?'12px':'14px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, isTeacherMode ? '선생님' : studentGrade)
+          isTeacherMode && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 14px':'8px 20px' } },
+            React.createElement('span', { style:{ fontSize: small?'12px':'14px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, '선생님')
           )
         )
       )
