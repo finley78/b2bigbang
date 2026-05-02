@@ -44,14 +44,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [aiComments, setAiComments] = React.useState({}); // { student_id+test_score_id: comment }
 
   // 강좌 개설
-  const [courseDraft, setCourseDraft] = React.useState({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[] });
+  const [courseDraft, setCourseDraft] = React.useState({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[], picker_class_id:'' });
   const [creatingCourse, setCreatingCourse] = React.useState(false);
   // 사후 배포 편집
   const [distributeCourseId, setDistributeCourseId] = React.useState('');
-  const [distributeDraft, setDistributeDraft] = React.useState({ scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[] });
+  const [distributeDraft, setDistributeDraft] = React.useState({ scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[], picker_class_id:'' });
   const [distributing, setDistributing] = React.useState(false);
   const [distEnrollments, setDistEnrollments] = React.useState([]); // 현재 강좌의 enrollments
   const [allStudents, setAllStudents] = React.useState([]);
+  const [classStudentMap, setClassStudentMap] = React.useState({}); // { class_id: [students...] }
 
   // 영상 노출 기간 (강의 추가 폼)
   const [videoExpireDays, setVideoExpireDays] = React.useState(''); // '', '30', '45', '60'
@@ -780,6 +781,22 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return lines.join('\n');
   }
 
+  // 클래스 ID로 학생 목록 로드 (전역 state에 영향 없이 캐시)
+  async function loadClassStudentsCached(classId) {
+    if (!classId) return [];
+    if (classStudentMap[classId]) return classStudentMap[classId];
+    var { data: links } = await sb.from('class_students').select('student_id').eq('class_id', classId);
+    var ids = (links || []).map(function(x){ return x.student_id; });
+    if (ids.length === 0) {
+      setClassStudentMap(function(prev){ return Object.assign({}, prev, (function(o){ o[classId] = []; return o; })({})); });
+      return [];
+    }
+    var { data: stu } = await sb.from('students').select('id, name, grade, school').in('id', ids).eq('is_active', true).order('name');
+    var loaded = stu || [];
+    setClassStudentMap(function(prev){ var n = Object.assign({}, prev); n[classId] = loaded; return n; });
+    return loaded;
+  }
+
   // ── 강좌 개설 ──
   async function createCourse() {
     var d = courseDraft;
@@ -815,7 +832,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       }
       var mapped = mapCourseForTeacher(created);
       setTeacherCourses(function(prev){ return [...prev, mapped]; });
-      setCourseDraft({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[] });
+      setCourseDraft({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[], picker_class_id:'' });
       var msg = d.scope === 'unassigned'
         ? '강좌가 개설되었습니다. 배포 대상은 아래 "내 강좌" 목록에서 언제든 설정할 수 있습니다.'
         : '강좌가 개설되었습니다. "강의 추가" 탭에서 영상을 등록하세요.';
@@ -1270,7 +1287,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   { v:'level',      l:'학년 (초중고+학년)' },
                 ].map(opt => (
                   <label key={opt.v} style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                    <input type="radio" checked={courseDraft.scope === opt.v} onChange={() => setCourseDraft({ ...courseDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids:[] })} /> {opt.l}
+                    <input type="radio" checked={courseDraft.scope === opt.v} onChange={() => setCourseDraft({ ...courseDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids:[], picker_class_id:'' })} /> {opt.l}
                   </label>
                 ))}
               </div>
@@ -1280,23 +1297,59 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
                 </select>
               )}
-              {courseDraft.scope === 'students' && (
-                <div style={{ maxHeight:'180px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px', background:'#fff' }}>
-                  {(students || []).length === 0 ? (
-                    <div style={{ fontSize:'12px', color:'#9ca3af' }}>먼저 "담당 클래스" 탭에서 반을 선택해 학생 목록을 불러와 주세요.</div>
-                  ) : (students || []).map(s => (
-                    <label key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
-                      <input type="checkbox" checked={courseDraft.student_ids.indexOf(s.id) >= 0} onChange={e => {
-                        var next = e.target.checked ? courseDraft.student_ids.concat([s.id]) : courseDraft.student_ids.filter(id => id !== s.id);
-                        setCourseDraft({ ...courseDraft, student_ids: next });
-                      }} />
-                      <span>{s.name}</span>
-                      {s.grade && <span style={{ color:'#9ca3af' }}>· {s.grade}</span>}
-                    </label>
-                  ))}
-                  <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' }}>{courseDraft.student_ids.length}명 선택됨</div>
-                </div>
-              )}
+              {courseDraft.scope === 'students' && (() => {
+                var pickerClassId = courseDraft.picker_class_id;
+                var pickerStudents = pickerClassId ? (classStudentMap[pickerClassId] || []) : [];
+                var loadingThisClass = pickerClassId && !classStudentMap[pickerClassId];
+                return (
+                  <div>
+                    <select style={{ ...inputStyle, marginBottom:'8px' }} value={pickerClassId} onChange={e => {
+                      var cid = e.target.value;
+                      setCourseDraft({ ...courseDraft, picker_class_id: cid });
+                      if (cid) loadClassStudentsCached(cid);
+                    }}>
+                      <option value="">클래스를 선택하세요 (그 클래스 학생 중에서 개별 선택)</option>
+                      {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                    </select>
+                    {!pickerClassId ? (
+                      <div style={{ fontSize:'12px', color:'#9ca3af', padding:'10px 12px', background:'#f9fafb', borderRadius:'8px', fontFamily:'Manrope, sans-serif' }}>위 드롭다운에서 클래스를 선택하면 그 반의 학생들이 표시됩니다.</div>
+                    ) : (
+                      <div style={{ maxHeight:'200px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px', background:'#fff' }}>
+                        {loadingThisClass ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>학생 목록 불러오는 중...</div>
+                          : pickerStudents.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>이 클래스에 등록된 학생이 없습니다.</div>
+                          : (
+                            <>
+                              <div style={{ display:'flex', gap:'8px', marginBottom:'6px', borderBottom:'1px solid #f3f4f6', paddingBottom:'6px' }}>
+                                <button type="button" style={{ ...lightButtonStyle, padding:'4px 10px', fontSize:'11px' }} onClick={() => {
+                                  var ids = pickerStudents.map(s => s.id);
+                                  var merged = Array.from(new Set(courseDraft.student_ids.concat(ids)));
+                                  setCourseDraft({ ...courseDraft, student_ids: merged });
+                                }}>이 반 전체 추가</button>
+                                <button type="button" style={{ ...lightButtonStyle, padding:'4px 10px', fontSize:'11px' }} onClick={() => {
+                                  var ids = pickerStudents.map(s => s.id);
+                                  setCourseDraft({ ...courseDraft, student_ids: courseDraft.student_ids.filter(id => ids.indexOf(id) < 0) });
+                                }}>이 반에서 모두 제외</button>
+                              </div>
+                              {pickerStudents.map(s => (
+                                <label key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
+                                  <input type="checkbox" checked={courseDraft.student_ids.indexOf(s.id) >= 0} onChange={e => {
+                                    var next = e.target.checked ? courseDraft.student_ids.concat([s.id]) : courseDraft.student_ids.filter(id => id !== s.id);
+                                    setCourseDraft({ ...courseDraft, student_ids: next });
+                                  }} />
+                                  <span>{s.name}</span>
+                                  {s.grade && <span style={{ color:'#9ca3af' }}>· {s.grade}</span>}
+                                  {s.school && <span style={{ color:'#9ca3af' }}>· {s.school}</span>}
+                                </label>
+                              ))}
+                            </>
+                          )
+                        }
+                      </div>
+                    )}
+                    <div style={{ fontSize:'11px', color:'#6b7280', marginTop:'6px', fontFamily:'Manrope, sans-serif' }}>총 <strong>{courseDraft.student_ids.length}명</strong> 선택됨 (여러 반에서 누적 선택 가능)</div>
+                  </div>
+                );
+              })()}
               {courseDraft.scope === 'level' && (
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
                   <select style={inputStyle} value={courseDraft.level} onChange={e => setCourseDraft({ ...courseDraft, level: e.target.value, grade:'' })}>
@@ -1341,7 +1394,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                             { v:'level',      l:'학년' },
                           ].map(opt => (
                             <label key={opt.v} style={{ fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                              <input type="radio" checked={distributeDraft.scope === opt.v} onChange={() => setDistributeDraft({ ...distributeDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids: opt.v === 'students' ? distEnrollments.slice() : [] })} /> {opt.l}
+                              <input type="radio" checked={distributeDraft.scope === opt.v} onChange={() => setDistributeDraft({ ...distributeDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids: opt.v === 'students' ? distEnrollments.slice() : [], picker_class_id:'' })} /> {opt.l}
                             </label>
                           ))}
                         </div>
@@ -1363,24 +1416,59 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                             </select>
                           </div>
                         )}
-                        {distributeDraft.scope === 'students' && (
-                          <div style={{ maxHeight:'180px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px', background:'#fff' }}>
-                            {allStudents.length === 0 ? (
-                              <div style={{ fontSize:'12px', color:'#9ca3af' }}>학생 목록을 불러오는 중...</div>
-                            ) : allStudents.map(s => (
-                              <label key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
-                                <input type="checkbox" checked={distributeDraft.student_ids.indexOf(s.id) >= 0} onChange={e => {
-                                  var next = e.target.checked ? distributeDraft.student_ids.concat([s.id]) : distributeDraft.student_ids.filter(id => id !== s.id);
-                                  setDistributeDraft({ ...distributeDraft, student_ids: next });
-                                }} />
-                                <span>{s.name}</span>
-                                {s.grade && <span style={{ color:'#9ca3af' }}>· {s.grade}</span>}
-                                {s.school && <span style={{ color:'#9ca3af' }}>· {s.school}</span>}
-                              </label>
-                            ))}
-                            <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' }}>{distributeDraft.student_ids.length}명 선택됨</div>
-                          </div>
-                        )}
+                        {distributeDraft.scope === 'students' && (() => {
+                          var pickerClassId = distributeDraft.picker_class_id;
+                          var pickerStudents = pickerClassId ? (classStudentMap[pickerClassId] || []) : [];
+                          var loadingThis = pickerClassId && !classStudentMap[pickerClassId];
+                          return (
+                            <div>
+                              <select style={{ ...inputStyle, marginBottom:'8px' }} value={pickerClassId} onChange={e => {
+                                var cid = e.target.value;
+                                setDistributeDraft({ ...distributeDraft, picker_class_id: cid });
+                                if (cid) loadClassStudentsCached(cid);
+                              }}>
+                                <option value="">클래스 선택 (그 반 학생 중에서 개별 선택)</option>
+                                {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                              </select>
+                              {!pickerClassId ? (
+                                <div style={{ fontSize:'12px', color:'#9ca3af', padding:'10px 12px', background:'#fff', borderRadius:'8px', fontFamily:'Manrope, sans-serif' }}>클래스를 선택하면 그 반의 학생들이 표시됩니다.</div>
+                              ) : (
+                                <div style={{ maxHeight:'200px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px', background:'#fff' }}>
+                                  {loadingThis ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>학생 목록 불러오는 중...</div>
+                                    : pickerStudents.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>이 클래스에 등록된 학생이 없습니다.</div>
+                                    : (
+                                      <>
+                                        <div style={{ display:'flex', gap:'8px', marginBottom:'6px', borderBottom:'1px solid #f3f4f6', paddingBottom:'6px' }}>
+                                          <button type="button" style={{ ...lightButtonStyle, padding:'4px 10px', fontSize:'11px' }} onClick={() => {
+                                            var ids = pickerStudents.map(s => s.id);
+                                            var merged = Array.from(new Set(distributeDraft.student_ids.concat(ids)));
+                                            setDistributeDraft({ ...distributeDraft, student_ids: merged });
+                                          }}>이 반 전체 추가</button>
+                                          <button type="button" style={{ ...lightButtonStyle, padding:'4px 10px', fontSize:'11px' }} onClick={() => {
+                                            var ids = pickerStudents.map(s => s.id);
+                                            setDistributeDraft({ ...distributeDraft, student_ids: distributeDraft.student_ids.filter(id => ids.indexOf(id) < 0) });
+                                          }}>이 반에서 모두 제외</button>
+                                        </div>
+                                        {pickerStudents.map(s => (
+                                          <label key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
+                                            <input type="checkbox" checked={distributeDraft.student_ids.indexOf(s.id) >= 0} onChange={e => {
+                                              var next = e.target.checked ? distributeDraft.student_ids.concat([s.id]) : distributeDraft.student_ids.filter(id => id !== s.id);
+                                              setDistributeDraft({ ...distributeDraft, student_ids: next });
+                                            }} />
+                                            <span>{s.name}</span>
+                                            {s.grade && <span style={{ color:'#9ca3af' }}>· {s.grade}</span>}
+                                            {s.school && <span style={{ color:'#9ca3af' }}>· {s.school}</span>}
+                                          </label>
+                                        ))}
+                                      </>
+                                    )
+                                  }
+                                </div>
+                              )}
+                              <div style={{ fontSize:'11px', color:'#6b7280', marginTop:'6px', fontFamily:'Manrope, sans-serif' }}>총 <strong>{distributeDraft.student_ids.length}명</strong> 선택됨 (여러 반에서 누적 선택 가능)</div>
+                            </div>
+                          );
+                        })()}
                         {distributeDraft.scope === 'unassigned' && (
                           <div style={{ fontSize:'12px', color:'#6b7280', padding:'10px 12px', background:'#fff', borderRadius:'6px', fontFamily:'Manrope, sans-serif' }}>배포를 미정 상태로 두면 학생 화면에 노출되지 않습니다.</div>
                         )}
