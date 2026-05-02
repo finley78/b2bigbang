@@ -1724,8 +1724,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>대상</label>
               <div style={{ display: "flex", gap: "8px" }}>
                 {[
-                  { id: 'all', label: '전체 기록' },
-                  { id: 'student', label: '학생별 기록' },
+                  { id: 'all', label: '일반 특이사항' },
+                  { id: 'student', label: '학생별 특이사항' },
                 ].map(opt => {
                   const active = noteTargetMode === opt.id;
                   return (
