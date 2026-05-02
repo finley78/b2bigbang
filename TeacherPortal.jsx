@@ -43,6 +43,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [notificationLogs, setNotificationLogs] = React.useState([]);
   const [aiComments, setAiComments] = React.useState({}); // { student_id+test_score_id: comment }
 
+  // 강좌 개설
+  const [courseDraft, setCourseDraft] = React.useState({ title:'', description:'', subject:'', scope:'class', class_id:'', level:'', grade:'', student_ids:[] });
+  const [creatingCourse, setCreatingCourse] = React.useState(false);
+
+  // 영상 노출 기간 (강의 추가 폼)
+  const [videoExpireDays, setVideoExpireDays] = React.useState(''); // '', '30', '45', '60'
+
   // 자료실
   const [attachments, setAttachments] = React.useState([]);
   const [attachLoading, setAttachLoading] = React.useState(false);
@@ -203,6 +210,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         category: video.category || "",
         youtubeId: video.youtube_id || "",
         videoUrl: lectureVideoUrl(video),
+        expires_at: video.expires_at || null,
       })),
     };
   }
@@ -379,9 +387,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       // 2) 영상 insert
       const target = teacherCourses.find(c => String(c.id) === String(courseId));
       const nextOrder = ((target?.lectures || []).length) + 1;
+      const days = Number(videoExpireDays);
+      const expiresAt = days > 0 ? new Date(Date.now() + days*24*60*60*1000).toISOString() : null;
       const { data: video, error: videoError } = await sb
         .from("videos")
-        .insert({ course_id: courseId, title, youtube_id: extractYoutubeId(link), sort_order: nextOrder })
+        .insert({ course_id: courseId, title, youtube_id: extractYoutubeId(link), sort_order: nextOrder, expires_at: expiresAt })
         .select()
         .single();
       if (videoError) throw videoError;
@@ -764,6 +774,55 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return lines.join('\n');
   }
 
+  // ── 강좌 개설 ──
+  async function createCourse() {
+    var d = courseDraft;
+    if (!teacherInfo) { alert('선생님 정보를 불러올 수 없습니다.'); return; }
+    if (!d.title.trim()) { alert('강좌명을 입력해 주세요.'); return; }
+    if (!d.subject) { alert('과목을 선택해 주세요.'); return; }
+    if (d.scope === 'class' && !d.class_id) { alert('클래스를 선택해 주세요.'); return; }
+    if (d.scope === 'level' && (!d.level || !d.grade)) { alert('초중고/학년을 선택해 주세요.'); return; }
+    if (d.scope === 'students' && d.student_ids.length === 0) { alert('1명 이상의 학생을 선택해 주세요.'); return; }
+    setCreatingCourse(true);
+    try {
+      var subjectId = null;
+      if (d.subject) {
+        var sj = await sb.from('subjects').select('id').eq('name', d.subject).limit(1);
+        subjectId = (sj.data && sj.data[0]) ? sj.data[0].id : null;
+      }
+      var payload = {
+        title: d.title.trim(),
+        description: (d.description||'').trim() || null,
+        subject_id: subjectId,
+        is_active: true,
+        level: d.scope === 'level' ? d.level : null,
+        grade: d.scope === 'level' ? d.grade : null,
+        class_id: d.scope === 'class' ? d.class_id : null,
+      };
+      var { data: created, error } = await sb.from('courses').insert(payload).select('*, subjects(name,color), videos(*)').single();
+      if (error) throw error;
+      // 학생 단위 배포 시 enrollments에 등록
+      if (d.scope === 'students' && d.student_ids.length > 0) {
+        var rows = d.student_ids.map(function(sid){ return { student_id: sid, course_id: created.id, is_active: true }; });
+        var er = await sb.from('enrollments').insert(rows);
+        if (er.error) console.error('enrollments insert:', er.error.message);
+      }
+      var mapped = mapCourseForTeacher(created);
+      setTeacherCourses(function(prev){ return [...prev, mapped]; });
+      setCourseDraft({ title:'', description:'', subject:'', scope:'class', class_id:'', level:'', grade:'', student_ids:[] });
+      alert('강좌가 개설되었습니다. "강의 추가" 탭에서 영상을 등록하세요.');
+      setTeacherView('lecture');
+      setLectureCourseName(mapped.title);
+      if (d.scope === 'class') setLectureClassId(d.class_id);
+      if (d.scope === 'level') { setLectureLevel(d.level); setLectureGrade(d.grade); }
+      setLectureSubject(d.subject);
+    } catch (e) {
+      alert('강좌 개설 실패: ' + (e.message || e));
+    } finally {
+      setCreatingCourse(false);
+    }
+  }
+
   // ── 자료실 ──
   async function loadAttachments() {
     if (!teacherInfo) return;
@@ -983,6 +1042,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   // 4탭 구조 렌더링
   const TABS = [
     { id: "classes",  label: "담당 클래스" },
+    { id: "course",   label: "강좌 개설" },
     { id: "lecture",  label: "강의 추가" },
     { id: "notes",    label: "특이사항" },
     { id: "stats",    label: "성적 등록" },
@@ -1058,6 +1118,84 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           )}
         </div>
       )}
+
+      {/* ── 탭1.5: 강좌 개설 ── */}
+      {teacherView === "course" && (() => {
+        const LEVELS = { "초등":["1학년","2학년","3학년","4학년","5학년","6학년"], "중등":["중1","중2","중3"], "고등":["고1","고2","고3"] };
+        const SUBJECTS = ["국어","영어","수학","과학"];
+        return (
+          <div style={{ ...cardStyle, marginBottom:'24px' }}>
+            <h2 style={{ marginBottom:'4px' }}>강좌 개설</h2>
+            <p style={{ color:'#6b7280', fontSize:'14px', marginTop:0, marginBottom:'20px' }}>새 강좌를 만들고 클래스 / 개별 학생 / 학년 단위로 배포 대상을 지정합니다. 영상은 개설 후 "강의 추가" 탭에서 등록합니다.</p>
+
+            <div style={{ marginBottom:'12px' }}>
+              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>강좌명</label>
+              <input style={inputStyle} value={courseDraft.title} onChange={e => setCourseDraft({ ...courseDraft, title: e.target.value })} placeholder="예: 고1 영어 문법 마스터" />
+            </div>
+            <div style={{ marginBottom:'12px' }}>
+              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>설명 (선택)</label>
+              <textarea style={{ ...inputStyle, minHeight:'72px', resize:'vertical' }} value={courseDraft.description} onChange={e => setCourseDraft({ ...courseDraft, description: e.target.value })} placeholder="강좌 소개·커리큘럼 등" />
+            </div>
+            <div style={{ marginBottom:'12px' }}>
+              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>과목</label>
+              <select style={inputStyle} value={courseDraft.subject} onChange={e => setCourseDraft({ ...courseDraft, subject: e.target.value })}>
+                <option value="">선택</option>
+                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom:'12px' }}>
+              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'6px' }}>배포 대상</label>
+              <div style={{ display:'flex', gap:'12px', marginBottom:'8px', flexWrap:'wrap' }}>
+                {[
+                  { v:'class',    l:'클래스 전체' },
+                  { v:'students', l:'개별 학생 선택' },
+                  { v:'level',    l:'학년 (초중고+학년)' },
+                ].map(opt => (
+                  <label key={opt.v} style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                    <input type="radio" checked={courseDraft.scope === opt.v} onChange={() => setCourseDraft({ ...courseDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids:[] })} /> {opt.l}
+                  </label>
+                ))}
+              </div>
+              {courseDraft.scope === 'class' && (
+                <select style={inputStyle} value={courseDraft.class_id} onChange={e => setCourseDraft({ ...courseDraft, class_id: e.target.value })}>
+                  <option value="">클래스 선택</option>
+                  {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                </select>
+              )}
+              {courseDraft.scope === 'students' && (
+                <div style={{ maxHeight:'180px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px', background:'#fff' }}>
+                  {(students || []).length === 0 ? (
+                    <div style={{ fontSize:'12px', color:'#9ca3af' }}>먼저 "담당 클래스" 탭에서 반을 선택해 학생 목록을 불러와 주세요.</div>
+                  ) : (students || []).map(s => (
+                    <label key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
+                      <input type="checkbox" checked={courseDraft.student_ids.indexOf(s.id) >= 0} onChange={e => {
+                        var next = e.target.checked ? courseDraft.student_ids.concat([s.id]) : courseDraft.student_ids.filter(id => id !== s.id);
+                        setCourseDraft({ ...courseDraft, student_ids: next });
+                      }} />
+                      <span>{s.name}</span>
+                      {s.grade && <span style={{ color:'#9ca3af' }}>· {s.grade}</span>}
+                    </label>
+                  ))}
+                  <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' }}>{courseDraft.student_ids.length}명 선택됨</div>
+                </div>
+              )}
+              {courseDraft.scope === 'level' && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+                  <select style={inputStyle} value={courseDraft.level} onChange={e => setCourseDraft({ ...courseDraft, level: e.target.value, grade:'' })}>
+                    <option value="">초중고 선택</option>
+                    {Object.keys(LEVELS).map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                  <select style={inputStyle} value={courseDraft.grade} onChange={e => setCourseDraft({ ...courseDraft, grade: e.target.value })} disabled={!courseDraft.level}>
+                    <option value="">학년 선택</option>
+                    {(LEVELS[courseDraft.level] || []).map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+            <button style={buttonStyle} onClick={createCourse} disabled={creatingCourse}>{creatingCourse ? '개설 중...' : '강좌 개설'}</button>
+          </div>
+        );
+      })()}
 
       {/* ── 탭2: 강의 추가 ── */}
       {teacherView === "lecture" && (() => {
@@ -1185,7 +1323,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             </div>
 
             {/* 3. 강의 입력 */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "10px", alignItems: "end", marginBottom: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr 130px auto", gap: "10px", alignItems: "end", marginBottom: "16px" }}>
               <div>
                 <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 제목</label>
                 <input style={inputStyle} value={courseVideoTitle} onChange={e => setCourseVideoTitle(e.target.value)} placeholder="예: 명사" />
@@ -1193,6 +1331,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <div>
                 <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 링크</label>
                 <input style={inputStyle} value={courseVideoLink} onChange={e => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 영상 URL" />
+              </div>
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>노출 기간</label>
+                <select style={inputStyle} value={videoExpireDays} onChange={e => setVideoExpireDays(e.target.value)}>
+                  <option value="">제한 없음</option>
+                  <option value="30">30일</option>
+                  <option value="45">45일</option>
+                  <option value="60">60일</option>
+                </select>
               </div>
               <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
             </div>
@@ -1217,13 +1364,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontFamily: "Manrope, sans-serif" }}>{visibleLectures.length}강</span>
                 </div>
                 <div style={{ padding: "8px 14px" }}>
-                  {visibleLectures.map((lec, idx) => (
-                    <div key={lec.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: idx < visibleLectures.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-                      <span style={{ fontSize: "12px", fontWeight: "700", color: "#006241", width: "30px", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{idx+1}강</span>
-                      <span style={{ fontSize: "14px", color: "#374151", flex: 1, fontFamily: "Manrope, sans-serif" }}>{lec.title}</span>
-                      <button onClick={() => deleteLecture(matchedCourse.id, lec.id)} style={{ background: "none", border: "none", color: "#c82014", cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>×</button>
-                    </div>
-                  ))}
+                  {visibleLectures.map((lec, idx) => {
+                    var exp = lec.expires_at ? new Date(lec.expires_at) : null;
+                    var expired = exp && exp.getTime() < Date.now();
+                    var daysLeft = exp ? Math.ceil((exp.getTime() - Date.now()) / (24*60*60*1000)) : null;
+                    return (
+                      <div key={lec.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: idx < visibleLectures.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                        <span style={{ fontSize: "12px", fontWeight: "700", color: "#006241", width: "30px", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{idx+1}강</span>
+                        <span style={{ fontSize: "14px", color: "#374151", flex: 1, fontFamily: "Manrope, sans-serif" }}>{lec.title}</span>
+                        {exp && (
+                          <span style={{ fontSize:'11px', fontWeight:'700', color: expired ? '#c82014' : '#6b7280', background: expired ? '#fef2f2' : '#f3f4f6', padding:'2px 8px', borderRadius:'10px', fontFamily:'Manrope, sans-serif' }}>
+                            {expired ? '만료됨' : 'D-' + daysLeft}
+                          </span>
+                        )}
+                        <button onClick={() => deleteLecture(matchedCourse.id, lec.id)} style={{ background: "none", border: "none", color: "#c82014", cursor: "pointer", fontSize: "18px", lineHeight: 1 }}>×</button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
