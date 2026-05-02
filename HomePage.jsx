@@ -545,7 +545,7 @@ function FeatureBand({ setPage, isAdmin, content, onEdit }) {
 }
 
 /* ── Notice Detail Page ─────────────────────── */
-function NoticeDetailPage({ notice, onBack }) {
+function NoticeDetailPage({ notice, onBack, setPage }) {
   const isMobile = useIsMobile();
 
   function getYoutubeId(url) {
@@ -556,6 +556,14 @@ function NoticeDetailPage({ notice, onBack }) {
 
   const ytId = getYoutubeId(notice.youtube);
 
+  // CTA 버튼 클릭 처리
+  function handleCta() {
+    var dest = notice.link_to || '';
+    if (!dest) { if (setPage) setPage('contact'); return; }
+    if (/^https?:\/\//i.test(dest)) { window.open(dest, '_blank', 'noopener'); return; }
+    if (setPage) setPage(dest);
+  }
+
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     // 뒤로가기
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
@@ -565,6 +573,10 @@ function NoticeDetailPage({ notice, onBack }) {
     React.createElement('div', { style:{ maxWidth:'720px', margin:'0 auto', padding: isMobile ? '24px 16px' : '40px' } },
       // 카테고리 뱃지 (notices만)
       notice.type && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#d4e9e2', color:'#006241', borderRadius:'4px', padding:'3px 8px', fontFamily:'Manrope, sans-serif', display:'inline-block', marginBottom:'12px' } }, notice.type),
+      // 카드 이미지 (announcements에 image 있을 때)
+      notice.image && React.createElement('div', { style:{ marginBottom:'18px', borderRadius:'12px', overflow:'hidden', aspectRatio:'10/13', maxWidth:'360px', background:'#000' } },
+        React.createElement('img', { src: notice.image, alt: notice.title || '', style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' } })
+      ),
       // 제목
       React.createElement('h1', { style:{ fontSize: isMobile ? '22px' : '28px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px', lineHeight:'1.3', marginBottom:'8px' } }, notice.text || notice.title),
       // 날짜
@@ -575,8 +587,14 @@ function NoticeDetailPage({ notice, onBack }) {
       ytId && React.createElement('div', { style:{ marginBottom:'24px', borderRadius:'12px', overflow:'hidden', aspectRatio:'16/9' } },
         React.createElement('iframe', { width:'100%', height:'100%', src:`https://www.youtube.com/embed/${ytId}`, frameBorder:'0', allowFullScreen:true, style:{ display:'block' } })
       ),
-      // 외부 링크
-      notice.link && React.createElement('a', { href:notice.link, target:'_blank', rel:'noopener noreferrer', style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#006241', color:'#fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', fontFamily:'Manrope, sans-serif', textDecoration:'none' } }, '🔗 자세히 보기')
+      // CTA 버튼들 (관리자가 설정한 cta + 외부 링크)
+      React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap', marginTop:'8px' } },
+        notice.cta && React.createElement('button', {
+          onClick: handleCta,
+          style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#006241', color:'#fff', border:'none', borderRadius:'10px', padding:'14px 28px', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+        }, notice.cta),
+        notice.link && !notice.cta && React.createElement('a', { href:notice.link, target:'_blank', rel:'noopener noreferrer', style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#006241', color:'#fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', fontFamily:'Manrope, sans-serif', textDecoration:'none' } }, '🔗 자세히 보기')
+      )
     )
   );
 }
@@ -586,7 +604,7 @@ function HomePage({ banners, slides, categories, notices, announcements, setPage
   const [selectedBanner, setSelectedBanner] = React.useState(null);
 
   if (selectedNotice) {
-    return React.createElement(NoticeDetailPage, { notice:selectedNotice, onBack:()=>setSelectedNotice(null) });
+    return React.createElement(NoticeDetailPage, { notice:selectedNotice, setPage, onBack:()=>setSelectedNotice(null) });
   }
   if (selectedBanner) {
     return React.createElement(BannerDetailPage, { banner:selectedBanner, setPage, onBack:()=>setSelectedBanner(null) });

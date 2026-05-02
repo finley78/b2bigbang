@@ -746,6 +746,59 @@ React.createElement('div', null,
 React.createElement('label',{style:labelS},'외부 링크 (선택)'),
 React.createElement('input',{value:editingNotice.link||'',onChange:e=>{ const v=e.target.value; setEditingNotice(n=>({...n,link:v})); setState(s=>({ ...s, notices:s.notices.map(x=>x.id===editingNotice.id?{...x,link:v}:x), announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,link:v}:x) })); },placeholder:'https://blog.naver.com/...',style:inputS})
 ),
+// 공지사항(announcements)일 때만 CTA 버튼 설정
+editingNotice.type === undefined && React.createElement('div', { style:{ background:'#f8fafc', padding:'12px', borderRadius:'10px' } },
+React.createElement('label',{style:{...labelS, display:'block', marginBottom:'8px'}},'CTA 버튼 (상세 페이지에 표시되는 행동 유도 버튼)'),
+React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' } },
+React.createElement('div', null,
+React.createElement('label',{style:{ ...labelS, fontSize:'11px', marginBottom:'4px' }},'버튼 텍스트'),
+React.createElement('input', { value: editingNotice.cta||'', onChange: function(e){
+var v = e.target.value;
+setEditingNotice(n=>({...n,cta:v}));
+setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,cta:v}:x)}));
+}, placeholder:'예: 신청하기 / 상담받기 / 자세히 보기', style: inputS })
+),
+React.createElement('div', null,
+React.createElement('label',{style:{ ...labelS, fontSize:'11px', marginBottom:'4px' }},'이동 위치'),
+React.createElement('select', {
+value: (function(){
+var v = editingNotice.link_to || '';
+if (!v) return '';
+var known = ['home','service','contact','about','recruit','signup'];
+return known.indexOf(v) >= 0 ? v : '__custom__';
+})(),
+onChange: function(e) {
+var v = e.target.value;
+var newVal = v === '__custom__' ? (editingNotice.link_to && /^https?:\/\//i.test(editingNotice.link_to) ? editingNotice.link_to : 'https://') : v;
+setEditingNotice(n=>({...n,link_to:newVal}));
+setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,link_to:newVal}:x)}));
+},
+style: inputS
+},
+React.createElement('option', {value:''}, '(없음)'),
+React.createElement('option', {value:'home'}, '홈'),
+React.createElement('option', {value:'service'}, '강좌(프로그램)'),
+React.createElement('option', {value:'contact'}, '문의/연락처'),
+React.createElement('option', {value:'about'}, '회사 소개'),
+React.createElement('option', {value:'recruit'}, '채용/모집'),
+React.createElement('option', {value:'signup'}, '회원가입'),
+React.createElement('option', {value:'__custom__'}, '외부 URL (직접 입력)')
+)
+)
+),
+editingNotice.link_to && /^https?:\/\//i.test(editingNotice.link_to) && React.createElement('input', {
+value: editingNotice.link_to, placeholder:'https://...',
+onChange: function(e) {
+var v = e.target.value;
+setEditingNotice(n=>({...n,link_to:v}));
+setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,link_to:v}:x)}));
+},
+style:{ ...inputS, marginTop:'8px' }
+}),
+React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', marginTop:'6px', fontFamily:'Manrope, sans-serif' } },
+'※ 버튼 텍스트가 비어있으면 CTA 버튼이 표시되지 않습니다.'
+)
+),
 // 공지사항(announcements)일 때만 카드 이미지 업로드
 editingNotice.type === undefined && React.createElement('div', { style:{ background:'#f8fafc', padding:'12px', borderRadius:'10px' } },
 React.createElement('label',{style:{...labelS, display:'block', marginBottom:'8px'}},'카드 배경 이미지 (메인 화면 2x2 카드에 사용 — 권장 가로:세로 = 10:13, 1000×1300 px)'),
@@ -777,7 +830,7 @@ React.createElement('button', { onClick: async ()=>{
 if (editingNotice.type !== undefined) {
 await window.supabase.from('notices').update({ type:editingNotice.type, text:editingNotice.text, date:editingNotice.date }).eq('id', editingNotice.id);
 } else {
-await window.supabase.from('announcements').update({ title:editingNotice.title, date:editingNotice.date, image: editingNotice.image || null }).eq('id', editingNotice.id);
+await window.supabase.from('announcements').update({ title:editingNotice.title, date:editingNotice.date, image: editingNotice.image || null, cta: editingNotice.cta || null, link_to: editingNotice.link_to || null }).eq('id', editingNotice.id);
 }
 setEditingNotice(null);
 }, style:{ ...btnS(), alignSelf:'flex-start' } }, '✓ 저장 완료')
