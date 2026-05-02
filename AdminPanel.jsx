@@ -540,7 +540,7 @@ setState(s => ({ ...s, banners: s.banners.map(b => b.id===id ? {...b,[field]:val
 await sb.from('banners').update({ [field]: val }).eq('id', id);
 }
 async function addBanner() {
-const newB = { bg:'#006241', subtitle:'새 배너 부제목', title:'새 배너 제목', label:'개강 예정', badge:'새로운', active:true, cta:'자세히 보기', sort_order: state.banners.length+1 };
+const newB = { bg:'#006241', subtitle:'새 배너 부제목', title:'새 배너 제목', label:'개강 예정', badge:'새로운', active:true, cta:'자세히 보기', link_to:'contact', sort_order: state.banners.length+1 };
 const { data } = await sb.from('banners').insert(newB).select().single();
 if (data) setState(s => ({ ...s, banners: [...s.banners, data] }));
 }
@@ -651,6 +651,37 @@ React.createElement('select',{value:b.active?'true':'false',onChange:e=>updateBa
 React.createElement('option',{value:'true'},'노출'),
 React.createElement('option',{value:'false'},'숨김')
 )
+),
+React.createElement('div', {key:'link_to', style:{ gridColumn:'span 2' }},
+React.createElement('label',{style:labelS},'CTA 버튼 이동 위치'),
+React.createElement('select', {
+  value: (function(){
+    var v = b.link_to || '';
+    if (!v) return '';
+    var known = ['home','service','contact','about','recruit','signup'];
+    return known.indexOf(v) >= 0 ? v : '__custom__';
+  })(),
+  onChange: function(e) {
+    var v = e.target.value;
+    if (v === '__custom__') updateBanner(b.id,'link_to', b.link_to && /^https?:\/\//i.test(b.link_to) ? b.link_to : 'https://');
+    else updateBanner(b.id,'link_to', v);
+  },
+  style: inputS
+},
+  React.createElement('option', {value:''}, '(없음 - 문의 페이지로 이동)'),
+  React.createElement('option', {value:'home'}, '홈'),
+  React.createElement('option', {value:'service'}, '강좌(프로그램)'),
+  React.createElement('option', {value:'contact'}, '문의/연락처'),
+  React.createElement('option', {value:'about'}, '회사 소개'),
+  React.createElement('option', {value:'recruit'}, '채용/모집'),
+  React.createElement('option', {value:'signup'}, '회원가입'),
+  React.createElement('option', {value:'__custom__'}, '외부 URL (직접 입력)')
+),
+b.link_to && /^https?:\/\//i.test(b.link_to) && React.createElement('input', { value: b.link_to, onChange: function(e){ updateBanner(b.id,'link_to', e.target.value); }, placeholder:'https://...', style:{ ...inputS, marginTop:'6px' } })
+),
+React.createElement('div', {key:'description', style:{ gridColumn:'span 3' }},
+React.createElement('label',{style:labelS},'상세 설명 (배너 클릭 시 상세 페이지에 표시)'),
+React.createElement('textarea', { value: b.description || '', onChange: function(e){ updateBanner(b.id,'description', e.target.value); }, rows:3, style:{ ...inputS, resize:'vertical', minHeight:'70px', fontFamily:'Manrope, sans-serif' }, placeholder:'자세한 안내, 일정, 혜택 등을 자유롭게 적어주세요. 줄바꿈도 그대로 표시됩니다.' })
 )
 ),
 // 배경 동영상 업로드 (MP4 등)

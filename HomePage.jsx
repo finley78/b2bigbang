@@ -197,9 +197,10 @@ function BannerDetailPage({ banner, onBack, setPage }) {
   const accent = banner.bg || '#006241';
 
   function handleCta() {
-    if (banner.linkPage && setPage) { setPage(banner.linkPage); return; }
-    if (banner.link) { window.open(banner.link, '_blank', 'noopener'); return; }
-    if (setPage) setPage('contact');
+    var dest = banner.link_to || banner.linkPage || banner.link || '';
+    if (!dest) { if (setPage) setPage('contact'); return; }
+    if (/^https?:\/\//i.test(dest)) { window.open(dest, '_blank', 'noopener'); return; }
+    if (setPage) setPage(dest);
   }
 
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
