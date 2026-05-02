@@ -44,8 +44,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [aiComments, setAiComments] = React.useState({}); // { student_id+test_score_id: comment }
 
   // 강좌 개설
-  const [courseDraft, setCourseDraft] = React.useState({ title:'', description:'', subject:'', scope:'class', class_id:'', level:'', grade:'', student_ids:[] });
+  const [courseDraft, setCourseDraft] = React.useState({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[] });
   const [creatingCourse, setCreatingCourse] = React.useState(false);
+  // 사후 배포 편집
+  const [distributeCourseId, setDistributeCourseId] = React.useState('');
+  const [distributeDraft, setDistributeDraft] = React.useState({ scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[] });
+  const [distributing, setDistributing] = React.useState(false);
+  const [distEnrollments, setDistEnrollments] = React.useState([]); // 현재 강좌의 enrollments
+  const [allStudents, setAllStudents] = React.useState([]);
 
   // 영상 노출 기간 (강의 추가 폼)
   const [videoExpireDays, setVideoExpireDays] = React.useState(''); // '', '30', '45', '60'
@@ -809,18 +815,106 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       }
       var mapped = mapCourseForTeacher(created);
       setTeacherCourses(function(prev){ return [...prev, mapped]; });
-      setCourseDraft({ title:'', description:'', subject:'', scope:'class', class_id:'', level:'', grade:'', student_ids:[] });
-      alert('강좌가 개설되었습니다. "강의 추가" 탭에서 영상을 등록하세요.');
-      setTeacherView('lecture');
-      setLectureCourseName(mapped.title);
-      if (d.scope === 'class') setLectureClassId(d.class_id);
-      if (d.scope === 'level') { setLectureLevel(d.level); setLectureGrade(d.grade); }
-      setLectureSubject(d.subject);
+      setCourseDraft({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[] });
+      var msg = d.scope === 'unassigned'
+        ? '강좌가 개설되었습니다. 배포 대상은 아래 "내 강좌" 목록에서 언제든 설정할 수 있습니다.'
+        : '강좌가 개설되었습니다. "강의 추가" 탭에서 영상을 등록하세요.';
+      alert(msg);
+      if (d.scope !== 'unassigned') {
+        setTeacherView('lecture');
+        setLectureCourseName(mapped.title);
+        if (d.scope === 'class') setLectureClassId(d.class_id);
+        if (d.scope === 'level') { setLectureLevel(d.level); setLectureGrade(d.grade); }
+        setLectureSubject(d.subject);
+      }
     } catch (e) {
       alert('강좌 개설 실패: ' + (e.message || e));
     } finally {
       setCreatingCourse(false);
     }
+  }
+
+  // ── 사후 배포 편집 ──
+  async function openDistributeEditor(course) {
+    setDistributeCourseId(course.id);
+    // 현재 scope 추정
+    var scope = 'unassigned';
+    if (course.class_id) scope = 'class';
+    else if (course.level && course.grade) scope = 'level';
+    // enrollments 조회 (학생 모드인지 판별)
+    var { data: enrolls } = await sb.from('enrollments').select('student_id').eq('course_id', course.id).eq('is_active', true);
+    var studentIds = (enrolls || []).map(function(e){ return e.student_id; });
+    if (scope === 'unassigned' && studentIds.length > 0) scope = 'students';
+    setDistEnrollments(studentIds);
+    setDistributeDraft({
+      scope: scope,
+      class_id: course.class_id || '',
+      level: course.level || '',
+      grade: course.grade || '',
+      student_ids: studentIds,
+    });
+    // 학생 목록 (담당 선생님 학생들 우선)
+    if (allStudents.length === 0) {
+      var { data: stuList } = await sb.from('students').select('id, name, grade, school').eq('role', 'student').eq('is_active', true).order('name');
+      setAllStudents(stuList || []);
+    }
+  }
+
+  async function saveDistribution() {
+    var d = distributeDraft;
+    if (!distributeCourseId) return;
+    if (d.scope === 'class' && !d.class_id) { alert('클래스를 선택해 주세요.'); return; }
+    if (d.scope === 'level' && (!d.level || !d.grade)) { alert('초중고/학년을 선택해 주세요.'); return; }
+    if (d.scope === 'students' && d.student_ids.length === 0) { alert('1명 이상의 학생을 선택해 주세요.'); return; }
+    setDistributing(true);
+    try {
+      var updates = {
+        class_id: d.scope === 'class' ? d.class_id : null,
+        level:    d.scope === 'level' ? d.level : null,
+        grade:    d.scope === 'level' ? d.grade : null,
+      };
+      var { error } = await sb.from('courses').update(updates).eq('id', distributeCourseId);
+      if (error) throw error;
+      // 학생 모드: enrollments diff
+      if (d.scope === 'students') {
+        var prev = new Set(distEnrollments.map(String));
+        var next = new Set(d.student_ids.map(String));
+        var toAdd = d.student_ids.filter(function(sid){ return !prev.has(String(sid)); });
+        var toRemove = distEnrollments.filter(function(sid){ return !next.has(String(sid)); });
+        if (toAdd.length > 0) {
+          var rows = toAdd.map(function(sid){ return { student_id: sid, course_id: distributeCourseId, is_active: true }; });
+          await sb.from('enrollments').insert(rows);
+        }
+        if (toRemove.length > 0) {
+          await sb.from('enrollments').update({ is_active:false }).eq('course_id', distributeCourseId).in('student_id', toRemove);
+        }
+      } else {
+        // 학생 모드가 아닐 땐 기존 enrollments 비활성화 (중복 노출 방지)
+        if (distEnrollments.length > 0) {
+          await sb.from('enrollments').update({ is_active:false }).eq('course_id', distributeCourseId);
+        }
+      }
+      // 로컬 state 업데이트
+      setTeacherCourses(function(prev){ return prev.map(function(c){
+        if (String(c.id) !== String(distributeCourseId)) return c;
+        return Object.assign({}, c, { class_id: updates.class_id, level: updates.level || '', grade: updates.grade || '' });
+      }); });
+      alert('배포 설정이 저장되었습니다.');
+      setDistributeCourseId('');
+    } catch (e) {
+      alert('저장 실패: ' + (e.message || e));
+    } finally {
+      setDistributing(false);
+    }
+  }
+  function describeCourseScope(c) {
+    if (c.class_id) {
+      var cls = (availableClassCards || []).find(function(x){ return String(x.id) === String(c.class_id); });
+      return '클래스: ' + (cls ? cls.name : '-');
+    }
+    if (c.level && c.grade) return '학년: ' + c.level + ' ' + c.grade;
+    if (c.level) return '학년: ' + c.level;
+    return '미배포 (또는 개별 학생)';
   }
 
   // ── 자료실 ──
@@ -1167,12 +1261,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </select>
             </div>
             <div style={{ marginBottom:'12px' }}>
-              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'6px' }}>배포 대상</label>
+              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'6px' }}>배포 대상 (선택)</label>
               <div style={{ display:'flex', gap:'12px', marginBottom:'8px', flexWrap:'wrap' }}>
                 {[
-                  { v:'class',    l:'클래스 전체' },
-                  { v:'students', l:'개별 학생 선택' },
-                  { v:'level',    l:'학년 (초중고+학년)' },
+                  { v:'unassigned', l:'미정 (나중에 설정)' },
+                  { v:'class',      l:'클래스 전체' },
+                  { v:'students',   l:'개별 학생 선택' },
+                  { v:'level',      l:'학년 (초중고+학년)' },
                 ].map(opt => (
                   <label key={opt.v} style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
                     <input type="radio" checked={courseDraft.scope === opt.v} onChange={() => setCourseDraft({ ...courseDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids:[] })} /> {opt.l}
@@ -1216,6 +1311,89 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               )}
             </div>
             <button style={buttonStyle} onClick={createCourse} disabled={creatingCourse}>{creatingCourse ? '개설 중...' : '강좌 개설'}</button>
+
+            {/* 내 강좌 목록 + 배포 설정 */}
+            <div style={{ borderTop:'1px solid #e5e7eb', marginTop:'24px', paddingTop:'18px' }}>
+              <h3 style={{ fontSize:'15px', fontWeight:'800', marginBottom:'8px' }}>내 강좌 · {(teacherCourses || []).length}개</h3>
+              <p style={{ fontSize:'12px', color:'#6b7280', marginBottom:'12px', fontFamily:'Manrope, sans-serif' }}>이미 만든 강좌의 배포 대상을 변경할 수 있습니다.</p>
+              {(teacherCourses || []).length === 0 ? (
+                <div style={{ color:'#9ca3af', fontSize:'13px', padding:'16px', background:'#f9fafb', borderRadius:'8px', fontFamily:'Manrope, sans-serif' }}>아직 개설한 강좌가 없습니다.</div>
+              ) : (
+                (teacherCourses || []).map(c => (
+                  <div key={c.id} style={{ border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', marginBottom:'8px' }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', flexWrap:'wrap' }}>
+                      <div style={{ flex:1, minWidth:'200px' }}>
+                        <div style={{ fontSize:'14px', fontWeight:'700', color:'#1E3932', fontFamily:'Manrope, sans-serif' }}>{c.title}</div>
+                        <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[c.subject, describeCourseScope(c), (c.lectures||[]).length+'강'].filter(Boolean).join(' · ')}</div>
+                      </div>
+                      <button style={{ ...lightButtonStyle, padding:'6px 12px', fontSize:'12px' }} onClick={() => { if (String(distributeCourseId) === String(c.id)) setDistributeCourseId(''); else openDistributeEditor(c); }}>
+                        {String(distributeCourseId) === String(c.id) ? '닫기' : '배포 설정'}
+                      </button>
+                    </div>
+
+                    {String(distributeCourseId) === String(c.id) && (
+                      <div style={{ marginTop:'12px', padding:'12px', background:'#f9fafb', borderRadius:'8px' }}>
+                        <div style={{ display:'flex', gap:'12px', marginBottom:'10px', flexWrap:'wrap' }}>
+                          {[
+                            { v:'unassigned', l:'미정' },
+                            { v:'class',      l:'클래스' },
+                            { v:'students',   l:'개별 학생' },
+                            { v:'level',      l:'학년' },
+                          ].map(opt => (
+                            <label key={opt.v} style={{ fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                              <input type="radio" checked={distributeDraft.scope === opt.v} onChange={() => setDistributeDraft({ ...distributeDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids: opt.v === 'students' ? distEnrollments.slice() : [] })} /> {opt.l}
+                            </label>
+                          ))}
+                        </div>
+                        {distributeDraft.scope === 'class' && (
+                          <select style={inputStyle} value={distributeDraft.class_id} onChange={e => setDistributeDraft({ ...distributeDraft, class_id: e.target.value })}>
+                            <option value="">클래스 선택</option>
+                            {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                          </select>
+                        )}
+                        {distributeDraft.scope === 'level' && (
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+                            <select style={inputStyle} value={distributeDraft.level} onChange={e => setDistributeDraft({ ...distributeDraft, level: e.target.value, grade:'' })}>
+                              <option value="">초중고</option>
+                              {['초등','중등','고등'].map(l => <option key={l} value={l}>{l}</option>)}
+                            </select>
+                            <select style={inputStyle} value={distributeDraft.grade} onChange={e => setDistributeDraft({ ...distributeDraft, grade: e.target.value })} disabled={!distributeDraft.level}>
+                              <option value="">학년</option>
+                              {({ '초등':['1학년','2학년','3학년','4학년','5학년','6학년'], '중등':['중1','중2','중3'], '고등':['고1','고2','고3'] }[distributeDraft.level] || []).map(g => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        {distributeDraft.scope === 'students' && (
+                          <div style={{ maxHeight:'180px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px', background:'#fff' }}>
+                            {allStudents.length === 0 ? (
+                              <div style={{ fontSize:'12px', color:'#9ca3af' }}>학생 목록을 불러오는 중...</div>
+                            ) : allStudents.map(s => (
+                              <label key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
+                                <input type="checkbox" checked={distributeDraft.student_ids.indexOf(s.id) >= 0} onChange={e => {
+                                  var next = e.target.checked ? distributeDraft.student_ids.concat([s.id]) : distributeDraft.student_ids.filter(id => id !== s.id);
+                                  setDistributeDraft({ ...distributeDraft, student_ids: next });
+                                }} />
+                                <span>{s.name}</span>
+                                {s.grade && <span style={{ color:'#9ca3af' }}>· {s.grade}</span>}
+                                {s.school && <span style={{ color:'#9ca3af' }}>· {s.school}</span>}
+                              </label>
+                            ))}
+                            <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' }}>{distributeDraft.student_ids.length}명 선택됨</div>
+                          </div>
+                        )}
+                        {distributeDraft.scope === 'unassigned' && (
+                          <div style={{ fontSize:'12px', color:'#6b7280', padding:'10px 12px', background:'#fff', borderRadius:'6px', fontFamily:'Manrope, sans-serif' }}>배포를 미정 상태로 두면 학생 화면에 노출되지 않습니다.</div>
+                        )}
+                        <div style={{ marginTop:'10px', display:'flex', justifyContent:'flex-end', gap:'8px' }}>
+                          <button style={{ ...lightButtonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={() => setDistributeCourseId('')}>취소</button>
+                          <button style={{ ...buttonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={saveDistribution} disabled={distributing}>{distributing ? '저장 중...' : '배포 저장'}</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         );
       })()}
