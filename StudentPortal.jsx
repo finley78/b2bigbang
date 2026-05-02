@@ -7,6 +7,15 @@ const SUBJECT_COLORS = {
   '과학': '#1E3932',
 };
 
+// 학생 grade 문자열에서 level(초등/중등/고등) 추출
+function levelFromGrade(g) {
+  if (!g) return '';
+  if (/^\d+학년$/.test(g)) return '초등';
+  if (/^중\d$/.test(g)) return '중등';
+  if (/^고\d$/.test(g)) return '고등';
+  return '';
+}
+
 /* ── Login Modal ──────────────────────────────── */
 function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
   const [email, setEmail] = React.useState('');
@@ -39,8 +48,15 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
       if (user.role === 'pending_teacher') { setMsg('관리자 승인 대기 중입니다.'); setLoading(false); return; }
       if (user.role === 'pending_student' || user.role === 'pending_parent') { setMsg('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); setLoading(false); return; }
       if (user.password_hash !== password) { setMsg('비밀번호가 틀렸습니다.'); setLoading(false); return; }
-      const { data: enrollments } = await sb.from('enrollments').select('course_id').eq('student_id', user.id);
-      onLogin({ id: user.id, name: user.name, email: user.email, role: user.role, subjects: user.subjects || [], enrolledCourses: (enrollments||[]).map(e=>e.course_id) });
+      const { data: enrollments } = await sb.from('enrollments').select('course_id').eq('student_id', user.id).eq('is_active', true);
+      const { data: classRows } = await sb.from('class_students').select('class_id').eq('student_id', user.id);
+      onLogin({
+        id: user.id, name: user.name, email: user.email, role: user.role,
+        grade: user.grade || '', level: levelFromGrade(user.grade),
+        subjects: user.subjects || [],
+        enrolledCourses: (enrollments||[]).map(e=>e.course_id),
+        classIds: (classRows||[]).map(r=>r.class_id),
+      });
       onClose();
     } catch(e) { setMsg('오류가 발생했습니다.'); }
     setLoading(false);
@@ -67,16 +83,19 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
           if (createErr) throw createErr;
           student = created;
         }
-        // 3. 수강 배정 조회
-        const { data: enrollments } = await sb.from('enrollments').select('course_id').eq('student_id', student.id);
+        // 3. 수강 배정 + 클래스 소속 조회
+        const { data: enrollments } = await sb.from('enrollments').select('course_id').eq('student_id', student.id).eq('is_active', true);
+        const { data: classRows } = await sb.from('class_students').select('class_id').eq('student_id', student.id);
         onLogin({
           id: student.id,
           name: student.name,
           email: student.email,
           role: student.role || 'student',
           grade: student.grade || '',
+          level: levelFromGrade(student.grade),
           subjects: student.subjects || [],
           enrolledCourses: (enrollments||[]).map(e=>e.course_id),
+          classIds: (classRows||[]).map(r=>r.class_id),
         });
         onClose();
       } catch(e) {
@@ -1037,7 +1056,7 @@ function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAu
   var adminMode = !!(isAdmin || adminAuthed || user?.role === 'admin' || user?.isAdmin);
   var isTeacherMode = !adminMode && (user?.role === 'teacher' || user?.role === 'teachers');
 
-  // 선생님: 본인이 올린 강의만, 학생: 수강 등록된 강의만, 관리자: 전체
+  // 선생님: 본인이 올린 강의만, 학생: 명시 enrollment + 클래스 배정 + 학년 배정 합집합, 관리자: 전체
   var enrolledIds = adminMode
     ? courses.map(function(c) { return c.id; })
     : isTeacherMode
@@ -1046,7 +1065,21 @@ function StudentPortal({ user, courses, students, onLoginClick, isAdmin, adminAu
                  c.teacher_id === user?.id ||
                  String(c.teacher_email||'') === String(user?.email||'');
         }).map(function(c){ return c.id; })
-      : (user ? (user.enrolledCourses || []) : []);
+      : (user
+          ? (function(){
+              var explicit = user.enrolledCourses || [];
+              var classIds = user.classIds || [];
+              var byClass = courses
+                .filter(function(c){ return c.class_id && classIds.indexOf(c.class_id) >= 0; })
+                .map(function(c){ return c.id; });
+              var byLevel = (user.level && user.grade)
+                ? courses
+                    .filter(function(c){ return c.level === user.level && c.grade === user.grade; })
+                    .map(function(c){ return c.id; })
+                : [];
+              return Array.from(new Set([].concat(explicit, byClass, byLevel)));
+            })()
+          : []);
   var studentGrade = user ? (user.grade || '') : '';
   var studentSubjects = React.useMemo(() => {
     var subjectsSet = new Set(
