@@ -139,10 +139,12 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
 // 브라우저 기본 PWA 설치 팝업을 막고, 커스텀 배너로 대체
 (function() {
   var deferredPrompt = null;
-  var INSTALLED_KEY = 'b2_pwa_installed';      // localStorage — 영구 (설치 완료)
-  var SESSION_DISMISS_KEY = 'b2_pwa_dismissed'; // sessionStorage — 탭 단위 (닫기 누름)
-  // 이전 버전 dismiss 키 정리
+  var INSTALLED_KEY = 'b2_pwa_installed';      // 영구 — 설치 완료
+  var DISMISS_AT_KEY = 'b2_pwa_dismissed_at';  // 마지막 닫기 시각 (timestamp)
+  var DISMISS_HOURS = 6;                       // 닫은 후 N시간 동안 다시 안 보임
+  // 이전 버전 키 정리
   try { localStorage.removeItem('b2_pwa_install_dismissed_at'); } catch (e) {}
+  try { sessionStorage.removeItem('b2_pwa_dismissed'); } catch (e) {}
 
   function log() {
     try { console.log.apply(console, ['[PWA설치]'].concat([].slice.call(arguments))); } catch (e) {}
@@ -153,7 +155,7 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
       || window.navigator.standalone === true;
   }
 
-  // 설치 완료 여부 — standalone OR localStorage 플래그 (브라우저 탭에서 설치한 직후 대비)
+  // 설치 완료 여부
   function isInstalled() {
     if (isStandalone()) return true;
     try { return localStorage.getItem(INSTALLED_KEY) === 'true'; } catch (e) { return false; }
@@ -162,19 +164,23 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
     try { localStorage.setItem(INSTALLED_KEY, 'true'); } catch (e) {}
   }
 
-  // 이번 세션에서 닫았는지 — sessionStorage는 탭이 닫히면 자동 초기화됨
-  // → 새로고침해도 같은 탭이면 유지, 탭 닫고 새로 열면 다시 표시
-  function isDismissedThisSession() {
-    try { return sessionStorage.getItem(SESSION_DISMISS_KEY) === 'true'; } catch (e) { return false; }
+  // 최근 N시간 안에 닫았는지 — 시간 기반 쿨다운
+  function isDismissedRecently() {
+    try {
+      var t = localStorage.getItem(DISMISS_AT_KEY);
+      if (!t) return false;
+      var elapsed = Date.now() - parseInt(t, 10);
+      return elapsed < DISMISS_HOURS * 60 * 60 * 1000;
+    } catch (e) { return false; }
   }
-  function markDismissedThisSession() {
-    try { sessionStorage.setItem(SESSION_DISMISS_KEY, 'true'); } catch (e) {}
+  function markDismissed() {
+    try { localStorage.setItem(DISMISS_AT_KEY, String(Date.now())); } catch (e) {}
   }
 
   function showBanner(force) {
     if (!force) {
       if (isInstalled()) { log('이미 설치됨 → 배너 안 보임'); return; }
-      if (isDismissedThisSession()) { log('이번 세션에 이미 닫음 → 배너 안 보임 (탭 닫고 다시 열면 표시)'); return; }
+      if (isDismissedRecently()) { log('최근에 닫음(' + DISMISS_HOURS + '시간 쿨다운) → 배너 안 보임'); return; }
     }
     var banner = document.getElementById('pwa-install-banner');
     if (banner) { banner.classList.add('show'); log('배너 표시'); }
@@ -185,25 +191,25 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
     if (banner) banner.classList.remove('show');
   }
 
-  // 디버깅/수동 트리거: 콘솔에서 window.b2ShowInstall() 호출 가능
+  // 디버깅/수동 트리거
   window.b2ShowInstall = function() {
     try { localStorage.removeItem(INSTALLED_KEY); } catch (e) {}
-    try { sessionStorage.removeItem(SESSION_DISMISS_KEY); } catch (e) {}
+    try { localStorage.removeItem(DISMISS_AT_KEY); } catch (e) {}
     if (!deferredPrompt) {
-      log('beforeinstallprompt 이벤트가 아직 발생하지 않음. 가능한 원인: 1) 이미 설치됨 2) iOS Safari(미지원) 3) HTTPS 아님 4) Chrome 엔게이지먼트 부족');
+      log('beforeinstallprompt 이벤트가 아직 발생하지 않음. 원인: 1) 이미 설치됨 2) iOS Safari(미지원) 3) HTTPS 아님 4) Chrome 엔게이지먼트 부족');
     }
     showBanner(true);
   };
 
-  // 기본 미니인포바/설치 팝업 차단
+  // 기본 설치 팝업 차단
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     deferredPrompt = e;
-    log('beforeinstallprompt 발생 → 기본 팝업 차단, 커스텀 배너 표시');
+    log('beforeinstallprompt 발생 → 기본 팝업 차단, 커스텀 배너 표시 시도');
     showBanner();
   });
 
-  // 설치 완료 — 영구 플래그 저장
+  // 설치 완료 — 영구 플래그
   window.addEventListener('appinstalled', function() {
     log('앱 설치 완료 → 영구 숨김');
     markInstalled();
@@ -224,15 +230,15 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
           return;
         }
         var promptEvent = deferredPrompt;
-        deferredPrompt = null; // prompt()는 일회성
+        deferredPrompt = null;
         promptEvent.prompt();
         promptEvent.userChoice.then(function(choice) {
           if (choice && choice.outcome === 'accepted') {
             log('사용자 설치 수락');
-            // appinstalled 이벤트가 곧 fire되어 markInstalled() 호출됨
+            // appinstalled 이벤트가 곧 fire되어 markInstalled() 호출
           } else {
-            log('사용자 설치 취소 → 이번 세션 동안 숨김');
-            markDismissedThisSession();
+            log('사용자 설치 취소 → ' + DISMISS_HOURS + '시간 쿨다운');
+            markDismissed();
           }
           hideBanner();
         }).catch(function(err) {
@@ -242,11 +248,11 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
       });
     }
 
-    // 닫기/나중에: 이번 세션 동안 숨김 (sessionStorage). 탭 닫고 다시 열면 표시.
+    // 닫기/나중에: 시간 기반 쿨다운 (PC/모바일 일관 동작)
     function dismiss() {
-      markDismissedThisSession();
+      markDismissed();
       hideBanner();
-      log('사용자가 닫음 → 이번 세션 동안 숨김 (탭 닫고 다시 열면 표시)');
+      log('사용자가 닫음 → ' + DISMISS_HOURS + '시간 동안 안 보임');
     }
     if (laterBtn) laterBtn.addEventListener('click', dismiss);
     if (closeBtn) closeBtn.addEventListener('click', dismiss);
@@ -290,13 +296,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260504e"></script>
-<script src="TopNav.js?v=20260504e"></script>
-<script src="HomePage.js?v=20260504e"></script>
-<script src="Pages.js?v=20260504e"></script>
-<script src="StudentPortal.js?v=20260504e"></script>
-<script src="TeacherPortal.js?v=20260504e"></script>
-<script src="AdminPanel.js?v=20260504e"></script>
+<script src="Utils.js?v=20260504f"></script>
+<script src="TopNav.js?v=20260504f"></script>
+<script src="HomePage.js?v=20260504f"></script>
+<script src="Pages.js?v=20260504f"></script>
+<script src="StudentPortal.js?v=20260504f"></script>
+<script src="TeacherPortal.js?v=20260504f"></script>
+<script src="AdminPanel.js?v=20260504f"></script>
 
 <script>
 // Supabase 클라이언트 초기화
