@@ -83,7 +83,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
       ),
       // 우측: D-day + 햄버거
       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
-        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, `수능 D-${d}`),
+        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#000000', fontFamily:'Manrope, sans-serif' } }, `수능 D-${d}`),
         user && React.createElement('div', { style:{ width:'28px', height:'28px', borderRadius:'50%', background:'#E60012', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, (user.name || '?')[0]),
         // 햄버거 버튼
         React.createElement('button', {
@@ -139,9 +139,9 @@ const mnStyles = {
   nav: { background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.1)', zIndex:100 },
   inner: { maxWidth:'1280px', margin:'0 auto', height:'72px', display:'flex', alignItems:'center', gap:'40px', padding:'0 40px' },
   logo: { display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', flexShrink:0 },
-  logoMark: { width:'40px', height:'40px', borderRadius:'50%', background:'#E60012', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', overflow:'hidden' },
+  logoMark: { width:'40px', height:'40px', borderRadius:'50%', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', overflow:'hidden' },
   logoText: { display:'flex', flexDirection:'column' },
-  logoMain: { fontSize:'17px', fontWeight:'800', color:'#E60012', letterSpacing:'-0.5px', lineHeight:'1.1', fontFamily:'Manrope, sans-serif' },
+  logoMain: { fontSize:'17px', fontWeight:'800', color:'#000000', letterSpacing:'-0.5px', lineHeight:'1.1', fontFamily:'Manrope, sans-serif' },
   logoSub: { fontSize:'9px', fontWeight:'500', color:'rgba(0,0,0,0.4)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' },
   links: { display:'flex', gap:'28px', flex:1, justifyContent:'center' },
   link: { fontSize:'14px', fontWeight:'600', letterSpacing:'-0.01em', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'color 0.2s', paddingBottom:'2px' },
