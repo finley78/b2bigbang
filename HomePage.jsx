@@ -142,7 +142,7 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
   // 폰: 카드형 3D 캐러셀
   const realIdx = hasMany ? ((idx - 1 + active.length) % active.length) : 0;
   const b = active[realIdx];
-  const accentColor = b.bg || '#006241';
+  const accentColor = b.bg || '#1E3A5F';
 
   function next() { setTransition(true); setIdx(i => i + 1); }
   function prev() { setTransition(true); setIdx(i => i - 1); }
@@ -326,7 +326,7 @@ function BannerDetailPage({ banner, onBack, setPage }) {
   const isMobile = useIsMobile();
   const ytId = getBannerYoutubeId(banner.youtube);
   const directVideo = banner.video_url || '';
-  const accent = banner.bg || '#006241';
+  const accent = banner.bg || '#1E3A5F';
 
   function handleCta() {
     var dest = banner.link_to || banner.linkPage || banner.link || '';
@@ -378,8 +378,8 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
   const isMobile = useIsMobile();
   const [slideIdx, setSlideIdx] = React.useState(0);
   const defaultSlides = [
-    { bg:'#1E3932', text1:'최고의 결과를 만든다', text2:'B2빅뱅 학습 시스템', accent:'2027 합격이 보인다', image:'', youtube:'' },
-    { bg:'#006241', text1:'체계적인 커리큘럼', text2:'전문 강사진의 1:1 관리', accent:'목표 대학을 향해', image:'', youtube:'' },
+    { bg:'#1E293B', text1:'최고의 결과를 만든다', text2:'B2빅뱅 학습 시스템', accent:'2027 합격이 보인다', image:'', youtube:'' },
+    { bg:'#1E3A5F', text1:'체계적인 커리큘럼', text2:'전문 강사진의 1:1 관리', accent:'목표 대학을 향해', image:'', youtube:'' },
   ];
   const allSlides = (slides && slides.length) ? slides : defaultSlides;
 
@@ -418,7 +418,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
       ),
       React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
         React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden' } },
-          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#006241', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, 'B2빅뱅 학습 시스템'),
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#1E3A5F', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, 'B2빅뱅 학습 시스템'),
           React.createElement('div', { style:{ fontSize: isMobile ? '16px' : '18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', lineHeight:'1.4', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, '최고의 강사가 모인다\n최고의 합격이 보인다'),
           React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
             notices.slice(0,3).map((n,i) =>
@@ -426,7 +426,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
                 onMouseEnter:e=>e.currentTarget.style.opacity='0.7',
                 onMouseLeave:e=>e.currentTarget.style.opacity='1' },
                 React.createElement('div', { style:{ display:'flex', gap:'6px', alignItems:'center', flex:1, minWidth:0, overflow:'hidden' } },
-                  React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#d4e9e2', color:'#006241', borderRadius:'4px', padding:'2px 6px', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, n.type),
+                  React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#E8EFF8', color:'#1E3A5F', borderRadius:'4px', padding:'2px 6px', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, n.type),
                   React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, n.text)
                 ),
                 React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0, marginLeft:'8px', whiteSpace:'nowrap' } }, n.date)
@@ -444,7 +444,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
               React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' } },
                 announcements.slice(0,4).map(function(a, i) {
                   var bg = a.image ? `url(${a.image})` : null;
-                  var fallbackBgs = ['#1E3932','#cba258','#e8e3d3','#a988a3'];
+                  var fallbackBgs = ['#1E293B','#cba258','#e8e3d3','#a988a3'];
                   return React.createElement('div', {
                     key: a.id || i,
                     onClick: function(){ onSelectNotice(a); },
@@ -503,7 +503,7 @@ function StatsBand() {
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:'16px', textAlign:'center' } },
       stats.map((s,i) =>
         React.createElement('div', { key:i, style:{ padding:'8px 0' } },
-          React.createElement('div', { style:{ fontSize: isMobile ? '26px' : '34px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, s.val),
+          React.createElement('div', { style:{ fontSize: isMobile ? '26px' : '34px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, s.val),
           React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginTop:'4px' } }, s.label)
         )
       )
@@ -513,14 +513,14 @@ function StatsBand() {
 
 function FeatureBand({ setPage, isAdmin, content, onEdit }) {
   const isMobile = useIsMobile();
-  return React.createElement('div', { style:{ background:'#1E3932', padding: isMobile ? '40px 16px' : '56px 40px', position:'relative' } },
+  return React.createElement('div', { style:{ background:'#1E293B', padding: isMobile ? '40px 16px' : '56px 40px', position:'relative' } },
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'space-between', gap: isMobile ? '20px' : '40px' } },
       React.createElement('div', null,
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, content.featureEyebrow || '지금 등록하면'),
         React.createElement('div', { style:{ fontSize: isMobile ? '30px' : '38px', fontWeight:'800', color:'#fff', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, content.featureTitle || '첫 달 수강료\n50% 할인'),
         React.createElement('div', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.65)', lineHeight:'1.7', marginBottom:'24px', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line' } }, content.featureBody || '신규 등록생 한정 · 선착순 마감\n지금 바로 문의해 주세요'),
         React.createElement('div', { style:{ display:'flex', gap:'12px', flexWrap:'wrap' } },
-          React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#fff', color:'#00754A', border:'1px solid #fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
+          React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#fff', color:'#1E3A5F', border:'1px solid #fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
             onMouseDown:e=>e.currentTarget.style.transform='scale(0.95)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' },
             content.featureCta1 || '지금 문의하기'
           ),
@@ -566,12 +566,12 @@ function NoticeDetailPage({ notice, onBack, setPage }) {
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     // 뒤로가기
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
-      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#006241', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } }, '← 목록으로')
+      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#1E3A5F', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } }, '← 목록으로')
     ),
     // 본문
     React.createElement('div', { style:{ maxWidth:'720px', margin:'0 auto', padding: isMobile ? '24px 16px' : '40px' } },
       // 카테고리 뱃지 (notices만)
-      notice.type && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#d4e9e2', color:'#006241', borderRadius:'4px', padding:'3px 8px', fontFamily:'Manrope, sans-serif', display:'inline-block', marginBottom:'12px' } }, notice.type),
+      notice.type && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#E8EFF8', color:'#1E3A5F', borderRadius:'4px', padding:'3px 8px', fontFamily:'Manrope, sans-serif', display:'inline-block', marginBottom:'12px' } }, notice.type),
       // 카드 이미지 (announcements에 image 있을 때)
       notice.image && React.createElement('div', { style:{ marginBottom:'18px', borderRadius:'12px', overflow:'hidden', aspectRatio:'10/13', maxWidth:'360px', background:'#000' } },
         React.createElement('img', { src: notice.image, alt: notice.title || '', style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' } })
@@ -590,9 +590,9 @@ function NoticeDetailPage({ notice, onBack, setPage }) {
       React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap', marginTop:'8px' } },
         notice.cta && React.createElement('button', {
           onClick: handleCta,
-          style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#006241', color:'#fff', border:'none', borderRadius:'10px', padding:'14px 28px', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+          style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#1E3A5F', color:'#fff', border:'none', borderRadius:'10px', padding:'14px 28px', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
         }, notice.cta),
-        notice.link && !notice.cta && React.createElement('a', { href:notice.link, target:'_blank', rel:'noopener noreferrer', style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#006241', color:'#fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', fontFamily:'Manrope, sans-serif', textDecoration:'none' } }, '🔗 자세히 보기')
+        notice.link && !notice.cta && React.createElement('a', { href:notice.link, target:'_blank', rel:'noopener noreferrer', style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#1E3A5F', color:'#fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', fontFamily:'Manrope, sans-serif', textDecoration:'none' } }, '🔗 자세히 보기')
       )
     )
   );

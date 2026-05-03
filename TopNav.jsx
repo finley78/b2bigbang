@@ -45,8 +45,8 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
             key: label,
             style: {
               ...mnStyles.link,
-              color: page === PAGE_MAP[label] ? '#006241' : 'rgba(0,0,0,0.87)',
-              borderBottom: page === PAGE_MAP[label] ? '2px solid #006241' : '2px solid transparent',
+              color: page === PAGE_MAP[label] ? '#1E3A5F' : 'rgba(0,0,0,0.87)',
+              borderBottom: page === PAGE_MAP[label] ? '2px solid #1E3A5F' : '2px solid transparent',
             },
             onClick: () => {
               if (label === '온라인 강의') { if (!user && !adminAuthed) { onLoginClick(); return; } }
@@ -63,7 +63,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
                 React.createElement('div', { style: mnStyles.avatar }, (user.name || '?')[0]),
                 React.createElement('span', { style: mnStyles.userName }, user.name || '')
               ),
-              React.createElement('button', { onClick: onLogout, style:{ background:'transparent', color:'#006241', border:'1px solid #006241', borderRadius:'8px', padding:'6px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s' } }, '로그아웃')
+              React.createElement('button', { onClick: onLogout, style:{ background:'transparent', color:'#1E3A5F', border:'1px solid #1E3A5F', borderRadius:'8px', padding:'6px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s' } }, '로그아웃')
             )
           : React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
               React.createElement('button', { style: mnStyles.ctaBtnOutline, onClick: onLoginClick }, '로그인'),
@@ -83,8 +83,8 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
       ),
       // 우측: D-day + 햄버거
       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
-        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#006241', fontFamily:'Manrope, sans-serif' } }, `수능 D-${d}`),
-        user && React.createElement('div', { style:{ width:'28px', height:'28px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, (user.name || '?')[0]),
+        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, `수능 D-${d}`),
+        user && React.createElement('div', { style:{ width:'28px', height:'28px', borderRadius:'50%', background:'#1E3A5F', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, (user.name || '?')[0]),
         // 햄버거 버튼
         React.createElement('button', {
           onClick: () => setMenuOpen(!menuOpen),
@@ -104,7 +104,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
           key: label,
           style: {
             ...mnStyles.mobileMenuItem,
-            color: page === PAGE_MAP[label] ? '#006241' : 'rgba(0,0,0,0.87)',
+            color: page === PAGE_MAP[label] ? '#1E3A5F' : 'rgba(0,0,0,0.87)',
             fontWeight: page === PAGE_MAP[label] ? '700' : '500',
           },
           onClick: () => {
@@ -121,7 +121,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
             )
           : React.createElement('div', null,
               React.createElement('div', { style:{ ...mnStyles.mobileMenuItem }, onClick:()=>{ onLoginClick(); setMenuOpen(false); } }, '로그인'),
-              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#006241', fontWeight:'700' }, onClick:()=>{ (onSignupClick || onLoginClick)(); setMenuOpen(false); } }, '회원가입')
+              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#1E3A5F', fontWeight:'700' }, onClick:()=>{ (onSignupClick || onLoginClick)(); setMenuOpen(false); } }, '회원가입')
             )
       )
     ),
@@ -139,17 +139,17 @@ const mnStyles = {
   nav: { background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.1)', zIndex:100 },
   inner: { maxWidth:'1280px', margin:'0 auto', height:'72px', display:'flex', alignItems:'center', gap:'40px', padding:'0 40px' },
   logo: { display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', flexShrink:0 },
-  logoMark: { width:'40px', height:'40px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', overflow:'hidden' },
+  logoMark: { width:'40px', height:'40px', borderRadius:'50%', background:'#1E3A5F', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', overflow:'hidden' },
   logoText: { display:'flex', flexDirection:'column' },
-  logoMain: { fontSize:'17px', fontWeight:'800', color:'#006241', letterSpacing:'-0.5px', lineHeight:'1.1', fontFamily:'Manrope, sans-serif' },
+  logoMain: { fontSize:'17px', fontWeight:'800', color:'#1E3A5F', letterSpacing:'-0.5px', lineHeight:'1.1', fontFamily:'Manrope, sans-serif' },
   logoSub: { fontSize:'9px', fontWeight:'500', color:'rgba(0,0,0,0.4)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' },
   links: { display:'flex', gap:'28px', flex:1, justifyContent:'center' },
   link: { fontSize:'14px', fontWeight:'600', letterSpacing:'-0.01em', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'color 0.2s', paddingBottom:'2px' },
   cta: { flexShrink:0 },
-  ctaBtn: { background:'#00754A', color:'#fff', border:'1px solid #00754A', borderRadius:'8px', padding:'9px 20px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em', transition:'all 0.2s', whiteSpace:'nowrap' },
+  ctaBtn: { background:'#1E3A5F', color:'#fff', border:'1px solid #1E3A5F', borderRadius:'8px', padding:'9px 20px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em', transition:'all 0.2s', whiteSpace:'nowrap' },
   ctaBtnOutline: { background:'transparent', color:'rgba(0,0,0,0.7)', border:'1px solid rgba(0,0,0,0.2)', borderRadius:'8px', padding:'9px 16px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em', transition:'all 0.2s' },
   userBadge: { display:'flex', alignItems:'center', gap:'8px' },
-  avatar: { width:'34px', height:'34px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' },
+  avatar: { width:'34px', height:'34px', borderRadius:'50%', background:'#1E3A5F', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' },
   userName: { fontSize:'14px', fontWeight:'600', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' },
 
   // 모바일
