@@ -33,6 +33,11 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f8fafc; }
 ::-webkit-scrollbar-thumb { background: #FFEBED; border-radius: 3px; }
+/* 모바일: 바탕은 흰색 (학습시스템 카드가 #f8fafc로 들어감) */
+@media (max-width: 767px) {
+  body { background: #fff; }
+  ::-webkit-scrollbar-track { background: #fff; }
+}
 
 /* 커스텀 PWA 설치 배너 */
 #pwa-install-banner {
@@ -297,13 +302,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260504k"></script>
-<script src="TopNav.js?v=20260504k"></script>
-<script src="HomePage.js?v=20260504k"></script>
-<script src="Pages.js?v=20260504k"></script>
-<script src="StudentPortal.js?v=20260504k"></script>
-<script src="TeacherPortal.js?v=20260504k"></script>
-<script src="AdminPanel.js?v=20260504k"></script>
+<script src="Utils.js?v=20260504m"></script>
+<script src="TopNav.js?v=20260504m"></script>
+<script src="HomePage.js?v=20260504m"></script>
+<script src="Pages.js?v=20260504m"></script>
+<script src="StudentPortal.js?v=20260504m"></script>
+<script src="TeacherPortal.js?v=20260504m"></script>
+<script src="AdminPanel.js?v=20260504m"></script>
 
 <script>
 // Supabase 클라이언트 초기화

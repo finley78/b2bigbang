@@ -417,12 +417,12 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
         )
       ),
       React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
-        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden' } },
-          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, 'B2빅뱅 학습 시스템'),
-          React.createElement('div', { style:{ fontSize: isMobile ? '16px' : '18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', lineHeight:'1.4', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, '최고의 강사가 모인다\n최고의 합격이 보인다'),
+        React.createElement('div', { style:{ background: isMobile ? '#f8fafc' : '#fff', borderRadius:'12px', padding:'16px', boxShadow: isMobile ? 'none' : '0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden' } },
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom: isMobile ? '10px' : '6px', fontFamily:'Manrope, sans-serif' } }, 'B2빅뱅 학습 시스템'),
+          !isMobile && React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', lineHeight:'1.4', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, '최고의 강사가 모인다\n최고의 합격이 보인다'),
           React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
             notices.slice(0,3).map((n,i) =>
-              React.createElement('div', { key:i, onClick:()=>onSelectNotice(n), style:{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid rgba(0,0,0,0.06)', paddingBottom:'7px', cursor:'pointer' },
+              React.createElement('div', { key:i, onClick:()=>onSelectNotice(n), style:{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: isMobile ? 'none' : '1px solid rgba(0,0,0,0.06)', paddingBottom: isMobile ? '0' : '7px', cursor:'pointer' },
                 onMouseEnter:e=>e.currentTarget.style.opacity='0.7',
                 onMouseLeave:e=>e.currentTarget.style.opacity='1' },
                 React.createElement('div', { style:{ display:'flex', gap:'6px', alignItems:'center', flex:1, minWidth:0, overflow:'hidden' } },
