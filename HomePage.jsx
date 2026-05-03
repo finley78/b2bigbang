@@ -180,9 +180,9 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
 
   return React.createElement('div', { style: { position:'relative', background:'#f8fafc' } },
     // 상단 컬러 액센트 (활성 카드 색)
-    React.createElement('div', { style:{ height:'6px', background: accentColor, transition:'background-color 0.6s ease' } }),
+    React.createElement('div', { style:{ height:'2px', background: accentColor, transition:'background-color 0.6s ease' } }),
     // 부드러운 컬러 워시 (배경에 반영)
-    React.createElement('div', { style:{ position:'absolute', top:'6px', left:0, right:0, height:'160px', background:`linear-gradient(to bottom, ${accentColor}22, transparent)`, transition:'background 0.6s ease', pointerEvents:'none' } }),
+    React.createElement('div', { style:{ position:'absolute', top:'2px', left:0, right:0, height:'160px', background:`linear-gradient(to bottom, ${accentColor}22, transparent)`, transition:'background 0.6s ease', pointerEvents:'none' } }),
 
     // 카드 슬라이더 (3D perspective 적용)
     React.createElement('div', {
