@@ -119,7 +119,9 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
 <!-- 커스텀 PWA 설치 배너 (브라우저 기본 팝업 대신 표시) -->
 <div id="pwa-install-banner" role="dialog" aria-labelledby="pwa-install-title" aria-describedby="pwa-install-desc">
   <div class="pwa-install-row">
-    <div class="pwa-install-icon" aria-hidden="true">B2</div>
+    <div class="pwa-install-icon" aria-hidden="true">
+      <img src="icons/web-app-manifest-192x192.png" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px;display:block;">
+    </div>
     <div class="pwa-install-text">
       <div id="pwa-install-title" class="pwa-install-title">B2빅뱅학원 앱 설치</div>
       <div id="pwa-install-desc" class="pwa-install-desc">홈 화면에 추가하고 더 빠르게 이용하세요</div>
@@ -270,13 +272,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260503x"></script>
-<script src="TopNav.js?v=20260503x"></script>
-<script src="HomePage.js?v=20260503x"></script>
-<script src="Pages.js?v=20260503x"></script>
-<script src="StudentPortal.js?v=20260503x"></script>
-<script src="TeacherPortal.js?v=20260503x"></script>
-<script src="AdminPanel.js?v=20260503x"></script>
+<script src="Utils.js?v=20260503y"></script>
+<script src="TopNav.js?v=20260503y"></script>
+<script src="HomePage.js?v=20260503y"></script>
+<script src="Pages.js?v=20260503y"></script>
+<script src="StudentPortal.js?v=20260503y"></script>
+<script src="TeacherPortal.js?v=20260503y"></script>
+<script src="AdminPanel.js?v=20260503y"></script>
 
 <script>
 // Supabase 클라이언트 초기화

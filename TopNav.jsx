@@ -30,7 +30,9 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
     !isMobile && React.createElement('div', { style: mnStyles.inner },
       // 로고
       React.createElement('div', { style: mnStyles.logo, onClick: () => setPage('home') },
-        React.createElement('div', { style: mnStyles.logoMark }, 'B2'),
+        React.createElement('div', { style: mnStyles.logoMark },
+          React.createElement('img', { src: 'icons/web-app-manifest-192x192.png', alt: 'B2빅뱅학원', style: { width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%', display:'block' } })
+        ),
         React.createElement('div', { style: mnStyles.logoText },
           React.createElement('div', { style: mnStyles.logoMain }, '빅뱅학원'),
           React.createElement('div', { style: mnStyles.logoSub }, 'Big Bang Academy')
@@ -74,7 +76,9 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
     isMobile && React.createElement('div', { style: mnStyles.mobileBar },
       // 로고
       React.createElement('div', { style: mnStyles.logo, onClick: () => { setPage('home'); setMenuOpen(false); } },
-        React.createElement('div', { style: { ...mnStyles.logoMark, width:'32px', height:'32px', fontSize:'12px' } }, 'B2'),
+        React.createElement('div', { style: { ...mnStyles.logoMark, width:'32px', height:'32px', fontSize:'12px' } },
+          React.createElement('img', { src: 'icons/web-app-manifest-192x192.png', alt: 'B2빅뱅학원', style: { width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%', display:'block' } })
+        ),
         React.createElement('div', { style: mnStyles.logoMain }, '빅뱅학원')
       ),
       // 우측: D-day + 햄버거
