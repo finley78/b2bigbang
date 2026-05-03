@@ -564,6 +564,20 @@ async function removeBannerVideo(banner) {
 if (!confirm('이 배너의 영상을 제거하시겠습니까?')) return;
 await updateBanner(banner.id, 'video_url', '');
 }
+async function uploadBannerImage(banner, file) {
+if (!file) return;
+var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+var path = 'banners/' + banner.id + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+var up = await sb.storage.from('attachments').upload(path, file, { cacheControl:'3600', upsert:false });
+if (up.error) { alert('업로드 실패: ' + up.error.message); return; }
+var pub = sb.storage.from('attachments').getPublicUrl(path);
+var url = pub?.data?.publicUrl || '';
+await updateBanner(banner.id, 'image', url);
+}
+async function removeBannerImage(banner) {
+if (!confirm('이 배너의 이미지를 제거하시겠습니까?')) return;
+await updateBanner(banner.id, 'image', '');
+}
 
 async function addNotice() {
 const today = new Date().toISOString().slice(0,10).replace(/-/g,'.');
@@ -639,7 +653,7 @@ React.createElement('button', { onClick:()=>deleteBanner(b.id), style:btnOutS },
 ),
 editingBanner?.id===b.id && React.createElement('div', { style:{ paddingTop:'12px', borderTop:'1px solid rgba(0,0,0,0.08)' } },
 React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'10px' } },
-[{f:'title',l:'제목'},{f:'subtitle',l:'부제목'},{f:'badge',l:'뱃지'},{f:'label',l:'라벨'},{f:'cta',l:'버튼 텍스트'},{f:'bg',l:'배경색 (#hex)'},{f:'image',l:'배경 이미지 URL'},{f:'youtube',l:'유튜브 링크 (선택)'}].map(({f,l})=>
+[{f:'title',l:'제목'},{f:'subtitle',l:'부제목'},{f:'badge',l:'뱃지'},{f:'label',l:'라벨'},{f:'cta',l:'버튼 텍스트'},{f:'bg',l:'배경색 (#hex)'},{f:'youtube',l:'유튜브 링크 (선택)'}].map(({f,l})=>
 React.createElement('div', {key:f},
 React.createElement('label',{style:labelS},l),
 React.createElement('input',{value:b[f]||'',onChange:e=>updateBanner(b.id,f,e.target.value),style:inputS})
@@ -684,12 +698,35 @@ React.createElement('label',{style:labelS},'상세 설명 (배너 클릭 시 상
 React.createElement('textarea', { value: b.description || '', onChange: function(e){ updateBanner(b.id,'description', e.target.value); }, rows:3, style:{ ...inputS, resize:'vertical', minHeight:'70px', fontFamily:'Manrope, sans-serif' }, placeholder:'자세한 안내, 일정, 혜택 등을 자유롭게 적어주세요. 줄바꿈도 그대로 표시됩니다.' })
 )
 ),
-// 배경 동영상 업로드 (MP4 등)
+// 배경 이미지 업로드
 React.createElement('div', { style:{ marginTop:'14px', padding:'12px', background:'#f8fafc', borderRadius:'10px' } },
-React.createElement('label', { style:{ ...labelS, marginBottom:'8px', display:'block' } }, '배경 동영상 (MP4 등 직접 업로드 — 유튜브보다 우선 표시됨)'),
+React.createElement('label', { style:{ ...labelS, marginBottom:'8px', display:'block' } }, '배경 이미지 (사진 직접 업로드)'),
+b.image
+? React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' } },
+    React.createElement('img', { src: b.image, alt:'', style:{ width:'140px', height:'80px', objectFit:'cover', borderRadius:'6px', background:'#000', display:'block' } }),
+    React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, b.image),
+    React.createElement('button', { onClick:()=>removeBannerImage(b), style:btnOutS }, '이미지 제거')
+  )
+: React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
+    React.createElement('input', {
+      type:'file', accept:'image/*',
+      onChange: function(e) {
+        var f = e.target.files && e.target.files[0];
+        if (f) uploadBannerImage(b, f);
+        e.target.value = '';
+      },
+      style:{ fontSize:'12px', fontFamily:'Manrope, sans-serif' }
+    }),
+    React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '※ JPG/PNG 권장, 권장 1080×1620 (2:3)')
+  )
+),
+
+// 배경 동영상 업로드 (MP4 등) — 자동 재생되는 배경 영상 (사용자가 클릭해서 보는 게 아님)
+React.createElement('div', { style:{ marginTop:'14px', padding:'12px', background:'#f8fafc', borderRadius:'10px' } },
+React.createElement('label', { style:{ ...labelS, marginBottom:'8px', display:'block' } }, '배경 동영상 (자동 재생 · 음소거 · 무한 반복 — 유튜브/이미지보다 우선)'),
 b.video_url
 ? React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' } },
-    React.createElement('video', { src: b.video_url, style:{ width:'140px', height:'80px', objectFit:'cover', borderRadius:'6px', background:'#000' }, muted:true, playsInline:true }),
+    React.createElement('video', { src: b.video_url, style:{ width:'140px', height:'80px', objectFit:'cover', borderRadius:'6px', background:'#000' }, autoPlay:true, muted:true, loop:true, playsInline:true }),
     React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, b.video_url),
     React.createElement('button', { onClick:()=>removeBannerVideo(b), style:btnOutS }, '영상 제거')
   )
