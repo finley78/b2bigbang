@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-v28';
+const CACHE_VERSION = 'b2-bigbang-v29';
 const OFFLINE_URLS = [
   './',
   './index.html',
@@ -29,6 +29,26 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
+
+  // chrome-extension://, file://, data: 등 cache.put이 거부하는 스킴은 처리하지 않음
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+  // Supabase 스토리지 이미지는 cache-first로 (모바일 새로고침 시 깜빡임 방지)
+  if (url.hostname.includes('supabase.co') && url.pathname.startsWith('/storage/')) {
+    event.respondWith(
+      caches.match(req).then((cached) => {
+        if (cached) return cached;
+        return fetch(req).then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
+          }
+          return res;
+        }).catch(() => cached);
+      })
+    );
+    return;
+  }
 
   // Supabase API와 외부 동영상은 캐시하지 않고 항상 네트워크
   if (

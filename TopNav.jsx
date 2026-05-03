@@ -154,4 +154,4 @@ const mnStyles = {
   mobileMenuItem: { padding:'14px 20px', fontSize:'15px', fontWeight:'500', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', cursor:'pointer', letterSpacing:'-0.01em' },
 };
 
-Object.assign(window, { TopBar, MainNav });
+Object.assign(window, { MainNav });

@@ -97,12 +97,8 @@ function HeroBannerClassic({ banners, isAdmin, onEdit, onSelectBanner }) {
 }
 
 function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
+  // 모든 hook은 early return 전에 호출 — hook 호출 개수가 렌더마다 일관되어야 함 (React error #310 방지)
   const isMobile = useIsMobile();
-  // PC: 클래식 텍스트 오버레이 배너
-  if (!isMobile) {
-    return React.createElement(HeroBannerClassic, { banners, isAdmin, onEdit, onSelectBanner });
-  }
-  // 폰: 카드형 3D 캐러셀
   const active = banners.filter(b => b.active);
   const hasMany = active.length > 1;
   // 무한 캐러셀: [마지막 복제, ...실제, 첫 복제] 형태로 렌더해서 끝→처음 회전을 자연스럽게
@@ -120,17 +116,31 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
 
   // 자동 슬라이드 — 단순히 +1 (modulo 안 씀, 끝의 복제까지 가서 부드럽게 회전)
   React.useEffect(() => {
-    if (!hasMany) return;
+    if (!hasMany || !isMobile) return;
     const t = setInterval(() => {
       setTransition(true);
       setIdx(i => i + 1);
     }, 5000);
     return () => clearInterval(t);
-  }, [active.length]);
+  }, [active.length, isMobile]);
 
-  // 실제 표시되는 배너 (dots, 색깔 등에 사용)
-  const realIdx = hasMany ? ((idx - 1 + active.length) % active.length) : 0;
+  // 점프 후 다음 프레임에 트랜지션 다시 활성화
+  React.useEffect(() => {
+    if (transition) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setTransition(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [transition]);
+
+  // PC: 클래식 텍스트 오버레이 배너 (모든 hook 호출 후에 분기)
+  if (!isMobile) {
+    return React.createElement(HeroBannerClassic, { banners, isAdmin, onEdit, onSelectBanner });
+  }
   if (!active.length) return null;
+
+  // 폰: 카드형 3D 캐러셀
+  const realIdx = hasMany ? ((idx - 1 + active.length) % active.length) : 0;
   const b = active[realIdx];
   const accentColor = b.bg || '#006241';
 
@@ -142,24 +152,13 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
   function onTransitionEnd() {
     if (!hasMany) return;
     if (idx >= extended.length - 1) {
-      // 오른쪽 끝(첫 카드 복제) → 실제 첫 카드(1)로 점프
       setTransition(false);
       setIdx(1);
     } else if (idx <= 0) {
-      // 왼쪽 끝(마지막 카드 복제) → 실제 마지막 카드로 점프
       setTransition(false);
       setIdx(extended.length - 2);
     }
   }
-
-  // 점프 후 다음 프레임에 트랜지션 다시 활성화
-  React.useEffect(() => {
-    if (transition) return;
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setTransition(true));
-    });
-    return () => cancelAnimationFrame(id);
-  }, [transition]);
 
   function onTouchStart(e) {
     touchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, locked: false, dragging: true };
