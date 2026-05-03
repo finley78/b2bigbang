@@ -838,7 +838,7 @@ React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', m
 ),
 // 공지사항(announcements)일 때만 카드 이미지 업로드
 editingNotice.type === undefined && React.createElement('div', { style:{ background:'#f8fafc', padding:'12px', borderRadius:'10px' } },
-React.createElement('label',{style:{...labelS, display:'block', marginBottom:'8px'}},'카드 배경 이미지 (메인 화면 2x2 카드에 사용 — 권장 가로:세로 = 10:13, 1000×1300 px)'),
+React.createElement('label',{style:{...labelS, display:'block', marginBottom:'8px'}},'카드 배경 이미지 (메인 화면 2x2 카드에 사용)'),
 editingNotice.image
 ? React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' } },
     React.createElement('img', { src: editingNotice.image, style:{ width:'100px', height:'100px', objectFit:'cover', borderRadius:'8px' } }),
@@ -848,20 +848,24 @@ editingNotice.image
       setEditingNotice(n=>({...n,image:''}));
       setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,image:''}:x)}));
       await sb.from('announcements').update({ image: null }).eq('id', editingNotice.id);
-    }, style: btnOutS }, '이미지 제거')
+    }, style: btnOutS }, '이미지 제거'),
+    React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', background:'#FFEBED', padding:'5px 10px', borderRadius:'6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '📐 권장 1000×1200 px (10:12)')
   )
-: React.createElement('input', { type:'file', accept:'image/*', onChange: async (e)=>{
-    var f = e.target.files && e.target.files[0]; e.target.value = '';
-    if (!f) return;
-    var ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
-    var path = 'announcements/' + editingNotice.id + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
-    var up = await sb.storage.from('attachments').upload(path, f, { cacheControl:'3600', upsert:false });
-    if (up.error) { alert('업로드 실패: ' + up.error.message); return; }
-    var url = sb.storage.from('attachments').getPublicUrl(path)?.data?.publicUrl || '';
-    setEditingNotice(n=>({...n,image:url}));
-    setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,image:url}:x)}));
-    await sb.from('announcements').update({ image: url }).eq('id', editingNotice.id);
-  }, style:{ fontSize:'12px', fontFamily:'Manrope, sans-serif' } })
+: React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' } },
+    React.createElement('input', { type:'file', accept:'image/*', onChange: async (e)=>{
+      var f = e.target.files && e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      var ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+      var path = 'announcements/' + editingNotice.id + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+      var up = await sb.storage.from('attachments').upload(path, f, { cacheControl:'3600', upsert:false });
+      if (up.error) { alert('업로드 실패: ' + up.error.message); return; }
+      var url = sb.storage.from('attachments').getPublicUrl(path)?.data?.publicUrl || '';
+      setEditingNotice(n=>({...n,image:url}));
+      setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,image:url}:x)}));
+      await sb.from('announcements').update({ image: url }).eq('id', editingNotice.id);
+    }, style:{ fontSize:'12px', fontFamily:'Manrope, sans-serif' } }),
+    React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', background:'#FFEBED', padding:'5px 10px', borderRadius:'6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '📐 권장 1000×1200 px (10:12)')
+  )
 ),
 React.createElement('button', { onClick: async ()=>{
 if (editingNotice.type !== undefined) {
