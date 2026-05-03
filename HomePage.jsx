@@ -417,52 +417,23 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
         )
       ),
       React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
-        // 모바일: 가로배너 / PC: 기존 'B2빅뱅 학습 시스템' 흰 카드 + notices 리스트
-        isMobile
-          ? React.createElement('div', {
-              style:{
-                position:'relative',
-                overflow:'hidden',
-                borderRadius:'14px',
-                background:'#1A1A1A',
-                padding:'20px 22px',
-                minHeight:'120px',
-                display:'flex',
-                alignItems:'center',
-                boxShadow:'0 1px 2px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.10)',
-              }
-            },
-              React.createElement('div', { style:{ position:'absolute', inset:0, opacity:0.08, pointerEvents:'none' } },
-                React.createElement('svg', { width:'100%', height:'100%', style:{ position:'absolute', inset:0 } },
-                  React.createElement('pattern', { id:'splitGrid', x:0, y:0, width:32, height:32, patternUnits:'userSpaceOnUse' },
-                    React.createElement('path', { d:'M 32 0 L 0 0 0 32', fill:'none', stroke:'#fff', strokeWidth:'0.6' })
-                  ),
-                  React.createElement('rect', { width:'100%', height:'100%', fill:'url(#splitGrid)' })
-                )
-              ),
-              React.createElement('div', { style:{ position:'absolute', top:0, left:0, bottom:0, width:'4px', background:'#E60012' } }),
-              React.createElement('div', { style:{ position:'relative', zIndex:1 } },
-                React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#F8B500', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, 'B2빅뱅 학습 시스템'),
-                React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#fff', lineHeight:'1.35', letterSpacing:'-0.2px', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line' } }, '최고의 강사가 모인다\n최고의 합격이 보인다')
+        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden' } },
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, 'B2빅뱅 학습 시스템'),
+          React.createElement('div', { style:{ fontSize: isMobile ? '16px' : '18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', lineHeight:'1.4', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, '최고의 강사가 모인다\n최고의 합격이 보인다'),
+          React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+            notices.slice(0,3).map((n,i) =>
+              React.createElement('div', { key:i, onClick:()=>onSelectNotice(n), style:{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid rgba(0,0,0,0.06)', paddingBottom:'7px', cursor:'pointer' },
+                onMouseEnter:e=>e.currentTarget.style.opacity='0.7',
+                onMouseLeave:e=>e.currentTarget.style.opacity='1' },
+                React.createElement('div', { style:{ display:'flex', gap:'6px', alignItems:'center', flex:1, minWidth:0, overflow:'hidden' } },
+                  React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 6px', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, n.type),
+                  React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, n.text)
+                ),
+                React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0, marginLeft:'8px', whiteSpace:'nowrap' } }, n.date)
               )
             )
-          : React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden' } },
-              React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, 'B2빅뱅 학습 시스템'),
-              React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', lineHeight:'1.4', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, '최고의 강사가 모인다\n최고의 합격이 보인다'),
-              React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
-                notices.slice(0,3).map((n,i) =>
-                  React.createElement('div', { key:i, onClick:()=>onSelectNotice(n), style:{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid rgba(0,0,0,0.06)', paddingBottom:'7px', cursor:'pointer' },
-                    onMouseEnter:e=>e.currentTarget.style.opacity='0.7',
-                    onMouseLeave:e=>e.currentTarget.style.opacity='1' },
-                    React.createElement('div', { style:{ display:'flex', gap:'6px', alignItems:'center', flex:1, minWidth:0, overflow:'hidden' } },
-                      React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 6px', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, n.type),
-                      React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, n.text)
-                    ),
-                    React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0, marginLeft:'8px', whiteSpace:'nowrap' } }, n.date)
-                  )
-                )
-              )
-            ),
+          )
+        ),
         // 공지사항: 폰=2x2 사진 카드 그리드, PC=옛날 텍스트 리스트
         isMobile
           ? React.createElement('div', null,
