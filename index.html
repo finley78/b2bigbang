@@ -7,14 +7,15 @@
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#E60012">
+<meta name="theme-color" content="#f8fafc">
 <meta name="application-name" content="B2빅뱅학원">
 <!-- 파비콘 (브라우저 탭 아이콘) -->
 <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
 <link rel="icon" type="image/png" sizes="96x96" href="icons/favicon-96x96.png">
-<!-- iOS (아이폰) PWA 지원 -->
+<!-- 모바일/PWA 지원 (status bar = 본문 배경과 동일한 라이트 톤) -->
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="B2빅뱅">
 <link rel="apple-touch-icon" href="icons/web-app-manifest-192x192.png">
 
@@ -296,13 +297,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260504g"></script>
-<script src="TopNav.js?v=20260504g"></script>
-<script src="HomePage.js?v=20260504g"></script>
-<script src="Pages.js?v=20260504g"></script>
-<script src="StudentPortal.js?v=20260504g"></script>
-<script src="TeacherPortal.js?v=20260504g"></script>
-<script src="AdminPanel.js?v=20260504g"></script>
+<script src="Utils.js?v=20260504h"></script>
+<script src="TopNav.js?v=20260504h"></script>
+<script src="HomePage.js?v=20260504h"></script>
+<script src="Pages.js?v=20260504h"></script>
+<script src="StudentPortal.js?v=20260504h"></script>
+<script src="TeacherPortal.js?v=20260504h"></script>
+<script src="AdminPanel.js?v=20260504h"></script>
 
 <script>
 // Supabase 클라이언트 초기화
