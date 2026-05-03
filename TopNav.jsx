@@ -76,7 +76,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
     isMobile && React.createElement('div', { style: mnStyles.mobileBar },
       // 로고
       React.createElement('div', { style: mnStyles.logo, onClick: () => { setPage('home'); setMenuOpen(false); } },
-        React.createElement('div', { style: { ...mnStyles.logoMark, width:'32px', height:'32px', fontSize:'12px' } },
+        React.createElement('div', { style: { ...mnStyles.logoMark, width:'44px', height:'44px', fontSize:'12px' } },
           React.createElement('img', { src: 'icons/web-app-manifest-192x192.png', alt: 'B2빅뱅학원', style: { width:'100%', height:'100%', objectFit:'cover', display:'block', transform:'scale(1.45)' } })
         ),
         React.createElement('div', { style: mnStyles.logoMain }, '빅뱅학원')
@@ -139,7 +139,7 @@ const mnStyles = {
   nav: { background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.1)', zIndex:100 },
   inner: { maxWidth:'1280px', margin:'0 auto', height:'72px', display:'flex', alignItems:'center', gap:'40px', padding:'0 40px' },
   logo: { display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', flexShrink:0 },
-  logoMark: { width:'40px', height:'40px', borderRadius:'50%', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', overflow:'hidden' },
+  logoMark: { width:'56px', height:'56px', borderRadius:'50%', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', overflow:'hidden' },
   logoText: { display:'flex', flexDirection:'column' },
   logoMain: { fontSize:'17px', fontWeight:'800', color:'#000000', letterSpacing:'-0.5px', lineHeight:'1.1', fontFamily:'Manrope, sans-serif' },
   logoSub: { fontSize:'9px', fontWeight:'500', color:'rgba(0,0,0,0.4)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' },
