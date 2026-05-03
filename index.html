@@ -139,7 +139,8 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
 // 브라우저 기본 PWA 설치 팝업을 막고, 커스텀 배너로 대체
 (function() {
   var deferredPrompt = null;
-  // 이전 버전에서 사용하던 dismiss 키 — 마이그레이션을 위해 시작 시 정리
+  var INSTALLED_KEY = 'b2_pwa_installed';
+  // 이전 버전 dismiss 키 정리
   try { localStorage.removeItem('b2_pwa_install_dismissed_at'); } catch (e) {}
 
   function log() {
@@ -151,10 +152,18 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
       || window.navigator.standalone === true;
   }
 
+  // 설치된 적이 있는지 — standalone 모드 OR localStorage 플래그 (브라우저 탭에서 설치한 직후 케이스 대비)
+  function isInstalled() {
+    if (isStandalone()) return true;
+    try { return localStorage.getItem(INSTALLED_KEY) === 'true'; } catch (e) { return false; }
+  }
+
+  function markInstalled() {
+    try { localStorage.setItem(INSTALLED_KEY, 'true'); } catch (e) {}
+  }
+
   function showBanner(force) {
-    if (!force) {
-      if (isStandalone()) { log('이미 설치됨(standalone) → 배너 안 보임'); return; }
-    }
+    if (!force && isInstalled()) { log('이미 설치됨 → 배너 안 보임'); return; }
     var banner = document.getElementById('pwa-install-banner');
     if (banner) { banner.classList.add('show'); log('배너 표시'); }
   }
@@ -166,42 +175,56 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
 
   // 디버깅/수동 트리거: 콘솔에서 window.b2ShowInstall() 호출 가능
   window.b2ShowInstall = function() {
+    try { localStorage.removeItem(INSTALLED_KEY); } catch (e) {}
     if (!deferredPrompt) {
       log('beforeinstallprompt 이벤트가 아직 발생하지 않음. 가능한 원인: 1) 이미 설치됨 2) iOS Safari(미지원) 3) HTTPS 아님 4) Chrome 엔게이지먼트 부족');
     }
     showBanner(true);
   };
 
-  // 핵심: 기본 미니인포바/설치 팝업 차단
+  // 기본 미니인포바/설치 팝업 차단
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     deferredPrompt = e;
-    log('beforeinstallprompt 발생 → 기본 팝업 차단, 커스텀 배너 표시 시도');
+    log('beforeinstallprompt 발생 → 기본 팝업 차단, 커스텀 배너 표시');
     showBanner();
   });
 
+  // 설치 완료 — 영구 플래그 저장
   window.addEventListener('appinstalled', function() {
-    log('앱 설치 완료');
+    log('앱 설치 완료 → 영구 숨김');
+    markInstalled();
     hideBanner();
     deferredPrompt = null;
   });
 
   document.addEventListener('DOMContentLoaded', function() {
-    if (isStandalone()) { log('현재 standalone(설치된 PWA) 모드로 실행 중'); }
+    if (isStandalone()) { log('현재 standalone(설치된 PWA) 모드'); }
     var installBtn = document.getElementById('pwa-install-btn');
     var laterBtn = document.getElementById('pwa-install-later');
     var closeBtn = document.getElementById('pwa-install-close');
 
     if (installBtn) {
       installBtn.addEventListener('click', function() {
-        if (!deferredPrompt) { hideBanner(); return; }
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(function(choice) {
-          // 수락이든 거절이든 이번 세션에서만 숨김. 다음 페이지 로드 시 다시 표시.
-          hideBanner();
-          deferredPrompt = null;
-        }).catch(function() {
-          deferredPrompt = null;
+        if (!deferredPrompt) {
+          log('아직 설치 가능 상태가 아님. 잠시 후 다시 시도해주세요.');
+          return;
+        }
+        var promptEvent = deferredPrompt;
+        deferredPrompt = null; // prompt()는 일회성이라 일단 비움
+        promptEvent.prompt();
+        promptEvent.userChoice.then(function(choice) {
+          if (choice && choice.outcome === 'accepted') {
+            log('사용자 설치 수락');
+            hideBanner();
+            // appinstalled 이벤트가 곧 fire되어 markInstalled() 호출됨
+          } else {
+            // 취소 — 배너 그대로 유지. Chrome이 다음 beforeinstallprompt fire하면
+            // deferredPrompt가 다시 채워져 재시도 가능.
+            log('사용자 설치 취소 → 배너 유지');
+          }
+        }).catch(function(err) {
+          log('userChoice 에러:', err);
         });
       });
     }
@@ -250,13 +273,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260504a"></script>
-<script src="TopNav.js?v=20260504a"></script>
-<script src="HomePage.js?v=20260504a"></script>
-<script src="Pages.js?v=20260504a"></script>
-<script src="StudentPortal.js?v=20260504a"></script>
-<script src="TeacherPortal.js?v=20260504a"></script>
-<script src="AdminPanel.js?v=20260504a"></script>
+<script src="Utils.js?v=20260504b"></script>
+<script src="TopNav.js?v=20260504b"></script>
+<script src="HomePage.js?v=20260504b"></script>
+<script src="Pages.js?v=20260504b"></script>
+<script src="StudentPortal.js?v=20260504b"></script>
+<script src="TeacherPortal.js?v=20260504b"></script>
+<script src="AdminPanel.js?v=20260504b"></script>
 
 <script>
 // Supabase 클라이언트 초기화
