@@ -719,8 +719,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   function colorForScore(score) {
     var s = Number(score);
     if (isNaN(s)) return '#9ca3af';
-    if (s >= 90) return '#1E3A5F';
-    if (s >= 70) return '#cba258';
+    if (s >= 90) return '#E60012';
+    if (s >= 70) return '#F8B500';
     return '#c82014';
   }
   // 학생별 시간순 정렬된 점수 배열 반환 (오래된→최신)
@@ -1121,7 +1121,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     padding: "11px 16px",
     cursor: "pointer",
     fontWeight: "700",
-    background: "#1E3A5F",
+    background: "#E60012",
     color: "white",
   };
 
@@ -1147,7 +1147,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
       {/* 헤더 */}
-      <div style={{ background: "#1E293B", padding: "20px 40px" }}>
+      <div style={{ background: "#1A1A1A", padding: "20px 40px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: "800", margin: 0, color: "#fff", fontFamily: "Manrope, sans-serif" }}>선생님 페이지</h1>
         <p style={{ marginTop: "4px", color: "rgba(255,255,255,0.6)", fontSize: "13px", fontFamily: "Manrope, sans-serif" }}>{teacherInfo?.name || user?.name} 선생님</p>
       </div>
@@ -1156,7 +1156,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       <div style={{ background: "#fff", borderBottom: "1px solid rgba(0,0,0,0.08)", display: "flex", gap: 0, overflowX: "auto" }}>
         {TABS.map(t =>
           <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); if(t.id==="analysis") loadScoreAnalysis(); if(t.id==="files") loadAttachments(); if(t.id==="mypage") loadMyProfile(); }}
-            style={{ padding: "16px 24px", background: "none", border: "none", borderBottom: teacherView===t.id ? "2px solid #1E3A5F" : "2px solid transparent", fontSize: "14px", fontWeight: "700", color: teacherView===t.id ? "#1E3A5F" : "rgba(0,0,0,0.55)", cursor: "pointer", fontFamily: "Manrope, sans-serif", whiteSpace: "nowrap" }}>
+            style={{ padding: "16px 24px", background: "none", border: "none", borderBottom: teacherView===t.id ? "2px solid #E60012" : "2px solid transparent", fontSize: "14px", fontWeight: "700", color: teacherView===t.id ? "#E60012" : "rgba(0,0,0,0.55)", cursor: "pointer", fontFamily: "Manrope, sans-serif", whiteSpace: "nowrap" }}>
             {t.label}
           </button>
         )}
@@ -1179,7 +1179,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               {availableClassCards.map(cls => {
                 const active = String(selectedClass?.id||"") === String(cls.id);
                 return (
-                  <button key={cls.id} onClick={() => selectClass(cls)} style={{ textAlign: "left", border: active ? "2px solid #1E3A5F" : "1px solid #e5e7eb", background: active ? "#f0fdf4" : "white", borderRadius: "12px", padding: "16px", cursor: "pointer" }}>
+                  <button key={cls.id} onClick={() => selectClass(cls)} style={{ textAlign: "left", border: active ? "2px solid #E60012" : "1px solid #e5e7eb", background: active ? "#f0fdf4" : "white", borderRadius: "12px", padding: "16px", cursor: "pointer" }}>
                     <strong style={{ display: "block", fontSize: "15px", color: "#111827", fontFamily: "Manrope, sans-serif" }}>{cls.name}</strong>
                   </button>
                 );
@@ -1190,13 +1190,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           {/* 선택된 클래스의 학생 목록 */}
           {selectedClass && students.length > 0 && (
             <div>
-              <h3 style={{ fontSize: "15px", fontWeight: "800", marginBottom: "12px", color: "#1E293B", fontFamily: "Manrope, sans-serif" }}>
+              <h3 style={{ fontSize: "15px", fontWeight: "800", marginBottom: "12px", color: "#1A1A1A", fontFamily: "Manrope, sans-serif" }}>
                 {selectedClass.name} · {students.length}명
               </h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {students.map(s => (
                   <div key={s.id} style={{ background: "#f9fafb", borderRadius: "8px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#E8EFF8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "800", color: "#1E3A5F", fontFamily: "Manrope, sans-serif", flexShrink: 0 }}>{s.name[0]}</div>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#FFEBED", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "800", color: "#E60012", fontFamily: "Manrope, sans-serif", flexShrink: 0 }}>{s.name[0]}</div>
                     <div>
                       <div style={{ fontSize: "14px", fontWeight: "700", color: "#111827", fontFamily: "Manrope, sans-serif" }}>{s.name}</div>
                       <div style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{[s.grade, s.school].filter(Boolean).join(" · ") || "—"}</div>
@@ -1335,7 +1335,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <div key={c.id} style={{ border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', marginBottom:'8px' }}>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', flexWrap:'wrap' }}>
                       <div style={{ flex:1, minWidth:'200px' }}>
-                        <div style={{ fontSize:'14px', fontWeight:'700', color:'#1E293B', fontFamily:'Manrope, sans-serif' }}>{c.title}</div>
+                        <div style={{ fontSize:'14px', fontWeight:'700', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' }}>{c.title}</div>
                         <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[c.subject, describeCourseScope(c), (c.lectures||[]).length+'강'].filter(Boolean).join(' · ')}</div>
                       </div>
                       <button style={{ ...lightButtonStyle, padding:'6px 12px', fontSize:'12px' }} onClick={() => { if (String(distributeCourseId) === String(c.id)) setDistributeCourseId(''); else openDistributeEditor(c); }}>
@@ -1551,7 +1551,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     const active = clean(lectureCourseName) === clean(name);
                     return (
                       <button key={name} onClick={() => setLectureCourseName(name)}
-                        style={{ background: active ? "#1E3A5F" : "#fff", color: active ? "#fff" : "#1E293B", border: active ? "2px solid #1E3A5F" : "1px solid #d6dbde", borderRadius: "20px", padding: "6px 14px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Manrope, sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        style={{ background: active ? "#E60012" : "#fff", color: active ? "#fff" : "#1A1A1A", border: active ? "2px solid #E60012" : "1px solid #d6dbde", borderRadius: "20px", padding: "6px 14px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Manrope, sans-serif", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                         <span>{name}</span>
                         <span style={{ fontSize: "11px", opacity: 0.7 }}>{lectureCount}강</span>
                       </button>
@@ -1607,7 +1607,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </div>
             ) : (
               <div style={{ border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
-                <div style={{ background: "#1E293B", padding: "10px 14px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ background: "#1A1A1A", padding: "10px 14px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: "14px", fontWeight: "800", fontFamily: "Manrope, sans-serif" }}>{matchedCourse.title}</span>
                   <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", fontFamily: "Manrope, sans-serif" }}>{visibleLectures.length}강</span>
                 </div>
@@ -1618,7 +1618,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     var daysLeft = exp ? Math.ceil((exp.getTime() - Date.now()) / (24*60*60*1000)) : null;
                     return (
                       <div key={lec.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: idx < visibleLectures.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-                        <span style={{ fontSize: "12px", fontWeight: "700", color: "#1E3A5F", width: "30px", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{idx+1}강</span>
+                        <span style={{ fontSize: "12px", fontWeight: "700", color: "#E60012", width: "30px", flexShrink: 0, fontFamily: "Manrope, sans-serif" }}>{idx+1}강</span>
                         <span style={{ fontSize: "14px", color: "#374151", flex: 1, fontFamily: "Manrope, sans-serif" }}>{lec.title}</span>
                         {exp && (
                           <span style={{ fontSize:'11px', fontWeight:'700', color: expired ? '#c82014' : '#6b7280', background: expired ? '#fef2f2' : '#f3f4f6', padding:'2px 8px', borderRadius:'10px', fontFamily:'Manrope, sans-serif' }}>
@@ -1662,7 +1662,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         flex: 1,
                         padding: "10px 14px",
                         borderRadius: "8px",
-                        border: active ? "2px solid #1E3A5F" : "1px solid #e5e7eb",
+                        border: active ? "2px solid #E60012" : "1px solid #e5e7eb",
                         background: active ? "#f0fdf4" : "white",
                         color: active ? "#065f46" : "#374151",
                         fontWeight: "700",
@@ -1801,7 +1801,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 {students.map(s => {
                   const checked = selectedStudentIds.includes(s.id);
                   return (
-                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", border: checked ? "1px solid #1E3A5F" : "1px solid #e5e7eb", borderRadius: "10px", background: checked ? "#f0fdf4" : "white" }}>
+                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", border: checked ? "1px solid #E60012" : "1px solid #e5e7eb", borderRadius: "10px", background: checked ? "#f0fdf4" : "white" }}>
                       <input type="checkbox" checked={checked} onChange={() => toggleStudent(s.id)} style={{ width: "16px", height: "16px" }} />
                       <div style={{ flex: 1 }}>
                         <strong style={{ fontFamily: "Manrope, sans-serif" }}>{s.name}</strong>
@@ -1931,7 +1931,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             const focusStudent = analysisStudentId ? rows.find(function(r){ return String(r.id) === String(analysisStudentId); }) : null;
 
             const cardLabel = { fontSize:'12px', color:'#6b7280', marginTop:'4px', fontFamily:'Manrope, sans-serif' };
-            const cardVal = { fontSize:'18px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' };
+            const cardVal = { fontSize:'18px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' };
 
             return (
               <>
@@ -1941,7 +1941,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     <div style={cardVal}>{lastAvg != null ? lastAvg.toFixed(1)+'점' : '-'}</div>
                     <div style={cardLabel}>이번 시험 평균</div>
                     {avgChange != null && (
-                      <div style={{ fontSize:'11px', marginTop:'4px', fontWeight:'700', color: avgChange >= 0 ? '#1E3A5F' : '#c82014', fontFamily:'Manrope, sans-serif' }}>
+                      <div style={{ fontSize:'11px', marginTop:'4px', fontWeight:'700', color: avgChange >= 0 ? '#E60012' : '#c82014', fontFamily:'Manrope, sans-serif' }}>
                         {avgChange >= 0 ? '▲' : '▼'} {Math.abs(avgChange).toFixed(1)}점 (전회 대비)
                       </div>
                     )}
@@ -1961,9 +1961,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'10px', marginBottom:'20px' }}>
                   {[
-                    { label:'1등급(90+)', val: buckets.g1, color:'#1E3A5F' },
-                    { label:'2등급(80+)', val: buckets.g2, color:'#475569' },
-                    { label:'3등급(70+)', val: buckets.g3, color:'#cba258' },
+                    { label:'1등급(90+)', val: buckets.g1, color:'#E60012' },
+                    { label:'2등급(80+)', val: buckets.g2, color:'#3A3A3A' },
+                    { label:'3등급(70+)', val: buckets.g3, color:'#F8B500' },
                     { label:'미달(<70)', val: buckets.fail, color:'#c82014' },
                   ].map(function(b){ return (
                     <div key={b.label} style={{ background:'#fff', border:'1px solid '+b.color+'33', borderRadius:'10px', padding:'12px', textAlign:'center' }}>
@@ -1983,7 +1983,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       {distLabels.map(function(l){
                         var v = dist[l];
                         var h = Math.round((v / distMax) * 120);
-                        var color = l === '90-100' ? '#1E3A5F' : l === '80-89' ? '#475569' : l === '70-79' ? '#cba258' : l === '60-69' ? '#dd6b20' : '#c82014';
+                        var color = l === '90-100' ? '#E60012' : l === '80-89' ? '#3A3A3A' : l === '70-79' ? '#F8B500' : l === '60-69' ? '#dd6b20' : '#c82014';
                         return (
                           <div key={l} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%' }}>
                             <div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>{v}명</div>
@@ -2040,11 +2040,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                                 <text x={padL-4} y={y+4} textAnchor="end" fontSize="10" fill="#9ca3af">{g}</text>
                               </g>;
                             })}
-                            <path d={pathD} fill="none" stroke="#1E3A5F" strokeWidth="2.5" />
+                            <path d={pathD} fill="none" stroke="#E60012" strokeWidth="2.5" />
                             {ys.map(function(y, i){ return y == null ? null : (
                               <g key={i}>
-                                <circle cx={xs[i]} cy={y} r="4" fill="#1E3A5F" />
-                                <text x={xs[i]} y={y-8} textAnchor="middle" fontSize="11" fontWeight="700" fill="#1E3A5F">{avgs[i].toFixed(1)}</text>
+                                <circle cx={xs[i]} cy={y} r="4" fill="#E60012" />
+                                <text x={xs[i]} y={y-8} textAnchor="middle" fontSize="11" fontWeight="700" fill="#E60012">{avgs[i].toFixed(1)}</text>
                                 <text x={xs[i]} y={h-padB+16} textAnchor="middle" fontSize="10" fill="#6b7280">{trend[i].label}</text>
                               </g>
                             ); })}
@@ -2060,9 +2060,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <div style={{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>누적 분석 (전체 시험 기록 기반)</div>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
                     <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'12px' }}>
-                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#1E3A5F', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>📈 가장 많이 오른 학생 TOP 3</div>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>📈 가장 많이 오른 학생 TOP 3</div>
                       {topUp.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
-                        topUp.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#1E3A5F', fontWeight:'700'}}>+{s.change.toFixed(1)}점</span></div>; })
+                        topUp.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#E60012', fontWeight:'700'}}>+{s.change.toFixed(1)}점</span></div>; })
                       }
                     </div>
                     <div style={{ background:'#fef2f2', borderRadius:'10px', padding:'12px' }}>
@@ -2072,9 +2072,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       }
                     </div>
                     <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'12px' }}>
-                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#1E3A5F', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>⭐ 꾸준히 상위권 유지</div>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>⭐ 꾸준히 상위권 유지</div>
                       {stars.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
-                        stars.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#1E3A5F', fontWeight:'700'}}>평균 {s.avg.toFixed(1)}점</span></div>; })
+                        stars.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#E60012', fontWeight:'700'}}>평균 {s.avg.toFixed(1)}점</span></div>; })
                       }
                     </div>
                     <div style={{ background:'#fff7ed', borderRadius:'10px', padding:'12px' }}>
@@ -2088,7 +2088,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     <div style={{ fontSize:'12px', fontWeight:'800', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>학생별 평균 누적 순위</div>
                     {ranked.map(function(s, i){ return (
                       <div key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 0', borderBottom: i < ranked.length-1 ? '1px solid #f3f4f6' : 'none' }}>
-                        <span style={{ width:'24px', fontSize:'12px', fontWeight:'700', color: i<3?'#1E3A5F':'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{i+1}위</span>
+                        <span style={{ width:'24px', fontSize:'12px', fontWeight:'700', color: i<3?'#E60012':'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{i+1}위</span>
                         <span style={{ flex:1, fontSize:'12px', color:'#374151', fontFamily:'Manrope, sans-serif' }}>{s.name}</span>
                         <span style={{ fontSize:'12px', fontWeight:'700', color: colorForScore(s.avg), fontFamily:'Manrope, sans-serif' }}>{s.avg.toFixed(1)}점</span>
                       </div>
@@ -2128,7 +2128,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                                 <text x={padL-4} y={y+4} textAnchor="end" fontSize="10" fill="#9ca3af">{g}</text>
                               </g>;
                             })}
-                            <path d={pathD} fill="none" stroke="#cba258" strokeWidth="2.5" />
+                            <path d={pathD} fill="none" stroke="#F8B500" strokeWidth="2.5" />
                             {ys.map(function(y, i){ return y == null ? null : (
                               <g key={i}>
                                 <circle cx={xs[i]} cy={y} r="4" fill={colorForScore(vals[i])} />
@@ -2164,15 +2164,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   });
                   return (
                     <div key={r.id} style={{ marginBottom: '12px', border: '1px solid #e5e7eb', borderRadius: '10px', overflow: 'hidden' }}>
-                      <div style={{ background: '#1E293B', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ background: '#1A1A1A', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                         <div>
                           <span style={{ fontWeight: '800', color: '#fff', fontSize: '14px', fontFamily: 'Manrope, sans-serif' }}>{r.name}</span>
                           {r.grade && <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', marginLeft: '8px', fontFamily: 'Manrope, sans-serif' }}>{r.grade}</span>}
                           <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px', marginLeft: '12px', fontFamily: 'Manrope, sans-serif' }}>{r.scores.length}회 · 평균 {r.avg != null ? r.avg.toFixed(1)+'점' : '-'}</span>
                         </div>
                         <div style={{ display:'flex', gap:'6px' }}>
-                          <button style={{ background:'#fff', color:'#1E293B', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setReportStudentId(r.id); }}>📄 학부모 리포트</button>
-                          <button style={{ background:'#cba258', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev }] }); }}>📨 알림톡</button>
+                          <button style={{ background:'#fff', color:'#1A1A1A', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setReportStudentId(r.id); }}>📄 학부모 리포트</button>
+                          <button style={{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev }] }); }}>📨 알림톡</button>
                         </div>
                       </div>
                       <div style={{ padding: '12px 16px' }}>
@@ -2314,11 +2314,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               return (
                 <div key={att.id} style={{ border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', marginBottom:'8px', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap' }}>
                   <div style={{ flex:1, minWidth:'200px' }}>
-                    <div style={{ fontSize:'13px', fontWeight:'700', color:'#1E293B', fontFamily:'Manrope, sans-serif' }}>{att.title}</div>
+                    <div style={{ fontSize:'13px', fontWeight:'700', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' }}>{att.title}</div>
                     {att.description && <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>{att.description}</div>}
                     <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[scopeText, att.file_name, formatBytes(att.file_size), String(att.created_at||'').slice(0,10)].filter(Boolean).join(' · ')}</div>
                   </div>
-                  <a href={attachmentPublicUrl(att.file_path)} target="_blank" rel="noopener" style={{ background:'#fff', color:'#1E3A5F', border:'1px solid #1E3A5F', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' }}>⬇ 다운로드</a>
+                  <a href={attachmentPublicUrl(att.file_path)} target="_blank" rel="noopener" style={{ background:'#fff', color:'#E60012', border:'1px solid #E60012', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' }}>⬇ 다운로드</a>
                   <button onClick={() => deleteAttachment(att)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>삭제</button>
                 </div>
               );
@@ -2402,20 +2402,20 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <button style={{ ...lightButtonStyle, padding:'6px 12px', fontSize:'12px' }} onClick={function(){ setReportStudentId(''); }}>닫기</button>
                 </div>
               </div>
-              <div style={{ borderTop:'2px solid #1E3A5F', paddingTop:'14px' }}>
-                <div style={{ fontSize:'18px', fontWeight:'800', color:'#1E293B', fontFamily:'Manrope, sans-serif' }}>{name} {grade && <span style={{fontSize:'13px', color:'#6b7280', marginLeft:'8px'}}>{grade}</span>}</div>
+              <div style={{ borderTop:'2px solid #E60012', paddingTop:'14px' }}>
+                <div style={{ fontSize:'18px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' }}>{name} {grade && <span style={{fontSize:'13px', color:'#6b7280', marginLeft:'8px'}}>{grade}</span>}</div>
                 <div style={{ fontSize:'12px', color:'#9ca3af', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>발행일: {new Date().toISOString().slice(0,10)} · B2빅뱅학원</div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'10px', marginBottom:'14px' }}>
                   <div style={{ background:'#f9fafb', borderRadius:'8px', padding:'10px', textAlign:'center' }}>
-                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' }}>{last ? last.score+'점' : '-'}</div>
+                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' }}>{last ? last.score+'점' : '-'}</div>
                     <div style={{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>최근 점수</div>
                   </div>
                   <div style={{ background:'#f9fafb', borderRadius:'8px', padding:'10px', textAlign:'center' }}>
-                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' }}>{avgPersonal != null ? avgPersonal.toFixed(1)+'점' : '-'}</div>
+                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' }}>{avgPersonal != null ? avgPersonal.toFixed(1)+'점' : '-'}</div>
                     <div style={{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>개인 평균</div>
                   </div>
                   <div style={{ background:'#f9fafb', borderRadius:'8px', padding:'10px', textAlign:'center' }}>
-                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' }}>{allScoresForStudent.length}회</div>
+                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' }}>{allScoresForStudent.length}회</div>
                     <div style={{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>응시 횟수</div>
                   </div>
                 </div>
@@ -2441,7 +2441,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                                 <text x={padL-4} y={y+4} textAnchor="end" fontSize="10" fill="#9ca3af">{g}</text>
                               </g>;
                             })}
-                            <path d={pathD} fill="none" stroke="#1E3A5F" strokeWidth="2.5" />
+                            <path d={pathD} fill="none" stroke="#E60012" strokeWidth="2.5" />
                             {ys.map(function(y, i){ return y == null ? null : (
                               <g key={i}>
                                 <circle cx={xs[i]} cy={y} r="4" fill={colorForScore(v[i])} />

@@ -32,12 +32,12 @@ function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh
     }
   }
   const isMobile = window.innerWidth < 768;
-  const color = course.color || '#1E3A5F';
+  const color = course.color || '#E60012';
 
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     // 뒤로가기
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
-      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, '← 강좌 목록으로')
+      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, '← 강좌 목록으로')
     ),
     // 헤더
     React.createElement('div', { style:{ background: color, padding: isMobile ? '32px 16px' : '48px 40px' } },
@@ -102,7 +102,7 @@ function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh
         React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'20px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)' } },
           React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '담당 강사'),
           React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'12px' } },
-            React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#E8EFF8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (course.teacher||'강')[0]),
+            React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (course.teacher||'강')[0]),
             React.createElement('div', null,
               React.createElement('div', { style:{ fontSize:'16px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, course.teacher),
               React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, course.subject)
@@ -146,11 +146,11 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
   }, []);
   const isMob = isMobileState;
   const programs = courses && courses.length ? courses : [
-    { id:1, subject:'수학', color:'#1E3A5F', grade:'고1·2·3', name:'수능 수학 완성반', desc:'수능 수학 전 범위를 체계적으로 완성. 개념→유형→실전 3단계 구성', days:3, duration:90, price:'280,000원', badge:'인기', teacher:'김민준 강사' },
-    { id:2, subject:'영어', color:'#1E3A5F', grade:'고2·3', name:'수능 영어 1등급반', desc:'독해·듣기·어휘를 통합한 수능 영어 완성 프로그램', days:2, duration:100, price:'250,000원', badge:'신규', teacher:'이수진 강사' },
-    { id:3, subject:'국어', color:'#475569', grade:'고1·2·3', name:'수능 국어 독서·문학', desc:'문학·독서·화작 전 영역 집중 훈련으로 1등급 달성', days:2, duration:90, price:'240,000원', badge:null, teacher:'박지영 강사' },
-    { id:4, subject:'과학', color:'#1E293B', grade:'고1·2', name:'물리·화학 내신 특강', desc:'학교 내신 완벽 대비. 중간·기말 시험 직전 집중 특강', days:2, duration:80, price:'200,000원', badge:'특강', teacher:'정서연 강사' },
-    { id:5, subject:'수학', color:'#1E3A5F', grade:'중3·고1', name:'중·고 연계 수학 심화', desc:'중학교 수학부터 고등 연계까지 탄탄한 기초를 다지는 과정', days:3, duration:80, price:'220,000원', badge:'추천', teacher:'최민호 강사' },
+    { id:1, subject:'수학', color:'#E60012', grade:'고1·2·3', name:'수능 수학 완성반', desc:'수능 수학 전 범위를 체계적으로 완성. 개념→유형→실전 3단계 구성', days:3, duration:90, price:'280,000원', badge:'인기', teacher:'김민준 강사' },
+    { id:2, subject:'영어', color:'#E60012', grade:'고2·3', name:'수능 영어 1등급반', desc:'독해·듣기·어휘를 통합한 수능 영어 완성 프로그램', days:2, duration:100, price:'250,000원', badge:'신규', teacher:'이수진 강사' },
+    { id:3, subject:'국어', color:'#3A3A3A', grade:'고1·2·3', name:'수능 국어 독서·문학', desc:'문학·독서·화작 전 영역 집중 훈련으로 1등급 달성', days:2, duration:90, price:'240,000원', badge:null, teacher:'박지영 강사' },
+    { id:4, subject:'과학', color:'#1A1A1A', grade:'고1·2', name:'물리·화학 내신 특강', desc:'학교 내신 완벽 대비. 중간·기말 시험 직전 집중 특강', days:2, duration:80, price:'200,000원', badge:'특강', teacher:'정서연 강사' },
+    { id:5, subject:'수학', color:'#E60012', grade:'중3·고1', name:'중·고 연계 수학 심화', desc:'중학교 수학부터 고등 연계까지 탄탄한 기초를 다지는 과정', days:3, duration:80, price:'220,000원', badge:'추천', teacher:'최민호 강사' },
     { id:6, subject:'영어', color:'#33433d', grade:'중2·3', name:'중등 영어 기초·심화', desc:'중학교 영어 문법·독해·회화를 통합한 실력 향상 과정', days:2, duration:70, price:'180,000원', badge:null, teacher:'오현주 강사' },
   ];
 
@@ -177,7 +177,7 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
   });
 
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
-    React.createElement('div', { style:{ background:'#1E293B', padding: isMob ? '32px 16px' : '56px 40px' } },
+    React.createElement('div', { style:{ background:'#1A1A1A', padding: isMob ? '32px 16px' : '56px 40px' } },
       React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } },
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'Programs'),
         React.createElement('h1', { style:{ fontSize:'44px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, 'B2빅뱅학원\n프로그램 안내'),
@@ -185,7 +185,7 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
       )
     ),
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', padding: isMob ? '24px 16px' : '40px 40px' } },
-      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#1E3A5F', letterSpacing:'-0.16px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
+      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#E60012', letterSpacing:'-0.16px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
       // 필터: 초중고 / 학년 / 과목
       !isMockData && React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'18px' } },
         React.createElement('select', {
@@ -215,7 +215,7 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
         ),
         (filterLevel !== '전체' || filterGrade !== '전체' || filterSubject !== '전체') && React.createElement('button', {
           onClick: function(){ setFilterLevel('전체'); setFilterGrade('전체'); setFilterSubject('전체'); },
-          style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' }
+          style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#E60012', fontFamily:'Manrope, sans-serif' }
         }, '필터 초기화'),
         React.createElement('div', { style:{ flex:1 } }),
         React.createElement('div', { style:{ alignSelf:'center', fontSize:'12px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif' } }, filteredPrograms.length + '개 강좌')
@@ -228,35 +228,35 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
           React.createElement('div', { key:i, onClick:()=>setSelectedCourse(p), style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', transition:'transform 0.2s ease' },
             onMouseEnter:e=>e.currentTarget.style.transform='translateY(-2px)',
             onMouseLeave:e=>e.currentTarget.style.transform='translateY(0)' },
-            React.createElement('div', { style:{ height:'8px', background:p.color||'#1E3A5F' } }),
+            React.createElement('div', { style:{ height:'8px', background:p.color||'#E60012' } }),
             React.createElement('div', { style:{ padding:'18px' } },
               React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px' } },
                 React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.1em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' } }, `${p.subject} · ${p.grade}`),
-                p.badge && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#E8EFF8', color:'#1E3A5F', borderRadius:'8px', padding:'3px 10px', fontFamily:'Manrope, sans-serif' } }, p.badge)
+                p.badge && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'8px', padding:'3px 10px', fontFamily:'Manrope, sans-serif' } }, p.badge)
               ),
               React.createElement('div', { style:{ fontSize:'16px', fontWeight:'700', color:'rgba(0,0,0,0.87)', letterSpacing:'-0.01em', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, p.name),
               React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.55)', letterSpacing:'-0.01em', lineHeight:'1.5', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, p.desc),
               React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:'1px solid rgba(0,0,0,0.06)', paddingTop:'12px' } },
                 React.createElement('div', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif' } }, `주 ${p.days}회 · ${p.duration}분`),
-                React.createElement('div', { style:{ fontSize:'16px', fontWeight:'700', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, p.price)
+                React.createElement('div', { style:{ fontSize:'16px', fontWeight:'700', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, p.price)
               )
             )
           )
         )
       ),
-      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#1E3A5F', letterSpacing:'-0.16px', marginBottom:'24px', fontFamily:'Manrope, sans-serif' } }, '강사진'),
+      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#E60012', letterSpacing:'-0.16px', marginBottom:'24px', fontFamily:'Manrope, sans-serif' } }, '강사진'),
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMob ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:'16px', marginBottom:'40px' } },
         teachers.map((t,i) =>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'24px 20px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', textAlign:'center' } },
-            React.createElement('div', { style:{ width:'60px', height:'60px', borderRadius:'50%', background:'#E8EFF8', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:'22px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, t.name[0]),
+            React.createElement('div', { style:{ width:'60px', height:'60px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:'22px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, t.name[0]),
             React.createElement('div', { style:{ fontSize:'16px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, t.name),
-            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#1E3A5F', background:'#E8EFF8', borderRadius:'8px', padding:'3px 10px', display:'inline-block', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, t.badge),
+            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', background:'#FFEBED', borderRadius:'8px', padding:'3px 10px', display:'inline-block', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, t.badge),
             React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', letterSpacing:'-0.01em', lineHeight:'1.5', fontFamily:'Manrope, sans-serif' } }, t.career)
           )
         )
       ),
       React.createElement('div', { style:{ textAlign:'center' } },
-        React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#1E3A5F', color:'#fff', border:'1px solid #1E3A5F', borderRadius:'8px', padding:'14px 36px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
+        React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#E60012', color:'#fff', border:'1px solid #E60012', borderRadius:'8px', padding:'14px 36px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
           onMouseDown:e=>e.currentTarget.style.transform='scale(0.95)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' }, '무료 상담 신청하기')
       )
     )
@@ -294,10 +294,10 @@ function ContactPage() {
   }
 
   if (sent) return React.createElement('div', { style:{ minHeight:'70vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'16px', background:'#f8fafc' } },
-    React.createElement('div', { style:{ width:'72px', height:'72px', borderRadius:'50%', background:'#E8EFF8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'32px' } }, '✓'),
-    React.createElement('h2', { style:{ fontSize:'28px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px' } }, '문의가 접수되었습니다'),
+    React.createElement('div', { style:{ width:'72px', height:'72px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'32px' } }, '✓'),
+    React.createElement('h2', { style:{ fontSize:'28px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px' } }, '문의가 접수되었습니다'),
     React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', textAlign:'center', lineHeight:'1.7' } }, '빠른 시일 내에 담당자가 연락드리겠습니다.\n평균 응대 시간: 영업일 기준 1~2일'),
-    React.createElement('button', { onClick:()=>setSent(false), style:{ background:'#1E3A5F', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 28px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '다시 문의하기')
+    React.createElement('button', { onClick:()=>setSent(false), style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 28px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '다시 문의하기')
   );
 
   const inputStyle = { width:'100%', border:'none', outline:'none', fontSize:'15px', color:'rgba(0,0,0,0.87)', letterSpacing:'-0.01em', fontFamily:'Manrope, sans-serif', background:'transparent', boxSizing:'border-box', padding:'0' };
@@ -313,7 +313,7 @@ function ContactPage() {
   }
 
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
-    React.createElement('div', { style:{ background:'#1E293B', padding:'48px 40px' } },
+    React.createElement('div', { style:{ background:'#1A1A1A', padding:'48px 40px' } },
       React.createElement('div', { style:{ maxWidth:'640px', margin:'0 auto' } },
         React.createElement('h1', { style:{ fontSize:'36px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '무료 상담 신청'),
         React.createElement('p', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.6)', fontFamily:'Manrope, sans-serif' } }, '전화 또는 방문 상담을 원하시면 아래 양식을 작성해 주세요')
@@ -339,7 +339,7 @@ function ContactPage() {
           React.createElement('label', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.65)', fontFamily:'Manrope, sans-serif' } }, '과목 *'),
           React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap' } },
             SUBJECTS.map(s =>
-              React.createElement('button', { key:s, type:'button', onClick:()=>toggleSubject(s), style:{ background: form.subjects.includes(s) ? '#1E3A5F' : '#fff', color: form.subjects.includes(s) ? '#fff' : 'rgba(0,0,0,0.7)', border: `1.5px solid ${form.subjects.includes(s) ? '#1E3A5F' : 'rgba(0,0,0,0.15)'}`, borderRadius:'8px', padding:'10px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, s)
+              React.createElement('button', { key:s, type:'button', onClick:()=>toggleSubject(s), style:{ background: form.subjects.includes(s) ? '#E60012' : '#fff', color: form.subjects.includes(s) ? '#fff' : 'rgba(0,0,0,0.7)', border: `1.5px solid ${form.subjects.includes(s) ? '#E60012' : 'rgba(0,0,0,0.15)'}`, borderRadius:'8px', padding:'10px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, s)
             )
           ),
           errors.subjects && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif' } }, errors.subjects)
@@ -348,11 +348,11 @@ function ContactPage() {
           React.createElement('textarea', { style:{...inputStyle, resize:'vertical', minHeight:'100px', lineHeight:'1.6'}, placeholder:'궁금한 점이나 상담 희망 일정을 알려주세요', value:form.message, onChange:e=>setForm({...form,message:e.target.value}) })
         ),
         React.createElement('div', { style:{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'14px 16px', background:'#f9f9f9', borderRadius:'8px', border:errors.agree?'1.5px solid #c82014':'1.5px solid rgba(0,0,0,0.08)' } },
-          React.createElement('input', { type:'checkbox', id:'agree', checked:form.agree, onChange:e=>setForm({...form,agree:e.target.checked}), style:{ marginTop:'2px', accentColor:'#1E3A5F', width:'16px', height:'16px', flexShrink:0, cursor:'pointer' } }),
+          React.createElement('input', { type:'checkbox', id:'agree', checked:form.agree, onChange:e=>setForm({...form,agree:e.target.checked}), style:{ marginTop:'2px', accentColor:'#E60012', width:'16px', height:'16px', flexShrink:0, cursor:'pointer' } }),
           React.createElement('label', { htmlFor:'agree', style:{ fontSize:'13px', color:'rgba(0,0,0,0.65)', fontFamily:'Manrope, sans-serif', lineHeight:'1.5', cursor:'pointer' } }, '개인정보 수집 및 이용에 동의합니다. 수집된 정보는 상담 목적으로만 사용됩니다. (필수)')
         ),
         errors.agree && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginTop:'-12px' } }, errors.agree),
-        React.createElement('button', { onClick:submit, style:{ width:'100%', background:'#1E3A5F', color:'#fff', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
+        React.createElement('button', { onClick:submit, style:{ width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
           onMouseDown:e=>e.currentTarget.style.transform='scale(0.98)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' }, '상담 신청하기')
       ),
       React.createElement('div', { style:{ marginTop:'24px', display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px' } },
@@ -390,15 +390,15 @@ function AboutPage() {
   ];
 
   const subjects = [
-    { name:'국어', color:'#475569', desc:'독서·문학·화작 전 영역 / 내신 + 수능 통합 대비' },
-    { name:'영어', color:'#1E3A5F', desc:'독해·어휘·듣기 통합 / 내신 + 수능 1등급 목표' },
-    { name:'수학', color:'#1E3A5F', desc:'개념→유형→실전 3단계 / 내신 + 수능 완성' },
-    { name:'과학', color:'#1E293B', desc:'물리·화학·생물·지구과학 / 내신 집중 대비' },
+    { name:'국어', color:'#3A3A3A', desc:'독서·문학·화작 전 영역 / 내신 + 수능 통합 대비' },
+    { name:'영어', color:'#E60012', desc:'독해·어휘·듣기 통합 / 내신 + 수능 1등급 목표' },
+    { name:'수학', color:'#E60012', desc:'개념→유형→실전 3단계 / 내신 + 수능 완성' },
+    { name:'과학', color:'#1A1A1A', desc:'물리·화학·생물·지구과학 / 내신 집중 대비' },
   ];
 
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     // 헤더
-    React.createElement('div', { style:{ background:'#1E293B', padding: isMobile ? '40px 16px' : '64px 40px' } },
+    React.createElement('div', { style:{ background:'#1A1A1A', padding: isMobile ? '40px 16px' : '64px 40px' } },
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto' } },
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'About'),
         React.createElement('h1', { style:{ fontSize: isMobile ? '30px' : '44px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, 'B2빅뱅학원\n소개'),
@@ -408,13 +408,13 @@ function AboutPage() {
     // 학원 소개
     React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding: isMobile ? '32px 16px' : '56px 40px' } },
       React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', padding: isMobile ? '24px 20px' : '40px', marginBottom:'32px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
-        React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E293B', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } }, '학원 소개'),
+        React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } }, '학원 소개'),
         React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.7)', fontFamily:'Manrope, sans-serif', lineHeight:'1.9', whiteSpace:'pre-line' } },
           'B2빅뱅학원은 인천 검암동에 위치한 입시 전문 학원입니다.\n\n국어, 영어, 수학, 과학 전 과목을 아우르는 전문 강사진이 학생 한 명 한 명의 목표에 맞는 맞춤 학습을 제공합니다.\n\n내신부터 수능까지, 체계적인 커리큘럼으로 원하는 결과를 만들어 드립니다.'
         )
       ),
       // 핵심 가치
-      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E293B', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '우리의 약속'),
+      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '우리의 약속'),
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', marginBottom:'40px' } },
         values.map((v, i) =>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
@@ -425,7 +425,7 @@ function AboutPage() {
         )
       ),
       // 개설 과목
-      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E293B', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '개설 과목'),
+      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '개설 과목'),
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap:'12px' } },
         subjects.map((s, i) =>
           React.createElement('div', { key:i, style:{ background:s.color, borderRadius:'12px', padding:'20px 16px', textAlign:'center' } },
@@ -462,7 +462,7 @@ function RecruitPage({ setPage }) {
   ];
 
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
-    React.createElement('div', { style:{ background:'#1E293B', padding: isMobile ? '40px 16px' : '64px 40px' } },
+    React.createElement('div', { style:{ background:'#1A1A1A', padding: isMobile ? '40px 16px' : '64px 40px' } },
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto' } },
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'Recruit'),
         React.createElement('h1', { style:{ fontSize: isMobile ? '30px' : '44px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, '모집 안내'),
@@ -471,22 +471,22 @@ function RecruitPage({ setPage }) {
     ),
     React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding: isMobile ? '32px 16px' : '56px 40px' } },
       // 대상
-      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E293B', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '모집 대상'),
+      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '모집 대상'),
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap:'12px', marginBottom:'48px' } },
         targets.map((t, i) =>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'20px 16px', textAlign:'center', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
             t.icon ? React.createElement('div', { style:{ fontSize:'28px', marginBottom:'8px' } }, t.icon) : null,
-            React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, t.grade),
+            React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, t.grade),
             React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7', whiteSpace:'pre-line' } }, t.desc)
           )
         )
       ),
       // 등록 과정
-      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1E293B', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '등록 과정'),
+      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '등록 과정'),
       React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px', marginBottom:'48px' } },
         steps.map((s, i) =>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'20px 24px', display:'flex', alignItems:'center', gap:'20px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
-            React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#1E3A5F', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, s.step),
+            React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#E60012', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, s.step),
             React.createElement('div', { style:{ flex:1 } },
               React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, s.icon + '  ' + s.title),
               React.createElement('div', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, s.desc)
@@ -495,10 +495,10 @@ function RecruitPage({ setPage }) {
         )
       ),
       // CTA
-      React.createElement('div', { style:{ background:'#1E3A5F', borderRadius:'16px', padding: isMobile ? '28px 20px' : '40px', textAlign:'center' } },
+      React.createElement('div', { style:{ background:'#E60012', borderRadius:'16px', padding: isMobile ? '28px 20px' : '40px', textAlign:'center' } },
         React.createElement('div', { style:{ fontSize:'22px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '지금 바로 상담 신청하기'),
         React.createElement('p', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.75)', fontFamily:'Manrope, sans-serif', marginBottom:'24px' } }, '첫 상담은 무료입니다. 부담 없이 연락해 주세요.'),
-        React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#fff', color:'#1E3A5F', border:'none', borderRadius:'8px', padding:'14px 36px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
+        React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#fff', color:'#E60012', border:'none', borderRadius:'8px', padding:'14px 36px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
           onMouseDown:e=>e.currentTarget.style.transform='scale(0.97)',
           onMouseUp:e=>e.currentTarget.style.transform='scale(1)' },
           '무료 상담 신청 →'

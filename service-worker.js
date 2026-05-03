@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-v29';
+const CACHE_VERSION = 'b2-bigbang-v30';
 const OFFLINE_URLS = [
   './',
   './index.html',
@@ -59,10 +59,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 우리 앱 코드(.js, .jsx, .html)는 네트워크 우선 - 업데이트가 바로 반영되게
-  // (외부 CDN의 .js는 다음 분기에서 캐시 우선으로 처리됨 - hostname이 다르므로)
+  // 우리 앱 코드(.js, .jsx, .html)와 네비게이션 요청(루트 '/' 포함)은 네트워크 우선
+  // — 업데이트가 즉시 반영되도록. (네비게이션 = 주소창 입력/링크 클릭/새로고침으로
+  //   페이지 이동하는 요청. mode==='navigate'로 식별)
   const sameOrigin = url.origin === self.location.origin;
-  if (sameOrigin && (url.pathname.endsWith('.js') || url.pathname.endsWith('.jsx') || url.pathname.endsWith('.html'))) {
+  const isAppCode = sameOrigin && (
+    req.mode === 'navigate' ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.jsx') ||
+    url.pathname.endsWith('.html')
+  );
+  if (isAppCode) {
     event.respondWith(
       fetch(req)
         .then((res) => {
@@ -70,7 +77,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
           return res;
         })
-        .catch(() => caches.match(req))
+        .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
     );
     return;
   }

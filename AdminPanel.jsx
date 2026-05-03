@@ -22,7 +22,7 @@ const SCHOOL_LEVELS = {
 // ── 성적 분석 헬퍼 (관리자/선생님 공유 로직과 동일 규칙) ──
 function adminGradeBucket(score) { var s = Number(score); if (isNaN(s)) return null; if (s>=90) return 1; if (s>=80) return 2; if (s>=70) return 3; return 0; }
 function adminDistBucket(score) { var s = Number(score); if (isNaN(s)) return null; if (s>=90) return '90-100'; if (s>=80) return '80-89'; if (s>=70) return '70-79'; if (s>=60) return '60-69'; return '0-59'; }
-function adminColorForScore(score) { var s = Number(score); if (isNaN(s)) return '#9ca3af'; if (s>=90) return '#1E3A5F'; if (s>=70) return '#cba258'; return '#c82014'; }
+function adminColorForScore(score) { var s = Number(score); if (isNaN(s)) return '#9ca3af'; if (s>=90) return '#E60012'; if (s>=70) return '#F8B500'; return '#c82014'; }
 
 /* ── Admin Login ────────────────────────────── */
 function AdminLogin({ onLogin }) {
@@ -37,14 +37,14 @@ else { setError(true); setTimeout(() => setError(false), 2000); }
 return React.createElement('div', { style:{ minHeight:'70vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f2f0eb' } },
 React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', padding:'40px', width:'360px', boxShadow:'0 4px 24px rgba(0,0,0,0.1)' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'28px' } },
-React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#cba258', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, '관'),
+React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#F8B500', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, '관'),
 React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '관리자 로그인')
 ),
 React.createElement('div', { style:{ position:'relative', background:'#f9f9f9', borderRadius:'4px', border:`1px solid ${error?'#c82014':'#d6dbde'}`, padding:'14px 12px 10px', marginBottom:'16px' } },
 React.createElement('div', { style:{ position:'absolute', top:'-9px', left:'10px', background:'#f9f9f9', padding:'0 4px', fontSize:'10px', fontWeight:'700', color: error?'#c82014':'rgba(0,0,0,0.87)', letterSpacing:'0.04em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' } }, error?'비밀번호 오류':'비밀번호'),
 React.createElement('input', { type:'password', value:pw, onChange:e=>setPw(e.target.value), onKeyDown:e=>e.key==='Enter'&&attempt(), placeholder:'관리자 비밀번호', style:{ width:'100%', border:'none', outline:'none', background:'transparent', fontSize:'14px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', boxSizing:'border-box' } })
 ),
-React.createElement('button', { onClick:attempt, style:{ width:'100%', background:'#1E293B', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
+React.createElement('button', { onClick:attempt, style:{ width:'100%', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
 onMouseDown:e=>e.currentTarget.style.transform='scale(0.98)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' }, '로그인'),
 React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.35)', textAlign:'center', marginTop:'12px', fontFamily:'Manrope, sans-serif' } }, '데모 비밀번호: b2admin')
 )
@@ -137,7 +137,7 @@ if (announcements) setState(s => ({ ...s, announcements }));
 const { data: courses } = await sb.from('courses').select(`*, subjects(name,color), videos(*)`).order('sort_order');
 if (courses && courses.length > 0) {
 const mapped = courses.map(c => ({
-id: c.id, subject: c.subjects?.name || '', color: c.subjects?.color || '#1E3A5F',
+id: c.id, subject: c.subjects?.name || '', color: c.subjects?.color || '#E60012',
 name: c.title, description: c.description, grade: c.grade || '', level: c.level || '', class_id: c.class_id || '',
 days: c.days || 0, duration: c.duration || 0, teacher: c.teacher || '',
 price: c.price || '', badge: c.badge || null, intro: c.intro || '',
@@ -529,7 +529,7 @@ const tabs = [
 const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'8px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box' };
 const labelS = { fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'4px', display:'block' };
 const cardS = { background:'#fff', borderRadius:'12px', padding:'16px 18px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', marginBottom:'12px' };
-const btnS = (color='#1E3A5F') => ({ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'7px 16px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' });
+const btnS = (color='#E60012') => ({ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'7px 16px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' });
 const btnOutS = { background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' };
 
 const ROLE_LABEL = { student:'학생', parent:'학부모', teacher:'선생님' };
@@ -540,7 +540,7 @@ setState(s => ({ ...s, banners: s.banners.map(b => b.id===id ? {...b,[field]:val
 await sb.from('banners').update({ [field]: val }).eq('id', id);
 }
 async function addBanner() {
-const newB = { bg:'#1E3A5F', subtitle:'새 배너 부제목', title:'새 배너 제목', label:'개강 예정', badge:'새로운', active:true, cta:'자세히 보기', link_to:'contact', sort_order: state.banners.length+1 };
+const newB = { bg:'#E60012', subtitle:'새 배너 부제목', title:'새 배너 제목', label:'개강 예정', badge:'새로운', active:true, cta:'자세히 보기', link_to:'contact', sort_order: state.banners.length+1 };
 const { data } = await sb.from('banners').insert(newB).select().single();
 if (data) setState(s => ({ ...s, banners: [...s.banners, data] }));
 }
@@ -586,9 +586,9 @@ setState(s => ({ ...s, announcements: s.announcements.filter(a => a.id!==id) }))
 
 return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
 
-React.createElement('div', { style:{ background:'#1E293B', padding:'24px 40px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
+React.createElement('div', { style:{ background:'#1A1A1A', padding:'24px 40px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
-React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#cba258', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, '관'),
+React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#F8B500', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, '관'),
 React.createElement('div', null,
 React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px' } }, 'B2빅뱅학원 관리자'),
 React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.5)', fontFamily:'Manrope, sans-serif' } }, '관리자 전용 페이지')
@@ -599,7 +599,7 @@ React.createElement('button', { onClick:onLogout, style:{ background:'rgba(255,2
 
 React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'0 40px', display:'flex', gap:'0', overflowX:'auto' } },
 tabs.map(t =>
-React.createElement('button', { key:t.id, onClick:()=>{ setTab(t.id); if (t.id === 'files') loadAdminAttachments(); }, style:{ padding:'16px 20px', background:'none', border:'none', borderBottom: tab===t.id?'2px solid #1E3A5F':'2px solid transparent', fontSize:'14px', fontWeight:'700', color: tab===t.id?'#1E3A5F':'rgba(0,0,0,0.55)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', marginBottom:'-1px', whiteSpace:'nowrap' } }, t.label)
+React.createElement('button', { key:t.id, onClick:()=>{ setTab(t.id); if (t.id === 'files') loadAdminAttachments(); }, style:{ padding:'16px 20px', background:'none', border:'none', borderBottom: tab===t.id?'2px solid #E60012':'2px solid transparent', fontSize:'14px', fontWeight:'700', color: tab===t.id?'#E60012':'rgba(0,0,0,0.55)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', marginBottom:'-1px', whiteSpace:'nowrap' } }, t.label)
 )
 ),
 
@@ -612,8 +612,8 @@ React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rg
 React.createElement('button', { onClick:addBanner, style:btnS() }, '+ 배너 추가')
 ),
 // 이미지/영상 권장 사이즈 안내
-React.createElement('div', { style:{ background:'#eef6f1', border:'1px solid #E8EFF8', borderRadius:'10px', padding:'12px 14px', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } },
-React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1E3A5F', marginBottom:'6px' } }, '📐 배너 이미지/영상 권장 사이즈'),
+React.createElement('div', { style:{ background:'#eef6f1', border:'1px solid #FFEBED', borderRadius:'10px', padding:'12px 14px', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } },
+React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#E60012', marginBottom:'6px' } }, '📐 배너 이미지/영상 권장 사이즈'),
 React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.7)', lineHeight:'1.7' } },
 React.createElement('div', null, '• 비율: 가로 : 세로 = 2 : 3 (세로가 가로보다 1.5배 길게)'),
 React.createElement('div', null, '• 권장 크기: 1080 × 1620 px (또는 720 × 1080 px)'),
@@ -630,10 +630,10 @@ React.createElement('div', null,
 React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, b.title),
 React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, b.subtitle)
 ),
-React.createElement('div', { style:{ background: b.active?'#E8EFF8':'#f2f0eb', color: b.active?'#1E3A5F':'rgba(0,0,0,0.45)', borderRadius:'8px', padding:'2px 10px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, b.active?'노출중':'숨김')
+React.createElement('div', { style:{ background: b.active?'#FFEBED':'#f2f0eb', color: b.active?'#E60012':'rgba(0,0,0,0.45)', borderRadius:'8px', padding:'2px 10px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, b.active?'노출중':'숨김')
 ),
 React.createElement('div', { style:{ display:'flex', gap:'8px' } },
-React.createElement('button', { onClick:()=>setEditingBanner(editingBanner?.id===b.id?null:b), style:btnS('#475569') }, editingBanner?.id===b.id?'닫기':'편집'),
+React.createElement('button', { onClick:()=>setEditingBanner(editingBanner?.id===b.id?null:b), style:btnS('#3A3A3A') }, editingBanner?.id===b.id?'닫기':'편집'),
 React.createElement('button', { onClick:()=>deleteBanner(b.id), style:btnOutS }, '삭제')
 )
 ),
@@ -717,13 +717,13 @@ React.createElement('div', { style:{ display:'flex', justifyContent:'space-betwe
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '공지사항 관리'),
 React.createElement('div', { style:{ display:'flex', gap:'8px' } },
 React.createElement('button', { onClick:addNotice, style:btnS() }, '+ 공지 추가'),
-React.createElement('button', { onClick:addAnnouncement, style:btnS('#475569') }, '+ 발표 추가')
+React.createElement('button', { onClick:addAnnouncement, style:btnS('#3A3A3A') }, '+ 발표 추가')
 )
 ),
 editingNotice
 ? React.createElement('div', null,
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'20px' } },
-React.createElement('button', { onClick:()=>setEditingNotice(null), style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, '← 목록으로'),
+React.createElement('button', { onClick:()=>setEditingNotice(null), style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, '← 목록으로'),
 React.createElement('div', { style:{ fontSize:'16px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '공지 편집')
 ),
 React.createElement('div', { style:{ ...cardS, display:'flex', flexDirection:'column', gap:'14px' } },
@@ -840,7 +840,7 @@ setEditingNotice(null);
 React.createElement('h3', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'8px', letterSpacing:'0.05em', textTransform:'uppercase' } }, '강좌/이벤트 공지'),
 state.notices.map(n =>
 React.createElement('div', { key:n.id, style:{ ...cardS, display:'flex', alignItems:'center', gap:'10px', cursor:'pointer' }, onClick:()=>setEditingNotice(n) },
-React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#E8EFF8', color:'#1E3A5F', borderRadius:'4px', padding:'2px 8px', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, n.type),
+React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 8px', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, n.type),
 React.createElement('span', { style:{ fontSize:'14px', fontWeight:'600', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', flex:1 } }, n.text),
 React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, n.date),
 React.createElement('button', { onClick:e=>{ e.stopPropagation(); deleteNotice(n.id); }, style:{ ...btnOutS, flexShrink:0 } }, '삭제')
@@ -869,7 +869,7 @@ state.courses.map(c =>
 React.createElement('div', { key:c.id, style:cardS },
 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:editingCourse===c.id?'12px':0 } },
 React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center' } },
-React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#E8EFF8', color:'#1E3A5F', borderRadius:'4px', padding:'2px 8px', fontFamily:'Manrope, sans-serif' } }, c.subject),
+React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 8px', fontFamily:'Manrope, sans-serif' } }, c.subject),
 React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, c.name),
 React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, (function(){
 var className = c.class_id ? ((teacherClasses||[]).find(x=>String(x.id)===String(c.class_id))||{}).name : '';
@@ -891,8 +891,8 @@ class_id: c.class_id || null,
 const { error } = await window.supabase.from('courses').update(updates).eq('id', c.id);
 if (error) { alert('저장 실패: ' + error.message); return; }
 alert('저장되었습니다!');
-}, style:btnS('#cba258') }, '저장'),
-React.createElement('button', { onClick:()=>setEditingCourse(editingCourse===c.id?null:c.id), style:btnS('#475569') }, editingCourse===c.id?'닫기':'편집'),
+}, style:btnS('#F8B500') }, '저장'),
+React.createElement('button', { onClick:()=>setEditingCourse(editingCourse===c.id?null:c.id), style:btnS('#3A3A3A') }, editingCourse===c.id?'닫기':'편집'),
 React.createElement('button', { onClick: async ()=>{ if(!confirm('정말 삭제할까요?')) return; await window.supabase.from('courses').delete().eq('id',c.id); setState(s=>({...s,courses:s.courses.filter(x=>x.id!==c.id)})); setEditingCourse(null); }, style:btnOutS }, '삭제')
 )
 ),
@@ -939,9 +939,9 @@ React.createElement('div', null, React.createElement('label',{style:labelS},'수
 React.createElement('div', null, React.createElement('label',{style:labelS},'커리큘럼 (줄바꿈으로 구분)'), React.createElement('textarea',{value:c.curriculum||'',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,curriculum:e.target.value}:x)})),placeholder:'1. 수열의 개념\n2. 극한의 이해',rows:5,style:{...inputS,resize:'vertical',lineHeight:'1.6'}})),
 React.createElement('div', null, React.createElement('label',{style:labelS},'강사 소개'), React.createElement('textarea',{value:c.teacherDesc||'',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,teacherDesc:e.target.value}:x)})),placeholder:'강사 경력, 특징 등',rows:3,style:{...inputS,resize:'vertical',lineHeight:'1.6'}})),
 React.createElement('div', null, React.createElement('label',{style:labelS},'미리보기 유튜브 링크 (선택)'), React.createElement('input',{value:c.youtube||'',onChange:e=>setState(s=>({...s,courses:s.courses.map(x=>x.id===c.id?{...x,youtube:e.target.value}:x)})),placeholder:'https://youtube.com/watch?v=...',style:inputS})),
-React.createElement('div', { style:{ borderTop:'2px solid #E8EFF8', paddingTop:'14px', marginTop:'4px' } },
+React.createElement('div', { style:{ borderTop:'2px solid #FFEBED', paddingTop:'14px', marginTop:'4px' } },
 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' } },
-React.createElement('label', { style:{ fontSize:'13px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, '온라인 강의 목록'),
+React.createElement('label', { style:{ fontSize:'13px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, '온라인 강의 목록'),
 React.createElement('button', { onClick: async function() {
 var newTitle = (((c.lectures||[]).length)+1) + '강: 새 강의';
 var { data } = await window.supabase.from('videos').insert({ course_id:c.id, title:newTitle, youtube_id:'', sort_order:(c.lectures||[]).length+1 }).select().single();
@@ -953,7 +953,7 @@ if (data) setState(function(s) { return {...s, courses:s.courses.map(function(x)
 : (c.lectures||[]).map(function(lec, idx) {
 return React.createElement('div', { key:lec.id, style:{ background:'#f9f9f9', borderRadius:'8px', padding:'10px 12px', marginBottom:'8px', display:'flex', flexDirection:'column', gap:'6px' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' } },
-React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#1E3A5F', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (idx+1)+'강'),
+React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (idx+1)+'강'),
 React.createElement('input', { value:lec.title||'', onChange:function(e){ var val=e.target.value; setState(function(s){ return {...s,courses:s.courses.map(function(x){ return x.id===c.id?{...x,lectures:x.lectures.map(function(l){ return l.id===lec.id?{...l,title:val}:l; })}:x; })}; }); }, onBlur:async function(e){ await window.supabase.from('videos').update({title:e.target.value}).eq('id',lec.id); }, placeholder:'강의 제목', style:{...inputS,marginBottom:0,flex:1} }),
 React.createElement('button', { onClick:async function(){ await window.supabase.from('videos').delete().eq('id',lec.id); setState(function(s){ return {...s,courses:s.courses.map(function(x){ return x.id===c.id?{...x,lectures:x.lectures.filter(function(l){ return l.id!==lec.id; })}:x; })}; }); }, style:{...btnOutS,padding:'4px 10px',fontSize:'12px'} }, '삭제')
 ),
@@ -1019,7 +1019,7 @@ return React.createElement('option', { key:t.id, value:String(t.id) }, t.name ||
 )
 ),
 
-selectedIds.length > 0 && React.createElement('div', { style:{ background:'#1E293B', borderRadius:'10px', padding:'12px 16px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' } },
+selectedIds.length > 0 && React.createElement('div', { style:{ background:'#1A1A1A', borderRadius:'10px', padding:'12px 16px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' } },
 React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, `${selectedIds.length}명 선택됨`),
 React.createElement('select', {
 value: bulkGrade,
@@ -1055,7 +1055,7 @@ return Object.assign({}, s, bulkGrade?{grade:bulkGrade}:{}, bulkSchool?{school:b
 setBulkGrade(''); setBulkSchool(''); setSelectedIds([]);
 alert('저장 완료!');
 },
-style:{ background:'#1E3A5F', color:'#fff', border:'none', borderRadius:'6px', padding:'7px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'6px', padding:'7px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
 }, '일괄 저장'),
 React.createElement('button', {
 onClick: async function() {
@@ -1105,7 +1105,7 @@ var ids = filtered.map(function(s){ return s.id; });
 if (allSelected) setSelectedIds(function(prev){ return prev.filter(function(id){ return !ids.includes(id); }); });
 else setSelectedIds(function(prev){ return Array.from(new Set(prev.concat(ids))); });
 },
-style:{ width:'18px', height:'18px', borderRadius:'4px', border: allSelected?'none':'1.5px solid rgba(0,0,0,0.25)', background: allSelected?'#1E293B':'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }
+style:{ width:'18px', height:'18px', borderRadius:'4px', border: allSelected?'none':'1.5px solid rgba(0,0,0,0.25)', background: allSelected?'#1A1A1A':'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }
 },
 allSelected && React.createElement('svg', { width:'11', height:'11', viewBox:'0 0 12 12', fill:'none' },
 React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' })
@@ -1115,24 +1115,24 @@ React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'
 ),
 filtered.map(function(st) {
 var isSelected = selectedIds.includes(st.id);
-return React.createElement('div', { key:st.id, style:{ ...cardS, border: isSelected?'2px solid #1E293B':'2px solid transparent', transition:'border 0.15s' } },
+return React.createElement('div', { key:st.id, style:{ ...cardS, border: isSelected?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
 React.createElement('div', {
 onClick: function() { setSelectedIds(function(prev){ return isSelected?prev.filter(function(i){ return i!==st.id; }):[...prev,st.id]; }); },
-style:{ width:'18px', height:'18px', borderRadius:'4px', border: isSelected?'none':'1.5px solid rgba(0,0,0,0.25)', background: isSelected?'#1E293B':'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }
+style:{ width:'18px', height:'18px', borderRadius:'4px', border: isSelected?'none':'1.5px solid rgba(0,0,0,0.25)', background: isSelected?'#1A1A1A':'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }
 },
 isSelected && React.createElement('svg', { width:'11', height:'11', viewBox:'0 0 12 12', fill:'none' },
 React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' })
 )
 ),
-React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#E8EFF8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name[0]),
+React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name[0]),
 React.createElement('div', { style:{ flex:1, minWidth:0, cursor:'pointer' }, onClick:function(){ setExpandedStudent(expandedStudent===st.id?null:st.id); } },
 React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.name),
 React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [st.school, st.grade, st.phone].filter(Boolean).join(' · ') || '정보 없음')
 ),
 React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap' } },
-st.grade && React.createElement('span', { style:{ background:'#1E293B', color:'#fff', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, st.grade),
-(st.subjects||[]).map(function(sub){ return React.createElement('span', { key:sub, style:{ background:'#E8EFF8', color:'#1E3A5F', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, sub); })
+st.grade && React.createElement('span', { style:{ background:'#1A1A1A', color:'#fff', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, st.grade),
+(st.subjects||[]).map(function(sub){ return React.createElement('span', { key:sub, style:{ background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, sub); })
 ),
 React.createElement('span', {
 onClick: function() { setExpandedStudent(expandedStudent===st.id?null:st.id); },
@@ -1179,11 +1179,11 @@ React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '수�
 React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' } },
 SUBJECTS.map(function(sub) {
 return React.createElement('button', { key:sub, onClick:function(){ toggleSubject(st.id, sub); },
-style:{ background:(st.subjects||[]).includes(sub)?'#1E3A5F':'#f2f0eb', color:(st.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.7)', border:(st.subjects||[]).includes(sub)?'2px solid #1E3A5F':'2px solid transparent', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub);
+style:{ background:(st.subjects||[]).includes(sub)?'#E60012':'#f2f0eb', color:(st.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.7)', border:(st.subjects||[]).includes(sub)?'2px solid #E60012':'2px solid transparent', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub);
 }),
 React.createElement('button', {
   onClick: function(){ setAddCourseStudentId(addCourseStudentId===st.id ? null : st.id); setAcSubject('전체'); setAcLevel('전체'); setAcGrade('전체'); setAcTeacher('전체'); setAcName(''); },
-  style:{ background: addCourseStudentId===st.id?'#1E293B':'#f2f0eb', color: addCourseStudentId===st.id?'#fff':'rgba(0,0,0,0.6)', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' }
+  style:{ background: addCourseStudentId===st.id?'#1A1A1A':'#f2f0eb', color: addCourseStudentId===st.id?'#fff':'rgba(0,0,0,0.6)', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' }
 }, addCourseStudentId===st.id ? '강좌 닫기' : '+ 추가 강좌')
 )
 ),
@@ -1196,9 +1196,9 @@ st.enrolledCourses.length === 0
     st.enrolledCourses.map(function(cid) {
       var course = state.courses.find(function(c){ return c.id===cid; });
       if (!course) return null;
-      return React.createElement('div', { key:cid, style:{ display:'flex', alignItems:'center', gap:'5px', background:'#E8EFF8', borderRadius:'20px', padding:'4px 10px 4px 12px' } },
-        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, course.name + (course.grade?' ('+course.grade+')':'')),
-        React.createElement('button', { onClick:function(){ toggleEnroll(st.id, cid); }, style:{ background:'none', border:'none', cursor:'pointer', color:'#1E3A5F', fontSize:'14px', lineHeight:1, padding:'0 2px', fontWeight:'700' } }, '×')
+      return React.createElement('div', { key:cid, style:{ display:'flex', alignItems:'center', gap:'5px', background:'#FFEBED', borderRadius:'20px', padding:'4px 10px 4px 12px' } },
+        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, course.name + (course.grade?' ('+course.grade+')':'')),
+        React.createElement('button', { onClick:function(){ toggleEnroll(st.id, cid); }, style:{ background:'none', border:'none', cursor:'pointer', color:'#E60012', fontSize:'14px', lineHeight:1, padding:'0 2px', fontWeight:'700' } }, '×')
       );
     })
   ),
@@ -1260,14 +1260,14 @@ addCourseStudentId===st.id && React.createElement('div', { style:{ background:'#
       if (results.length===0) return React.createElement('div',{style:{fontSize:'12px',color:'rgba(0,0,0,0.4)',fontFamily:'Manrope, sans-serif', padding:'8px'}},'검색 결과가 없습니다');
       return results.map(function(c){
         var enrolled = st.enrolledCourses.includes(c.id);
-        return React.createElement('div', { key:c.id, style:{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', borderRadius:'8px', padding:'8px 12px', border: enrolled?'1.5px solid #1E3A5F':'1px solid #e5e7eb' } },
+        return React.createElement('div', { key:c.id, style:{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', borderRadius:'8px', padding:'8px 12px', border: enrolled?'1.5px solid #E60012':'1px solid #e5e7eb' } },
           React.createElement('div', null,
             React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, c.name),
             React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [c.subject, c.grade, c.teacher].filter(Boolean).join(' · '))
           ),
           React.createElement('button', {
             onClick: function(){ toggleEnroll(st.id, c.id); },
-            style:{ background: enrolled?'#c82014':'#1E3A5F', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+            style:{ background: enrolled?'#c82014':'#E60012', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
           }, enrolled?'배정 해제':'배정')
         );
       });
@@ -1419,12 +1419,12 @@ if (filtered.length === 0) return [React.createElement('div', { key:'empty', sty
 return filtered.map(function(m) {
 var linkedParent = m.role==='student' && m.parentId ? dbMembers.find(function(x){ return x.id===m.parentId; }) : null;
 var linkedChildren = m.role==='parent' ? dbMembers.filter(function(x){ return x.role==='student' && (x.parentId===m.id); }) : [];
-var roleBg    = m.role==='teacher'?'#E8EFF8': m.role==='parent'?'#fff3cd': m.isEnrollee?'#e8f4fd':'#f2f0eb';
-var roleColor = m.role==='teacher'?'#1E3A5F': m.role==='parent'?'#856404': m.isEnrollee?'#0066cc':'rgba(0,0,0,0.45)';
+var roleBg    = m.role==='teacher'?'#FFEBED': m.role==='parent'?'#fff3cd': m.isEnrollee?'#e8f4fd':'#f2f0eb';
+var roleColor = m.role==='teacher'?'#E60012': m.role==='parent'?'#856404': m.isEnrollee?'#0066cc':'rgba(0,0,0,0.45)';
 var isEnrolleeParent = m.role==='parent' && dbMembers.some(function(s){ return s.role==='student'&&s.isEnrollee&&s.parentId===m.id; });
 var roleLabel = m.role==='teacher'?'선생님': m.role==='parent'?(isEnrolleeParent?'수강생 학부모':'학부모'): m.isEnrollee?'수강생':'일반회원';
 var isEditing = editingMember === m.id;
-return React.createElement('div', { key:m.id, style:{ ...cardS, padding:'12px 16px', border: isEditing?'2px solid #1E3A5F':'2px solid transparent', transition:'border 0.15s' } },
+return React.createElement('div', { key:m.id, style:{ ...cardS, padding:'12px 16px', border: isEditing?'2px solid #E60012':'2px solid transparent', transition:'border 0.15s' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', flex:1, minWidth:0, cursor:'pointer' }, onClick:function(){ setExpandedMember(expandedMember===m.id?null:m.id); setEditingMember(null); } },
 React.createElement('div', { style:{ width:'32px', height:'32px', borderRadius:'50%', background:roleBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', color:roleColor, fontFamily:'Manrope, sans-serif', flexShrink:0 } }, m.name[0]),
@@ -1443,7 +1443,7 @@ React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', f
 React.createElement('div', { style:{ display:'flex', gap:'4px', flexShrink:0, alignItems:'center' } },
 React.createElement('button', {
 onClick: function() { setEditingMember(isEditing?null:m.id); setExpandedMember(m.id); },
-style:{ background: isEditing?'#1E3A5F':'transparent', color: isEditing?'#fff':'rgba(0,0,0,0.4)', border:'1px solid '+(isEditing?'#1E3A5F':'rgba(0,0,0,0.15)'), borderRadius:'5px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+style:{ background: isEditing?'#E60012':'transparent', color: isEditing?'#fff':'rgba(0,0,0,0.4)', border:'1px solid '+(isEditing?'#E60012':'rgba(0,0,0,0.15)'), borderRadius:'5px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
 }, isEditing ? '닫기' : '수정'),
 React.createElement('button', {
 onClick: async function() {
@@ -1509,7 +1509,7 @@ setDbStudents(function(prev){ return prev.map(function(s){ return s.id===m.id?Ob
 setEditingMember(null);
 alert('저장 완료!');
 },
-style:{ background:'#1E3A5F', color:'#fff', border:'none', borderRadius:'8px', padding:'10px 24px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'10px 24px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
 }, '저장')
 ),
 expandedMember===m.id && !isEditing && React.createElement('div', { style:{ marginTop:'14px', paddingTop:'14px', borderTop:'1px solid rgba(0,0,0,0.08)' } },
@@ -1609,7 +1609,7 @@ await sb.from('students').update({ role:newRole, is_active:true }).eq('id', p.id
 setDbPending(ps => ps.filter(x => x.id !== p.id));
 setDbStudents(prev => [...prev, { id:p.id, name:p.name, phone:p.phone||'', grade:p.grade||'', subjects:[], enrolledCourses:[], role:newRole }]);
 setDbMembers(prev => [...prev, { id:p.id, name:p.name, phone:p.phone||'', grade:p.grade||'', school:p.school||'', role:newRole }]);
-}, style:{ background:'#1E3A5F', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '승인'),
+}, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '승인'),
 React.createElement('button', { onClick: async ()=>{
 if (!confirm('이 신청을 거절할까요?')) return;
 await sb.from('students').delete().eq('id', p.id);
@@ -1637,7 +1637,7 @@ React.createElement('div', { style:{ display:'inline-block', background:'#fff3cd
 )
 ),
 React.createElement('div', { style:{ display:'flex', gap:'8px' } },
-React.createElement('button', { onClick:()=>approveTeacher(t.id), style:{ background:'#1E3A5F', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '승인'),
+React.createElement('button', { onClick:()=>approveTeacher(t.id), style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '승인'),
 React.createElement('button', { onClick:()=>rejectTeacher(t.id), style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '거절')
 )
 )
@@ -1651,12 +1651,12 @@ dbTeachers.filter(t => t.role==='teacher').length === 0
 React.createElement('div', { key:t.id, style:{ background:'#fff', borderRadius:'12px', padding:'16px 18px', marginBottom:'10px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
-React.createElement('div', { style:{ width:'42px', height:'42px', borderRadius:'50%', background:'#E8EFF8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px' } }, '선생'),
+React.createElement('div', { style:{ width:'42px', height:'42px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px' } }, '선생'),
 React.createElement('div', null,
 React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, t.name),
 React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, t.email)
 ),
-React.createElement('div', { style:{ display:'inline-block', background:'#E8EFF8', color:'#1E3A5F', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '승인됨')
+React.createElement('div', { style:{ display:'inline-block', background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '승인됨')
 ),
 React.createElement('button', { onClick:()=>rejectTeacher(t.id), style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '계정 삭제')
 ),
@@ -1665,7 +1665,7 @@ React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'r
 React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
 SUBJECTS.map(sub =>
 React.createElement('button', { key:sub, onClick:()=>toggleTeacherSubject(t.id, sub),
-style:{ background: (t.subjects||[]).includes(sub)?'#1E3A5F':'#f2f0eb', color: (t.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.55)', border: (t.subjects||[]).includes(sub)?'2px solid #1E3A5F':'2px solid transparent', borderRadius:'8px', padding:'7px 18px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub)
+style:{ background: (t.subjects||[]).includes(sub)?'#E60012':'#f2f0eb', color: (t.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.55)', border: (t.subjects||[]).includes(sub)?'2px solid #E60012':'2px solid transparent', borderRadius:'8px', padding:'7px 18px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub)
 )
 ),
 
@@ -1683,7 +1683,7 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
 
   return React.createElement('div', { key:sub, style:{ background:'#f9f9f9', borderRadius:'10px', padding:'14px 16px', marginBottom:'10px' } },
     // 과목 라벨
-    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, sub),
+    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, sub),
 
     // 학교급 + 학년 선택 + 저장
     React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'10px' } },
@@ -1706,7 +1706,7 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
               var next = selected ? grades.filter(function(g){ return g!==grade; }) : grades.concat(grade);
               updateTeacherAssignDraft(draftKey, { grades: next });
             },
-            style:{ background:selected?'#1E3A5F':'#fff', color:selected?'#fff':'rgba(0,0,0,0.62)', border:selected?'2px solid #1E3A5F':'1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 11px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+            style:{ background:selected?'#E60012':'#fff', color:selected?'#fff':'rgba(0,0,0,0.62)', border:selected?'2px solid #E60012':'1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 11px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
           }, grade);
         })
       ),
@@ -1722,7 +1722,7 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
           setDbTeachers(function(ts) { return ts.map(function(x) { return x.id===t.id ? Object.assign({},x,{grade:gradeStr,school:schoolStr}) : x; }); });
           updateTeacherAssignDraft(draftKey, { grades:[] });
         },
-        style:{ background:'#1E3A5F', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+        style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
       }, '저장')
     ),
 
@@ -1740,7 +1740,7 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
                 await sb.from('students').update({ grade: gradeStr, school: '' }).eq('id', t.id);
                 setDbTeachers(function(ts) { return ts.map(function(x) { return x.id===t.id ? Object.assign({},x,{grade:gradeStr}) : x; }); });
               },
-              style:{ background:'#1E293B', color:'#fff', border:'none', borderRadius:'999px', padding:'5px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+              style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'999px', padding:'5px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
             }, a + ' ×');
           }),
           React.createElement('button', {
@@ -1797,7 +1797,7 @@ React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', border
       ),
       React.createElement('button', {
         onClick: function(){ createTeacherClass(t, draft); },
-        style:{ background:'#1E3A5F', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+        style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
       }, '+ 반 추가')
     );
   })(),
@@ -1826,9 +1826,9 @@ React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', border
             clsStudents.map(function(sid){
               var stu = dbStudents.find(function(x){ return x.id === sid; });
               if (!stu) return null;
-              return React.createElement('div', { key:sid, style:{ background:'#E8EFF8', borderRadius:'20px', padding:'4px 12px', display:'flex', alignItems:'center', gap:'6px' } },
-                React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, stu.name + (stu.grade?' ('+stu.grade+')':'')),
-                React.createElement('button', { onClick: function(){ removeStudentFromClass(cls.id, sid); }, style:{ background:'none', border:'none', cursor:'pointer', color:'#1E3A5F', fontSize:'14px', lineHeight:1, fontWeight:'700' } }, '×')
+              return React.createElement('div', { key:sid, style:{ background:'#FFEBED', borderRadius:'20px', padding:'4px 12px', display:'flex', alignItems:'center', gap:'6px' } },
+                React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, stu.name + (stu.grade?' ('+stu.grade+')':'')),
+                React.createElement('button', { onClick: function(){ removeStudentFromClass(cls.id, sid); }, style:{ background:'none', border:'none', cursor:'pointer', color:'#E60012', fontSize:'14px', lineHeight:1, fontWeight:'700' } }, '×')
               );
             })
           ),
@@ -1854,7 +1854,7 @@ React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', border
                   return React.createElement('button', { key:stu.id, onClick: function(){ addStudentToClass(cls.id, stu.id); }, style:{ background:'#f9f9f9', border:'1px solid #e5e7eb', borderRadius:'7px', padding:'6px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', textAlign:'left', cursor:'pointer', display:'flex', alignItems:'center', gap:'8px' } },
                     React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, stu.name),
                     React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', fontSize:'11px' } }, [stu.school, stu.grade, stu.phone].filter(Boolean).join(' · ')),
-                    React.createElement('span', { style:{ marginLeft:'auto', color:'#1E3A5F', fontWeight:'800' } }, '+ 추가')
+                    React.createElement('span', { style:{ marginLeft:'auto', color:'#E60012', fontWeight:'800' } }, '+ 추가')
                   );
                 })
               );
@@ -2065,14 +2065,14 @@ React.createElement('input', {
   var watch = stuStats.filter(function(s){return s.consecutiveDrop;});
   var focusStudent = analysisStudentId ? rows.find(function(r){return String(r.id)===String(analysisStudentId);}) : null;
   var cardLabel = { fontSize:'12px', color:'#6b7280', marginTop:'4px', fontFamily:'Manrope, sans-serif' };
-  var cardVal = { fontSize:'18px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' };
+  var cardVal = { fontSize:'18px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' };
 
   function summaryCards() {
     return React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'10px', marginBottom:'14px' } },
       React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'10px', padding:'14px', textAlign:'center' } },
         React.createElement('div', { style:cardVal }, lastAvg != null ? lastAvg.toFixed(1)+'점' : '-'),
         React.createElement('div', { style:cardLabel }, '이번 시험 평균'),
-        avgChange != null && React.createElement('div', { style:{ fontSize:'11px', marginTop:'4px', fontWeight:'700', color: avgChange >= 0 ? '#1E3A5F' : '#c82014', fontFamily:'Manrope, sans-serif' } }, (avgChange >= 0 ? '▲ ' : '▼ ') + Math.abs(avgChange).toFixed(1) + '점 (전회 대비)')
+        avgChange != null && React.createElement('div', { style:{ fontSize:'11px', marginTop:'4px', fontWeight:'700', color: avgChange >= 0 ? '#E60012' : '#c82014', fontFamily:'Manrope, sans-serif' } }, (avgChange >= 0 ? '▲ ' : '▼ ') + Math.abs(avgChange).toFixed(1) + '점 (전회 대비)')
       ),
       React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'10px', padding:'14px', textAlign:'center' } }, React.createElement('div',{style:cardVal}, lastMax!=null ? lastMax+'점' : '-'), React.createElement('div',{style:cardLabel}, '이번 시험 최고점')),
       React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'10px', padding:'14px', textAlign:'center' } }, React.createElement('div',{style:cardVal}, lastMin!=null ? lastMin+'점' : '-'), React.createElement('div',{style:cardLabel}, '이번 시험 최저점')),
@@ -2081,9 +2081,9 @@ React.createElement('input', {
   }
   function gradeBucketsRow() {
     var defs = [
-      { label:'1등급(90+)', val: buckets.g1, color:'#1E3A5F' },
-      { label:'2등급(80+)', val: buckets.g2, color:'#475569' },
-      { label:'3등급(70+)', val: buckets.g3, color:'#cba258' },
+      { label:'1등급(90+)', val: buckets.g1, color:'#E60012' },
+      { label:'2등급(80+)', val: buckets.g2, color:'#3A3A3A' },
+      { label:'3등급(70+)', val: buckets.g3, color:'#F8B500' },
       { label:'미달(<70)', val: buckets.fail, color:'#c82014' },
     ];
     return React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'10px', marginBottom:'20px' } },
@@ -2101,7 +2101,7 @@ React.createElement('input', {
           distLabels.map(function(l){
             var v = dist[l];
             var h = Math.round((v / distMax) * 120);
-            var color = l === '90-100' ? '#1E3A5F' : l === '80-89' ? '#475569' : l === '70-79' ? '#cba258' : l === '60-69' ? '#dd6b20' : '#c82014';
+            var color = l === '90-100' ? '#E60012' : l === '80-89' ? '#3A3A3A' : l === '70-79' ? '#F8B500' : l === '60-69' ? '#dd6b20' : '#c82014';
             return React.createElement('div', { key:l, style:{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%' } },
               React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, v+'명'),
               React.createElement('div', { style:{ width:'100%', height:h+'px', background:color, borderRadius:'6px 6px 0 0' } }),
@@ -2144,10 +2144,10 @@ React.createElement('input', {
           React.createElement('line', { x1:padL, y1:y, x2:w-padR, y2:y, stroke:'#e5e7eb', strokeWidth:'1' }),
           React.createElement('text', { x:padL-4, y:y+4, textAnchor:'end', fontSize:'10', fill:'#9ca3af' }, g)
         ); }),
-        React.createElement('path', { d:pathD, fill:'none', stroke:'#1E3A5F', strokeWidth:'2.5' }),
+        React.createElement('path', { d:pathD, fill:'none', stroke:'#E60012', strokeWidth:'2.5' }),
         ys.map(function(y, i){ return y == null ? null : React.createElement('g', { key:i },
-          React.createElement('circle', { cx:xs[i], cy:y, r:'4', fill:'#1E3A5F' }),
-          React.createElement('text', { x:xs[i], y:y-8, textAnchor:'middle', fontSize:'11', fontWeight:'700', fill:'#1E3A5F' }, avgs[i].toFixed(1)),
+          React.createElement('circle', { cx:xs[i], cy:y, r:'4', fill:'#E60012' }),
+          React.createElement('text', { x:xs[i], y:y-8, textAnchor:'middle', fontSize:'11', fontWeight:'700', fill:'#E60012' }, avgs[i].toFixed(1)),
           React.createElement('text', { x:xs[i], y:h-padB+16, textAnchor:'middle', fontSize:'10', fill:'#6b7280' }, trend[i].label)
         ); })
       )
@@ -2158,16 +2158,16 @@ React.createElement('input', {
       React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '누적 분석 (전체 시험 기록 기반)'),
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' } },
         React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'10px', padding:'12px' } },
-          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1E3A5F', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '📈 가장 많이 오른 학생 TOP 3'),
-          topUp.length === 0 ? React.createElement('div',{style:{ fontSize:'12px', color:'#9ca3af' }}, '해당 없음') : topUp.map(function(s){ return React.createElement('div', { key:s.id, style:{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' } }, s.name + ' ', React.createElement('span',{style:{color:'#1E3A5F',fontWeight:'700'}}, '+'+s.change.toFixed(1)+'점')); })
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '📈 가장 많이 오른 학생 TOP 3'),
+          topUp.length === 0 ? React.createElement('div',{style:{ fontSize:'12px', color:'#9ca3af' }}, '해당 없음') : topUp.map(function(s){ return React.createElement('div', { key:s.id, style:{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' } }, s.name + ' ', React.createElement('span',{style:{color:'#E60012',fontWeight:'700'}}, '+'+s.change.toFixed(1)+'점')); })
         ),
         React.createElement('div', { style:{ background:'#fef2f2', borderRadius:'10px', padding:'12px' } },
           React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#c82014', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '📉 가장 많이 떨어진 학생 TOP 3'),
           topDown.length === 0 ? React.createElement('div',{style:{ fontSize:'12px', color:'#9ca3af' }}, '해당 없음') : topDown.map(function(s){ return React.createElement('div', { key:s.id, style:{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' } }, s.name + ' ', React.createElement('span',{style:{color:'#c82014',fontWeight:'700'}}, s.change.toFixed(1)+'점')); })
         ),
         React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'10px', padding:'12px' } },
-          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1E3A5F', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '⭐ 꾸준히 상위권'),
-          stars.length === 0 ? React.createElement('div',{style:{ fontSize:'12px', color:'#9ca3af' }}, '해당 없음') : stars.map(function(s){ return React.createElement('div', { key:s.id, style:{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' } }, s.name + ' ', React.createElement('span',{style:{color:'#1E3A5F',fontWeight:'700'}}, '평균 '+s.avg.toFixed(1)+'점')); })
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '⭐ 꾸준히 상위권'),
+          stars.length === 0 ? React.createElement('div',{style:{ fontSize:'12px', color:'#9ca3af' }}, '해당 없음') : stars.map(function(s){ return React.createElement('div', { key:s.id, style:{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' } }, s.name + ' ', React.createElement('span',{style:{color:'#E60012',fontWeight:'700'}}, '평균 '+s.avg.toFixed(1)+'점')); })
         ),
         React.createElement('div', { style:{ background:'#fff7ed', borderRadius:'10px', padding:'12px' } },
           React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#c2410c', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '⚠️ 최근 3회 연속 하락'),
@@ -2177,7 +2177,7 @@ React.createElement('input', {
       React.createElement('div', { style:{ marginTop:'10px' } },
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '학생별 평균 누적 순위'),
         ranked.map(function(s, i){ return React.createElement('div', { key:s.id, style:{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 0', borderBottom: i < ranked.length-1 ? '1px solid #f3f4f6' : 'none' } },
-          React.createElement('span', { style:{ width:'24px', fontSize:'12px', fontWeight:'700', color: i<3?'#1E3A5F':'#9ca3af', fontFamily:'Manrope, sans-serif' } }, (i+1)+'위'),
+          React.createElement('span', { style:{ width:'24px', fontSize:'12px', fontWeight:'700', color: i<3?'#E60012':'#9ca3af', fontFamily:'Manrope, sans-serif' } }, (i+1)+'위'),
           React.createElement('span', { style:{ flex:1, fontSize:'12px', color:'#374151', fontFamily:'Manrope, sans-serif' } }, s.name),
           React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color: adminColorForScore(s.avg), fontFamily:'Manrope, sans-serif' } }, s.avg.toFixed(1)+'점')
         ); })
@@ -2208,7 +2208,7 @@ React.createElement('input', {
             React.createElement('line', { x1:padL, y1:y, x2:w-padR, y2:y, stroke:'#e5e7eb', strokeWidth:'1' }),
             React.createElement('text', { x:padL-4, y:y+4, textAnchor:'end', fontSize:'10', fill:'#9ca3af' }, g)
           ); }),
-          React.createElement('path', { d:pathD, fill:'none', stroke:'#cba258', strokeWidth:'2.5' }),
+          React.createElement('path', { d:pathD, fill:'none', stroke:'#F8B500', strokeWidth:'2.5' }),
           ys.map(function(y, i){ return y == null ? null : React.createElement('g', { key:i },
             React.createElement('circle', { cx:xs[i], cy:y, r:'4', fill:adminColorForScore(v[i]) }),
             React.createElement('text', { x:xs[i], y:y-8, textAnchor:'middle', fontSize:'11', fontWeight:'700', fill:adminColorForScore(v[i]) }, v[i]),
@@ -2228,15 +2228,15 @@ React.createElement('input', {
         subject: r.last ? r.last.subject : '', testName: r.last ? r.last.test_name : ''
       });
       return React.createElement('div', { key:r.id, style:{ marginBottom:'12px', border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden' } },
-        React.createElement('div', { style:{ background:'#1E293B', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' } },
+        React.createElement('div', { style:{ background:'#1A1A1A', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' } },
           React.createElement('div', null,
             React.createElement('span', { style:{ fontWeight:'800', color:'#fff', fontSize:'14px', fontFamily:'Manrope, sans-serif' } }, r.name),
             r.grade && React.createElement('span', { style:{ color:'rgba(255,255,255,0.6)', fontSize:'12px', marginLeft:'8px', fontFamily:'Manrope, sans-serif' } }, r.grade),
             React.createElement('span', { style:{ color:'rgba(255,255,255,0.85)', fontSize:'12px', marginLeft:'12px', fontFamily:'Manrope, sans-serif' } }, r.scores.length + '회 · 평균 ' + (r.avg != null ? r.avg.toFixed(1)+'점' : '-'))
           ),
           React.createElement('div', { style:{ display:'flex', gap:'6px' } },
-            React.createElement('button', { onClick:function(){ setReportStudentId(r.id); }, style:{ background:'#fff', color:'#1E293B', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📄 학부모 리포트'),
-            React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }] }); }, style:{ background:'#cba258', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📨 알림톡')
+            React.createElement('button', { onClick:function(){ setReportStudentId(r.id); }, style:{ background:'#fff', color:'#1A1A1A', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📄 학부모 리포트'),
+            React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }] }); }, style:{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📨 알림톡')
           )
         ),
         React.createElement('div', { style:{ padding:'12px 16px' } },
@@ -2273,7 +2273,7 @@ React.createElement('input', {
   }
   function bulkButton() {
     return React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', gap:'8px', marginBottom:'12px' } },
-      React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }; }) }); }, style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#1E293B', fontFamily:'Manrope, sans-serif' } }, '📨 전체 학부모 일괄 발송')
+      React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }; }) }); }, style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, '📨 전체 학부모 일괄 발송')
     );
   }
 
@@ -2357,7 +2357,7 @@ React.createElement('input', {
         return true;
       });
 
-      return React.createElement('div', { key:st.id, style:{ ...cardS, border: isOpen?'2px solid #1E293B':'2px solid transparent', transition:'border 0.15s' } },
+      return React.createElement('div', { key:st.id, style:{ ...cardS, border: isOpen?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s' } },
         React.createElement('div', {
           style:{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer' },
           onClick: function(){
@@ -2365,12 +2365,12 @@ React.createElement('input', {
             else { setViewsExpandedId(st.id); loadStudentViews(st.id); }
           }
         },
-          React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#E8EFF8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name[0]),
+          React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name[0]),
           React.createElement('div', { style:{ flex:1, minWidth:0 } },
             React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.name),
             React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [st.school, st.grade, st.phone].filter(Boolean).join(' · ') || '정보 없음')
           ),
-          st.grade && React.createElement('span', { style:{ background:'#1E293B', color:'#fff', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, st.grade),
+          st.grade && React.createElement('span', { style:{ background:'#1A1A1A', color:'#fff', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, st.grade),
           React.createElement('span', { style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', transition:'transform 0.2s', transform: isOpen?'rotate(180deg)':'none', flexShrink:0 } }, '▾')
         ),
 
@@ -2402,7 +2402,7 @@ React.createElement('input', {
                   { label:'완료율', val: (totalVideos > 0 ? Math.round(completed/totalVideos*100) : 0) + '%' },
                 ].map(function(item) {
                   return React.createElement('div', { key:item.label, style:{ background:'#f9f9f9', borderRadius:'10px', padding:'12px', textAlign:'center' } },
-                    React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, item.val),
+                    React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, item.val),
                     React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'3px' } }, item.label)
                   );
                 })
@@ -2410,15 +2410,15 @@ React.createElement('input', {
               Object.values(byCourse).map(function(group, gi) {
                 var groupCompleted = group.videos.filter(function(v){ return v.progress_pct >= 90; }).length;
                 return React.createElement('div', { key:gi, style:{ marginBottom:'10px', border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden' } },
-                  React.createElement('div', { style:{ background:'#1E293B', padding:'8px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' } },
+                  React.createElement('div', { style:{ background:'#1A1A1A', padding:'8px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' } },
                     React.createElement('span', { style:{ fontWeight:'800', color:'#fff', fontSize:'13px', fontFamily:'Manrope, sans-serif' } }, group.title + (group.subject ? ' · ' + group.subject : '')),
                     React.createElement('span', { style:{ color:'rgba(255,255,255,0.7)', fontSize:'11px', fontFamily:'Manrope, sans-serif' } }, groupCompleted + '/' + group.videos.length + '강 완료')
                   ),
                   React.createElement('div', { style:{ padding:'10px 14px' } },
                     group.videos.map(function(v, vi) {
                       var pct = v.progress_pct || 0;
-                      var color = pct >= 90 ? '#1E3A5F' : pct >= 50 ? '#cba258' : '#e5e7eb';
-                      var textColor = pct >= 90 ? '#1E3A5F' : pct >= 50 ? '#cba258' : 'rgba(0,0,0,0.3)';
+                      var color = pct >= 90 ? '#E60012' : pct >= 50 ? '#F8B500' : '#e5e7eb';
+                      var textColor = pct >= 90 ? '#E60012' : pct >= 50 ? '#F8B500' : 'rgba(0,0,0,0.3)';
                       var lastWatched = v.last_watched_at ? v.last_watched_at.slice(0,10) : '—';
                       return React.createElement('div', { key:vi, style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'6px', padding:'5px 0', borderBottom: vi < group.videos.length-1 ? '1px solid #f3f4f6' : 'none' } },
                         React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, v.videos?.title || '강의'),
@@ -2452,11 +2452,11 @@ tab==='files' && React.createElement('div', null,
     var uploader = (dbTeacherProfiles||[]).find(function(t){ return String(t.id) === String(att.uploaded_by); });
     return React.createElement('div', { key:att.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', marginBottom:'8px', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap' } },
       React.createElement('div', { style:{ flex:1, minWidth:'200px' } },
-        React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#1E293B', fontFamily:'Manrope, sans-serif' } }, att.title),
+        React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, att.title),
         att.description && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, att.description),
         React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, [(uploader && uploader.name ? uploader.name + ' 선생님' : ''), att.scope === 'class' ? '클래스: ' + (clsName || '-') : '개별 학생', att.file_name, adminFormatBytes(att.file_size), String(att.created_at||'').slice(0,10)].filter(Boolean).join(' · '))
       ),
-      React.createElement('a', { href: adminAttachmentPublicUrl(att.file_path), target:'_blank', rel:'noopener', style:{ background:'#fff', color:'#1E3A5F', border:'1px solid #1E3A5F', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '⬇ 다운로드'),
+      React.createElement('a', { href: adminAttachmentPublicUrl(att.file_path), target:'_blank', rel:'noopener', style:{ background:'#fff', color:'#E60012', border:'1px solid #E60012', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '⬇ 다운로드'),
       React.createElement('button', { onClick:function(){ deleteAdminAttachment(att); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
     );
   })
@@ -2478,8 +2478,8 @@ setState(s=>({...s,siteInfo:{...s.siteInfo,[f]:e.target.value}}));
 )
 )
 ),
-React.createElement('div', { style:{ marginTop:'20px', padding:'16px', background:'#E8EFF8', borderRadius:'8px' } },
-React.createElement('p', { style:{ fontSize:'13px', color:'#1E3A5F', fontFamily:'Manrope, sans-serif', fontWeight:'600' } }, '✓ 변경사항은 자동으로 저장됩니다. 홈 화면에서 바로 확인하세요.')
+React.createElement('div', { style:{ marginTop:'20px', padding:'16px', background:'#FFEBED', borderRadius:'8px' } },
+React.createElement('p', { style:{ fontSize:'13px', color:'#E60012', fontFamily:'Manrope, sans-serif', fontWeight:'600' } }, '✓ 변경사항은 자동으로 저장됩니다. 홈 화면에서 바로 확인하세요.')
 )
 )
 
@@ -2502,24 +2502,24 @@ reportStudentId && (function(){
       React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' } },
         React.createElement('h2', { style:{ margin:0, fontFamily:'Manrope, sans-serif' } }, '학부모 전달용 리포트'),
         React.createElement('div', { style:{ display:'flex', gap:'6px' } },
-          React.createElement('button', { onClick:function(){ window.print(); }, style:{ background:'#fff', color:'#1E293B', border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '🖨 인쇄/PDF'),
-          React.createElement('button', { onClick:function(){ setReportStudentId(''); }, style:{ background:'#fff', color:'#1E293B', border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '닫기')
+          React.createElement('button', { onClick:function(){ window.print(); }, style:{ background:'#fff', color:'#1A1A1A', border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '🖨 인쇄/PDF'),
+          React.createElement('button', { onClick:function(){ setReportStudentId(''); }, style:{ background:'#fff', color:'#1A1A1A', border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '닫기')
         )
       ),
-      React.createElement('div', { style:{ borderTop:'2px solid #1E3A5F', paddingTop:'14px' } },
-        React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#1E293B', fontFamily:'Manrope, sans-serif' } }, name + ' ', grade && React.createElement('span', { style:{ fontSize:'13px', color:'#6b7280', marginLeft:'8px' } }, grade)),
+      React.createElement('div', { style:{ borderTop:'2px solid #E60012', paddingTop:'14px' } },
+        React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, name + ' ', grade && React.createElement('span', { style:{ fontSize:'13px', color:'#6b7280', marginLeft:'8px' } }, grade)),
         React.createElement('div', { style:{ fontSize:'12px', color:'#9ca3af', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '발행일: ' + new Date().toISOString().slice(0,10) + ' · B2빅뱅학원'),
         React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'10px', marginBottom:'14px' } },
           React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'8px', padding:'10px', textAlign:'center' } },
-            React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, last ? last.score+'점' : '-'),
+            React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, last ? last.score+'점' : '-'),
             React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '최근 점수')
           ),
           React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'8px', padding:'10px', textAlign:'center' } },
-            React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, avgPersonal != null ? avgPersonal.toFixed(1)+'점' : '-'),
+            React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, avgPersonal != null ? avgPersonal.toFixed(1)+'점' : '-'),
             React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '개인 평균')
           ),
           React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'8px', padding:'10px', textAlign:'center' } },
-            React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#1E3A5F', fontFamily:'Manrope, sans-serif' } }, allScoresForStudent.length+'회'),
+            React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, allScoresForStudent.length+'회'),
             React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '응시 횟수')
           )
         ),
@@ -2560,14 +2560,14 @@ kakaoTarget && (function(){
         );
       }),
       React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', gap:'8px', marginTop:'10px' } },
-        React.createElement('button', { onClick:function(){ setKakaoTarget(null); }, style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#1E293B', fontFamily:'Manrope, sans-serif' } }, '취소'),
+        React.createElement('button', { onClick:function(){ setKakaoTarget(null); }, style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, '취소'),
         React.createElement('button', { onClick: async function(){
           var rows = items.map(function(it){ return { student_id: it.student_id || null, parent_phone: it.parent_phone || null, message_content: it.message_content || '', test_score_id: it.test_score_id || null, sent_by: null, sent_at: null, status: 'pending' }; });
           var { error } = await window.supabase.from('notification_logs').insert(rows);
           if (error) { alert('발송 이력 저장 실패: ' + error.message); return; }
           alert('알림톡 연동 준비 중입니다.\n발송 이력은 저장되었습니다 (상태: 미발송).');
           setKakaoTarget(null);
-        }, style:{ background:'#cba258', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📨 발송 이력 저장')
+        }, style:{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📨 발송 이력 저장')
       )
     )
   );
