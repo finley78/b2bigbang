@@ -120,7 +120,7 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
 
       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px' } },
         React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#006241', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' } },
-          React.createElement('img', { src: 'icons/web-app-manifest-192x192.png', alt: 'B2빅뱅학원', style: { width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%', display:'block' } })
+          React.createElement('img', { src: 'icons/web-app-manifest-192x192.png', alt: 'B2빅뱅학원', style: { width:'100%', height:'100%', objectFit:'cover', display:'block', transform:'scale(1.45)' } })
         ),
         React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'#006241', fontFamily:'Manrope, sans-serif' } }, '빅뱅학원')
       ),
