@@ -32,7 +32,11 @@ function HeroBannerClassic({ banners, isAdmin, onEdit, onSelectBanner }) {
   }, [active.length, idx]);
 
   if (!active.length) return null;
-  const b = active[Math.min(idx, active.length - 1)];
+  const realIdx = Math.min(idx, active.length - 1);
+  const b = active[realIdx];
+  // PC 클래식 배너는 스타벅스 그린 팔레트 고정 — DB의 b.bg는 PWA(HeroBanner 모바일)에서만 사용
+  const PC_GREEN_PALETTE = ['#1E3932', '#006241'];
+  const pcBg = PC_GREEN_PALETTE[realIdx % PC_GREEN_PALETTE.length];
   const ytId = getBannerYoutubeId(b.youtube);
   const directVideo = b.video_url || '';
 
@@ -41,7 +45,7 @@ function HeroBannerClassic({ banners, isAdmin, onEdit, onSelectBanner }) {
     if (onSelectBanner) onSelectBanner(b);
   }
 
-  return React.createElement('div', { style:{ position:'relative', overflow:'hidden', height:'320px', background: b.bg } },
+  return React.createElement('div', { style:{ position:'relative', overflow:'hidden', height:'320px', background: pcBg } },
     // 배경 동영상
     directVideo && React.createElement('video', {
       src: directVideo, autoPlay:true, muted:true, loop:true, playsInline:true, preload:'metadata',
@@ -72,7 +76,7 @@ function HeroBannerClassic({ banners, isAdmin, onEdit, onSelectBanner }) {
         React.createElement('div', { style:{ fontSize:'36px', fontWeight:'800', color:'#fff', letterSpacing:'-0.2px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif' } }, b.title),
         b.cta && React.createElement('button', {
           onClick: handleCtaClick,
-          style:{ marginTop:'16px', background:'#fff', color: b.bg, border:'none', borderRadius:'8px', padding:'10px 22px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+          style:{ marginTop:'16px', background:'#fff', color: pcBg, border:'none', borderRadius:'8px', padding:'10px 22px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
         }, b.cta)
       ),
       b.label && React.createElement('div', { style:{ flexShrink:0, marginLeft:'16px' } },
@@ -91,7 +95,7 @@ function HeroBannerClassic({ banners, isAdmin, onEdit, onSelectBanner }) {
     ),
     isAdmin && React.createElement('button', {
       onClick: function(e){ e.stopPropagation(); onEdit && onEdit(); },
-      style:{ position:'absolute', top:'14px', right:'14px', zIndex:4, background:'rgba(248,181,0,0.9)', color:'#fff', border:'none', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+      style:{ position:'absolute', top:'14px', right:'14px', zIndex:4, background:'rgba(203,162,88,0.9)', color:'#fff', border:'none', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
     }, '✏ 배너 편집')
   );
 }
@@ -324,9 +328,11 @@ function HeroBanner({ banners, isAdmin, onEdit, onSelectBanner }) {
 
 function BannerDetailPage({ banner, onBack, setPage }) {
   const isMobile = useIsMobile();
+  const PAGE_BG = isMobile ? '#f8fafc' : '#f2f0eb';
   const ytId = getBannerYoutubeId(banner.youtube);
   const directVideo = banner.video_url || '';
-  const accent = banner.bg || '#E60012';
+  // PC는 그린 톤 강제, PWA는 DB의 banner.bg 사용
+  const accent = isMobile ? (banner.bg || '#E60012') : '#006241';
 
   function handleCta() {
     var dest = banner.link_to || banner.linkPage || banner.link || '';
@@ -335,7 +341,7 @@ function BannerDetailPage({ banner, onBack, setPage }) {
     if (setPage) setPage(dest);
   }
 
-  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
+  return React.createElement('div', { style:{ background: PAGE_BG, minHeight:'80vh' } },
     React.createElement('div', { style:{ height:'4px', background: accent } }),
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
       React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color: accent, fontFamily:'Manrope, sans-serif' } }, '← 홈으로')
@@ -376,11 +382,23 @@ function BannerDetailPage({ banner, onBack, setPage }) {
 
 function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelectNotice, slides }) {
   const isMobile = useIsMobile();
+  // PC는 예전 스타벅스 그린 톤, PWA(모바일)는 현재 메가스터디 톤
+  const PAGE_BG = isMobile ? '#f8fafc' : '#f2f0eb';
+  const ACCENT = isMobile ? '#E60012' : '#006241';
+  const ACCENT_BG = isMobile ? '#FFEBED' : '#d4e9e2';
+  const GOLD_BTN_LIGHT_BG = isMobile ? 'rgba(248,181,0,0.15)' : 'rgba(203,162,88,0.15)';
+  const GOLD_BTN_COLOR = isMobile ? '#F8B500' : '#cba258';
   const [slideIdx, setSlideIdx] = React.useState(0);
-  const defaultSlides = [
-    { bg:'#1A1A1A', text1:'최고의 결과를 만든다', text2:'B2빅뱅 학습 시스템', accent:'2027 합격이 보인다', image:'', youtube:'' },
-    { bg:'#E60012', text1:'체계적인 커리큘럼', text2:'전문 강사진의 1:1 관리', accent:'목표 대학을 향해', image:'', youtube:'' },
-  ];
+  // PC 슬라이드는 그린 톤으로 fallback (기본 슬라이드)
+  const defaultSlides = isMobile
+    ? [
+        { bg:'#1A1A1A', text1:'최고의 결과를 만든다', text2:'B2빅뱅 학습 시스템', accent:'2027 합격이 보인다', image:'', youtube:'' },
+        { bg:'#E60012', text1:'체계적인 커리큘럼', text2:'전문 강사진의 1:1 관리', accent:'목표 대학을 향해', image:'', youtube:'' },
+      ]
+    : [
+        { bg:'#1E3932', text1:'최고의 결과를 만든다', text2:'B2빅뱅 학습 시스템', accent:'2027 합격이 보인다', image:'', youtube:'' },
+        { bg:'#006241', text1:'체계적인 커리큘럼', text2:'전문 강사진의 1:1 관리', accent:'목표 대학을 향해', image:'', youtube:'' },
+      ];
   const allSlides = (slides && slides.length) ? slides : defaultSlides;
 
   React.useEffect(() => {
@@ -389,6 +407,9 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
   }, [allSlides.length]);
 
   const s = allSlides[slideIdx];
+  // PC 슬라이드 배경: index.html INITIAL_STATE의 메가스터디 톤(#1A1A1A/#E60012) 무시하고 그린 팔레트 사용
+  const PC_SLIDE_PALETTE = ['#1E3932', '#006241'];
+  const slideBg = isMobile ? s.bg : PC_SLIDE_PALETTE[slideIdx % PC_SLIDE_PALETTE.length];
 
   function getYoutubeId(url) {
     if (!url) return null;
@@ -397,9 +418,9 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
   }
   const ytId = getYoutubeId(s.youtube);
 
-  return React.createElement('div', { style: { background:'#f8fafc', padding: isMobile ? '16px' : '24px 40px', overflow:'hidden' } },
+  return React.createElement('div', { style: { background: PAGE_BG, padding: isMobile ? '16px' : '24px 40px', overflow:'hidden' } },
     React.createElement('div', { style: { maxWidth:'1280px', margin:'0 auto', display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', width:'100%', alignItems:'stretch' } },
-      !isMobile && React.createElement('div', { style: { borderRadius:'12px', overflow:'hidden', position:'relative', minHeight:'280px', background: s.bg } },
+      !isMobile && React.createElement('div', { style: { borderRadius:'12px', overflow:'hidden', position:'relative', minHeight:'280px', background: slideBg } },
         // 배경 이미지
         s.image && React.createElement('div', { style:{ position:'absolute', inset:0, backgroundImage:`url(${s.image})`, backgroundSize:'cover', backgroundPosition:'center', opacity:0.6 } }),
         // 유튜브 임베드
@@ -418,7 +439,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
       ),
       React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
         React.createElement('div', { style:{ background: isMobile ? '#eef2f7' : '#fff', borderRadius:'12px', padding:'16px', boxShadow: isMobile ? 'none' : '0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden' } },
-          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom: isMobile ? '10px' : '6px', fontFamily:'Manrope, sans-serif' } }, 'B2빅뱅 학습 시스템'),
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color: ACCENT, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom: isMobile ? '10px' : '6px', fontFamily:'Manrope, sans-serif' } }, 'B2빅뱅 학습 시스템'),
           !isMobile && React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', lineHeight:'1.4', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, '최고의 강사가 모인다\n최고의 합격이 보인다'),
           React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap: isMobile ? '14px' : '8px' } },
             notices.slice(0,4).map((n,i) =>
@@ -426,7 +447,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
                 onMouseEnter:e=>e.currentTarget.style.opacity='0.7',
                 onMouseLeave:e=>e.currentTarget.style.opacity='1' },
                 React.createElement('div', { style:{ display:'flex', gap:'6px', alignItems:'center', flex:1, minWidth:0, overflow:'hidden' } },
-                  React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 6px', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, n.type),
+                  React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background: ACCENT_BG, color: ACCENT, borderRadius:'4px', padding:'2px 6px', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, n.type),
                   React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, n.text)
                 ),
                 !isMobile && React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0, marginLeft:'8px', whiteSpace:'nowrap' } }, n.date)
@@ -439,7 +460,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
           ? React.createElement('div', null,
               React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' } },
                 React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '공지사항'),
-                isAdmin && React.createElement('button', { onClick:onEditNotices, style:{ background:'rgba(248,181,0,0.15)', color:'#F8B500', border:'1px solid #F8B500', borderRadius:'8px', padding:'3px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
+                isAdmin && React.createElement('button', { onClick:onEditNotices, style:{ background: GOLD_BTN_LIGHT_BG, color: GOLD_BTN_COLOR, border:`1px solid ${GOLD_BTN_COLOR}`, borderRadius:'8px', padding:'3px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
               ),
               React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' } },
                 announcements.slice(0,4).map(function(a, i) {
@@ -472,7 +493,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
           : React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden' } },
               React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' } },
                 React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '공지사항'),
-                isAdmin && React.createElement('button', { onClick:onEditNotices, style:{ background:'rgba(248,181,0,0.15)', color:'#F8B500', border:'1px solid #F8B500', borderRadius:'8px', padding:'3px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
+                isAdmin && React.createElement('button', { onClick:onEditNotices, style:{ background: GOLD_BTN_LIGHT_BG, color: GOLD_BTN_COLOR, border:`1px solid ${GOLD_BTN_COLOR}`, borderRadius:'8px', padding:'3px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
               ),
               React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'7px' } },
                 announcements.slice(0,4).map(function(a, i) {
@@ -493,6 +514,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
 
 function StatsBand() {
   const isMobile = useIsMobile();
+  const ACCENT = isMobile ? '#E60012' : '#006241';
   const stats = [
     { val:'10+', label:'년 교육 경험' },
     { val:'국·영·수·과', label:'전 과목 전문 강사진' },
@@ -503,7 +525,7 @@ function StatsBand() {
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:'16px', textAlign:'center' } },
       stats.map((s,i) =>
         React.createElement('div', { key:i, style:{ padding:'8px 0' } },
-          React.createElement('div', { style:{ fontSize: isMobile ? '26px' : '34px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, s.val),
+          React.createElement('div', { style:{ fontSize: isMobile ? '26px' : '34px', fontWeight:'800', color: ACCENT, fontFamily:'Manrope, sans-serif' } }, s.val),
           React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginTop:'4px' } }, s.label)
         )
       )
@@ -513,14 +535,17 @@ function StatsBand() {
 
 function FeatureBand({ setPage, isAdmin, content, onEdit }) {
   const isMobile = useIsMobile();
-  return React.createElement('div', { style:{ background:'#1A1A1A', padding: isMobile ? '40px 16px' : '56px 40px', position:'relative' } },
+  const BAND_BG = isMobile ? '#1A1A1A' : '#1E3932';
+  const ACCENT = isMobile ? '#E60012' : '#006241';
+  const GOLD_BTN_BG = isMobile ? 'rgba(248,181,0,0.9)' : 'rgba(203,162,88,0.9)';
+  return React.createElement('div', { style:{ background: BAND_BG, padding: isMobile ? '40px 16px' : '56px 40px', position:'relative' } },
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'space-between', gap: isMobile ? '20px' : '40px' } },
       React.createElement('div', null,
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, content.featureEyebrow || '지금 등록하면'),
         React.createElement('div', { style:{ fontSize: isMobile ? '30px' : '38px', fontWeight:'800', color:'#fff', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, content.featureTitle || '첫 달 수강료\n50% 할인'),
         React.createElement('div', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.65)', lineHeight:'1.7', marginBottom:'24px', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line' } }, content.featureBody || '신규 등록생 한정 · 선착순 마감\n지금 바로 문의해 주세요'),
         React.createElement('div', { style:{ display:'flex', gap:'12px', flexWrap:'wrap' } },
-          React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#fff', color:'#E60012', border:'1px solid #fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
+          React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#fff', color: ACCENT, border:'1px solid #fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
             onMouseDown:e=>e.currentTarget.style.transform='scale(0.95)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' },
             content.featureCta1 || '지금 문의하기'
           ),
@@ -539,13 +564,16 @@ function FeatureBand({ setPage, isAdmin, content, onEdit }) {
         )
       )
     ),
-    isAdmin && React.createElement('button', { onClick:onEdit, style:{ position:'absolute', top:'12px', right:'12px', background:'rgba(248,181,0,0.9)', color:'#fff', border:'none', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
+    isAdmin && React.createElement('button', { onClick:onEdit, style:{ position:'absolute', top:'12px', right:'12px', background: GOLD_BTN_BG, color:'#fff', border:'none', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
   );
 }
 
 /* ── Notice Detail Page ─────────────────────── */
 function NoticeDetailPage({ notice, onBack, setPage }) {
   const isMobile = useIsMobile();
+  const PAGE_BG = isMobile ? '#f8fafc' : '#f2f0eb';
+  const ACCENT = isMobile ? '#E60012' : '#006241';
+  const ACCENT_BG = isMobile ? '#FFEBED' : '#d4e9e2';
 
   function getYoutubeId(url) {
     if (!url) return null;
@@ -563,15 +591,15 @@ function NoticeDetailPage({ notice, onBack, setPage }) {
     if (setPage) setPage(dest);
   }
 
-  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
+  return React.createElement('div', { style:{ background: PAGE_BG, minHeight:'80vh' } },
     // 뒤로가기
     React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
-      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color:'#E60012', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } }, '← 목록으로')
+      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color: ACCENT, fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } }, '← 목록으로')
     ),
     // 본문
     React.createElement('div', { style:{ maxWidth:'720px', margin:'0 auto', padding: isMobile ? '24px 16px' : '40px' } },
       // 카테고리 뱃지 (notices만)
-      notice.type && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'3px 8px', fontFamily:'Manrope, sans-serif', display:'inline-block', marginBottom:'12px' } }, notice.type),
+      notice.type && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background: ACCENT_BG, color: ACCENT, borderRadius:'4px', padding:'3px 8px', fontFamily:'Manrope, sans-serif', display:'inline-block', marginBottom:'12px' } }, notice.type),
       // 카드 이미지 (announcements에 image 있을 때)
       notice.image && React.createElement('div', { style:{ marginBottom:'18px', borderRadius:'12px', overflow:'hidden', aspectRatio:'10/13', maxWidth:'360px', background:'#000' } },
         React.createElement('img', { src: notice.image, alt: notice.title || '', style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' } })
@@ -590,9 +618,9 @@ function NoticeDetailPage({ notice, onBack, setPage }) {
       React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap', marginTop:'8px' } },
         notice.cta && React.createElement('button', {
           onClick: handleCta,
-          style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'14px 28px', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+          style:{ display:'inline-flex', alignItems:'center', gap:'8px', background: ACCENT, color:'#fff', border:'none', borderRadius:'10px', padding:'14px 28px', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
         }, notice.cta),
-        notice.link && !notice.cta && React.createElement('a', { href:notice.link, target:'_blank', rel:'noopener noreferrer', style:{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#E60012', color:'#fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', fontFamily:'Manrope, sans-serif', textDecoration:'none' } }, '🔗 자세히 보기')
+        notice.link && !notice.cta && React.createElement('a', { href:notice.link, target:'_blank', rel:'noopener noreferrer', style:{ display:'inline-flex', alignItems:'center', gap:'8px', background: ACCENT, color:'#fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', fontFamily:'Manrope, sans-serif', textDecoration:'none' } }, '🔗 자세히 보기')
       )
     )
   );
