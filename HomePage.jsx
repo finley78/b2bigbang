@@ -547,6 +547,7 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
   const [tests, setTests] = React.useState([]);
   const [loaded, setLoaded] = React.useState(false);
   const [formOpen, setFormOpen] = React.useState(false);
+  const [signupPromptOpen, setSignupPromptOpen] = React.useState(false);
   const [draft, setDraft] = React.useState({ school_level:'중', grade:'', semester:'', score:'' });
   const [submitting, setSubmitting] = React.useState(false);
   const [myReqs, setMyReqs] = React.useState({});
@@ -582,7 +583,7 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
 
   function openForm() {
     if (tests.length === 0) { alert('현재 신청 가능한 레벨테스트가 없습니다.\n곧 새로운 시험이 등록될 예정입니다.'); return; }
-    if (!user) { alert('로그인 후 신청할 수 있습니다.'); if (onLoginClick) onLoginClick(); return; }
+    if (!user) { setSignupPromptOpen(true); return; }
     setDraft({ school_level:'중', grade:'', semester:'', score:'' });
     setFormOpen(true);
   }
@@ -630,6 +631,20 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
       React.createElement('div', { style:{ display:'flex', gap:'10px', flexShrink:0, flexWrap:'wrap' } },
         hasMyReq && React.createElement('button', { onClick:function(){ if (setPage) setPage('portal'); }, style:{ background:'transparent', color:'#fff', border:'1px solid rgba(255,255,255,0.55)', borderRadius:'10px', padding:'12px 22px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '내 신청 보기'),
         React.createElement('button', { onClick:openForm, style:{ background:'#fff', color:'#1d4ed8', border:'none', borderRadius:'10px', padding:'12px 26px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 8px 20px rgba(0,0,0,0.18)', opacity: hasTests ? 1 : 0.85 } }, hasMyReq ? '추가 신청' : '레벨테스트 신청')
+      )
+    ),
+
+    /* 회원가입 안내 모달 (비로그인 사용자가 신청 시도) */
+    signupPromptOpen && React.createElement('div', { onClick:function(){ setSignupPromptOpen(false); }, style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' } },
+      React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'16px', padding:'32px 28px', width:'100%', maxWidth:'400px', boxShadow:'0 20px 60px rgba(0,0,0,0.25)', fontFamily:'Manrope, sans-serif', textAlign:'center' } },
+        React.createElement('div', { style:{ fontSize:'42px', marginBottom:'10px' } }, '🔒'),
+        React.createElement('h3', { style:{ fontSize:'20px', fontWeight:'800', color:'#111827', margin:'4px 0 8px' } }, '회원가입이 필요합니다'),
+        React.createElement('p', { style:{ fontSize:'14px', color:'#6b7280', lineHeight:'1.7', marginBottom:'22px' } }, '레벨테스트는 학원 회원만 신청할 수 있습니다.\n간단한 회원가입 후 본인에게 맞는 시험을 무료로 응시해 보세요.'),
+        React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+          React.createElement('button', { onClick:function(){ setSignupPromptOpen(false); if (setPage) setPage('signup'); }, style:{ background:'#1d4ed8', color:'#fff', border:'none', borderRadius:'10px', padding:'14px', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '회원가입하기'),
+          React.createElement('button', { onClick:function(){ setSignupPromptOpen(false); if (onLoginClick) onLoginClick(); }, style:{ background:'#fff', color:'#1d4ed8', border:'1px solid #1d4ed8', borderRadius:'10px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '이미 회원이신가요? 로그인'),
+          React.createElement('button', { onClick:function(){ setSignupPromptOpen(false); }, style:{ background:'none', color:'#9ca3af', border:'none', padding:'8px', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '닫기')
+        )
       )
     ),
 
