@@ -125,6 +125,8 @@ const [adminScrLoading, setAdminScrLoading] = React.useState(false);
 const [adminScrTeacherFilter, setAdminScrTeacherFilter] = React.useState('전체');
 // 레벨테스트
 const [adminLevelTests, setAdminLevelTests] = React.useState([]);
+const [aboutDraft, setAboutDraft] = React.useState(null);
+const [aboutSaving, setAboutSaving] = React.useState(false);
 const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); // { exam_id: [requests] }
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
@@ -260,6 +262,25 @@ async function deleteAdminAttachment(att) {
     await sb.from('attachments').delete().eq('id', att.id);
     await loadAdminAttachments();
   } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+}
+
+async function loadAboutContent() {
+  var sb = window.supabase;
+  try {
+    var { data } = await sb.from('site_content').select('value').eq('key', 'about').maybeSingle();
+    setAboutDraft(data && data.value ? data.value : {});
+  } catch (e) { console.error('학원안내 로드 실패:', e); setAboutDraft({}); }
+}
+async function saveAboutContent() {
+  if (!aboutDraft) return;
+  setAboutSaving(true);
+  var sb = window.supabase;
+  try {
+    var { error } = await sb.from('site_content').upsert({ key:'about', value: aboutDraft, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    alert('학원안내 콘텐츠가 저장되었습니다.');
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+  finally { setAboutSaving(false); }
 }
 
 async function loadAdminLevelTests() {
@@ -753,10 +774,11 @@ const tabs = [
 { id:'schedule',label:'학원 일정' },
 { id:'leveltest',label:'레벨테스트' },
 { id:'feature', label:'섹션 편집' },
+{ id:'about',   label:'학원안내 편집' },
 ];
 
 const tabGroups = [
-{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature'] },
+{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about'] },
 { id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
 { id:'students', label:'수강생',    tabs:['enrollee','views','analysis'] },
 { id:'academy',  label:'학원 관리', tabs:['leveltest','member','schedule','files'] },
@@ -872,7 +894,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'8px 14px', fontSize:'13px', display:'inline-flex', alignItems:'center' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'about') loadAboutContent(); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -3055,6 +3077,104 @@ tab==='leveltest' && React.createElement('div', null,
         React.createElement('button', { onClick:adminCloseLtForm, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor:'pointer' } }, '취소'),
         React.createElement('button', { onClick:adminSubmitLevelTest, disabled:adminLtUploading, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: adminLtUploading?'not-allowed':'pointer', opacity: adminLtUploading ? 0.6 : 1 } }, adminLtUploading ? (adminLtDraft.id ? '저장 중...' : '발행 중...') : (adminLtDraft.id ? '수정 저장' : '발행'))
       )
+    )
+  )
+),
+
+/* ── 학원안내 편집 TAB ── */
+tab==='about' && React.createElement('div', null,
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
+    React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '학원안내 페이지 편집'),
+    React.createElement('button', { onClick: saveAboutContent, disabled: aboutSaving || !aboutDraft, style:{ background: aboutSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: aboutSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, aboutSaving ? '저장 중...' : '변경사항 저장')
+  ),
+  React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } }, '학원안내 페이지 콘텐츠를 직접 수정합니다. 저장 후 학원안내 페이지를 새로고침하면 반영됩니다.'),
+  !aboutDraft ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
+  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'18px' } },
+    /* 히어로 섹션 */
+    React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
+      React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'12px', color:'#1A1A1A' } }, '1. HERO 섹션 (메인 헤더)'),
+      ['hero_eyebrow:상단 영문 라벨', 'hero_title_1:타이틀 1행', 'hero_title_2:타이틀 강조 부분', 'hero_title_3:타이틀 끝부분', 'hero_subtitle:부제'].map(function(spec){
+        var parts = spec.split(':'); var f = parts[0]; var l = parts[1];
+        return React.createElement('div', { key:f, style:{ marginBottom:'10px' } },
+          React.createElement('label', { style:labelS }, l),
+          React.createElement('input', { value: aboutDraft[f] || '', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, (function(o){ o[f]=v; return o; })({})); }); }, style:Object.assign({}, inputS, { width:'100%' }) })
+        );
+      }),
+      React.createElement('label', { style:labelS }, '키워드 (한 줄에 하나씩)'),
+      React.createElement('textarea', { value: (aboutDraft.keywords || []).join('\n'), onChange: function(e){ var v = e.target.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean); setAboutDraft(function(p){ return Object.assign({}, p, { keywords: v }); }); }, rows:4, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
+    ),
+    /* 미션 섹션 */
+    React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
+      React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'12px', color:'#1A1A1A' } }, '2. MISSION 섹션 (학원 소개)'),
+      ['mission_eyebrow:상단 영문 라벨', 'mission_title:큰 타이틀 (줄바꿈 \\n 사용)'].map(function(spec){
+        var parts = spec.split(':'); var f = parts[0]; var l = parts[1];
+        return React.createElement('div', { key:f, style:{ marginBottom:'10px' } },
+          React.createElement('label', { style:labelS }, l),
+          React.createElement('input', { value: aboutDraft[f] || '', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, (function(o){ o[f]=v; return o; })({})); }); }, style:Object.assign({}, inputS, { width:'100%' }) })
+        );
+      }),
+      ['mission_body_1:본문 1단락', 'mission_body_2:본문 2단락'].map(function(spec){
+        var parts = spec.split(':'); var f = parts[0]; var l = parts[1];
+        return React.createElement('div', { key:f, style:{ marginBottom:'10px' } },
+          React.createElement('label', { style:labelS }, l),
+          React.createElement('textarea', { value: aboutDraft[f] || '', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, (function(o){ o[f]=v; return o; })({})); }); }, rows:3, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
+        );
+      })
+    ),
+    /* 약속 섹션 */
+    React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
+      React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'12px', color:'#1A1A1A' } }, '3. PROMISE 섹션 (우리의 약속)'),
+      React.createElement('div', { style:{ marginBottom:'10px' } },
+        React.createElement('label', { style:labelS }, '섹션 타이틀'),
+        React.createElement('input', { value: aboutDraft.promise_title || '', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, { promise_title: v }); }); }, style:Object.assign({}, inputS, { width:'100%' }) })
+      ),
+      (aboutDraft.promise_items || []).map(function(item, idx){
+        return React.createElement('div', { key:idx, style:{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'12px', marginBottom:'8px' } },
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#6b7280', marginBottom:'8px' } }, '약속 ' + (idx+1)),
+          React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'6px' } },
+            React.createElement('input', { value:item.num || '', placeholder:'번호 (예: 01)', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.promise_items || []).slice(); items[idx] = Object.assign({}, items[idx], { num:v }); return Object.assign({}, p, { promise_items: items }); }); }, style:Object.assign({}, inputS, { width:'80px' }) }),
+            React.createElement('input', { value:item.title || '', placeholder:'제목', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.promise_items || []).slice(); items[idx] = Object.assign({}, items[idx], { title:v }); return Object.assign({}, p, { promise_items: items }); }); }, style:Object.assign({}, inputS, { flex:1 }) })
+          ),
+          React.createElement('textarea', { value:item.desc || '', placeholder:'설명', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.promise_items || []).slice(); items[idx] = Object.assign({}, items[idx], { desc:v }); return Object.assign({}, p, { promise_items: items }); }); }, rows:2, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
+        );
+      })
+    ),
+    /* 과목 섹션 */
+    React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
+      React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'12px', color:'#1A1A1A' } }, '4. SUBJECTS 섹션 (개설 과목)'),
+      React.createElement('div', { style:{ marginBottom:'10px' } },
+        React.createElement('label', { style:labelS }, '섹션 타이틀'),
+        React.createElement('input', { value: aboutDraft.subjects_title || '', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, { subjects_title: v }); }); }, style:Object.assign({}, inputS, { width:'100%' }) })
+      ),
+      (aboutDraft.subjects || []).map(function(item, idx){
+        return React.createElement('div', { key:idx, style:{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'12px', marginBottom:'8px' } },
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#6b7280', marginBottom:'8px' } }, '과목 ' + (idx+1)),
+          React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'6px' } },
+            React.createElement('input', { value:item.name || '', placeholder:'한글명', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { name:v }); return Object.assign({}, p, { subjects: items }); }); }, style:Object.assign({}, inputS, { width:'90px' }) }),
+            React.createElement('input', { value:item.sub || '', placeholder:'영문', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { sub:v }); return Object.assign({}, p, { subjects: items }); }); }, style:Object.assign({}, inputS, { width:'110px' }) }),
+            React.createElement('input', { type:'color', value:item.color || '#1A1A1A', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { color:v }); return Object.assign({}, p, { subjects: items }); }); }, style:{ width:'48px', height:'34px', border:'1px solid #d6dbde', borderRadius:'4px', cursor:'pointer' } })
+          ),
+          React.createElement('textarea', { value:item.desc || '', placeholder:'설명', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { desc:v }); return Object.assign({}, p, { subjects: items }); }); }, rows:2, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
+        );
+      })
+    ),
+    /* CTA 섹션 */
+    React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
+      React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'12px', color:'#1A1A1A' } }, '5. CTA 섹션 (하단 액션)'),
+      ['cta_eyebrow:상단 영문 라벨', 'cta_title:타이틀'].map(function(spec){
+        var parts = spec.split(':'); var f = parts[0]; var l = parts[1];
+        return React.createElement('div', { key:f, style:{ marginBottom:'10px' } },
+          React.createElement('label', { style:labelS }, l),
+          React.createElement('input', { value: aboutDraft[f] || '', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, (function(o){ o[f]=v; return o; })({})); }); }, style:Object.assign({}, inputS, { width:'100%' }) })
+        );
+      }),
+      React.createElement('div', { style:{ marginBottom:'10px' } },
+        React.createElement('label', { style:labelS }, '본문'),
+        React.createElement('textarea', { value: aboutDraft.cta_body || '', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, { cta_body: v }); }); }, rows:2, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
+      )
+    ),
+    React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', gap:'8px' } },
+      React.createElement('button', { onClick: saveAboutContent, disabled: aboutSaving, style:{ background: aboutSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'800', cursor: aboutSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, aboutSaving ? '저장 중...' : '변경사항 저장')
     )
   )
 ),
