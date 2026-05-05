@@ -138,12 +138,23 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
   const [filterLevel, setFilterLevel] = React.useState('전체');
   const [filterGrade, setFilterGrade] = React.useState('전체');
   const [filterSubject, setFilterSubject] = React.useState('전체');
+  const [pgContent, setPgContent] = React.useState(null);
   const SERVICE_LEVELS = { '초등': ['1학년','2학년','3학년','4학년','5학년','6학년'], '중등': ['중1','중2','중3'], '고등': ['고1','고2','고3'] };
   React.useEffect(() => {
     function onResize() { setIsMobileState(window.innerWidth < 768); }
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const sb = window.supabase;
+        const { data } = await sb.from('site_content').select('value').eq('key', 'programs').maybeSingle();
+        if (data && data.value) setPgContent(data.value);
+      } catch (e) { console.error('프로그램 콘텐츠 로드 실패:', e); }
+    })();
+  }, []);
+  const pc = pgContent || {};
   const isMob = isMobileState;
   const programs = courses && courses.length ? courses : [
     { id:1, subject:'수학', color:'#E60012', grade:'고1·2·3', name:'수능 수학 완성반', desc:'수능 수학 전 범위를 체계적으로 완성. 개념→유형→실전 3단계 구성', days:3, duration:90, price:'280,000원', badge:'인기', teacher:'김민준 강사' },
@@ -177,15 +188,15 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
   });
 
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
-    React.createElement('div', { style:{ background:'#1A1A1A', padding: isMob ? '32px 16px' : '56px 40px' } },
+    React.createElement('div', { style:{ background: pc.header_image ? `linear-gradient(135deg, rgba(26,26,26,0.85), rgba(58,0,7,0.85)), url(${pc.header_image}) center/cover no-repeat` : '#1A1A1A', padding: isMob ? '32px 16px' : '56px 40px' } },
       React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } },
-        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'Programs'),
-        React.createElement('h1', { style:{ fontSize:'44px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, 'B2빅뱅학원\n프로그램 안내'),
-        React.createElement('p', { style:{ fontSize:'16px', color:'rgba(255,255,255,0.65)', letterSpacing:'-0.01em', fontFamily:'Manrope, sans-serif' } }, '수능·내신·특기 전 과목 전문 강사진과 함께')
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, pc.header_eyebrow || 'Programs'),
+        React.createElement('h1', { style:{ fontSize:'44px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, pc.header_title || 'B2빅뱅학원\n프로그램 안내'),
+        React.createElement('p', { style:{ fontSize:'16px', color:'rgba(255,255,255,0.65)', letterSpacing:'-0.01em', fontFamily:'Manrope, sans-serif' } }, pc.header_subtitle || '수능·내신·특기 전 과목 전문 강사진과 함께')
       )
     ),
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', padding: isMob ? '24px 16px' : '40px 40px' } },
-      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#E60012', letterSpacing:'-0.16px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '강좌 목록'),
+      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#E60012', letterSpacing:'-0.16px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, pc.list_title || '강좌 목록'),
       // 필터: 초중고 / 학년 / 과목
       !isMockData && React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'18px' } },
         React.createElement('select', {

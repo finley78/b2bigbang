@@ -126,6 +126,8 @@ const [adminScrTeacherFilter, setAdminScrTeacherFilter] = React.useState('전체
 const [adminLevelTests, setAdminLevelTests] = React.useState([]);
 const [aboutDraft, setAboutDraft] = React.useState(null);
 const [aboutSaving, setAboutSaving] = React.useState(false);
+const [programsDraft, setProgramsDraft] = React.useState(null);
+const [programsSaving, setProgramsSaving] = React.useState(false);
 const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); // { exam_id: [requests] }
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
@@ -270,6 +272,35 @@ async function loadAboutContent() {
     setAboutDraft(data && data.value ? data.value : {});
   } catch (e) { console.error('학원안내 로드 실패:', e); setAboutDraft({}); }
 }
+async function loadProgramsContent() {
+  var sb = window.supabase;
+  try {
+    var { data } = await sb.from('site_content').select('value').eq('key', 'programs').maybeSingle();
+    setProgramsDraft(data && data.value ? data.value : {});
+  } catch (e) { console.error('프로그램 로드 실패:', e); setProgramsDraft({}); }
+}
+async function saveProgramsContent() {
+  if (!programsDraft) return;
+  setProgramsSaving(true);
+  var sb = window.supabase;
+  try {
+    var { error } = await sb.from('site_content').upsert({ key:'programs', value: programsDraft, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    alert('프로그램 콘텐츠가 저장되었습니다.');
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+  finally { setProgramsSaving(false); }
+}
+async function uploadProgramsImage(file, key) {
+  if (!file) return null;
+  var sb = window.supabase;
+  var ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  var path = 'programs/' + key + '_' + Date.now() + '.' + ext;
+  var up = await sb.storage.from('attachments').upload(path, file, { cacheControl:'3600', upsert:false });
+  if (up.error) throw up.error;
+  var { data } = sb.storage.from('attachments').getPublicUrl(path);
+  return data && data.publicUrl ? data.publicUrl : null;
+}
+
 async function uploadAboutImage(file, key) {
   if (!file) return null;
   var sb = window.supabase;
@@ -784,10 +815,11 @@ const tabs = [
 { id:'leveltest',label:'레벨테스트' },
 { id:'feature', label:'섹션 편집' },
 { id:'about',   label:'학원안내 편집' },
+{ id:'programs',label:'프로그램 편집' },
 ];
 
 const tabGroups = [
-{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about'] },
+{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about','programs'] },
 { id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
 { id:'students', label:'수강생',    tabs:['enrollee','views','analysis'] },
 { id:'academy',  label:'학원 관리', tabs:['leveltest','member','schedule','files'] },
@@ -902,7 +934,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'8px 14px', fontSize:'13px', display:'inline-flex', alignItems:'center' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'about') loadAboutContent(); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -3201,6 +3233,45 @@ tab==='about' && React.createElement('div', null,
     ),
     React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', gap:'8px' } },
       React.createElement('button', { onClick: saveAboutContent, disabled: aboutSaving, style:{ background: aboutSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'800', cursor: aboutSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, aboutSaving ? '저장 중...' : '변경사항 저장')
+    )
+  )
+),
+
+/* ── 프로그램 편집 TAB ── */
+tab==='programs' && React.createElement('div', null,
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
+    React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '프로그램 페이지 편집'),
+    React.createElement('button', { onClick: saveProgramsContent, disabled: programsSaving || !programsDraft, style:{ background: programsSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: programsSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, programsSaving ? '저장 중...' : '변경사항 저장')
+  ),
+  React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } }, '프로그램 페이지의 헤더와 안내 텍스트를 수정합니다. 강좌 목록은 \'강좌 관리\' 탭에서 별도 관리됩니다.'),
+  !programsDraft ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
+  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'18px' } },
+    React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
+      React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'12px', color:'#1A1A1A' } }, '헤더'),
+      ['header_eyebrow:상단 영문 라벨', 'header_title:타이틀 (줄바꿈 \\n 사용)', 'header_subtitle:부제'].map(function(spec){
+        var parts = spec.split(':'); var f = parts[0]; var l = parts[1];
+        return React.createElement('div', { key:f, style:{ marginBottom:'10px' } },
+          React.createElement('label', { style:labelS }, l),
+          React.createElement('input', { value: programsDraft[f] || '', onChange: function(e){ var v = e.target.value; setProgramsDraft(function(p){ return Object.assign({}, p, (function(o){ o[f]=v; return o; })({})); }); }, style:Object.assign({}, inputS, { width:'100%' }) })
+        );
+      }),
+      React.createElement('label', { style:labelS }, '헤더 배경 이미지 (선택)'),
+      programsDraft.header_image && React.createElement('img', { src: programsDraft.header_image, alt:'', style:{ width:'160px', height:'90px', objectFit:'cover', borderRadius:'6px', marginBottom:'6px', display:'block' } }),
+      React.createElement('input', { type:'file', accept:'image/*', onChange: async function(e){ var f = e.target.files && e.target.files[0]; if (!f) return; try { var url = await uploadProgramsImage(f, 'header'); if (url) setProgramsDraft(function(p){ return Object.assign({}, p, { header_image: url }); }); } catch(err){ alert('업로드 실패: ' + (err.message||err)); } }, style:{ fontSize:'12px' } }),
+      programsDraft.header_image && React.createElement('button', { onClick: function(){ setProgramsDraft(function(p){ return Object.assign({}, p, { header_image:'' }); }); }, style:{ marginLeft:'8px', background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '이미지 제거')
+    ),
+    React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
+      React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'12px', color:'#1A1A1A' } }, '강좌 목록 영역'),
+      ['list_title:강좌 목록 섹션 타이틀', 'empty_text:강좌 없을 때 안내 문구'].map(function(spec){
+        var parts = spec.split(':'); var f = parts[0]; var l = parts[1];
+        return React.createElement('div', { key:f, style:{ marginBottom:'10px' } },
+          React.createElement('label', { style:labelS }, l),
+          React.createElement('input', { value: programsDraft[f] || '', onChange: function(e){ var v = e.target.value; setProgramsDraft(function(p){ return Object.assign({}, p, (function(o){ o[f]=v; return o; })({})); }); }, style:Object.assign({}, inputS, { width:'100%' }) })
+        );
+      })
+    ),
+    React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end' } },
+      React.createElement('button', { onClick: saveProgramsContent, disabled: programsSaving, style:{ background: programsSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'800', cursor: programsSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, programsSaving ? '저장 중...' : '변경사항 저장')
     )
   )
 ),
