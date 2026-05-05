@@ -79,7 +79,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [examList, setExamList] = React.useState([]);
   const [examLoading, setExamLoading] = React.useState(false);
   const [examFormOpen, setExamFormOpen] = React.useState(false);
-  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
+  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
   const [examUploading, setExamUploading] = React.useState(false);
   const [examSubmissionsByExam, setExamSubmissionsByExam] = React.useState({}); // { exam_id: [submissions] }
 
@@ -1017,7 +1017,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return data?.publicUrl || '';
   }
   function openExamForm() {
-    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
+    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
     setExamFormOpen(true);
   }
   function closeExamForm() {
@@ -1065,6 +1065,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         text_question_count: tqc,
         allow_text_answer: tqc > 0,
         time_limit_minutes: tlm,
+        answer_key: d.answer_key || {},
+        objective_total: qc,
         status: 'open',
       };
       var { error } = await sb.from('exams').insert(insertRow);
@@ -1566,6 +1568,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                                 }
                                 return null;
                               })()}
+                              {/* 채점 폼 */}
+                              {window.GradingForm && React.createElement(window.GradingForm, { exam: ex, submission: s, onSave: async (sid, payload) => {
+                                payload.graded_at = new Date().toISOString();
+                                try { await sb.from('exam_submissions').update(payload).eq('id', sid); alert('채점이 저장되었습니다.'); await loadClassExams(selectedClass?.id); } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+                              } })}
                             </div>
                           ))}
                         </div>
@@ -1634,6 +1641,38 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     <input type="number" min="0" value={examDraft.time_limit_minutes} onChange={e => setExamDraft({ ...examDraft, time_limit_minutes: e.target.value })} placeholder="예: 50" style={inputStyle} />
                   </div>
                 </div>
+
+                {/* 객관식 정답 입력 (자동 채점용) */}
+                {(parseInt(examDraft.question_count, 10) || 0) > 0 && (
+                  <div style={{ marginBottom:'14px' }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>객관식 정답 (자동 채점에 사용, 비워두면 자동 채점 X)</label>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(80px, 1fr))', gap:'6px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' }}>
+                      {Array.from({ length: parseInt(examDraft.question_count, 10) || 0 }).map((_, i) => {
+                        const num = i + 1;
+                        const cpq = parseInt(examDraft.choices_per_question, 10) || 5;
+                        return (
+                          <div key={num} style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                            <span style={{ fontSize:'12px', fontWeight:'700', color:'#6b7280', minWidth:'22px', textAlign:'right' }}>{num}.</span>
+                            <select value={(examDraft.answer_key && examDraft.answer_key[num]) || ''} onChange={e => {
+                              const v = e.target.value;
+                              setExamDraft(p => {
+                                const ak = Object.assign({}, p.answer_key || {});
+                                if (v) ak[num] = v; else delete ak[num];
+                                return Object.assign({}, p, { answer_key: ak });
+                              });
+                            }} style={{ flex:1, border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
+                              <option value="">-</option>
+                              {Array.from({ length: cpq }).map((_, ci) => {
+                                const v = String(ci+1);
+                                return <option key={v} value={v}>{v}</option>;
+                              })}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ display:'flex', gap:'8px', marginTop:'8px' }}>
                   <button onClick={closeExamForm} style={{ ...lightButtonStyle, flex:1 }}>취소</button>
