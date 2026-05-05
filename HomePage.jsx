@@ -582,7 +582,6 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
   }
 
   function openForm() {
-    if (tests.length === 0) { alert('현재 신청 가능한 레벨테스트가 없습니다.\n곧 새로운 시험이 등록될 예정입니다.'); return; }
     if (!user) { setSignupPromptOpen(true); return; }
     setDraft({ school_level:'중', grade:'', semester:'', score:'' });
     setFormOpen(true);
