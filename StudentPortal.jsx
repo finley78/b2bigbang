@@ -1015,6 +1015,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   var [examTextAnswer, setExamTextAnswer] = React.useState('');
   var [examSubmitting, setExamSubmitting] = React.useState(false);
   var [examImgIdx, setExamImgIdx] = React.useState(0);
+  var [examTimeLeft, setExamTimeLeft] = React.useState(null); // 남은 초
+  var autoSubmitDoneRef = React.useRef(false);
 
   React.useEffect(function(){
     if (!user || !user.classIds || user.classIds.length === 0) { setAvailableExams([]); setMySubmissions({}); return; }
@@ -1046,33 +1048,115 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     setExamAnswers(existing && existing.answers ? existing.answers : {});
     setExamTextAnswer(existing && existing.text_answer ? existing.text_answer : '');
     setExamImgIdx(0);
+    autoSubmitDoneRef.current = false;
     setPortalView('exam');
   }
   function closeExam() {
     setActiveExam(null);
     setExamAnswers({});
     setExamTextAnswer('');
+    setExamTimeLeft(null);
+    autoSubmitDoneRef.current = false;
     setPortalView('main');
   }
-  async function submitExamAnswer() {
+  async function startExamSession() {
     if (!user || !activeExam) return;
-    setExamSubmitting(true);
     var sb = window.supabase;
     try {
-      var existing = mySubmissions[activeExam.id];
+      var nowIso = new Date().toISOString();
       var row = {
         exam_id: activeExam.id,
         student_id: user.id,
         student_name: user.name || '',
+        answers: {},
+        text_answer: null,
+        started_at: nowIso,
+        submitted_at: nowIso,
+        updated_at: nowIso,
+        locked: false,
+      };
+      var { data, error } = await sb.from('exam_submissions').insert(row).select().single();
+      if (error) throw error;
+      setMySubmissions(function(p){ var n = Object.assign({}, p); n[activeExam.id] = data; return n; });
+    } catch (e) {
+      alert('응시 시작 실패: ' + (e.message || e));
+    }
+  }
+  async function autoSubmitDueToTimeout() {
+    if (!user || !activeExam) return;
+    if (autoSubmitDoneRef.current) return;
+    autoSubmitDoneRef.current = true;
+    var sb = window.supabase;
+    try {
+      var existing = mySubmissions[activeExam.id];
+      if (!existing) return;
+      var row = {
         answers: examAnswers || {},
         text_answer: examTextAnswer || null,
-        submitted_at: existing ? existing.submitted_at : new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        locked: true,
       };
+      await sb.from('exam_submissions').update(row).eq('id', existing.id);
+      setMySubmissions(function(p){ var n = Object.assign({}, p); n[activeExam.id] = Object.assign({}, existing, row); return n; });
+      alert('시간이 종료되어 자동 제출되었습니다.');
+    } catch (e) { console.error('자동 제출 실패:', e); }
+  }
+
+  // 카운트다운 타이머
+  React.useEffect(function(){
+    if (portalView !== 'exam' || !activeExam || !activeExam.time_limit_minutes) {
+      setExamTimeLeft(null);
+      return;
+    }
+    var sub = activeExam ? mySubmissions[activeExam.id] : null;
+    if (!sub || !sub.started_at) { setExamTimeLeft(null); return; }
+    if (sub.locked) { setExamTimeLeft(0); return; }
+    var endMs = new Date(sub.started_at).getTime() + activeExam.time_limit_minutes * 60 * 1000;
+    function tick() {
+      var remaining = Math.max(0, Math.floor((endMs - Date.now()) / 1000));
+      setExamTimeLeft(remaining);
+      if (remaining === 0 && !autoSubmitDoneRef.current) {
+        autoSubmitDueToTimeout();
+      }
+    }
+    tick();
+    var iv = setInterval(tick, 1000);
+    return function(){ clearInterval(iv); };
+  }, [portalView, activeExam, mySubmissions, examAnswers, examTextAnswer]);
+
+  function formatTimeLeft(secs) {
+    if (secs == null) return '';
+    var m = Math.floor(secs / 60);
+    var s = secs % 60;
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  async function submitExamAnswer() {
+    if (!user || !activeExam) return;
+    var existing = mySubmissions[activeExam.id];
+    if (existing && existing.locked) { alert('시간이 종료되어 답안을 수정할 수 없습니다.'); return; }
+    setExamSubmitting(true);
+    var sb = window.supabase;
+    try {
+      var nowIso = new Date().toISOString();
+      var row;
       if (existing) {
+        row = {
+          answers: examAnswers || {},
+          text_answer: examTextAnswer || null,
+          updated_at: nowIso,
+        };
         var { error } = await sb.from('exam_submissions').update(row).eq('id', existing.id);
         if (error) throw error;
       } else {
+        row = {
+          exam_id: activeExam.id,
+          student_id: user.id,
+          student_name: user.name || '',
+          answers: examAnswers || {},
+          text_answer: examTextAnswer || null,
+          submitted_at: nowIso,
+          updated_at: nowIso,
+        };
         var { error: e2 } = await sb.from('exam_submissions').insert(row);
         if (e2) throw e2;
       }
@@ -1319,10 +1403,47 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     var imgs = Array.isArray(activeExam.image_paths) ? activeExam.image_paths : [];
     var qc = activeExam.question_count || 0;
     var existingSub = mySubmissions[activeExam.id];
+    var hasTimeLimit = (activeExam.time_limit_minutes || 0) > 0;
+    var notStarted = hasTimeLimit && !existingSub;
+    var isLocked = !!(existingSub && existingSub.locked);
+
+    // 시작 전 안내 화면 (시간 제한 있고 아직 응시 시작 전)
+    if (notStarted) {
+      return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
+        renderHeader(true),
+        React.createElement('div', { style:{ maxWidth:'640px', margin:'0 auto', padding:'24px 16px' } },
+          React.createElement('button', { onClick:closeExam, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '← 돌아가기'),
+          React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'32px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', border:'2px solid #1A1A1A', textAlign:'center' } },
+            React.createElement('div', { style:{ fontSize:'38px', marginBottom:'10px' } }, '⏱️'),
+            React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', margin:'4px 0', fontFamily:'Manrope, sans-serif' } }, activeExam.title),
+            activeExam.subject && React.createElement('div', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, activeExam.subject),
+            React.createElement('div', { style:{ background:'#fef3c7', border:'1px solid #F8B500', borderRadius:'10px', padding:'14px', margin:'18px 0', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('div', { style:{ fontSize:'13px', color:'#92400e', fontWeight:'700', marginBottom:'4px' } }, '시간 제한'),
+              React.createElement('div', { style:{ fontSize:'28px', fontWeight:'800', color:'#1A1A1A' } }, activeExam.time_limit_minutes + '분')
+            ),
+            activeExam.description && React.createElement('div', { style:{ fontSize:'13px', color:'#374151', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif', textAlign:'left', background:'#f9fafb', borderRadius:'8px', padding:'12px', marginBottom:'16px' } }, activeExam.description),
+            React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'18px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '응시 시작 버튼을 누르면 카운트다운이 시작되며, 시간이 종료되면 자동 제출됩니다.\n시작 후에는 시간을 멈출 수 없습니다.'),
+            React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+              React.createElement('button', { onClick:closeExam, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '취소'),
+              React.createElement('button', { onClick:startExamSession, style:{ flex:2, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'13px', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '응시 시작')
+            )
+          )
+        )
+      );
+    }
+
     return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
       renderHeader(true),
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
-        React.createElement('button', { onClick:closeExam, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '← 돌아가기'),
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
+          React.createElement('button', { onClick:closeExam, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '← 돌아가기'),
+          hasTimeLimit && examTimeLeft != null && React.createElement('div', { style:{
+            background: examTimeLeft <= 60 ? '#E60012' : (examTimeLeft <= 300 ? '#F8B500' : '#1A1A1A'),
+            color:'#fff', borderRadius:'10px', padding:'8px 14px',
+            fontSize:'15px', fontWeight:'800', fontFamily:'Manrope, sans-serif',
+            boxShadow:'0 4px 12px rgba(0,0,0,0.1)'
+          } }, (isLocked ? '⛔ 시간 종료 ' : '⏱ 남은 시간 ') + formatTimeLeft(examTimeLeft))
+        ),
         React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', marginBottom:'16px' } },
           React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
             activeExam.subject && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, activeExam.subject),
@@ -1383,18 +1504,18 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
                       Array.from({ length: cpq }).map(function(_, ci){
                         var val = String(ci + 1);
                         var picked = String(current) === val;
-                        return React.createElement('button', { key:ci, onClick:function(){ setExamAnswers(function(p){ var n = Object.assign({}, p); n[num] = val; return n; }); }, style:{
+                        return React.createElement('button', { key:ci, disabled: isLocked, onClick:function(){ if (isLocked) return; setExamAnswers(function(p){ var n = Object.assign({}, p); n[num] = val; return n; }); }, style:{
                           width:'32px', height:'32px', borderRadius:'50%',
                           background: picked ? '#1A1A1A' : '#fff',
                           color: picked ? '#fff' : '#374151',
                           border: '1.5px solid ' + (picked ? '#1A1A1A' : '#9ca3af'),
-                          fontSize:'14px', fontWeight:'800', cursor:'pointer',
-                          fontFamily:'Manrope, sans-serif', padding:0,
+                          fontSize:'14px', fontWeight:'800', cursor: isLocked ? 'not-allowed' : 'pointer',
+                          fontFamily:'Manrope, sans-serif', padding:0, opacity: isLocked ? 0.6 : 1,
                           display:'flex', alignItems:'center', justifyContent:'center'
                         } }, circles[ci] || (ci+1));
                       })
                     ),
-                    current && React.createElement('button', { onClick:function(){ setExamAnswers(function(p){ var n = Object.assign({}, p); delete n[num]; return n; }); }, style:{ background:'none', border:'none', color:'#9ca3af', fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✕')
+                    current && !isLocked && React.createElement('button', { onClick:function(){ setExamAnswers(function(p){ var n = Object.assign({}, p); delete n[num]; return n; }); }, style:{ background:'none', border:'none', color:'#9ca3af', fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✕')
                   );
                 })
               )
@@ -1404,13 +1525,13 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           /* 서술형 */
           activeExam.allow_text_answer && React.createElement('div', null,
             React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '서술형 답안'),
-            React.createElement('textarea', { value: examTextAnswer, onChange:function(e){ setExamTextAnswer(e.target.value); }, rows:8, placeholder:'서술형 답안을 작성해 주세요.', style:{ width:'100%', border:'1px solid #1A1A1A', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box', resize:'vertical', lineHeight:'1.7', backgroundImage: 'linear-gradient(transparent, transparent calc(1.7em - 1px), #e5e7eb calc(1.7em - 1px), #e5e7eb 1.7em)', backgroundSize: '100% 1.7em', backgroundAttachment:'local' } })
+            React.createElement('textarea', { value: examTextAnswer, disabled: isLocked, onChange:function(e){ setExamTextAnswer(e.target.value); }, rows:8, placeholder:'서술형 답안을 작성해 주세요.', style:{ width:'100%', border:'1px solid #1A1A1A', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box', resize:'vertical', lineHeight:'1.7', backgroundImage: 'linear-gradient(transparent, transparent calc(1.7em - 1px), #e5e7eb calc(1.7em - 1px), #e5e7eb 1.7em)', backgroundSize: '100% 1.7em', backgroundAttachment:'local', opacity: isLocked ? 0.7 : 1 } })
           ),
 
           /* 제출 버튼 */
           React.createElement('div', { style:{ display:'flex', gap:'8px', marginTop:'24px', borderTop:'1px solid #e5e7eb', paddingTop:'18px' } },
-            React.createElement('button', { onClick:closeExam, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '취소'),
-            React.createElement('button', { onClick:submitExamAnswer, disabled: examSubmitting, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'13px', fontSize:'14px', fontWeight:'800', cursor: examSubmitting?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', opacity: examSubmitting ? 0.6 : 1 } }, examSubmitting ? '제출 중...' : (existingSub ? '답안 수정 제출' : '답안 제출'))
+            React.createElement('button', { onClick:closeExam, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, isLocked ? '닫기' : '취소'),
+            !isLocked && React.createElement('button', { onClick:submitExamAnswer, disabled: examSubmitting, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'13px', fontSize:'14px', fontWeight:'800', cursor: examSubmitting?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', opacity: examSubmitting ? 0.6 : 1 } }, examSubmitting ? '제출 중...' : (existingSub && existingSub.started_at ? '답안 수정 제출' : '답안 제출'))
           )
         )
       )

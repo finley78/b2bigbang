@@ -79,7 +79,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [examList, setExamList] = React.useState([]);
   const [examLoading, setExamLoading] = React.useState(false);
   const [examFormOpen, setExamFormOpen] = React.useState(false);
-  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', choices_per_question:'5', allow_text_answer:true });
+  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', choices_per_question:'5', allow_text_answer:true, time_limit_minutes:'0' });
   const [examUploading, setExamUploading] = React.useState(false);
   const [examSubmissionsByExam, setExamSubmissionsByExam] = React.useState({}); // { exam_id: [submissions] }
 
@@ -1017,7 +1017,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return data?.publicUrl || '';
   }
   function openExamForm() {
-    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', allow_text_answer:true });
+    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', allow_text_answer:true, time_limit_minutes:'0' });
     setExamFormOpen(true);
   }
   function closeExamForm() {
@@ -1035,6 +1035,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (isNaN(cpq) || cpq < 2) cpq = 5;
     if (cpq > 9) cpq = 9;
     if (qc === 0 && !d.allow_text_answer) { alert('객관식 문제 수가 0이면 서술형 답안을 허용해야 합니다.'); return; }
+    var tlm = parseInt(d.time_limit_minutes, 10);
+    if (isNaN(tlm) || tlm < 0) tlm = 0;
     setExamUploading(true);
     try {
       var paths = [];
@@ -1058,6 +1060,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         question_count: qc,
         choices_per_question: cpq,
         allow_text_answer: !!d.allow_text_answer,
+        time_limit_minutes: tlm,
         status: 'open',
       };
       var { error } = await sb.from('exams').insert(insertRow);
@@ -1522,7 +1525,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         </div>
                         <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>
                           {ex.test_date && <span>시험일 {ex.test_date} · </span>}
-                          이미지 {imgs.length}장 · 객관식 {ex.question_count}문항({ex.choices_per_question || 5}지선다){ex.allow_text_answer ? ' · 서술형 허용' : ''}
+                          이미지 {imgs.length}장 · 객관식 {ex.question_count}문항({ex.choices_per_question || 5}지선다){ex.allow_text_answer ? ' · 서술형 허용' : ''}{ex.time_limit_minutes > 0 ? ' · 제한 ' + ex.time_limit_minutes + '분' : ''}
                         </div>
                         <div style={{ fontSize:'12px', color:'#374151', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>
                           제출: <strong style={{ color: submittedCount > 0 ? '#E60012' : '#6b7280' }}>{submittedCount}</strong> / {totalStudents}명
@@ -1604,6 +1607,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       {["3","4","5"].map(n => <option key={n} value={n}>{n}지선다</option>)}
                     </select>
                   </div>
+                </div>
+                <div style={{ marginBottom:'14px' }}>
+                  <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시간 제한 (분, 0 = 무제한)</label>
+                  <input type="number" min="0" value={examDraft.time_limit_minutes} onChange={e => setExamDraft({ ...examDraft, time_limit_minutes: e.target.value })} placeholder="예: 50" style={inputStyle} />
                 </div>
                 <label style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 0 14px', cursor:'pointer' }}>
                   <input type="checkbox" checked={!!examDraft.allow_text_answer} onChange={e => setExamDraft({ ...examDraft, allow_text_answer: e.target.checked })} />
