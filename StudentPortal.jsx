@@ -1558,7 +1558,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
         React.createElement('div', { style:{ maxWidth:'640px', margin:'0 auto', padding:'24px 16px' } },
           React.createElement('button', { onClick:closeExam, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '← 돌아가기'),
           React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'32px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', border:'2px solid #1A1A1A', textAlign:'center' } },
-            React.createElement('div', { style:{ fontSize:'38px', marginBottom:'10px' } }, '⏱️'),
+            React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#92400e', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px' } }, 'TIMED EXAM'),
             React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', margin:'4px 0', fontFamily:'Manrope, sans-serif' } }, activeExam.title),
             activeExam.subject && React.createElement('div', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, activeExam.subject),
             React.createElement('div', { style:{ background:'#fef3c7', border:'1px solid #F8B500', borderRadius:'10px', padding:'14px', margin:'18px 0', fontFamily:'Manrope, sans-serif' } },
@@ -1591,7 +1591,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
             color:'#fff', borderRadius:'10px', padding:'8px 14px',
             fontSize:'15px', fontWeight:'800', fontFamily:'Manrope, sans-serif',
             boxShadow:'0 4px 12px rgba(0,0,0,0.1)'
-          } }, (isLocked ? '⛔ 시간 종료 ' : '⏱ 남은 시간 ') + formatTimeLeft(examTimeLeft))
+          } }, (isLocked ? '시간 종료 ' : '남은 시간 ') + formatTimeLeft(examTimeLeft))
         ),
         React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', marginBottom:'16px' } },
           React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
@@ -1726,7 +1726,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           )
         ),
         /* 답안지 접혔을 때 floating 펼치기 버튼 (PC: answerPanel 닫힘 / 모바일: 시트 closed) */
-        ((!portalIsMobile && !answerPanelOpen) || (portalIsMobile && sheetMode === 'closed')) && React.createElement('button', { onClick:function(){ if (portalIsMobile) setSheetMode('small'); else setAnswerPanelOpen(true); }, style:{ position:'fixed', right:'20px', bottom:'20px', background:'#E60012', color:'#fff', border:'none', borderRadius:'999px', padding:'14px 22px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 10px 30px rgba(230,0,18,0.35)', zIndex: 60 } }, '📝 답안지 열기')
+        ((!portalIsMobile && !answerPanelOpen) || (portalIsMobile && sheetMode === 'closed')) && React.createElement('button', { onClick:function(){ if (portalIsMobile) setSheetMode('small'); else setAnswerPanelOpen(true); }, style:{ position:'fixed', right:'20px', bottom:'20px', background:'#E60012', color:'#fff', border:'none', borderRadius:'999px', padding:'14px 22px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 10px 30px rgba(230,0,18,0.35)', zIndex: 60 } }, '답안지 열기')
       )
     );
   }
@@ -1744,8 +1744,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           React.createElement('button', { onClick:function(){ setStudentMode('video'); setSelectedSubject(null); }, style:{
             background:'#fff', border:'2px solid #1A1A1A', borderRadius:'16px', padding:'32px 24px', textAlign:'left', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 10px 30px rgba(0,0,0,0.06)', transition:'transform 0.15s'
           } },
-            React.createElement('div', { style:{ fontSize:'42px', marginBottom:'10px' } }, '🎬'),
-            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#6b7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'4px' } }, '강의실'),
+            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#6b7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'4px' } }, '강의실 · VIDEO'),
             React.createElement('div', { style:{ fontSize:'22px', fontWeight:'800', color:'#111827', marginBottom:'6px' } }, '영상 강의'),
             React.createElement('div', { style:{ fontSize:'13px', color:'#6b7280', lineHeight:'1.6' } }, '과목별 강의 영상을 시청하고\n학습할 수 있습니다.'),
             React.createElement('div', { style:{ marginTop:'14px', fontSize:'12px', color:'#374151', fontWeight:'700' } }, '수강 과목 ' + studentSubjects.length + '개 →')
@@ -1754,8 +1753,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
             background:'#fff', border:'2px solid #E60012', borderRadius:'16px', padding:'32px 24px', textAlign:'left', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 10px 30px rgba(230,0,18,0.10)', transition:'transform 0.15s', position:'relative'
           } },
             pendingExams.length > 0 && React.createElement('span', { style:{ position:'absolute', top:'14px', right:'14px', background:'#E60012', color:'#fff', borderRadius:'999px', padding:'4px 10px', fontSize:'11px', fontWeight:'800' } }, '미응시 ' + pendingExams.length),
-            React.createElement('div', { style:{ fontSize:'42px', marginBottom:'10px' } }, '📝'),
-            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'4px' } }, '강의실'),
+            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'4px' } }, '강의실 · TEST'),
             React.createElement('div', { style:{ fontSize:'22px', fontWeight:'800', color:'#111827', marginBottom:'6px' } }, '테스트'),
             React.createElement('div', { style:{ fontSize:'13px', color:'#6b7280', lineHeight:'1.6' } }, '발행된 시험지를 보고\n답안을 작성·제출할 수 있습니다.'),
             React.createElement('div', { style:{ marginTop:'14px', fontSize:'12px', color:'#E60012', fontWeight:'700' } }, '응시 가능 ' + availableExams.length + '건 →')
@@ -1800,7 +1798,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
                       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px', flexWrap:'wrap' } },
                         React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background: statusColor, color:'#fff', borderRadius:'4px', padding:'2px 7px' } }, statusLabel),
                         ex.subject && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 7px' } }, ex.subject),
-                        ex.time_limit_minutes > 0 && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', color:'#6b7280' } }, '⏱ ' + ex.time_limit_minutes + '분')
+                        ex.time_limit_minutes > 0 && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', color:'#6b7280' } }, '제한 ' + ex.time_limit_minutes + '분')
                       ),
                       React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'4px' } }, ex.title),
                       (req.school_level || req.grade) && React.createElement('div', { style:{ fontSize:'11px', color:'#1d4ed8', fontWeight:'700' } }, '신청 정보: ' + [req.school_level, req.grade ? req.grade + '학년' : null, req.semester ? req.semester + '학기' : null, req.score != null ? req.score + '점' : null].filter(Boolean).join(' / ')),
@@ -1866,8 +1864,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
         /* 클래스 시험 */
         !anyTest
           ? React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'40px', textAlign:'center', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' } },
-              React.createElement('div', { style:{ fontSize:'38px', marginBottom:'8px' } }, '📝'),
-              React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'4px 0 8px', fontFamily:'Manrope, sans-serif' } }, '응시 가능한 시험이 없습니다'),
+              React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 8px', fontFamily:'Manrope, sans-serif' } }, '응시 가능한 시험이 없습니다'),
               React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '선생님이 시험지를 발행하거나 레벨테스트가 등록되면 이 곳에 표시됩니다.')
             )
           : availableExams.length === 0
@@ -1889,7 +1886,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
                     React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px', flexWrap:'wrap' } },
                       React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background: statusColor, color:'#fff', borderRadius:'4px', padding:'2px 7px' } }, statusLabel),
                       ex.subject && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 7px' } }, ex.subject),
-                      ex.time_limit_minutes > 0 && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', color:'#6b7280' } }, '⏱ ' + ex.time_limit_minutes + '분')
+                      ex.time_limit_minutes > 0 && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', color:'#6b7280' } }, '제한 ' + ex.time_limit_minutes + '분')
                     ),
                     React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'4px' } }, ex.title),
                     ex.test_date && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280' } }, '시험일 ' + ex.test_date),

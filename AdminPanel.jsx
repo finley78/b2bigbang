@@ -2717,7 +2717,7 @@ tab==='schedule' && React.createElement('div', null,
             React.createElement('div', { style:{ flex:1, minWidth:0 } },
               React.createElement('div', { style:{ fontSize:'13px', color:'#374151', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line', lineHeight:'1.6' } }, r.reason),
               r.file_path && React.createElement('div', { style:{ marginTop:'6px' } },
-                React.createElement('a', { href: adminAttachmentPublicUrl(r.file_path), target:'_blank', rel:'noopener', style:{ fontSize:'12px', color:'#E60012', fontWeight:'700', textDecoration:'underline', fontFamily:'Manrope, sans-serif' } }, '📎 ' + (r.file_name || '첨부파일') + ' (' + adminFormatBytes(r.file_size) + ')')
+                React.createElement('a', { href: adminAttachmentPublicUrl(r.file_path), target:'_blank', rel:'noopener', style:{ fontSize:'12px', color:'#E60012', fontWeight:'700', textDecoration:'underline', fontFamily:'Manrope, sans-serif' } }, '첨부 ' + (r.file_name || '파일') + ' (' + adminFormatBytes(r.file_size) + ')')
               ),
               React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif', marginTop:'4px' } }, '신청일: ' + String(r.created_at||'').slice(0,16).replace('T',' '))
             )
