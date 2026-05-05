@@ -993,7 +993,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!classId) { setExamList([]); setExamSubmissionsByExam({}); return; }
     setExamLoading(true);
     try {
-      var { data: exams } = await sb.from('exams').select('*').eq('class_id', classId).order('created_at', { ascending: false });
+      var { data: exams } = await sb.from('exams').select('*').eq('kind','class').eq('class_id', classId).order('created_at', { ascending: false });
       setExamList(exams || []);
       if (exams && exams.length > 0) {
         var ids = exams.map(function(e){ return e.id; });
@@ -1051,6 +1051,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         paths.push(path);
       }
       var insertRow = {
+        kind: 'class',
         class_id: selectedClass.id,
         teacher_id: teacherInfo.id,
         teacher_name: teacherInfo.name || user?.name || '선생님',
