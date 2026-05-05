@@ -72,6 +72,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [savingProfile, setSavingProfile] = React.useState(false);
   const [pwDraft, setPwDraft] = React.useState({ current:'', next:'', confirm:'' });
 
+  // 성적 탭 서브 모드
+  const [scoreSubMode, setScoreSubMode] = React.useState('register'); // 'register' | 'analysis'
+
   // 학원 일정 (강의일정 변경 + 학사일정)
   const _today = new Date();
   const [scrMode, setScrMode] = React.useState('change'); // 'change' | 'academic'
@@ -1302,8 +1305,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     { id: "course",   label: "강좌 개설" },
     { id: "lecture",  label: "강의 추가" },
     { id: "notes",    label: "특이사항" },
-    { id: "stats",    label: "성적 등록" },
-    { id: "analysis", label: "성적 분석" },
+    { id: "scores",   label: "성적" },
     { id: "files",    label: "자료실" },
     { id: "schedule", label: "학원 일정" },
     { id: "mypage",   label: "마이페이지" },
@@ -1320,7 +1322,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       {/* 탭 네비 */}
       <div style={{ background: "#fff", borderBottom: "1px solid rgba(0,0,0,0.08)", display: "flex", gap: 0, overflowX: "auto" }}>
         {TABS.map(t =>
-          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); if(t.id==="analysis") loadScoreAnalysis(); if(t.id==="files") loadAttachments(); if(t.id==="schedule") { loadScheduleRequests(); loadAcademicSchedules(); } if(t.id==="mypage") loadMyProfile(); }}
+          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); if(t.id==="scores") loadScoreAnalysis(); if(t.id==="files") loadAttachments(); if(t.id==="schedule") { loadScheduleRequests(); loadAcademicSchedules(); } if(t.id==="mypage") loadMyProfile(); }}
             style={{ padding: "16px 24px", background: "none", border: "none", borderBottom: teacherView===t.id ? "2px solid #E60012" : "2px solid transparent", fontSize: "14px", fontWeight: "700", color: teacherView===t.id ? "#E60012" : "rgba(0,0,0,0.55)", cursor: "pointer", fontFamily: "Manrope, sans-serif", whiteSpace: "nowrap" }}>
             {t.label}
           </button>
@@ -1909,8 +1911,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         </div>
       )}
 
+      {/* ── 성적 탭 서브 토글 ── */}
+      {teacherView === "scores" && (
+        <div style={{ display:'flex', gap:0, borderBottom:'1px solid #e5e7eb', marginBottom:'18px' }}>
+          {[{ id:'register', label:'성적 등록' }, { id:'analysis', label:'성적 분석' }].map(sm => (
+            <button key={sm.id} onClick={() => setScoreSubMode(sm.id)} style={{
+              padding:'12px 20px', background:'none', border:'none',
+              borderBottom: scoreSubMode===sm.id ? '2px solid #E60012' : '2px solid transparent',
+              fontSize:'14px', fontWeight:'700',
+              color: scoreSubMode===sm.id ? '#E60012' : 'rgba(0,0,0,0.55)',
+              cursor:'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'-1px'
+            }}>{sm.label}</button>
+          ))}
+        </div>
+      )}
+
       {/* ── 탭4: 성적 등록 ── */}
-      {teacherView === "stats" && (
+      {teacherView === "scores" && scoreSubMode === "register" && (
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
           <h2 style={{ marginBottom: "4px" }}>성적 등록</h2>
           <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>대상 반을 선택하면 학생이 자동으로 표시됩니다.</p>
@@ -1980,7 +1997,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       )}
 
       {/* ── 탭5: 성적 분석 (종합 대시보드) ── */}
-      {teacherView === "analysis" && (
+      {teacherView === "scores" && scoreSubMode === "analysis" && (
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
           <h2 style={{ marginBottom: "4px" }}>성적 분석</h2>
           <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>등록된 성적을 기반으로 자동 생성되는 리포트입니다.</p>
