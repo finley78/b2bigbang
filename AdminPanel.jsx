@@ -130,6 +130,7 @@ const [programsDraft, setProgramsDraft] = React.useState(null);
 const [programsSaving, setProgramsSaving] = React.useState(false);
 const [eventBtnDraft, setEventBtnDraft] = React.useState(null);
 const [eventBtnSaving, setEventBtnSaving] = React.useState(false);
+const [featureSaving, setFeatureSaving] = React.useState(false);
 const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); // { exam_id: [requests] }
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
@@ -274,6 +275,20 @@ async function loadAboutContent() {
     setAboutDraft(data && data.value ? data.value : {});
   } catch (e) { console.error('학원안내 로드 실패:', e); setAboutDraft({}); }
 }
+async function saveFeatureContent() {
+  setFeatureSaving(true);
+  var sb = window.supabase;
+  try {
+    var fields = ['featureEyebrow','featureTitle','featureBody','featureCta1','featureCta2','heroTitle','featureBgColor','featureTextColor'];
+    var payload = {};
+    fields.forEach(function(f){ if (state.content && state.content[f] != null) payload[f] = state.content[f]; });
+    var { error } = await sb.from('site_content').upsert({ key:'feature', value: payload, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    alert('섹션 편집 변경사항이 저장되었습니다.');
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+  finally { setFeatureSaving(false); }
+}
+
 async function loadEventBtn() {
   var sb = window.supabase;
   try {
@@ -3399,7 +3414,10 @@ tab==='programs' && React.createElement('div', null,
 
 /* ── 섹션 편집 TAB ── */
 tab==='feature' && React.createElement('div', null,
-React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '홍보 섹션 편집'),
+React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'20px' } },
+  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '홍보 섹션 편집'),
+  React.createElement('button', { onClick: saveFeatureContent, disabled: featureSaving, style:{ background: featureSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: featureSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, featureSaving ? '저장 중...' : '변경사항 저장')
+),
 React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' } },
 [{f:'featureEyebrow',l:'눈길끄는 문구 (작은 글자)'},{f:'featureTitle',l:'메인 제목 (큰 글자)'},{f:'featureBody',l:'본문 설명'},{f:'featureCta1',l:'버튼 1 텍스트'},{f:'featureCta2',l:'버튼 2 텍스트'},{f:'heroTitle',l:'메인 배너 큰 제목'}].map(({f,l})=>
 React.createElement('div', {key:f},
@@ -3432,8 +3450,8 @@ React.createElement('div', { style:{ display:'flex', gap:'14px', flexWrap:'wrap'
   )
 )
 ),
-React.createElement('div', { style:{ marginTop:'12px', padding:'12px', background:'#FFEBED', borderRadius:'8px' } },
-React.createElement('p', { style:{ fontSize:'12px', color:'#E60012', fontFamily:'Manrope, sans-serif', fontWeight:'600' } }, '※ 색상 변경은 현재 페이지 새로고침 시 초기화됩니다 (영구 저장은 추후 추가).')
+React.createElement('div', { style:{ marginTop:'18px', display:'flex', justifyContent:'flex-end' } },
+React.createElement('button', { onClick: saveFeatureContent, disabled: featureSaving, style:{ background: featureSaving ? '#9ca3af' : '#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'800', cursor: featureSaving ? 'not-allowed' : 'pointer', fontFamily:'Manrope, sans-serif' } }, featureSaving ? '저장 중...' : '변경사항 저장')
 )
 )
 
