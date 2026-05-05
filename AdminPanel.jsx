@@ -122,7 +122,7 @@ const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); 
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
 const [adminLtFormOpen, setAdminLtFormOpen] = React.useState(false);
-const [adminLtDraft, setAdminLtDraft] = React.useState({ title:'', subject:'', target_grade:'', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
+const [adminLtDraft, setAdminLtDraft] = React.useState({ title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
 const [adminLtUploading, setAdminLtUploading] = React.useState(false);
 const [adminScrMode, setAdminScrMode] = React.useState('change'); // 'change' | 'academic'
 const [adminAcademicList, setAdminAcademicList] = React.useState([]);
@@ -282,7 +282,7 @@ async function loadAdminLevelTests() {
   }
 }
 function adminOpenLtForm() {
-  setAdminLtDraft({ title:'', subject:'', target_grade:'', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
+  setAdminLtDraft({ title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
   setAdminLtFormOpen(true);
 }
 function adminCloseLtForm() { setAdminLtFormOpen(false); }
@@ -296,6 +296,12 @@ async function adminSubmitLevelTest() {
   var tqc = parseInt(d.text_question_count, 10); if (isNaN(tqc) || tqc < 0) tqc = 0;
   if (qc === 0 && tqc === 0) { alert('객관식 또는 서술형 문제 수 중 하나는 1 이상이어야 합니다.'); return; }
   var tlm = parseInt(d.time_limit_minutes, 10); if (isNaN(tlm) || tlm < 0) tlm = 0;
+  if (!d.school_level) { alert('학교급을 선택해 주세요.'); return; }
+  if (!d.target_grade) { alert('대상 학년을 선택해 주세요.'); return; }
+  var minS = parseInt(d.min_score, 10); if (isNaN(minS)) minS = 0;
+  var maxS = parseInt(d.max_score, 10); if (isNaN(maxS)) maxS = 100;
+  if (minS < 0) minS = 0; if (maxS > 100) maxS = 100;
+  if (minS > maxS) { alert('최소 점수가 최대 점수보다 클 수 없습니다.'); return; }
   setAdminLtUploading(true);
   try {
     var paths = [];
@@ -314,7 +320,11 @@ async function adminSubmitLevelTest() {
       teacher_name: '관리자',
       title: d.title.trim(),
       subject: d.subject.trim() || null,
-      target_grade: d.target_grade.trim() || null,
+      school_level: d.school_level,
+      target_grade: d.target_grade,
+      target_semester: d.target_semester || null,
+      min_score: minS,
+      max_score: maxS,
       description: d.description.trim() || null,
       image_paths: paths,
       question_count: qc,
@@ -2772,7 +2782,8 @@ tab==='leveltest' && React.createElement('div', null,
             React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
               React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: t.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, t.status==='open' ? '신청 가능' : '마감'),
               t.subject && React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, t.subject),
-              t.target_grade && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#1d4ed8', fontFamily:'Manrope, sans-serif' } }, '대상: ' + t.target_grade),
+              (t.school_level || t.target_grade) && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#1d4ed8', fontFamily:'Manrope, sans-serif' } }, '대상: ' + [t.school_level, t.target_grade ? t.target_grade + '학년' : null, t.target_semester ? t.target_semester + '학기' : null].filter(Boolean).join(' ')),
+              (t.min_score != null && t.max_score != null) && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#c87000', fontFamily:'Manrope, sans-serif' } }, t.min_score + '~' + t.max_score + '점'),
               React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, t.title)
             ),
             React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } },
@@ -2798,7 +2809,10 @@ tab==='leveltest' && React.createElement('div', null,
                   r.student_name || '-',
                   React.createElement('span', { style:{ marginLeft:'8px', fontSize:'10px', fontWeight:'800', background: matched ? '#16a34a' : '#9ca3af', color:'#fff', borderRadius:'4px', padding:'2px 6px' } }, matched ? '응시 완료' : '미응시')
                 ),
-                React.createElement('div', { style:{ color:'#6b7280', fontSize:'11px', marginTop:'2px' } }, '신청: ' + String(r.requested_at||'').slice(0,16).replace('T',' ') + (matched ? ' · 제출: ' + String(matched.submitted_at||'').slice(0,16).replace('T',' ') : '')),
+                React.createElement('div', { style:{ color:'#6b7280', fontSize:'11px', marginTop:'2px' } },
+                  '신청: ' + String(r.requested_at||'').slice(0,16).replace('T',' ') + (matched ? ' · 제출: ' + String(matched.submitted_at||'').slice(0,16).replace('T',' ') : ''),
+                  (r.school_level || r.grade || r.semester || r.score != null) && React.createElement('span', { style:{ marginLeft:'8px', color:'#1d4ed8', fontWeight:'700' } }, '응시 정보: ' + [r.school_level, r.grade ? r.grade + '학년' : null, r.semester ? r.semester + '학기' : null, r.score != null ? r.score + '점' : null].filter(Boolean).join(' / '))
+                ),
                 matched && (t.question_count||0) > 0 && matched.answers && Object.keys(matched.answers).length > 0 && React.createElement('div', { style:{ marginTop:'4px', color:'#374151', fontSize:'11px' } },
                   '객관식: ' + Object.keys(matched.answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){ return k + '. ' + matched.answers[k]; }).join(' / ')
                 ),
@@ -2831,8 +2845,36 @@ tab==='leveltest' && React.createElement('div', null,
           )
         ),
         React.createElement('div', { style:{ flex:1 } },
-          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '대상 학년 (선택)'),
-          React.createElement('input', { value:adminLtDraft.target_grade, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { target_grade:e.target.value })); }, placeholder:'예: 중1, 고2', style:Object.assign({}, inputS, { width:'100%' }) })
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '학교급 *'),
+          React.createElement('select', { value:adminLtDraft.school_level, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { school_level:e.target.value, target_grade:'' })); }, style:Object.assign({}, inputS, { width:'100%' }) },
+            ['초','중','고'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+          )
+        ),
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '대상 학년 *'),
+          React.createElement('select', { value:adminLtDraft.target_grade, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { target_grade:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) },
+            React.createElement('option', { value:'' }, '학년 선택'),
+            (adminLtDraft.school_level === '초' ? ['1','2','3','4','5','6'] : ['1','2','3']).map(function(g){ return React.createElement('option', { key:g, value:g }, g + '학년'); })
+          )
+        ),
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '대상 학기 (선택)'),
+          React.createElement('select', { value:adminLtDraft.target_semester, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { target_semester:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) },
+            React.createElement('option', { value:'' }, '학기 무관'),
+            ['1','2'].map(function(s){ return React.createElement('option', { key:s, value:s }, s + '학기'); })
+          )
+        )
+      ),
+      React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px', alignItems:'flex-end' } },
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '내신 점수 범위 (대상)'),
+          React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
+            React.createElement('input', { type:'number', min:'0', max:'100', value:adminLtDraft.min_score, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { min_score:e.target.value })); }, style:Object.assign({}, inputS, { width:'80px' }) }),
+            React.createElement('span', { style:{ color:'#6b7280', fontSize:'13px' } }, '점 ~'),
+            React.createElement('input', { type:'number', min:'0', max:'100', value:adminLtDraft.max_score, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { max_score:e.target.value })); }, style:Object.assign({}, inputS, { width:'80px' }) }),
+            React.createElement('span', { style:{ color:'#6b7280', fontSize:'13px' } }, '점')
+          ),
+          React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' } }, '학생이 입력한 내신 점수가 이 범위에 들면 매칭됩니다.')
         )
       ),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '안내사항 (선택)'),
