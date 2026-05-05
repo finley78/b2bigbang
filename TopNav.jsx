@@ -1,5 +1,5 @@
 // TopNav.jsx — Top utility bar + Main navigation (반응형)
-const NAV_LINKS = ['학원안내', '프로그램', '모집안내', '강의실', '문의하기', '레벨테스트 신청'];
+const NAV_LINKS = ['학원안내', '프로그램', '강의실', '문의하기', '레벨테스트 신청'];
 const PAGE_MAP  = { '학원안내':'about', '프로그램':'service', '모집안내':'recruit', '강의실':'portal', '문의하기':'contact', '레벨테스트 신청':'leveltest' };
 
 function dDay(targetDateStr) {
