@@ -2840,7 +2840,13 @@ tab==='leveltest' && React.createElement('div', null,
               '이미지 ' + imgs.length + '장 · 객관식 ' + (t.question_count||0) + '문항(' + (t.choices_per_question||5) + '지선다)' + ((t.text_question_count||0) > 0 ? ' · 서술형 ' + t.text_question_count + '문항' : '') + (t.time_limit_minutes > 0 ? ' · 제한 ' + t.time_limit_minutes + '분' : '')
             ),
             React.createElement('div', { style:{ fontSize:'12px', color:'#374151', marginTop:'4px', fontFamily:'Manrope, sans-serif' } },
-              '신청 ', React.createElement('strong', { style:{ color:'#1d4ed8' } }, reqs.length), '명 · 응시 ', React.createElement('strong', { style:{ color:'#E60012' } }, subs.length), '명'
+              '신청 ', React.createElement('strong', { style:{ color:'#1d4ed8' } }, reqs.length), '명 · 응시 ', React.createElement('strong', { style:{ color:'#E60012' } }, subs.length), '명',
+              (function(){
+                if (subs.length === 0) return null;
+                var sorted = subs.slice().sort(function(a,b){ return String(b.submitted_at||'').localeCompare(String(a.submitted_at||'')); });
+                var latest = sorted[0];
+                return React.createElement('span', { style:{ marginLeft:'8px', color:'#6b7280', fontWeight:'500' } }, '최근 응시: ' + (latest.student_name || '-') + ' (' + String(latest.submitted_at||'').slice(0,16).replace('T',' ') + ')');
+              })()
             ),
             t.description && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' } }, t.description)
           ),
@@ -2860,10 +2866,13 @@ tab==='leveltest' && React.createElement('div', null,
                   r.student_name || '-',
                   React.createElement('span', { style:{ marginLeft:'8px', fontSize:'10px', fontWeight:'800', background: matched ? '#16a34a' : '#9ca3af', color:'#fff', borderRadius:'4px', padding:'2px 6px' } }, matched ? '응시 완료' : '미응시')
                 ),
-                React.createElement('div', { style:{ color:'#6b7280', fontSize:'11px', marginTop:'2px' } },
-                  '신청: ' + String(r.requested_at||'').slice(0,16).replace('T',' ') + (matched ? ' · 제출: ' + String(matched.submitted_at||'').slice(0,16).replace('T',' ') : ''),
-                  (r.school_level || r.grade || r.semester || r.subject || r.score != null) && React.createElement('span', { style:{ marginLeft:'8px', color:'#1d4ed8', fontWeight:'700' } }, '응시 정보: ' + [r.school_level, r.grade ? r.grade + '학년' : null, r.semester ? r.semester + '학기' : null, r.subject, r.score != null ? r.score + '점' : null].filter(Boolean).join(' / '))
+                React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'4px 12px', color:'#6b7280', fontSize:'11px', marginTop:'4px' } },
+                  React.createElement('div', null, React.createElement('span', { style:{ color:'#9ca3af' } }, '신청: '), React.createElement('strong', { style:{ color:'#374151' } }, String(r.requested_at||'').slice(0,16).replace('T',' '))),
+                  matched && matched.started_at && React.createElement('div', null, React.createElement('span', { style:{ color:'#9ca3af' } }, '응시 시작: '), React.createElement('strong', { style:{ color:'#1d4ed8' } }, String(matched.started_at).slice(0,16).replace('T',' '))),
+                  matched && React.createElement('div', null, React.createElement('span', { style:{ color:'#9ca3af' } }, '제출: '), React.createElement('strong', { style:{ color:'#16a34a' } }, String(matched.submitted_at||'').slice(0,16).replace('T',' '))),
+                  matched && matched.graded_at && React.createElement('div', null, React.createElement('span', { style:{ color:'#9ca3af' } }, '채점: '), React.createElement('strong', { style:{ color:'#E60012' } }, String(matched.graded_at).slice(0,16).replace('T',' ')))
                 ),
+                (r.school_level || r.grade || r.semester || r.subject || r.score != null) && React.createElement('div', { style:{ marginTop:'4px', color:'#1d4ed8', fontWeight:'700', fontSize:'11px' } }, '응시 정보: ' + [r.school_level, r.grade ? r.grade + '학년' : null, r.semester ? r.semester + '학기' : null, r.subject, r.score != null ? r.score + '점' : null].filter(Boolean).join(' / ')),
                 matched && (t.question_count||0) > 0 && matched.answers && Object.keys(matched.answers).length > 0 && (function(){
                   var ak = (t.answer_key && typeof t.answer_key === 'object') ? t.answer_key : {};
                   var hasKey = Object.keys(ak).length > 0;
