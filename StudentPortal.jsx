@@ -1350,28 +1350,67 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           )
         ),
 
-        /* 답안 입력 영역 */
-        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', marginBottom:'16px' } },
-          React.createElement('h3', { style:{ fontSize:'16px', fontWeight:'800', color:'#111827', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '답안 작성'),
-          qc > 0 && React.createElement('div', { style:{ marginBottom: activeExam.allow_text_answer ? '20px' : 0 } },
-            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '객관식 (' + qc + '문항)'),
-            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(110px, 1fr))', gap:'8px' } },
-              Array.from({ length: qc }).map(function(_, i){
-                var num = i + 1;
-                return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'6px' } },
-                  React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#6b7280', minWidth:'24px', fontFamily:'Manrope, sans-serif' } }, num + '.'),
-                  React.createElement('input', { value: examAnswers[num] || '', onChange:function(e){ var v = e.target.value; setExamAnswers(function(p){ var n = Object.assign({}, p); n[num] = v; return n; }); }, placeholder:'답', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'6px', padding:'7px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })
-                );
-              })
+        /* 답안지 (OMR 형태) */
+        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', marginBottom:'16px', border:'2px solid #1A1A1A' } },
+          /* 답안지 헤더 */
+          React.createElement('div', { style:{ borderBottom:'2px solid #1A1A1A', paddingBottom:'12px', marginBottom:'18px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px' } },
+            React.createElement('div', null,
+              React.createElement('h3', { style:{ fontSize:'18px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } }, '답   안   지'),
+              React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginTop:'4px', fontFamily:'Manrope, sans-serif' } }, activeExam.title)
+            ),
+            React.createElement('div', { style:{ fontSize:'12px', color:'#374151', fontFamily:'Manrope, sans-serif', textAlign:'right' } },
+              React.createElement('div', null, React.createElement('span', { style:{ color:'#6b7280' } }, '응시자: '), React.createElement('strong', null, user.name || '-')),
+              activeExam.test_date && React.createElement('div', null, React.createElement('span', { style:{ color:'#6b7280' } }, '시험일: '), React.createElement('strong', null, activeExam.test_date))
             )
           ),
+
+          /* 객관식 OMR */
+          qc > 0 && (function(){
+            var cpq = activeExam.choices_per_question || 5;
+            var circles = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+            return React.createElement('div', { style:{ marginBottom: activeExam.allow_text_answer ? '24px' : 0 } },
+              React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
+                React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, '객관식 (' + qc + '문항 · ' + cpq + '지선다)'),
+                React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '※ 보기를 클릭해 답을 선택하세요')
+              ),
+              React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'6px', border:'1px solid #1A1A1A', borderRadius:'6px', padding:'10px' } },
+                Array.from({ length: qc }).map(function(_, i){
+                  var num = i + 1;
+                  var current = examAnswers[num];
+                  return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 4px', borderBottom:'1px dashed #e5e7eb' } },
+                    React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', minWidth:'28px', fontFamily:'Manrope, sans-serif', textAlign:'right' } }, num + '.'),
+                    React.createElement('div', { style:{ display:'flex', gap:'4px', flex:1 } },
+                      Array.from({ length: cpq }).map(function(_, ci){
+                        var val = String(ci + 1);
+                        var picked = String(current) === val;
+                        return React.createElement('button', { key:ci, onClick:function(){ setExamAnswers(function(p){ var n = Object.assign({}, p); n[num] = val; return n; }); }, style:{
+                          width:'32px', height:'32px', borderRadius:'50%',
+                          background: picked ? '#1A1A1A' : '#fff',
+                          color: picked ? '#fff' : '#374151',
+                          border: '1.5px solid ' + (picked ? '#1A1A1A' : '#9ca3af'),
+                          fontSize:'14px', fontWeight:'800', cursor:'pointer',
+                          fontFamily:'Manrope, sans-serif', padding:0,
+                          display:'flex', alignItems:'center', justifyContent:'center'
+                        } }, circles[ci] || (ci+1));
+                      })
+                    ),
+                    current && React.createElement('button', { onClick:function(){ setExamAnswers(function(p){ var n = Object.assign({}, p); delete n[num]; return n; }); }, style:{ background:'none', border:'none', color:'#9ca3af', fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✕')
+                  );
+                })
+              )
+            );
+          })(),
+
+          /* 서술형 */
           activeExam.allow_text_answer && React.createElement('div', null,
-            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '서술형 답안'),
-            React.createElement('textarea', { value: examTextAnswer, onChange:function(e){ setExamTextAnswer(e.target.value); }, rows:6, placeholder:'서술형 답안을 작성해 주세요.', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box', resize:'vertical' } })
+            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '서술형 답안'),
+            React.createElement('textarea', { value: examTextAnswer, onChange:function(e){ setExamTextAnswer(e.target.value); }, rows:8, placeholder:'서술형 답안을 작성해 주세요.', style:{ width:'100%', border:'1px solid #1A1A1A', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box', resize:'vertical', lineHeight:'1.7', backgroundImage: 'linear-gradient(transparent, transparent calc(1.7em - 1px), #e5e7eb calc(1.7em - 1px), #e5e7eb 1.7em)', backgroundSize: '100% 1.7em', backgroundAttachment:'local' } })
           ),
-          React.createElement('div', { style:{ display:'flex', gap:'8px', marginTop:'18px' } },
-            React.createElement('button', { onClick:closeExam, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '취소'),
-            React.createElement('button', { onClick:submitExamAnswer, disabled: examSubmitting, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor: examSubmitting?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', opacity: examSubmitting ? 0.6 : 1 } }, examSubmitting ? '제출 중...' : (existingSub ? '답안 수정 제출' : '답안 제출'))
+
+          /* 제출 버튼 */
+          React.createElement('div', { style:{ display:'flex', gap:'8px', marginTop:'24px', borderTop:'1px solid #e5e7eb', paddingTop:'18px' } },
+            React.createElement('button', { onClick:closeExam, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '취소'),
+            React.createElement('button', { onClick:submitExamAnswer, disabled: examSubmitting, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'13px', fontSize:'14px', fontWeight:'800', cursor: examSubmitting?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', opacity: examSubmitting ? 0.6 : 1 } }, examSubmitting ? '제출 중...' : (existingSub ? '답안 수정 제출' : '답안 제출'))
           )
         )
       )

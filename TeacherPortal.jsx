@@ -79,7 +79,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [examList, setExamList] = React.useState([]);
   const [examLoading, setExamLoading] = React.useState(false);
   const [examFormOpen, setExamFormOpen] = React.useState(false);
-  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', allow_text_answer:true });
+  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', choices_per_question:'5', allow_text_answer:true });
   const [examUploading, setExamUploading] = React.useState(false);
   const [examSubmissionsByExam, setExamSubmissionsByExam] = React.useState({}); // { exam_id: [submissions] }
 
@@ -1017,7 +1017,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return data?.publicUrl || '';
   }
   function openExamForm() {
-    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', allow_text_answer:true });
+    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', allow_text_answer:true });
     setExamFormOpen(true);
   }
   function closeExamForm() {
@@ -1031,6 +1031,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!d.files || d.files.length === 0) { alert('시험지 이미지를 1장 이상 업로드해 주세요.'); return; }
     var qc = parseInt(d.question_count, 10);
     if (isNaN(qc) || qc < 0) qc = 0;
+    var cpq = parseInt(d.choices_per_question, 10);
+    if (isNaN(cpq) || cpq < 2) cpq = 5;
+    if (cpq > 9) cpq = 9;
     if (qc === 0 && !d.allow_text_answer) { alert('객관식 문제 수가 0이면 서술형 답안을 허용해야 합니다.'); return; }
     setExamUploading(true);
     try {
@@ -1053,6 +1056,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         description: d.description.trim() || null,
         image_paths: paths,
         question_count: qc,
+        choices_per_question: cpq,
         allow_text_answer: !!d.allow_text_answer,
         status: 'open',
       };
@@ -1518,7 +1522,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         </div>
                         <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>
                           {ex.test_date && <span>시험일 {ex.test_date} · </span>}
-                          이미지 {imgs.length}장 · 객관식 {ex.question_count}문항{ex.allow_text_answer ? ' · 서술형 허용' : ''}
+                          이미지 {imgs.length}장 · 객관식 {ex.question_count}문항({ex.choices_per_question || 5}지선다){ex.allow_text_answer ? ' · 서술형 허용' : ''}
                         </div>
                         <div style={{ fontSize:'12px', color:'#374151', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>
                           제출: <strong style={{ color: submittedCount > 0 ? '#E60012' : '#6b7280' }}>{submittedCount}</strong> / {totalStudents}명
@@ -1589,16 +1593,22 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>{examDraft.files.length}장 선택됨 — {examDraft.files.map(f => f.name).join(', ')}</div>
                 )}
 
-                <div style={{ display:'flex', gap:'10px', marginBottom:'14px', alignItems:'flex-end' }}>
+                <div style={{ display:'flex', gap:'10px', marginBottom:'10px' }}>
                   <div style={{ flex:1 }}>
                     <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>객관식 문제 수</label>
                     <input type="number" min="0" value={examDraft.question_count} onChange={e => setExamDraft({ ...examDraft, question_count: e.target.value })} style={inputStyle} />
                   </div>
-                  <label style={{ display:'flex', alignItems:'center', gap:'6px', flex:1, padding:'10px 0', cursor:'pointer' }}>
-                    <input type="checkbox" checked={!!examDraft.allow_text_answer} onChange={e => setExamDraft({ ...examDraft, allow_text_answer: e.target.checked })} />
-                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#374151' }}>서술형 답안 허용</span>
-                  </label>
+                  <div style={{ flex:1 }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>보기 수 (객관식)</label>
+                    <select value={examDraft.choices_per_question} onChange={e => setExamDraft({ ...examDraft, choices_per_question: e.target.value })} style={inputStyle}>
+                      {["3","4","5"].map(n => <option key={n} value={n}>{n}지선다</option>)}
+                    </select>
+                  </div>
                 </div>
+                <label style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 0 14px', cursor:'pointer' }}>
+                  <input type="checkbox" checked={!!examDraft.allow_text_answer} onChange={e => setExamDraft({ ...examDraft, allow_text_answer: e.target.checked })} />
+                  <span style={{ fontSize:'13px', fontWeight:'700', color:'#374151' }}>서술형 답안 허용</span>
+                </label>
 
                 <div style={{ display:'flex', gap:'8px', marginTop:'8px' }}>
                   <button onClick={closeExamForm} style={{ ...lightButtonStyle, flex:1 }}>취소</button>
