@@ -1052,7 +1052,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           classExams = ce || [];
         }
         setAvailableExams(classExams);
-        // 레벨테스트 (모든 학생 회원이 봄)
+        // 레벨테스트 (자동 응시 진입용으로만 fetch)
         var { data: lt } = await sb.from('exams').select('*').eq('kind','level').eq('status', 'open').order('created_at', { ascending: false });
         setLevelTests(lt || []);
         // 본인 신청·답안
@@ -1070,6 +1070,16 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
         var rmap = {};
         (reqs || []).forEach(function(r){ rmap[r.exam_id] = r; });
         setMyLevelRequests(rmap);
+
+        // 레벨테스트 페이지에서 넘어온 자동 응시 (sessionStorage)
+        try {
+          var autoId = sessionStorage.getItem('b2_auto_exam_id');
+          if (autoId) {
+            sessionStorage.removeItem('b2_auto_exam_id');
+            var found = (lt || []).find(function(e){ return e.id === autoId; }) || classExams.find(function(e){ return e.id === autoId; });
+            if (found) { setTimeout(function(){ openExam(found); }, 50); }
+          }
+        } catch (e) {}
       } catch (e) { console.error('시험 로드 실패:', e); }
     })();
   }, [user, portalView, studentMode]);
@@ -1180,6 +1190,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     setPortalView('exam');
   }
   function closeExam() {
+    var wasLevelTest = !!(activeExam && activeExam.kind === 'level');
     setActiveExam(null);
     setExamAnswers({});
     setExamTextAnswer('');
@@ -1187,6 +1198,18 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     setExamTimeLeft(null);
     autoSubmitDoneRef.current = false;
     setPortalView('main');
+    // 레벨테스트는 강의실에 머물지 않고 레벨테스트 신청 페이지로 복귀
+    try {
+      var rt = sessionStorage.getItem('b2_return_to_leveltest');
+      if (rt && wasLevelTest) {
+        sessionStorage.removeItem('b2_return_to_leveltest');
+        if (typeof window.location !== 'undefined') {
+          // App의 navigate를 직접 호출할 수 없으므로 hash 기반 라우팅이 없는 경우 reload-style 처리
+          // 가장 안전: window.b2Navigate가 있으면 호출, 없으면 setPortalView('main') 후 setPage('leveltest') 처리는 부모에서
+          if (typeof window.b2Navigate === 'function') window.b2Navigate('leveltest');
+        }
+      }
+    } catch (e) {}
   }
   async function startExamSession() {
     if (!user || !activeExam) return;
@@ -1771,8 +1794,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px', display:'flex', flexDirection:'column', gap:'16px' } },
         React.createElement('button', { onClick:function(){ setStudentMode('home'); }, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', alignSelf:'flex-start' } }, '← 강의실로'),
 
-        /* 레벨테스트 섹션 */
-        levelTests.length > 0 && (function(){
+        /* 레벨테스트 섹션 — 별도 '레벨테스트 신청' 페이지로 이동, 강의실에는 표시 X */
+        false && (function(){
           var myReqList = Object.keys(myLevelRequests).map(function(eid){ return { req: myLevelRequests[eid], exam: levelTests.find(function(e){ return e.id === eid; }) }; }).filter(function(x){ return !!x.exam; });
           return React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', border:'2px solid #1d4ed8' } },
             React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px', flexWrap:'wrap', gap:'8px' } },
