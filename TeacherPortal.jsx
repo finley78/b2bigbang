@@ -18,7 +18,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [lectureClassId, setLectureClassId] = React.useState("");
   const [lectureCourseName, setLectureCourseName] = React.useState("");
   const [savingOnline, setSavingOnline] = React.useState(false);
-  const [teacherView, setTeacherView] = React.useState("home");
+  const [teacherView, setTeacherView] = React.useState("dashboard");
   // 업무일지
   const [teacherNotes, setTeacherNotes] = React.useState([]);
   const [noteDraft, setNoteDraft] = React.useState({ date: new Date().toISOString().slice(0,10), content: '' });
@@ -1432,6 +1432,21 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     { id: "mypage",   label: "마이페이지" },
   ];
 
+  const TAB_GROUPS = [
+    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','course','lecture'] },
+    { id: 'student', label: '학생 관리', color:'#E60012', tabs:['notes','scores'] },
+    { id: 'academy', label: '학원',      color:'#c87000', tabs:['schedule','files'] },
+    { id: 'me',      label: '내 정보',   color:'#1A1A1A', tabs:['mypage'] },
+  ];
+
+  function loadOnTabClick(id) {
+    if (id === "notes") loadNotes();
+    if (id === "scores") loadScoreAnalysis();
+    if (id === "files") loadAttachments();
+    if (id === "schedule") { loadScheduleRequests(); loadAcademicSchedules(); }
+    if (id === "mypage") loadMyProfile();
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
       {/* 헤더 */}
@@ -1440,18 +1455,52 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         <p style={{ marginTop: "4px", color: "rgba(255,255,255,0.6)", fontSize: "13px", fontFamily: "Manrope, sans-serif" }}>{teacherInfo?.name || user?.name} 선생님</p>
       </div>
 
-      {/* 탭 네비 */}
-      <div style={{ background: "#fff", borderBottom: "1px solid rgba(0,0,0,0.08)", display: "flex", gap: 0, overflowX: "auto" }}>
-        {TABS.map(t =>
-          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); if(t.id==="scores") loadScoreAnalysis(); if(t.id==="files") loadAttachments(); if(t.id==="schedule") { loadScheduleRequests(); loadAcademicSchedules(); } if(t.id==="mypage") loadMyProfile(); }}
-            style={{ padding: "16px 24px", background: "none", border: "none", borderBottom: teacherView===t.id ? "2px solid #E60012" : "2px solid transparent", fontSize: "14px", fontWeight: "700", color: teacherView===t.id ? "#E60012" : "rgba(0,0,0,0.55)", cursor: "pointer", fontFamily: "Manrope, sans-serif", whiteSpace: "nowrap" }}>
-            {t.label}
-          </button>
-        )}
-      </div>
+      {/* 페이지 진입 시 상단 브레드크럼 */}
+      {teacherView !== "dashboard" && (
+        <div style={{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 16px', display:'flex', alignItems:'center', gap:'10px' }}>
+          <button onClick={() => setTeacherView('dashboard')} style={{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'800', fontFamily:'Manrope, sans-serif' }}>← 선생님 홈</button>
+          <span style={{ fontSize:'13px', color:'#9ca3af' }}>·</span>
+          <span style={{ fontSize:'14px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' }}>{(TABS.find(t => t.id === teacherView) || {}).label || ''}</span>
+        </div>
+      )}
 
-      <div style={{ padding: "32px 40px", maxWidth: "960px", margin: "0 auto" }}>
+      <div style={{ padding: "24px 16px", maxWidth: "1100px", margin: "0 auto" }}>
       {loading ? <div style={{ color: "#6b7280" }}>불러오는 중...</div> : (<>
+
+      {/* 대시보드 (홈) - 그룹별 카드 그리드 */}
+      {teacherView === "dashboard" && (
+        <div>
+          {TAB_GROUPS.map(g => (
+            <div key={g.id} style={{ marginBottom: '28px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px' }}>
+                <div style={{ width:'4px', height:'18px', background: g.color, borderRadius:'2px' }} />
+                <h2 style={{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' }}>{g.label}</h2>
+                <span style={{ fontSize:'11px', fontWeight:'700', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{g.tabs.length}개</span>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'10px' }}>
+                {g.tabs.map(tid => {
+                  const t = TABS.find(x => x.id === tid);
+                  if (!t) return null;
+                  return (
+                    <button key={tid} onClick={() => { setTeacherView(tid); loadOnTabClick(tid); }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+                      style={{
+                        background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px',
+                        padding:'10px 14px', textAlign:'left', cursor:'pointer',
+                        fontFamily:'Manrope, sans-serif',
+                        fontSize:'14px', fontWeight:'700', color:'#111827',
+                        letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s'
+                      }}>
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── 탭1: 담당 클래스 ── */}
       {teacherView === "classes" && (
