@@ -917,4 +917,42 @@ function LevelTestPage({ user, onLoginClick, setPage }) {
   );
 }
 
-Object.assign(window, { HomePage, LevelTestPage, LevelTestCTA, ExamResultPage });
+/* ── 사이트 푸터 (모든 페이지 하단) ─────────── */
+function SiteFooter() {
+  const isMobile = useIsMobile();
+  const sb = window.supabase;
+  const [f, setF] = React.useState(null);
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await sb.from('site_content').select('value').eq('key','footer').maybeSingle();
+        if (data && data.value) setF(data.value);
+      } catch (e) {}
+    })();
+  }, []);
+  if (!f) return null;
+  const items = [
+    f.company_name && { l:'학원명', v:f.company_name },
+    f.ceo && { l:'대표자', v:f.ceo },
+    f.biz_no && { l:'사업자등록번호', v:f.biz_no },
+    f.address && { l:'주소', v:f.address },
+    f.phone && { l:'전화', v:f.phone },
+    f.email && { l:'이메일', v:f.email },
+    f.hours && { l:'운영시간', v:f.hours },
+  ].filter(Boolean);
+  return React.createElement('footer', { style:{ background:'#1A1A1A', padding: isMobile ? '32px 16px' : '48px 40px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif' } },
+    React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } },
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: isMobile ? '8px' : '14px', marginBottom:'18px' } },
+        items.map(function(it, i){
+          return React.createElement('div', { key:i, style:{ fontSize:'12px', lineHeight:'1.7' } },
+            React.createElement('span', { style:{ color:'rgba(255,255,255,0.4)', marginRight:'8px' } }, it.l),
+            React.createElement('span', { style:{ color:'rgba(255,255,255,0.85)', fontWeight:'600' } }, it.v)
+          );
+        })
+      ),
+      f.copyright && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.35)', borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:'14px' } }, f.copyright)
+    )
+  );
+}
+
+Object.assign(window, { HomePage, LevelTestPage, LevelTestCTA, ExamResultPage, SiteFooter });

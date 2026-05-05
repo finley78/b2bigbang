@@ -131,6 +131,8 @@ const [programsSaving, setProgramsSaving] = React.useState(false);
 const [eventBtnDraft, setEventBtnDraft] = React.useState(null);
 const [eventBtnSaving, setEventBtnSaving] = React.useState(false);
 const [featureSaving, setFeatureSaving] = React.useState(false);
+const [footerDraft, setFooterDraft] = React.useState(null);
+const [footerSaving, setFooterSaving] = React.useState(false);
 const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); // { exam_id: [requests] }
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
@@ -275,6 +277,25 @@ async function loadAboutContent() {
     setAboutDraft(data && data.value ? data.value : {});
   } catch (e) { console.error('학원안내 로드 실패:', e); setAboutDraft({}); }
 }
+async function loadFooterContent() {
+  var sb = window.supabase;
+  try {
+    var { data } = await sb.from('site_content').select('value').eq('key','footer').maybeSingle();
+    setFooterDraft(data && data.value ? data.value : { company_name:'', ceo:'', biz_no:'', address:'', phone:'', email:'', hours:'', copyright:'' });
+  } catch (e) { setFooterDraft({}); }
+}
+async function saveFooterContent() {
+  if (!footerDraft) return;
+  setFooterSaving(true);
+  var sb = window.supabase;
+  try {
+    var { error } = await sb.from('site_content').upsert({ key:'footer', value: footerDraft, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    alert('푸터 정보가 저장되었습니다.');
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+  finally { setFooterSaving(false); }
+}
+
 async function saveFeatureContent() {
   setFeatureSaving(true);
   var sb = window.supabase;
@@ -853,10 +874,11 @@ const tabs = [
 { id:'about',   label:'학원안내 편집' },
 { id:'programs',label:'프로그램 편집' },
 { id:'eventbtn',label:'이벤트 버튼' },
+{ id:'footer',  label:'푸터(사업자정보)' },
 ];
 
 const tabGroups = [
-{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about','programs','eventbtn'] },
+{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about','programs','eventbtn','footer'] },
 { id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
 { id:'students', label:'수강생',    tabs:['enrollee','views','analysis'] },
 { id:'academy',  label:'학원 관리', tabs:['leveltest','member','schedule','files'] },
@@ -971,7 +993,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'8px 14px', fontSize:'13px', display:'inline-flex', alignItems:'center' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -3332,6 +3354,36 @@ tab==='eventbtn' && React.createElement('div', null,
         eventBtnDraft.badge && React.createElement('span', { style:{ fontSize:'9px', fontWeight:'800', background:'#fff', color:'#E60012', borderRadius:'999px', padding:'2px 7px' } }, eventBtnDraft.badge),
         eventBtnDraft.text || '무료 레벨테스트'
       )
+    )
+  )
+),
+
+/* ── 푸터 편집 TAB ── */
+tab==='footer' && React.createElement('div', null,
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
+    React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '푸터 (사업자 정보)'),
+    React.createElement('button', { onClick: saveFooterContent, disabled: footerSaving || !footerDraft, style:{ background: footerSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: footerSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, footerSaving ? '저장 중...' : '변경사항 저장')
+  ),
+  React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } }, '모든 페이지 하단에 표시되는 사업자 정보입니다. 비워두면 해당 항목은 표시되지 않습니다.'),
+  !footerDraft ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
+  React.createElement('div', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px', display:'flex', flexDirection:'column', gap:'12px' } },
+    [
+      { f:'company_name', l:'학원명/회사명' },
+      { f:'ceo',          l:'대표자' },
+      { f:'biz_no',       l:'사업자등록번호' },
+      { f:'address',      l:'주소' },
+      { f:'phone',        l:'전화번호' },
+      { f:'email',        l:'이메일' },
+      { f:'hours',        l:'운영 시간' },
+      { f:'copyright',    l:'카피라이트 (예: © 2026 학원명)' },
+    ].map(function(it){
+      return React.createElement('div', { key:it.f },
+        React.createElement('label', { style:labelS }, it.l),
+        React.createElement('input', { value: footerDraft[it.f] || '', onChange: function(e){ var v = e.target.value; setFooterDraft(function(p){ return Object.assign({}, p, (function(o){ o[it.f]=v; return o; })({})); }); }, style:Object.assign({}, inputS, { width:'100%' }) })
+      );
+    }),
+    React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', marginTop:'8px' } },
+      React.createElement('button', { onClick: saveFooterContent, disabled: footerSaving, style:{ background: footerSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'800', cursor: footerSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, footerSaving ? '저장 중...' : '변경사항 저장')
     )
   )
 ),
