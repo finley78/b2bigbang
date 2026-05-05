@@ -3284,7 +3284,14 @@ tab==='eventbtn' && React.createElement('div', null,
     React.createElement('div', null,
       React.createElement('label', { style:labelS }, '이동 페이지'),
       React.createElement('select', { value: eventBtnDraft.target_page || 'leveltest', onChange: function(e){ var v = e.target.value; setEventBtnDraft(function(p){ return Object.assign({}, p, { target_page:v }); }); }, style:Object.assign({}, inputS, { width:'100%' }) },
-        ['leveltest','about','service','recruit','contact','portal'].map(function(p){ return React.createElement('option', { key:p, value:p }, p); })
+        [
+          { v:'leveltest', l:'레벨테스트' },
+          { v:'about',     l:'학원안내' },
+          { v:'service',   l:'프로그램' },
+          { v:'recruit',   l:'모집안내' },
+          { v:'contact',   l:'문의하기' },
+          { v:'portal',    l:'강의실' }
+        ].map(function(p){ return React.createElement('option', { key:p.v, value:p.v }, p.l); })
       )
     ),
     /* 미리보기 */
