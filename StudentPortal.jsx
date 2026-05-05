@@ -1003,10 +1003,92 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   var [selectedSubject, setSelectedSubject] = React.useState(null);
   var [selectedCourse, setSelectedCourse] = React.useState(null);
   var [selectedLecture, setSelectedLecture] = React.useState(null);
-  var [portalView, setPortalView] = React.useState('main'); // 'main' | 'mypage'
+  var [portalView, setPortalView] = React.useState('main'); // 'main' | 'mypage' | 'exam'
   var [profileDraft, setProfileDraft] = React.useState(null);
   var [savingProfile, setSavingProfile] = React.useState(false);
   var [pwDraft, setPwDraft] = React.useState({ current:'', next:'', confirm:'' });
+  // 시험 응시
+  var [availableExams, setAvailableExams] = React.useState([]);
+  var [mySubmissions, setMySubmissions] = React.useState({}); // { exam_id: submission }
+  var [activeExam, setActiveExam] = React.useState(null);
+  var [examAnswers, setExamAnswers] = React.useState({}); // { qNum: answer }
+  var [examTextAnswer, setExamTextAnswer] = React.useState('');
+  var [examSubmitting, setExamSubmitting] = React.useState(false);
+  var [examImgIdx, setExamImgIdx] = React.useState(0);
+
+  React.useEffect(function(){
+    if (!user || !user.classIds || user.classIds.length === 0) { setAvailableExams([]); setMySubmissions({}); return; }
+    (async function(){
+      var sb = window.supabase;
+      try {
+        var { data: exams } = await sb.from('exams').select('*').in('class_id', user.classIds).eq('status', 'open').order('created_at', { ascending: false });
+        setAvailableExams(exams || []);
+        if (exams && exams.length > 0) {
+          var ids = exams.map(function(e){ return e.id; });
+          var { data: subs } = await sb.from('exam_submissions').select('*').eq('student_id', user.id).in('exam_id', ids);
+          var map = {};
+          (subs || []).forEach(function(s){ map[s.exam_id] = s; });
+          setMySubmissions(map);
+        }
+      } catch (e) { console.error('시험 로드 실패:', e); }
+    })();
+  }, [user, portalView]);
+
+  function examPublicUrl(path) {
+    if (!path) return '';
+    var sb = window.supabase;
+    var { data } = sb.storage.from('attachments').getPublicUrl(path);
+    return data?.publicUrl || '';
+  }
+  function openExam(exam) {
+    setActiveExam(exam);
+    var existing = mySubmissions[exam.id];
+    setExamAnswers(existing && existing.answers ? existing.answers : {});
+    setExamTextAnswer(existing && existing.text_answer ? existing.text_answer : '');
+    setExamImgIdx(0);
+    setPortalView('exam');
+  }
+  function closeExam() {
+    setActiveExam(null);
+    setExamAnswers({});
+    setExamTextAnswer('');
+    setPortalView('main');
+  }
+  async function submitExamAnswer() {
+    if (!user || !activeExam) return;
+    setExamSubmitting(true);
+    var sb = window.supabase;
+    try {
+      var existing = mySubmissions[activeExam.id];
+      var row = {
+        exam_id: activeExam.id,
+        student_id: user.id,
+        student_name: user.name || '',
+        answers: examAnswers || {},
+        text_answer: examTextAnswer || null,
+        submitted_at: existing ? existing.submitted_at : new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      if (existing) {
+        var { error } = await sb.from('exam_submissions').update(row).eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        var { error: e2 } = await sb.from('exam_submissions').insert(row);
+        if (e2) throw e2;
+      }
+      // 다시 로드
+      var { data: subs } = await sb.from('exam_submissions').select('*').eq('student_id', user.id).eq('exam_id', activeExam.id);
+      var map = Object.assign({}, mySubmissions);
+      (subs || []).forEach(function(s){ map[s.exam_id] = s; });
+      setMySubmissions(map);
+      alert(existing ? '답안이 수정되었습니다.' : '답안이 제출되었습니다.');
+      closeExam();
+    } catch (e) {
+      alert('제출 실패: ' + (e.message || e));
+    } finally {
+      setExamSubmitting(false);
+    }
+  }
 
   React.useEffect(function(){
     if (portalView === 'mypage' && user && !profileDraft) {
@@ -1232,9 +1314,98 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     );
   }
 
+  // 시험 응시 화면
+  if (portalView === 'exam' && activeExam) {
+    var imgs = Array.isArray(activeExam.image_paths) ? activeExam.image_paths : [];
+    var qc = activeExam.question_count || 0;
+    var existingSub = mySubmissions[activeExam.id];
+    return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
+      renderHeader(true),
+      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
+        React.createElement('button', { onClick:closeExam, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '← 돌아가기'),
+        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', marginBottom:'16px' } },
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
+            activeExam.subject && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, activeExam.subject),
+            existingSub && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background:'#16a34a', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, '제출 완료')
+          ),
+          React.createElement('h2', { style:{ fontSize:'20px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif', margin:'4px 0' } }, activeExam.title),
+          activeExam.test_date && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '시험일: ' + activeExam.test_date),
+          activeExam.description && React.createElement('div', { style:{ fontSize:'13px', color:'#374151', marginTop:'8px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' } }, activeExam.description)
+        ),
+
+        /* 시험지 이미지 뷰어 */
+        imgs.length > 0 && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', marginBottom:'16px' } },
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
+            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, '시험지 (' + (examImgIdx+1) + '/' + imgs.length + ')'),
+            imgs.length > 1 && React.createElement('div', { style:{ display:'flex', gap:'6px' } },
+              React.createElement('button', { onClick:function(){ setExamImgIdx(Math.max(0, examImgIdx-1)); }, disabled: examImgIdx===0, style:{ background: examImgIdx===0?'#f3f4f6':'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', padding:'5px 10px', fontSize:'12px', fontWeight:'700', cursor: examImgIdx===0?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, '‹ 이전'),
+              React.createElement('button', { onClick:function(){ setExamImgIdx(Math.min(imgs.length-1, examImgIdx+1)); }, disabled: examImgIdx===imgs.length-1, style:{ background: examImgIdx===imgs.length-1?'#f3f4f6':'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', padding:'5px 10px', fontSize:'12px', fontWeight:'700', cursor: examImgIdx===imgs.length-1?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, '다음 ›')
+            )
+          ),
+          React.createElement('img', { src: examPublicUrl(imgs[examImgIdx]), alt:'시험지 ' + (examImgIdx+1), style:{ width:'100%', display:'block', borderRadius:'8px', border:'1px solid #e5e7eb' } }),
+          imgs.length > 1 && React.createElement('div', { style:{ display:'flex', gap:'6px', marginTop:'10px', flexWrap:'wrap' } },
+            imgs.map(function(_, i){
+              return React.createElement('button', { key:i, onClick:function(){ setExamImgIdx(i); }, style:{ background: i===examImgIdx?'#E60012':'#fff', color: i===examImgIdx?'#fff':'#374151', border: '1px solid ' + (i===examImgIdx?'#E60012':'#d1d5db'), borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, String(i+1));
+            })
+          )
+        ),
+
+        /* 답안 입력 영역 */
+        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', marginBottom:'16px' } },
+          React.createElement('h3', { style:{ fontSize:'16px', fontWeight:'800', color:'#111827', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '답안 작성'),
+          qc > 0 && React.createElement('div', { style:{ marginBottom: activeExam.allow_text_answer ? '20px' : 0 } },
+            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '객관식 (' + qc + '문항)'),
+            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(110px, 1fr))', gap:'8px' } },
+              Array.from({ length: qc }).map(function(_, i){
+                var num = i + 1;
+                return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'6px' } },
+                  React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#6b7280', minWidth:'24px', fontFamily:'Manrope, sans-serif' } }, num + '.'),
+                  React.createElement('input', { value: examAnswers[num] || '', onChange:function(e){ var v = e.target.value; setExamAnswers(function(p){ var n = Object.assign({}, p); n[num] = v; return n; }); }, placeholder:'답', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'6px', padding:'7px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })
+                );
+              })
+            )
+          ),
+          activeExam.allow_text_answer && React.createElement('div', null,
+            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '서술형 답안'),
+            React.createElement('textarea', { value: examTextAnswer, onChange:function(e){ setExamTextAnswer(e.target.value); }, rows:6, placeholder:'서술형 답안을 작성해 주세요.', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box', resize:'vertical' } })
+          ),
+          React.createElement('div', { style:{ display:'flex', gap:'8px', marginTop:'18px' } },
+            React.createElement('button', { onClick:closeExam, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '취소'),
+            React.createElement('button', { onClick:submitExamAnswer, disabled: examSubmitting, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor: examSubmitting?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', opacity: examSubmitting ? 0.6 : 1 } }, examSubmitting ? '제출 중...' : (existingSub ? '답안 수정 제출' : '답안 제출'))
+          )
+        )
+      )
+    );
+  }
+
   // 1단계: 과목 선택
+  var examCardsForStudent = (!adminMode && !isTeacherMode && availableExams.length > 0) ? React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'16px' } },
+    React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'20px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' } },
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' } },
+        React.createElement('h2', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0, fontFamily:'Manrope, sans-serif' } }, '응시 가능한 시험'),
+        React.createElement('span', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, availableExams.length + '건')
+      ),
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(240px, 1fr))', gap:'10px' } },
+        availableExams.map(function(ex){
+          var sub = mySubmissions[ex.id];
+          var imgsCount = Array.isArray(ex.image_paths) ? ex.image_paths.length : 0;
+          return React.createElement('button', { key:ex.id, onClick:function(){ openExam(ex); }, style:{ textAlign:'left', cursor:'pointer', background: sub ? '#f0fdf4' : '#fff', border: '1px solid ' + (sub ? '#16a34a' : '#e5e7eb'), borderRadius:'10px', padding:'14px', fontFamily:'Manrope, sans-serif' } },
+            React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'6px', flexWrap:'wrap' } },
+              ex.subject && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 6px' } }, ex.subject),
+              sub && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#16a34a', color:'#fff', borderRadius:'4px', padding:'2px 6px' } }, '제출 완료')
+            ),
+            React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', marginBottom:'4px' } }, ex.title),
+            ex.test_date && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280' } }, '시험일 ' + ex.test_date),
+            React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginTop:'4px' } }, '이미지 ' + imgsCount + '장' + (ex.question_count > 0 ? ' · 객관식 ' + ex.question_count + '문항' : '') + (ex.allow_text_answer ? ' · 서술형' : ''))
+          );
+        })
+      )
+    )
+  ) : null;
+
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     renderHeader(false),
+    examCardsForStudent,
     studentSubjects.length === 0
       ? React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
           React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'48px', textAlign:'center' } },

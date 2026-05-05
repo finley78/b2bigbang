@@ -75,6 +75,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   // 성적 탭 서브 모드
   const [scoreSubMode, setScoreSubMode] = React.useState('register'); // 'register' | 'analysis'
 
+  // 시험지 발행
+  const [examList, setExamList] = React.useState([]);
+  const [examLoading, setExamLoading] = React.useState(false);
+  const [examFormOpen, setExamFormOpen] = React.useState(false);
+  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', allow_text_answer:true });
+  const [examUploading, setExamUploading] = React.useState(false);
+  const [examSubmissionsByExam, setExamSubmissionsByExam] = React.useState({}); // { exam_id: [submissions] }
+
   // 학원 일정 (강의일정 변경 + 학사일정)
   const _today = new Date();
   const [scrMode, setScrMode] = React.useState('change'); // 'change' | 'academic'
@@ -516,6 +524,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       setStudents([]);
       setSelectedStudentIds([]);
       setScores({});
+      setExamList([]);
+      setExamSubmissionsByExam({});
       return;
     }
 
@@ -525,6 +535,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (matchedAssignment) setSelectedCourseAssignment(matchedAssignment);
     setStudents([]);
     setSelectedStudentIds([]);
+    loadClassExams(cls.id);
     setScores({});
     setDebug("4. 반 학생 조회 시작: " + cls.name);
 
@@ -977,6 +988,103 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
   }
 
+  // ── 시험지 발행 ──
+  async function loadClassExams(classId) {
+    if (!classId) { setExamList([]); setExamSubmissionsByExam({}); return; }
+    setExamLoading(true);
+    try {
+      var { data: exams } = await sb.from('exams').select('*').eq('class_id', classId).order('created_at', { ascending: false });
+      setExamList(exams || []);
+      if (exams && exams.length > 0) {
+        var ids = exams.map(function(e){ return e.id; });
+        var { data: subs } = await sb.from('exam_submissions').select('*').in('exam_id', ids);
+        var grouped = {};
+        (subs || []).forEach(function(s){ (grouped[s.exam_id] = grouped[s.exam_id] || []).push(s); });
+        setExamSubmissionsByExam(grouped);
+      } else {
+        setExamSubmissionsByExam({});
+      }
+    } catch (e) {
+      console.error('시험 로드 실패:', e);
+      setExamList([]); setExamSubmissionsByExam({});
+    } finally {
+      setExamLoading(false);
+    }
+  }
+  function examPublicUrl(path) {
+    if (!path) return '';
+    var { data } = sb.storage.from('attachments').getPublicUrl(path);
+    return data?.publicUrl || '';
+  }
+  function openExamForm() {
+    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', allow_text_answer:true });
+    setExamFormOpen(true);
+  }
+  function closeExamForm() {
+    setExamFormOpen(false);
+  }
+  async function submitExam() {
+    if (!teacherInfo) { alert('선생님 정보가 없습니다.'); return; }
+    if (!selectedClass) { alert('반을 먼저 선택해 주세요.'); return; }
+    var d = examDraft;
+    if (!d.title.trim()) { alert('시험 제목을 입력해 주세요.'); return; }
+    if (!d.files || d.files.length === 0) { alert('시험지 이미지를 1장 이상 업로드해 주세요.'); return; }
+    var qc = parseInt(d.question_count, 10);
+    if (isNaN(qc) || qc < 0) qc = 0;
+    if (qc === 0 && !d.allow_text_answer) { alert('객관식 문제 수가 0이면 서술형 답안을 허용해야 합니다.'); return; }
+    setExamUploading(true);
+    try {
+      var paths = [];
+      for (var i = 0; i < d.files.length; i++) {
+        var f = d.files[i];
+        var ext = (f.name.split('.').pop() || 'png').toLowerCase();
+        var path = 'exams/' + selectedClass.id + '/' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+        var up = await sb.storage.from('attachments').upload(path, f, { cacheControl:'3600', upsert:false });
+        if (up.error) throw up.error;
+        paths.push(path);
+      }
+      var insertRow = {
+        class_id: selectedClass.id,
+        teacher_id: teacherInfo.id,
+        teacher_name: teacherInfo.name || user?.name || '선생님',
+        title: d.title.trim(),
+        subject: d.subject.trim() || null,
+        test_date: d.test_date || null,
+        description: d.description.trim() || null,
+        image_paths: paths,
+        question_count: qc,
+        allow_text_answer: !!d.allow_text_answer,
+        status: 'open',
+      };
+      var { error } = await sb.from('exams').insert(insertRow);
+      if (error) throw error;
+      alert('시험지가 발행되었습니다.');
+      closeExamForm();
+      await loadClassExams(selectedClass.id);
+    } catch (e) {
+      alert('발행 실패: ' + (e.message || e));
+    } finally {
+      setExamUploading(false);
+    }
+  }
+  async function toggleExamStatus(exam) {
+    var nextStatus = exam.status === 'open' ? 'closed' : 'open';
+    if (!confirm(nextStatus === 'closed' ? '응시를 마감하시겠습니까?' : '다시 응시 가능 상태로 변경하시겠습니까?')) return;
+    try {
+      await sb.from('exams').update({ status: nextStatus }).eq('id', exam.id);
+      await loadClassExams(selectedClass?.id);
+    } catch (e) { alert('변경 실패: ' + (e.message || e)); }
+  }
+  async function deleteExam(exam) {
+    if (!confirm('이 시험지를 삭제하시겠습니까? 학생 답안도 함께 삭제됩니다.')) return;
+    try {
+      var paths = Array.isArray(exam.image_paths) ? exam.image_paths : [];
+      if (paths.length > 0) { try { await sb.storage.from('attachments').remove(paths); } catch(e) {} }
+      await sb.from('exams').delete().eq('id', exam.id);
+      await loadClassExams(selectedClass?.id);
+    } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+  }
+
   // ── 일정 변경 신청 ──
   async function loadScheduleRequests() {
     setScrLoading(true);
@@ -1375,6 +1483,129 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           )}
           {selectedClass && students.length === 0 && (
             <div style={{ color: "#6b7280", fontSize: "14px", marginTop: "12px" }}>이 클래스에 등록된 학생이 없습니다.</div>
+          )}
+        </div>
+      )}
+
+      {/* ── 시험지 발행 (담당 클래스 탭, 반 선택 시) ── */}
+      {teacherView === "classes" && selectedClass && (
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
+            <h2 style={{ margin:0 }}>시험지 발행</h2>
+            <button onClick={openExamForm} style={{ ...buttonStyle, padding:'9px 16px', fontSize:'13px' }}>+ 새 시험 발행</button>
+          </div>
+          <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>이 반의 학생들에게 시험지를 발행합니다. 학생들은 자기 포털에서 시험지를 보고 답안을 제출할 수 있습니다.</p>
+
+          {examLoading ? (
+            <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div>
+          ) : examList.length === 0 ? (
+            <div style={{ color:'#9ca3af', fontSize:'13px' }}>아직 발행된 시험이 없습니다.</div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+              {examList.map(ex => {
+                const subs = examSubmissionsByExam[ex.id] || [];
+                const totalStudents = students.length;
+                const submittedCount = subs.length;
+                const imgs = Array.isArray(ex.image_paths) ? ex.image_paths : [];
+                return (
+                  <div key={ex.id} style={{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px' }}>
+                    <div style={{ display:'flex', alignItems:'flex-start', gap:'12px' }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' }}>
+                          <span style={{ fontSize:'11px', fontWeight:'800', background: ex.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' }}>{ex.status==='open' ? '응시 가능' : '마감'}</span>
+                          {ex.subject && <span style={{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' }}>{ex.subject}</span>}
+                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{ex.title}</span>
+                        </div>
+                        <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>
+                          {ex.test_date && <span>시험일 {ex.test_date} · </span>}
+                          이미지 {imgs.length}장 · 객관식 {ex.question_count}문항{ex.allow_text_answer ? ' · 서술형 허용' : ''}
+                        </div>
+                        <div style={{ fontSize:'12px', color:'#374151', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>
+                          제출: <strong style={{ color: submittedCount > 0 ? '#E60012' : '#6b7280' }}>{submittedCount}</strong> / {totalStudents}명
+                        </div>
+                        {ex.description && <div style={{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' }}>{ex.description}</div>}
+                      </div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 }}>
+                        <button onClick={() => toggleExamStatus(ex)} style={{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>{ex.status==='open' ? '마감' : '재오픈'}</button>
+                        <button onClick={() => deleteExam(ex)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>삭제</button>
+                      </div>
+                    </div>
+                    {subs.length > 0 && (
+                      <details style={{ marginTop:'10px' }}>
+                        <summary style={{ cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' }}>제출자 보기 ({subs.length}명)</summary>
+                        <div style={{ marginTop:'8px', display:'flex', flexDirection:'column', gap:'6px' }}>
+                          {subs.map(s => (
+                            <div key={s.id} style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'8px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
+                              <div style={{ fontWeight:'700', color:'#111827' }}>{s.student_name || '-'} · {String(s.submitted_at||'').slice(0,16).replace('T',' ')}</div>
+                              {ex.question_count > 0 && s.answers && Object.keys(s.answers).length > 0 && (
+                                <div style={{ marginTop:'4px', color:'#374151', fontSize:'11px' }}>
+                                  객관식: {Object.keys(s.answers).sort((a,b)=>Number(a)-Number(b)).map(k => k + '. ' + s.answers[k]).join(' / ')}
+                                </div>
+                              )}
+                              {s.text_answer && <div style={{ marginTop:'4px', color:'#374151', fontSize:'11px', whiteSpace:'pre-line' }}>서술형: {s.text_answer}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 시험지 발행 모달 */}
+          {examFormOpen && (
+            <div onClick={closeExamForm} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'520px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }}>
+                  <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>새 시험 발행 — {selectedClass?.name}</h3>
+                  <button onClick={closeExamForm} style={{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' }}>×</button>
+                </div>
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>제목 *</label>
+                <input value={examDraft.title} onChange={e => setExamDraft({ ...examDraft, title: e.target.value })} placeholder="예: 1학기 중간고사 영어" style={{ ...inputStyle, marginBottom:'14px' }} />
+
+                <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
+                  <div style={{ flex:1 }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>과목 (선택)</label>
+                    <select value={examDraft.subject} onChange={e => setExamDraft({ ...examDraft, subject: e.target.value })} style={inputStyle}>
+                      <option value="">과목 선택</option>
+                      {["국어","영어","수학","과학","사회"].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험일자 (선택)</label>
+                    <input type="date" value={examDraft.test_date} onChange={e => setExamDraft({ ...examDraft, test_date: e.target.value })} style={inputStyle} />
+                  </div>
+                </div>
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>안내사항 (선택)</label>
+                <textarea value={examDraft.description} onChange={e => setExamDraft({ ...examDraft, description: e.target.value })} rows={2} placeholder="예: 시험 시간 50분, 객관식 + 서술형" style={{ ...inputStyle, resize:'vertical', marginBottom:'14px' }} />
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 이미지 * (여러 장 가능, 페이지 순서대로)</label>
+                <input type="file" accept="image/*" multiple onChange={e => setExamDraft({ ...examDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                {examDraft.files && examDraft.files.length > 0 && (
+                  <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>{examDraft.files.length}장 선택됨 — {examDraft.files.map(f => f.name).join(', ')}</div>
+                )}
+
+                <div style={{ display:'flex', gap:'10px', marginBottom:'14px', alignItems:'flex-end' }}>
+                  <div style={{ flex:1 }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>객관식 문제 수</label>
+                    <input type="number" min="0" value={examDraft.question_count} onChange={e => setExamDraft({ ...examDraft, question_count: e.target.value })} style={inputStyle} />
+                  </div>
+                  <label style={{ display:'flex', alignItems:'center', gap:'6px', flex:1, padding:'10px 0', cursor:'pointer' }}>
+                    <input type="checkbox" checked={!!examDraft.allow_text_answer} onChange={e => setExamDraft({ ...examDraft, allow_text_answer: e.target.checked })} />
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#374151' }}>서술형 답안 허용</span>
+                  </label>
+                </div>
+
+                <div style={{ display:'flex', gap:'8px', marginTop:'8px' }}>
+                  <button onClick={closeExamForm} style={{ ...lightButtonStyle, flex:1 }}>취소</button>
+                  <button onClick={submitExam} disabled={examUploading} style={{ ...buttonStyle, flex:1, opacity: examUploading ? 0.6 : 1, cursor: examUploading ? 'not-allowed' : 'pointer' }}>{examUploading ? '발행 중...' : '발행'}</button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
