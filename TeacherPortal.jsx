@@ -621,9 +621,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   // test_scores에 class_id 없을 때 처리
   async function saveAllScores() {
     if (!teacherInfo) { alert("선생님 정보를 먼저 불러와야 합니다."); return; }
-    if (!testInfo.testName.trim()) { alert("시험명을 입력해 주세요."); return; }
     if (!testInfo.subject.trim()) { alert("과목을 선택해 주세요."); return; }
-    if (!testInfo.testRange.trim()) { alert("시험 범위를 입력해 주세요."); return; }
     if (selectedStudentIds.length === 0) { alert("성적을 저장할 학생을 선택해 주세요."); return; }
 
     const selectedIdSet = new Set(selectedStudentIds);
@@ -634,9 +632,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         student_id: s.id,
         teacher_id: teacherInfo.id,
         test_type: testInfo.testType,
-        test_name: testInfo.testName.trim(),
+        test_name: testInfo.testName.trim() || null,
         subject: testInfo.subject.trim(),
-        test_range: testInfo.testRange.trim(),
+        test_range: testInfo.testRange.trim() || null,
         test_date: testInfo.testDate,
         score: Number(scores[s.id]),
         created_at: new Date().toISOString(),
@@ -1954,10 +1952,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
                 <select style={inputStyle} value={testInfo.testName} onChange={e => setTestInfo(p => ({...p, testName: e.target.value}))}>
-                  <option value="">시험명 선택</option>
+                  <option value="">시험명 선택 (선택)</option>
                   {["주간평가","월말평가","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
-                <input style={inputStyle} placeholder="시험 범위" value={testInfo.testRange} onChange={e => setTestInfo(p => ({...p, testRange: e.target.value}))} />
+                <input style={inputStyle} placeholder="시험 범위 (선택)" value={testInfo.testRange} onChange={e => setTestInfo(p => ({...p, testRange: e.target.value}))} />
               </div>
               <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>체크된 학생에게만 성적이 저장됩니다.</p>
               <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
