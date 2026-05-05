@@ -1077,7 +1077,23 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           if (autoId) {
             sessionStorage.removeItem('b2_auto_exam_id');
             var found = (lt || []).find(function(e){ return e.id === autoId; }) || classExams.find(function(e){ return e.id === autoId; });
-            if (found) { setTimeout(function(){ openExam(found); }, 50); }
+            if (found) {
+              // 직접 응시 화면 진입 (openExam의 myLevelRequests stale closure 회피)
+              var existing = null;
+              try {
+                var subRow = await sb.from('exam_submissions').select('*').eq('exam_id', found.id).eq('student_id', user.id).maybeSingle();
+                existing = subRow.data || null;
+              } catch (e) {}
+              setActiveExam(found);
+              setExamAnswers(existing && existing.answers ? existing.answers : {});
+              var ta = existing && existing.text_answers && typeof existing.text_answers === 'object' ? existing.text_answers : {};
+              if ((!ta || Object.keys(ta).length === 0) && existing && existing.text_answer) ta = { '1': existing.text_answer };
+              setExamTextAnswers(ta);
+              setExamTextAnswer(existing && existing.text_answer ? existing.text_answer : '');
+              setExamImgIdx(0);
+              autoSubmitDoneRef.current = false;
+              setPortalView('exam');
+            }
           }
         } catch (e) {}
       } catch (e) { console.error('시험 로드 실패:', e); }
