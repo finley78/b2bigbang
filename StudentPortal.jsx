@@ -1071,7 +1071,11 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   }, [user, portalView, studentMode]);
 
   async function requestLevelTest(exam) {
-    if (!user) return;
+    if (!user) {
+      alert('로그인 후 신청할 수 있습니다.');
+      if (onLoginClick) onLoginClick();
+      return;
+    }
     var sb = window.supabase;
     try {
       var { error } = await sb.from('level_test_requests').insert({ exam_id: exam.id, student_id: user.id, student_name: user.name || '' });
@@ -1102,6 +1106,15 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     return data?.publicUrl || '';
   }
   function openExam(exam) {
+    if (!user) {
+      alert('로그인 후 이용할 수 있습니다.');
+      if (onLoginClick) onLoginClick();
+      return;
+    }
+    if (exam.kind === 'level' && !myLevelRequests[exam.id]) {
+      alert('레벨테스트는 신청 후 응시할 수 있습니다.');
+      return;
+    }
     setActiveExam(exam);
     var existing = mySubmissions[exam.id];
     setExamAnswers(existing && existing.answers ? existing.answers : {});
@@ -1126,6 +1139,11 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   }
   async function startExamSession() {
     if (!user || !activeExam) return;
+    if (activeExam.kind === 'level' && !myLevelRequests[activeExam.id]) {
+      alert('레벨테스트는 신청 후 응시할 수 있습니다.');
+      closeExam();
+      return;
+    }
     var sb = window.supabase;
     try {
       var nowIso = new Date().toISOString();
@@ -1199,6 +1217,11 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   }
   async function submitExamAnswer() {
     if (!user || !activeExam) return;
+    if (activeExam.kind === 'level' && !myLevelRequests[activeExam.id]) {
+      alert('레벨테스트는 신청 후 응시할 수 있습니다.');
+      closeExam();
+      return;
+    }
     var existing = mySubmissions[activeExam.id];
     if (existing && existing.locked) { alert('시간이 종료되어 답안을 수정할 수 없습니다.'); return; }
     setExamSubmitting(true);
