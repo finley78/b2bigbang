@@ -581,6 +581,7 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
   }
 
   function openForm() {
+    if (tests.length === 0) { alert('현재 신청 가능한 레벨테스트가 없습니다.\n곧 새로운 시험이 등록될 예정입니다.'); return; }
     if (!user) { alert('로그인 후 신청할 수 있습니다.'); if (onLoginClick) onLoginClick(); return; }
     setDraft({ school_level:'중', grade:'', semester:'', score:'' });
     setFormOpen(true);
@@ -612,19 +613,23 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
     finally { setSubmitting(false); }
   }
 
-  if (!loaded || tests.length === 0) return null;
+  if (!loaded) return null;
 
   const hasMyReq = Object.keys(myReqs).length > 0;
+  const hasTests = tests.length > 0;
   return React.createElement('div', { style:{ background:'linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%)', padding: isMobile ? '28px 16px' : '36px 40px' } },
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'space-between', gap: isMobile ? '16px' : '24px' } },
       React.createElement('div', { style:{ flex:1 } },
-        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'rgba(255,255,255,0.7)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '🎯 LEVEL TEST'),
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' } },
+          React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', color:'rgba(255,255,255,0.7)', letterSpacing:'0.12em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' } }, '🎯 LEVEL TEST'),
+          !hasTests && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'rgba(255,255,255,0.18)', color:'#fff', borderRadius:'999px', padding:'2px 9px', fontFamily:'Manrope, sans-serif' } }, '준비 중')
+        ),
         React.createElement('div', { style:{ fontSize: isMobile ? '22px' : '28px', fontWeight:'800', color:'#fff', lineHeight:'1.3', fontFamily:'Manrope, sans-serif', marginBottom:'6px' } }, '내 실력에 맞는 레벨테스트, 무료로 신청'),
-        React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.75)', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '학교급·학년·내신 점수에 맞는 시험이 자동으로 매칭되어 집에서 응시할 수 있습니다.' + (user ? '' : ' (회원가입 후 신청)'))
+        React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.75)', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, hasTests ? ('학교급·학년·내신 점수에 맞는 시험이 자동으로 매칭되어 집에서 응시할 수 있습니다.' + (user ? '' : ' (회원가입 후 신청)')) : '곧 새로운 레벨테스트가 등록될 예정입니다. 회원가입 후 알림을 받아보세요.')
       ),
       React.createElement('div', { style:{ display:'flex', gap:'10px', flexShrink:0, flexWrap:'wrap' } },
         hasMyReq && React.createElement('button', { onClick:function(){ if (setPage) setPage('portal'); }, style:{ background:'transparent', color:'#fff', border:'1px solid rgba(255,255,255,0.55)', borderRadius:'10px', padding:'12px 22px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '내 신청 보기'),
-        React.createElement('button', { onClick:openForm, style:{ background:'#fff', color:'#1d4ed8', border:'none', borderRadius:'10px', padding:'12px 26px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 8px 20px rgba(0,0,0,0.18)' } }, hasMyReq ? '추가 신청' : '레벨테스트 신청')
+        React.createElement('button', { onClick:openForm, style:{ background:'#fff', color:'#1d4ed8', border:'none', borderRadius:'10px', padding:'12px 26px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 8px 20px rgba(0,0,0,0.18)', opacity: hasTests ? 1 : 0.85 } }, hasMyReq ? '추가 신청' : '레벨테스트 신청')
       )
     ),
 
