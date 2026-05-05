@@ -1433,8 +1433,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   ];
 
   const TAB_GROUPS = [
-    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','course','lecture'] },
-    { id: 'student', label: '학생 관리', color:'#E60012', tabs:['scores'] },
+    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','course','lecture','scores'] },
     { id: 'academy', label: '학원',      color:'#c87000', tabs:['schedule','files','notes'] },
     { id: 'me',      label: '내 정보',   color:'#1A1A1A', tabs:['mypage'] },
   ];
