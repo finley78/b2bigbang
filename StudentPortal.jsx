@@ -1812,28 +1812,44 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
 
   // 학생 강의실 홈 (두 카드 선택)
   if (isStudent && studentMode === 'home') {
+    var classroomGroups = [
+      { id:'learn', label:'학습', color:'#1A1A1A', items:[
+        { id:'video', title:'영상 강의', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
+      ]},
+      { id:'test',  label:'평가', color:'#E60012', items:[
+        { id:'test',  title:'테스트', badge: pendingExams.length > 0 ? ('미응시 ' + pendingExams.length) : null, onClick:function(){ setStudentMode('test'); } },
+      ]},
+    ];
     return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
       renderHeader(false),
-      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
-        React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'16px' } },
-          React.createElement('button', { onClick:function(){ setStudentMode('video'); setSelectedSubject(null); }, style:{
-            background:'#fff', border:'2px solid #1A1A1A', borderRadius:'16px', padding:'32px 24px', textAlign:'left', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 10px 30px rgba(0,0,0,0.06)', transition:'transform 0.15s'
-          } },
-            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#6b7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'4px' } }, '강의실 · VIDEO'),
-            React.createElement('div', { style:{ fontSize:'22px', fontWeight:'800', color:'#111827', marginBottom:'6px' } }, '영상 강의'),
-            React.createElement('div', { style:{ fontSize:'13px', color:'#6b7280', lineHeight:'1.6' } }, '과목별 강의 영상을 시청하고\n학습할 수 있습니다.'),
-            React.createElement('div', { style:{ marginTop:'14px', fontSize:'12px', color:'#374151', fontWeight:'700' } }, '수강 과목 ' + studentSubjects.length + '개 →')
-          ),
-          React.createElement('button', { onClick:function(){ setStudentMode('test'); }, style:{
-            background:'#fff', border:'2px solid #E60012', borderRadius:'16px', padding:'32px 24px', textAlign:'left', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 10px 30px rgba(230,0,18,0.10)', transition:'transform 0.15s', position:'relative'
-          } },
-            pendingExams.length > 0 && React.createElement('span', { style:{ position:'absolute', top:'14px', right:'14px', background:'#E60012', color:'#fff', borderRadius:'999px', padding:'4px 10px', fontSize:'11px', fontWeight:'800' } }, '미응시 ' + pendingExams.length),
-            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'4px' } }, '강의실 · TEST'),
-            React.createElement('div', { style:{ fontSize:'22px', fontWeight:'800', color:'#111827', marginBottom:'6px' } }, '테스트'),
-            React.createElement('div', { style:{ fontSize:'13px', color:'#6b7280', lineHeight:'1.6' } }, '발행된 시험지를 보고\n답안을 작성·제출할 수 있습니다.'),
-            React.createElement('div', { style:{ marginTop:'14px', fontSize:'12px', color:'#E60012', fontWeight:'700' } }, '응시 가능 ' + availableExams.length + '건 →')
-          )
-        )
+      React.createElement('div', { style:{ maxWidth:'1100px', margin:'0 auto', padding:'24px 16px' } },
+        classroomGroups.map(function(g){
+          return React.createElement('div', { key:g.id, style:{ marginBottom:'28px' } },
+            React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px' } },
+              React.createElement('div', { style:{ width:'4px', height:'18px', background:g.color, borderRadius:'2px' } }),
+              React.createElement('h2', { style:{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' } }, g.label),
+              React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, g.items.length + '개')
+            ),
+            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'10px' } },
+              g.items.map(function(it){
+                return React.createElement('button', { key:it.id, onClick:it.onClick,
+                  onMouseEnter:function(e){ e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; },
+                  onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; },
+                  style:{
+                    background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px',
+                    padding:'10px 14px', textAlign:'left', cursor:'pointer',
+                    fontFamily:'Manrope, sans-serif',
+                    fontSize:'14px', fontWeight:'700', color:'#111827',
+                    letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s',
+                    position:'relative'
+                  } },
+                  it.title,
+                  it.badge && React.createElement('span', { style:{ marginLeft:'8px', fontSize:'10px', fontWeight:'800', background:g.color, color:'#fff', borderRadius:'999px', padding:'2px 8px' } }, it.badge)
+                );
+              })
+            )
+          );
+        })
       )
     );
   }
