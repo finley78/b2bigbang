@@ -79,7 +79,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [examList, setExamList] = React.useState([]);
   const [examLoading, setExamLoading] = React.useState(false);
   const [examFormOpen, setExamFormOpen] = React.useState(false);
-  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', choices_per_question:'5', allow_text_answer:true, time_limit_minutes:'0' });
+  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
   const [examUploading, setExamUploading] = React.useState(false);
   const [examSubmissionsByExam, setExamSubmissionsByExam] = React.useState({}); // { exam_id: [submissions] }
 
@@ -1017,7 +1017,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return data?.publicUrl || '';
   }
   function openExamForm() {
-    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', allow_text_answer:true, time_limit_minutes:'0' });
+    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
     setExamFormOpen(true);
   }
   function closeExamForm() {
@@ -1034,7 +1034,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var cpq = parseInt(d.choices_per_question, 10);
     if (isNaN(cpq) || cpq < 2) cpq = 5;
     if (cpq > 9) cpq = 9;
-    if (qc === 0 && !d.allow_text_answer) { alert('객관식 문제 수가 0이면 서술형 답안을 허용해야 합니다.'); return; }
+    var tqc = parseInt(d.text_question_count, 10);
+    if (isNaN(tqc) || tqc < 0) tqc = 0;
+    if (qc === 0 && tqc === 0) { alert('객관식 또는 서술형 문제 수 중 하나는 1 이상이어야 합니다.'); return; }
     var tlm = parseInt(d.time_limit_minutes, 10);
     if (isNaN(tlm) || tlm < 0) tlm = 0;
     setExamUploading(true);
@@ -1059,7 +1061,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         image_paths: paths,
         question_count: qc,
         choices_per_question: cpq,
-        allow_text_answer: !!d.allow_text_answer,
+        text_question_count: tqc,
+        allow_text_answer: tqc > 0,
         time_limit_minutes: tlm,
         status: 'open',
       };
@@ -1525,7 +1528,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         </div>
                         <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>
                           {ex.test_date && <span>시험일 {ex.test_date} · </span>}
-                          이미지 {imgs.length}장 · 객관식 {ex.question_count}문항({ex.choices_per_question || 5}지선다){ex.allow_text_answer ? ' · 서술형 허용' : ''}{ex.time_limit_minutes > 0 ? ' · 제한 ' + ex.time_limit_minutes + '분' : ''}
+                          이미지 {imgs.length}장 · 객관식 {ex.question_count}문항({ex.choices_per_question || 5}지선다){(ex.text_question_count || 0) > 0 ? ' · 서술형 ' + ex.text_question_count + '문항' : (ex.allow_text_answer ? ' · 서술형 1문항' : '')}{ex.time_limit_minutes > 0 ? ' · 제한 ' + ex.time_limit_minutes + '분' : ''}
                         </div>
                         <div style={{ fontSize:'12px', color:'#374151', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>
                           제출: <strong style={{ color: submittedCount > 0 ? '#E60012' : '#6b7280' }}>{submittedCount}</strong> / {totalStudents}명
@@ -1549,7 +1552,19 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                                   객관식: {Object.keys(s.answers).sort((a,b)=>Number(a)-Number(b)).map(k => k + '. ' + s.answers[k]).join(' / ')}
                                 </div>
                               )}
-                              {s.text_answer && <div style={{ marginTop:'4px', color:'#374151', fontSize:'11px', whiteSpace:'pre-line' }}>서술형: {s.text_answer}</div>}
+                              {(() => {
+                                var ta = s.text_answers && typeof s.text_answers === 'object' ? s.text_answers : null;
+                                var hasMulti = ta && Object.keys(ta).length > 0;
+                                if (hasMulti) {
+                                  return Object.keys(ta).sort((a,b)=>Number(a)-Number(b)).map(function(k){
+                                    return <div key={k} style={{ marginTop:'4px', color:'#374151', fontSize:'11px', whiteSpace:'pre-line' }}>서술형 {k}. {ta[k]}</div>;
+                                  });
+                                }
+                                if (s.text_answer) {
+                                  return <div style={{ marginTop:'4px', color:'#374151', fontSize:'11px', whiteSpace:'pre-line' }}>서술형: {s.text_answer}</div>;
+                                }
+                                return null;
+                              })()}
                             </div>
                           ))}
                         </div>
@@ -1608,14 +1623,16 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     </select>
                   </div>
                 </div>
-                <div style={{ marginBottom:'14px' }}>
-                  <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시간 제한 (분, 0 = 무제한)</label>
-                  <input type="number" min="0" value={examDraft.time_limit_minutes} onChange={e => setExamDraft({ ...examDraft, time_limit_minutes: e.target.value })} placeholder="예: 50" style={inputStyle} />
+                <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
+                  <div style={{ flex:1 }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>서술형 문제 수 (0 = 없음)</label>
+                    <input type="number" min="0" value={examDraft.text_question_count} onChange={e => setExamDraft({ ...examDraft, text_question_count: e.target.value })} style={inputStyle} />
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시간 제한 (분, 0 = 무제한)</label>
+                    <input type="number" min="0" value={examDraft.time_limit_minutes} onChange={e => setExamDraft({ ...examDraft, time_limit_minutes: e.target.value })} placeholder="예: 50" style={inputStyle} />
+                  </div>
                 </div>
-                <label style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 0 14px', cursor:'pointer' }}>
-                  <input type="checkbox" checked={!!examDraft.allow_text_answer} onChange={e => setExamDraft({ ...examDraft, allow_text_answer: e.target.checked })} />
-                  <span style={{ fontSize:'13px', fontWeight:'700', color:'#374151' }}>서술형 답안 허용</span>
-                </label>
 
                 <div style={{ display:'flex', gap:'8px', marginTop:'8px' }}>
                   <button onClick={closeExamForm} style={{ ...lightButtonStyle, flex:1 }}>취소</button>
