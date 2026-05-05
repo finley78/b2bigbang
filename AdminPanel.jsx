@@ -2811,7 +2811,7 @@ tab==='leveltest' && React.createElement('div', null,
                 ),
                 React.createElement('div', { style:{ color:'#6b7280', fontSize:'11px', marginTop:'2px' } },
                   '신청: ' + String(r.requested_at||'').slice(0,16).replace('T',' ') + (matched ? ' · 제출: ' + String(matched.submitted_at||'').slice(0,16).replace('T',' ') : ''),
-                  (r.school_level || r.grade || r.semester || r.score != null) && React.createElement('span', { style:{ marginLeft:'8px', color:'#1d4ed8', fontWeight:'700' } }, '응시 정보: ' + [r.school_level, r.grade ? r.grade + '학년' : null, r.semester ? r.semester + '학기' : null, r.score != null ? r.score + '점' : null].filter(Boolean).join(' / '))
+                  (r.school_level || r.grade || r.semester || r.subject || r.score != null) && React.createElement('span', { style:{ marginLeft:'8px', color:'#1d4ed8', fontWeight:'700' } }, '응시 정보: ' + [r.school_level, r.grade ? r.grade + '학년' : null, r.semester ? r.semester + '학기' : null, r.subject, r.score != null ? r.score + '점' : null].filter(Boolean).join(' / '))
                 ),
                 matched && (t.question_count||0) > 0 && matched.answers && Object.keys(matched.answers).length > 0 && React.createElement('div', { style:{ marginTop:'4px', color:'#374151', fontSize:'11px' } },
                   '객관식: ' + Object.keys(matched.answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){ return k + '. ' + matched.answers[k]; }).join(' / ')
