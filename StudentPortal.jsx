@@ -1506,7 +1506,6 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     return React.createElement('div', { style:{ background: isTeacherMode ? '#3A3A3A' : '#1A1A1A', padding: small ? '20px 16px' : '28px 16px' } },
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between' } },
         React.createElement('div', { style:{ display:'flex', alignItems:'center', gap: small ? '10px' : '16px' } },
-          React.createElement('div', { style:{ width: small?'40px':'52px', height: small?'40px':'52px', borderRadius:'50%', background:'#E60012', display:'flex', alignItems:'center', justifyContent:'center', fontSize: small?'18px':'22px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, (user.name || '?')[0]),
           React.createElement('div', null,
             React.createElement('div', { style:{ fontSize: small?'16px':'22px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, (user.name || '회원') + '님' + (small ? '' : ', 안녕하세요!')),
             isTeacherMode && React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.65)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, '내가 등록한 강의 보기')

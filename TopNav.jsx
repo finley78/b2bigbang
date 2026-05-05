@@ -60,7 +60,6 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
         user
           ? React.createElement('div', { style: { display:'flex', alignItems:'center', gap:'12px' } },
               React.createElement('div', { style: mnStyles.userBadge },
-                React.createElement('div', { style: mnStyles.avatar }, (user.name || '?')[0]),
                 React.createElement('span', { style: mnStyles.userName }, user.name || '')
               ),
               React.createElement('button', { onClick: onLogout, style:{ background:'transparent', color:'#E60012', border:'1px solid #E60012', borderRadius:'8px', padding:'6px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s' } }, '로그아웃')
@@ -84,7 +83,6 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
       // 우측: D-day + 햄버거
       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
         React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#000000', fontFamily:'Manrope, sans-serif' } }, `수능 D-${d}`),
-        user && React.createElement('div', { style:{ width:'28px', height:'28px', borderRadius:'50%', background:'#E60012', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, (user.name || '?')[0]),
         // 햄버거 버튼
         React.createElement('button', {
           onClick: () => setMenuOpen(!menuOpen),

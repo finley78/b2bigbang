@@ -37,7 +37,6 @@ else { setError(true); setTimeout(() => setError(false), 2000); }
 return React.createElement('div', { style:{ minHeight:'70vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f2f0eb' } },
 React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', padding:'40px', width:'360px', boxShadow:'0 4px 24px rgba(0,0,0,0.1)' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'28px' } },
-React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#F8B500', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, '관'),
 React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '관리자 로그인')
 ),
 React.createElement('div', { style:{ position:'relative', background:'#f9f9f9', borderRadius:'4px', border:`1px solid ${error?'#c82014':'#d6dbde'}`, padding:'14px 12px 10px', marginBottom:'16px' } },
@@ -860,7 +859,6 @@ return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80v
 
 React.createElement('div', { style:{ background:'#1A1A1A', padding:'24px 40px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
-React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#F8B500', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, '관'),
 React.createElement('div', null,
 React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px' } }, 'B2빅뱅학원 관리자'),
 React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.5)', fontFamily:'Manrope, sans-serif' } }, '관리자 전용 페이지')
