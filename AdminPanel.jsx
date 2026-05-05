@@ -871,15 +871,12 @@ tab === 'home' && React.createElement('div', null,
           var t = tabs.find(function(x){ return x.id === tid; });
           if (!t) return null;
           return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); }, style:{
-            background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
-            padding: adminIsMobile ? '18px 14px' : '22px 18px',
+            background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px',
+            padding: '10px 14px',
             textAlign:'left', cursor:'pointer', fontFamily:'Manrope, sans-serif',
-            transition:'transform 0.1s, box-shadow 0.15s, border-color 0.15s',
-            boxShadow:'0 1px 2px rgba(0,0,0,0.04)'
-          }, onMouseEnter:function(e){ e.currentTarget.style.borderColor = groupColor; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'; } },
-            React.createElement('div', { style:{ fontSize: adminIsMobile ? '14px' : '15px', fontWeight:'800', color:'#111827', marginBottom:'4px', letterSpacing:'-0.01em' } }, t.label),
-            React.createElement('div', { style:{ fontSize:'11px', color: groupColor, fontWeight:'700' } }, '바로가기 →')
-          );
+            transition:'border-color 0.15s, box-shadow 0.15s',
+            fontSize: '14px', fontWeight:'700', color:'#111827', letterSpacing:'-0.01em'
+          }, onMouseEnter:function(e){ e.currentTarget.style.borderColor = groupColor; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; } }, t.label);
         })
       )
     );
