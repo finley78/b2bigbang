@@ -116,6 +116,14 @@ const [adminAttachLoading, setAdminAttachLoading] = React.useState(false);
 const [adminScrList, setAdminScrList] = React.useState([]);
 const [adminScrLoading, setAdminScrLoading] = React.useState(false);
 const [adminScrTeacherFilter, setAdminScrTeacherFilter] = React.useState('전체');
+// 레벨테스트
+const [adminLevelTests, setAdminLevelTests] = React.useState([]);
+const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); // { exam_id: [requests] }
+const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
+const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
+const [adminLtFormOpen, setAdminLtFormOpen] = React.useState(false);
+const [adminLtDraft, setAdminLtDraft] = React.useState({ title:'', subject:'', target_grade:'', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
+const [adminLtUploading, setAdminLtUploading] = React.useState(false);
 const [adminScrMode, setAdminScrMode] = React.useState('change'); // 'change' | 'academic'
 const [adminAcademicList, setAdminAcademicList] = React.useState([]);
 const [adminAcademicLoading, setAdminAcademicLoading] = React.useState(false);
@@ -244,6 +252,106 @@ async function deleteAdminAttachment(att) {
     await sb.storage.from('attachments').remove([att.file_path]);
     await sb.from('attachments').delete().eq('id', att.id);
     await loadAdminAttachments();
+  } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+}
+
+async function loadAdminLevelTests() {
+  setAdminLevelTestLoading(true);
+  var sb = window.supabase;
+  try {
+    var { data: tests } = await sb.from('exams').select('*').eq('kind', 'level').order('created_at', { ascending: false });
+    setAdminLevelTests(tests || []);
+    if (tests && tests.length > 0) {
+      var ids = tests.map(function(t){ return t.id; });
+      var { data: reqs } = await sb.from('level_test_requests').select('*').in('exam_id', ids);
+      var rg = {};
+      (reqs || []).forEach(function(r){ (rg[r.exam_id] = rg[r.exam_id] || []).push(r); });
+      setAdminLevelTestRequests(rg);
+      var { data: subs } = await sb.from('exam_submissions').select('*').in('exam_id', ids);
+      var sg = {};
+      (subs || []).forEach(function(s){ (sg[s.exam_id] = sg[s.exam_id] || []).push(s); });
+      setAdminLevelTestSubs(sg);
+    } else {
+      setAdminLevelTestRequests({}); setAdminLevelTestSubs({});
+    }
+  } catch (e) {
+    console.error('레벨테스트 로드 실패:', e);
+    setAdminLevelTests([]); setAdminLevelTestRequests({}); setAdminLevelTestSubs({});
+  } finally {
+    setAdminLevelTestLoading(false);
+  }
+}
+function adminOpenLtForm() {
+  setAdminLtDraft({ title:'', subject:'', target_grade:'', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
+  setAdminLtFormOpen(true);
+}
+function adminCloseLtForm() { setAdminLtFormOpen(false); }
+async function adminSubmitLevelTest() {
+  var sb = window.supabase;
+  var d = adminLtDraft;
+  if (!d.title.trim()) { alert('제목을 입력해 주세요.'); return; }
+  if (!d.files || d.files.length === 0) { alert('시험지 이미지를 1장 이상 업로드해 주세요.'); return; }
+  var qc = parseInt(d.question_count, 10); if (isNaN(qc) || qc < 0) qc = 0;
+  var cpq = parseInt(d.choices_per_question, 10); if (isNaN(cpq) || cpq < 2) cpq = 5; if (cpq > 9) cpq = 9;
+  var tqc = parseInt(d.text_question_count, 10); if (isNaN(tqc) || tqc < 0) tqc = 0;
+  if (qc === 0 && tqc === 0) { alert('객관식 또는 서술형 문제 수 중 하나는 1 이상이어야 합니다.'); return; }
+  var tlm = parseInt(d.time_limit_minutes, 10); if (isNaN(tlm) || tlm < 0) tlm = 0;
+  setAdminLtUploading(true);
+  try {
+    var paths = [];
+    for (var i = 0; i < d.files.length; i++) {
+      var f = d.files[i];
+      var ext = (f.name.split('.').pop() || 'png').toLowerCase();
+      var path = 'exams/level/' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+      var up = await sb.storage.from('attachments').upload(path, f, { cacheControl:'3600', upsert:false });
+      if (up.error) throw up.error;
+      paths.push(path);
+    }
+    var insertRow = {
+      kind: 'level',
+      class_id: null,
+      teacher_id: null,
+      teacher_name: '관리자',
+      title: d.title.trim(),
+      subject: d.subject.trim() || null,
+      target_grade: d.target_grade.trim() || null,
+      description: d.description.trim() || null,
+      image_paths: paths,
+      question_count: qc,
+      choices_per_question: cpq,
+      text_question_count: tqc,
+      allow_text_answer: tqc > 0,
+      time_limit_minutes: tlm,
+      status: 'open',
+    };
+    var { error } = await sb.from('exams').insert(insertRow);
+    if (error) throw error;
+    alert('레벨테스트가 발행되었습니다.');
+    adminCloseLtForm();
+    await loadAdminLevelTests();
+  } catch (e) {
+    alert('발행 실패: ' + (e.message || e));
+  } finally {
+    setAdminLtUploading(false);
+  }
+}
+async function adminToggleLtStatus(t) {
+  var nextStatus = t.status === 'open' ? 'closed' : 'open';
+  if (!confirm(nextStatus === 'closed' ? '이 레벨테스트를 마감하시겠습니까?' : '다시 응시 가능 상태로 변경하시겠습니까?')) return;
+  var sb = window.supabase;
+  try {
+    await sb.from('exams').update({ status: nextStatus }).eq('id', t.id);
+    await loadAdminLevelTests();
+  } catch (e) { alert('변경 실패: ' + (e.message || e)); }
+}
+async function adminDeleteLevelTest(t) {
+  if (!confirm('이 레벨테스트를 삭제하시겠습니까? 신청 내역과 답안도 함께 삭제됩니다.')) return;
+  var sb = window.supabase;
+  try {
+    var paths = Array.isArray(t.image_paths) ? t.image_paths : [];
+    if (paths.length > 0) { try { await sb.storage.from('attachments').remove(paths); } catch(e) {} }
+    await sb.from('exams').delete().eq('id', t.id);
+    await loadAdminLevelTests();
   } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
 }
 
@@ -576,6 +684,7 @@ const tabs = [
 { id:'views',   label:'학습 현황' },
 { id:'files',   label:'자료실' },
 { id:'schedule',label:'학원 일정' },
+{ id:'leveltest',label:'레벨테스트' },
 { id:'feature', label:'섹션 편집' },
 ];
 
@@ -666,7 +775,7 @@ React.createElement('button', { onClick:onLogout, style:{ background:'rgba(255,2
 
 React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'0 40px', display:'flex', gap:'0', overflowX:'auto' } },
 tabs.map(t =>
-React.createElement('button', { key:t.id, onClick:()=>{ setTab(t.id); if (t.id === 'files') loadAdminAttachments(); if (t.id === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } }, style:{ padding:'16px 20px', background:'none', border:'none', borderBottom: tab===t.id?'2px solid #E60012':'2px solid transparent', fontSize:'14px', fontWeight:'700', color: tab===t.id?'#E60012':'rgba(0,0,0,0.55)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', marginBottom:'-1px', whiteSpace:'nowrap' } }, t.label)
+React.createElement('button', { key:t.id, onClick:()=>{ setTab(t.id); if (t.id === 'files') loadAdminAttachments(); if (t.id === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (t.id === 'leveltest') loadAdminLevelTests(); }, style:{ padding:'16px 20px', background:'none', border:'none', borderBottom: tab===t.id?'2px solid #E60012':'2px solid transparent', fontSize:'14px', fontWeight:'700', color: tab===t.id?'#E60012':'rgba(0,0,0,0.55)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', marginBottom:'-1px', whiteSpace:'nowrap' } }, t.label)
 )
 ),
 
@@ -2640,6 +2749,125 @@ tab==='schedule' && React.createElement('div', null,
       )
     );
   })()
+),
+
+/* ── 레벨테스트 TAB ── */
+tab==='leveltest' && React.createElement('div', null,
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px' } },
+    React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '레벨테스트'),
+    React.createElement('button', { onClick: adminOpenLtForm, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 16px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 새 레벨테스트 발행')
+  ),
+  React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '학원 등록 회원이 신청해서 집에서 응시할 수 있는 레벨테스트입니다.'),
+
+  adminLevelTestLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '불러오는 중...') :
+  adminLevelTests.length === 0 ? React.createElement('div', { style:{ background:'#fff', borderRadius:'10px', padding:'40px', textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px' } }, '발행된 레벨테스트가 없습니다.') :
+  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
+    adminLevelTests.map(function(t){
+      var reqs = adminLevelTestRequests[t.id] || [];
+      var subs = adminLevelTestSubs[t.id] || [];
+      var imgs = Array.isArray(t.image_paths) ? t.image_paths : [];
+      return React.createElement('div', { key:t.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'14px 16px' } },
+        React.createElement('div', { style:{ display:'flex', alignItems:'flex-start', gap:'12px' } },
+          React.createElement('div', { style:{ flex:1, minWidth:0 } },
+            React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
+              React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: t.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, t.status==='open' ? '신청 가능' : '마감'),
+              t.subject && React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, t.subject),
+              t.target_grade && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#1d4ed8', fontFamily:'Manrope, sans-serif' } }, '대상: ' + t.target_grade),
+              React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, t.title)
+            ),
+            React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } },
+              '이미지 ' + imgs.length + '장 · 객관식 ' + (t.question_count||0) + '문항(' + (t.choices_per_question||5) + '지선다)' + ((t.text_question_count||0) > 0 ? ' · 서술형 ' + t.text_question_count + '문항' : '') + (t.time_limit_minutes > 0 ? ' · 제한 ' + t.time_limit_minutes + '분' : '')
+            ),
+            React.createElement('div', { style:{ fontSize:'12px', color:'#374151', marginTop:'4px', fontFamily:'Manrope, sans-serif' } },
+              '신청 ', React.createElement('strong', { style:{ color:'#1d4ed8' } }, reqs.length), '명 · 응시 ', React.createElement('strong', { style:{ color:'#E60012' } }, subs.length), '명'
+            ),
+            t.description && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' } }, t.description)
+          ),
+          React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 } },
+            React.createElement('button', { onClick:function(){ adminToggleLtStatus(t); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, t.status==='open' ? '마감' : '재오픈'),
+            React.createElement('button', { onClick:function(){ adminDeleteLevelTest(t); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
+          )
+        ),
+        (reqs.length > 0 || subs.length > 0) && React.createElement('details', { style:{ marginTop:'10px' } },
+          React.createElement('summary', { style:{ cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, '신청자 / 응시자 보기'),
+          React.createElement('div', { style:{ marginTop:'8px', display:'flex', flexDirection:'column', gap:'6px' } },
+            reqs.map(function(r){
+              var matched = subs.find(function(s){ return s.student_id === r.student_id; });
+              return React.createElement('div', { key:r.id, style:{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'8px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } },
+                React.createElement('div', { style:{ fontWeight:'700', color:'#111827' } },
+                  r.student_name || '-',
+                  React.createElement('span', { style:{ marginLeft:'8px', fontSize:'10px', fontWeight:'800', background: matched ? '#16a34a' : '#9ca3af', color:'#fff', borderRadius:'4px', padding:'2px 6px' } }, matched ? '응시 완료' : '미응시')
+                ),
+                React.createElement('div', { style:{ color:'#6b7280', fontSize:'11px', marginTop:'2px' } }, '신청: ' + String(r.requested_at||'').slice(0,16).replace('T',' ') + (matched ? ' · 제출: ' + String(matched.submitted_at||'').slice(0,16).replace('T',' ') : '')),
+                matched && (t.question_count||0) > 0 && matched.answers && Object.keys(matched.answers).length > 0 && React.createElement('div', { style:{ marginTop:'4px', color:'#374151', fontSize:'11px' } },
+                  '객관식: ' + Object.keys(matched.answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){ return k + '. ' + matched.answers[k]; }).join(' / ')
+                ),
+                matched && matched.text_answers && Object.keys(matched.text_answers).length > 0 && Object.keys(matched.text_answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){
+                  return React.createElement('div', { key:k, style:{ marginTop:'4px', color:'#374151', fontSize:'11px', whiteSpace:'pre-line' } }, '서술형 ' + k + '. ' + matched.text_answers[k]);
+                })
+              );
+            })
+          )
+        )
+      );
+    })
+  ),
+
+  /* 발행 모달 */
+  adminLtFormOpen && React.createElement('div', { onClick:adminCloseLtForm, style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' } },
+    React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'520px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' } },
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' } },
+        React.createElement('h3', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 } }, '새 레벨테스트 발행'),
+        React.createElement('button', { onClick:adminCloseLtForm, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' } }, '×')
+      ),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '제목 *'),
+      React.createElement('input', { value: adminLtDraft.title, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { title:e.target.value })); }, placeholder:'예: 수학 레벨테스트 (중1)', style:Object.assign({}, inputS, { marginBottom:'14px', width:'100%' }) }),
+      React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px' } },
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '과목 (선택)'),
+          React.createElement('select', { value:adminLtDraft.subject, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { subject:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) },
+            React.createElement('option', { value:'' }, '과목 선택'),
+            ['국어','영어','수학','과학','사회'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+          )
+        ),
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '대상 학년 (선택)'),
+          React.createElement('input', { value:adminLtDraft.target_grade, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { target_grade:e.target.value })); }, placeholder:'예: 중1, 고2', style:Object.assign({}, inputS, { width:'100%' }) })
+        )
+      ),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '안내사항 (선택)'),
+      React.createElement('textarea', { value:adminLtDraft.description, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { description:e.target.value })); }, rows:2, placeholder:'예: 시험 시간 50분, 객관식 + 서술형', style:Object.assign({}, inputS, { width:'100%', resize:'vertical', marginBottom:'14px' }) }),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시험지 이미지 * (여러 장 가능)'),
+      React.createElement('input', { type:'file', accept:'image/*', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
+      adminLtDraft.files && adminLtDraft.files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' } }, adminLtDraft.files.length + '장 선택됨'),
+      React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'10px' } },
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 문제 수'),
+          React.createElement('input', { type:'number', min:'0', value:adminLtDraft.question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { question_count:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+        ),
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '보기 수'),
+          React.createElement('select', { value:adminLtDraft.choices_per_question, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { choices_per_question:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) },
+            ['3','4','5'].map(function(n){ return React.createElement('option', { key:n, value:n }, n + '지선다'); })
+          )
+        )
+      ),
+      React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px' } },
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '서술형 문제 수'),
+          React.createElement('input', { type:'number', min:'0', value:adminLtDraft.text_question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { text_question_count:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+        ),
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시간 제한 (분, 0=무제한)'),
+          React.createElement('input', { type:'number', min:'0', value:adminLtDraft.time_limit_minutes, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { time_limit_minutes:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+        )
+      ),
+      React.createElement('div', { style:{ display:'flex', gap:'8px', marginTop:'8px' } },
+        React.createElement('button', { onClick:adminCloseLtForm, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor:'pointer' } }, '취소'),
+        React.createElement('button', { onClick:adminSubmitLevelTest, disabled:adminLtUploading, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: adminLtUploading?'not-allowed':'pointer', opacity: adminLtUploading ? 0.6 : 1 } }, adminLtUploading ? '발행 중...' : '발행')
+      )
+    )
+  )
 ),
 
 /* ── 섹션 편집 TAB ── */
