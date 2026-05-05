@@ -449,21 +449,21 @@ function StatsBand() {
 
 function FeatureBand({ setPage, isAdmin, content, onEdit }) {
   const isMobile = useIsMobile();
-  const BAND_BG = isMobile ? '#1A1A1A' : '#1E3932';
-  const ACCENT = isMobile ? '#E60012' : '#006241';
-  const GOLD_BTN_BG = isMobile ? 'rgba(248,181,0,0.9)' : 'rgba(203,162,88,0.9)';
+  const BAND_BG = content.featureBgColor || '#FFEBED';
+  const TEXT = content.featureTextColor || '#1A1A1A';
+  const SUB = TEXT === '#fff' || TEXT === '#FFFFFF' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.55)';
   return React.createElement('div', { style:{ background: BAND_BG, padding: isMobile ? '40px 16px' : '56px 40px', position:'relative' } },
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'space-between', gap: isMobile ? '20px' : '40px' } },
       React.createElement('div', null,
-        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, content.featureEyebrow || '지금 등록하면'),
-        React.createElement('div', { style:{ fontSize: isMobile ? '30px' : '38px', fontWeight:'800', color:'#fff', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line' } }, content.featureTitle || '첫 달 수강료\n50% 할인'),
-        React.createElement('div', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.65)', lineHeight:'1.7', marginBottom:'24px', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line' } }, content.featureBody || '신규 등록생 한정 · 선착순 마감\n지금 바로 문의해 주세요'),
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, content.featureEyebrow || '지금 등록하면'),
+        React.createElement('div', { style:{ fontSize: isMobile ? '30px' : '38px', fontWeight:'800', color: TEXT, lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px', whiteSpace:'pre-line', letterSpacing:'-0.02em' } }, content.featureTitle || '첫 달 수강료\n50% 할인'),
+        React.createElement('div', { style:{ fontSize:'15px', color: SUB, lineHeight:'1.7', marginBottom:'24px', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line' } }, content.featureBody || '신규 등록생 한정 · 선착순 마감\n지금 바로 문의해 주세요'),
         React.createElement('div', { style:{ display:'flex', gap:'12px', flexWrap:'wrap' } },
-          React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#fff', color: ACCENT, border:'1px solid #fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
+          React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
             onMouseDown:e=>e.currentTarget.style.transform='scale(0.95)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' },
             content.featureCta1 || '지금 문의하기'
           ),
-          React.createElement('button', { onClick:()=>setPage('service'), style:{ background:'transparent', color:'#fff', border:'1px solid #fff', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
+          React.createElement('button', { onClick:()=>setPage('service'), style:{ background:'transparent', color: TEXT, border:`1px solid ${TEXT}`, borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
             onMouseDown:e=>e.currentTarget.style.transform='scale(0.95)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' },
             content.featureCta2 || '프로그램 보기'
           )
@@ -471,14 +471,14 @@ function FeatureBand({ setPage, isAdmin, content, onEdit }) {
       ),
       React.createElement('div', { style:{ display:'flex', flexDirection:'row', gap:'12px' } },
         [{ val:'50%', label:'첫 달 수강료 할인' }, { val:'무료', label:'첫 상담 진행' }].map((item,i)=>
-          React.createElement('div', { key:i, style:{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'12px', padding: isMobile ? '16px 20px' : '18px 28px', textAlign:'center', flex:1 } },
-            React.createElement('div', { style:{ fontSize: isMobile ? '26px' : '32px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, item.val),
-            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.55)', fontFamily:'Manrope, sans-serif', marginTop:'4px' } }, item.label)
+          React.createElement('div', { key:i, style:{ background:'rgba(255,255,255,0.7)', border:'1px solid rgba(0,0,0,0.06)', borderRadius:'12px', padding: isMobile ? '16px 20px' : '18px 28px', textAlign:'center', flex:1 } },
+            React.createElement('div', { style:{ fontSize: isMobile ? '26px' : '32px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, item.val),
+            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginTop:'4px' } }, item.label)
           )
         )
       )
     ),
-    isAdmin && React.createElement('button', { onClick:onEdit, style:{ position:'absolute', top:'12px', right:'12px', background: GOLD_BTN_BG, color:'#fff', border:'none', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
+    isAdmin && React.createElement('button', { onClick:onEdit, style:{ position:'absolute', top:'12px', right:'12px', background:'rgba(248,181,0,0.9)', color:'#fff', border:'none', borderRadius:'8px', padding:'5px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
   );
 }
 

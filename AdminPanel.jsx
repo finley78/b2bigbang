@@ -3251,6 +3251,22 @@ tab==='about' && React.createElement('div', null,
       React.createElement('div', { style:{ marginBottom:'10px' } },
         React.createElement('label', { style:labelS }, '본문'),
         React.createElement('textarea', { value: aboutDraft.cta_body || '', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, { cta_body: v }); }); }, rows:2, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
+      ),
+      React.createElement('div', { style:{ display:'flex', gap:'14px', flexWrap:'wrap', marginTop:'8px' } },
+        React.createElement('div', null,
+          React.createElement('label', { style:labelS }, '배경색'),
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
+            React.createElement('input', { type:'color', value: aboutDraft.cta_bg_color || '#FFEBED', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, { cta_bg_color: v }); }); }, style:{ width:'48px', height:'34px', border:'1px solid #d6dbde', borderRadius:'4px', cursor:'pointer' } }),
+            React.createElement('input', { type:'text', value: aboutDraft.cta_bg_color || '#FFEBED', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, { cta_bg_color: v }); }); }, style:Object.assign({}, inputS, { width:'120px' }) })
+          )
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { style:labelS }, '텍스트 색상'),
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
+            React.createElement('input', { type:'color', value: aboutDraft.cta_text_color || '#1A1A1A', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, { cta_text_color: v }); }); }, style:{ width:'48px', height:'34px', border:'1px solid #d6dbde', borderRadius:'4px', cursor:'pointer' } }),
+            React.createElement('input', { type:'text', value: aboutDraft.cta_text_color || '#1A1A1A', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, { cta_text_color: v }); }); }, style:Object.assign({}, inputS, { width:'120px' }) })
+          )
+        )
       )
     ),
     React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', gap:'8px' } },
@@ -3397,8 +3413,27 @@ setState(s=>({...s,siteInfo:{...s.siteInfo,[f]:e.target.value}}));
 )
 )
 ),
-React.createElement('div', { style:{ marginTop:'20px', padding:'16px', background:'#FFEBED', borderRadius:'8px' } },
-React.createElement('p', { style:{ fontSize:'13px', color:'#E60012', fontFamily:'Manrope, sans-serif', fontWeight:'600' } }, '✓ 변경사항은 자동으로 저장됩니다. 홈 화면에서 바로 확인하세요.')
+React.createElement('div', { style:{ marginTop:'20px', padding:'16px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'8px' } },
+React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '배경/텍스트 색상'),
+React.createElement('div', { style:{ display:'flex', gap:'14px', flexWrap:'wrap' } },
+  React.createElement('div', null,
+    React.createElement('label', { style:labelS }, '배경색'),
+    React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
+      React.createElement('input', { type:'color', value: state.content?.featureBgColor || '#FFEBED', onChange: function(e){ var v = e.target.value; setState(function(s){ return Object.assign({}, s, { content: Object.assign({}, s.content || {}, { featureBgColor: v }) }); }); }, style:{ width:'48px', height:'34px', border:'1px solid #d6dbde', borderRadius:'4px', cursor:'pointer' } }),
+      React.createElement('input', { type:'text', value: state.content?.featureBgColor || '#FFEBED', onChange: function(e){ var v = e.target.value; setState(function(s){ return Object.assign({}, s, { content: Object.assign({}, s.content || {}, { featureBgColor: v }) }); }); }, style:Object.assign({}, inputS, { width:'120px' }) })
+    )
+  ),
+  React.createElement('div', null,
+    React.createElement('label', { style:labelS }, '텍스트 색상'),
+    React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
+      React.createElement('input', { type:'color', value: state.content?.featureTextColor || '#1A1A1A', onChange: function(e){ var v = e.target.value; setState(function(s){ return Object.assign({}, s, { content: Object.assign({}, s.content || {}, { featureTextColor: v }) }); }); }, style:{ width:'48px', height:'34px', border:'1px solid #d6dbde', borderRadius:'4px', cursor:'pointer' } }),
+      React.createElement('input', { type:'text', value: state.content?.featureTextColor || '#1A1A1A', onChange: function(e){ var v = e.target.value; setState(function(s){ return Object.assign({}, s, { content: Object.assign({}, s.content || {}, { featureTextColor: v }) }); }); }, style:Object.assign({}, inputS, { width:'120px' }) })
+    )
+  )
+)
+),
+React.createElement('div', { style:{ marginTop:'12px', padding:'12px', background:'#FFEBED', borderRadius:'8px' } },
+React.createElement('p', { style:{ fontSize:'12px', color:'#E60012', fontFamily:'Manrope, sans-serif', fontWeight:'600' } }, '※ 색상 변경은 현재 페이지 새로고침 시 초기화됩니다 (영구 저장은 추후 추가).')
 )
 )
 

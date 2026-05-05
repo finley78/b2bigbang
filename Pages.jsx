@@ -500,17 +500,24 @@ function AboutPage({ setPage }) {
     ),
 
     /* CTA */
-    React.createElement('section', { style:{ background:'#1A1A1A', padding: isMobile ? '56px 16px' : '96px 40px', textAlign:'center' } },
-      React.createElement('div', { style:{ maxWidth:'720px', margin:'0 auto' } },
-        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, c.cta_eyebrow || 'Get Started'),
-        React.createElement('h2', { style:{ fontSize: isMobile ? '26px' : '36px', fontWeight:'800', color:'#fff', letterSpacing:'-0.02em', lineHeight:'1.25', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, c.cta_title || '지금 시작해 보세요'),
-        React.createElement('p', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.65)', fontFamily:'Manrope, sans-serif', lineHeight:'1.75', marginBottom:'28px' } }, c.cta_body || '레벨테스트로 현재 실력을 확인하거나 전화 한 통으로 상담을 시작하세요.'),
-        React.createElement('div', { style:{ display:'flex', gap:'10px', justifyContent:'center', flexWrap:'wrap' } },
-          React.createElement('button', { onClick: function(){ if (setPage) setPage('leveltest'); }, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding: isMobile ? '13px 22px' : '15px 32px', fontSize: isMobile ? '14px' : '15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '레벨테스트 신청'),
-          React.createElement('button', { onClick: function(){ if (setPage) setPage('contact'); }, style:{ background:'transparent', color:'#fff', border:'1px solid rgba(255,255,255,0.4)', borderRadius:'10px', padding: isMobile ? '12px 22px' : '14px 32px', fontSize: isMobile ? '14px' : '15px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '문의하기')
+    (function(){
+      const ctaBg = c.cta_bg_color || '#FFEBED';
+      const ctaText = c.cta_text_color || '#1A1A1A';
+      const isLight = ctaBg !== '#1A1A1A' && ctaBg !== '#000000' && ctaBg !== '#1E3932';
+      const subColor = isLight ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.65)';
+      const outlineColor = isLight ? '#1A1A1A' : 'rgba(255,255,255,0.4)';
+      return React.createElement('section', { style:{ background: ctaBg, padding: isMobile ? '56px 16px' : '96px 40px', textAlign:'center' } },
+        React.createElement('div', { style:{ maxWidth:'720px', margin:'0 auto' } },
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, c.cta_eyebrow || 'Get Started'),
+          React.createElement('h2', { style:{ fontSize: isMobile ? '26px' : '36px', fontWeight:'800', color: ctaText, letterSpacing:'-0.02em', lineHeight:'1.25', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, c.cta_title || '지금 시작해 보세요'),
+          React.createElement('p', { style:{ fontSize:'15px', color: subColor, fontFamily:'Manrope, sans-serif', lineHeight:'1.75', marginBottom:'28px' } }, c.cta_body || '레벨테스트로 현재 실력을 확인하거나 전화 한 통으로 상담을 시작하세요.'),
+          React.createElement('div', { style:{ display:'flex', gap:'10px', justifyContent:'center', flexWrap:'wrap' } },
+            React.createElement('button', { onClick: function(){ if (setPage) setPage('leveltest'); }, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding: isMobile ? '13px 22px' : '15px 32px', fontSize: isMobile ? '14px' : '15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '레벨테스트 신청'),
+            React.createElement('button', { onClick: function(){ if (setPage) setPage('contact'); }, style:{ background:'transparent', color: ctaText, border: `1px solid ${outlineColor}`, borderRadius:'10px', padding: isMobile ? '12px 22px' : '14px 32px', fontSize: isMobile ? '14px' : '15px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '문의하기')
+          )
         )
-      )
-    )
+      );
+    })()
   );
 }
 
