@@ -1814,7 +1814,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     // PWA(모바일) - SubjectSelect 스타일 카드 (좌측 색 띠 + 제목 + 우측 화살표)
     if (portalIsMobile) {
       var classroomItems = [
-        { id:'video', color:'#1A1A1A', title:'영상 강의', sub:'수강 과목 ' + studentSubjects.length + '개', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
+        { id:'video', color:'#E60012', title:'영상 강의', sub:'수강 과목 ' + studentSubjects.length + '개', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
         { id:'test',  color:'#E60012', title:'테스트',  sub:'응시 가능 ' + availableExams.length + '건' + (pendingExams.length > 0 ? ' · 미응시 ' + pendingExams.length : ''), onClick:function(){ setStudentMode('test'); } },
       ];
       return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
