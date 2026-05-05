@@ -759,8 +759,7 @@ const tabGroups = [
 { id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature'] },
 { id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
 { id:'students', label:'수강생',    tabs:['enrollee','views','analysis'] },
-{ id:'academy',  label:'학원 관리', tabs:['leveltest','member','schedule'] },
-{ id:'misc',     label:'기타',      tabs:['files'] },
+{ id:'academy',  label:'학원 관리', tabs:['leveltest','member','schedule','files'] },
 ];
 
 const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'8px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box' };
