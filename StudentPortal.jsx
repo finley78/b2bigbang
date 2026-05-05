@@ -1,10 +1,10 @@
 // StudentPortal.jsx — Login modal + Course grid + Video player
 
 const SUBJECT_COLORS = {
-  '국어': '#3A3A3A',
+  '국어': '#E60012',
   '영어': '#E60012',
   '수학': '#E60012',
-  '과학': '#1A1A1A',
+  '과학': '#E60012',
 };
 
 // 학생 grade 문자열에서 level(초등/중등/고등) 추출
