@@ -72,6 +72,16 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [savingProfile, setSavingProfile] = React.useState(false);
   const [pwDraft, setPwDraft] = React.useState({ current:'', next:'', confirm:'' });
 
+  // 일정 변경 신청
+  const _today = new Date();
+  const [scrMonth, setScrMonth] = React.useState({ y: _today.getFullYear(), m: _today.getMonth() }); // m: 0~11
+  const [scrRequests, setScrRequests] = React.useState([]);
+  const [scrLoading, setScrLoading] = React.useState(false);
+  const [scrSelectedDate, setScrSelectedDate] = React.useState(null); // 'YYYY-MM-DD'
+  const [scrFormOpen, setScrFormOpen] = React.useState(false);
+  const [scrDraft, setScrDraft] = React.useState({ reason: '', file: null });
+  const [scrSubmitting, setScrSubmitting] = React.useState(false);
+
   const [testInfo, setTestInfo] = React.useState({
     testType: "주간평가",
     testName: "",
@@ -959,6 +969,88 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
   }
 
+  // ── 일정 변경 신청 ──
+  async function loadScheduleRequests() {
+    setScrLoading(true);
+    try {
+      var { data } = await sb.from('schedule_change_requests').select('*').order('target_date', { ascending: true });
+      setScrRequests(data || []);
+    } catch (e) {
+      console.error('일정 신청 로드 실패:', e);
+      setScrRequests([]);
+    } finally {
+      setScrLoading(false);
+    }
+  }
+  function scrPublicUrl(path) {
+    if (!path) return '';
+    var { data } = sb.storage.from('attachments').getPublicUrl(path);
+    return data?.publicUrl || '';
+  }
+  function openScrForm(dateStr) {
+    setScrSelectedDate(dateStr);
+    setScrDraft({ reason: '', file: null });
+    setScrFormOpen(true);
+  }
+  function closeScrForm() {
+    setScrFormOpen(false);
+    setScrSelectedDate(null);
+    setScrDraft({ reason: '', file: null });
+  }
+  async function submitScheduleRequest() {
+    if (!teacherInfo) { alert('선생님 정보가 없습니다.'); return; }
+    if (!scrSelectedDate) { alert('날짜가 선택되지 않았습니다.'); return; }
+    if (!scrDraft.reason.trim()) { alert('변경 사유를 입력해 주세요.'); return; }
+    setScrSubmitting(true);
+    try {
+      var filePath = null, fileName = null, fileSize = null, mimeType = null;
+      if (scrDraft.file) {
+        var ext = scrDraft.file.name.split('.').pop() || 'bin';
+        filePath = 'schedule/' + (teacherInfo.id || 'tx') + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+        var up = await sb.storage.from('attachments').upload(filePath, scrDraft.file, { cacheControl:'3600', upsert:false });
+        if (up.error) throw up.error;
+        fileName = scrDraft.file.name;
+        fileSize = scrDraft.file.size;
+        mimeType = scrDraft.file.type || null;
+      }
+      var insertRow = {
+        teacher_id: teacherInfo.id,
+        teacher_name: teacherInfo.name || user?.name || '선생님',
+        target_date: scrSelectedDate,
+        reason: scrDraft.reason.trim(),
+        file_path: filePath,
+        file_name: fileName,
+        file_size: fileSize,
+        mime_type: mimeType,
+      };
+      var { error } = await sb.from('schedule_change_requests').insert(insertRow);
+      if (error) throw error;
+      alert('신청이 제출되었습니다.');
+      closeScrForm();
+      await loadScheduleRequests();
+    } catch (e) {
+      alert('제출 실패: ' + (e.message || e));
+    } finally {
+      setScrSubmitting(false);
+    }
+  }
+  async function deleteScheduleRequest(req) {
+    if (!confirm('이 신청을 취소하시겠습니까?')) return;
+    try {
+      if (req.file_path) {
+        try { await sb.storage.from('attachments').remove([req.file_path]); } catch(e) {}
+      }
+      await sb.from('schedule_change_requests').delete().eq('id', req.id);
+      await loadScheduleRequests();
+    } catch (e) { alert('취소 실패: ' + (e.message || e)); }
+  }
+  function scrFormatBytes(n) {
+    var v = Number(n) || 0;
+    if (v < 1024) return v + ' B';
+    if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
+    return (v/1024/1024).toFixed(1) + ' MB';
+  }
+
   // ── 마이페이지 ──
   async function loadMyProfile() {
     if (!user) return;
@@ -1141,6 +1233,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     { id: "stats",    label: "성적 등록" },
     { id: "analysis", label: "성적 분석" },
     { id: "files",    label: "자료실" },
+    { id: "schedule", label: "일정 변경" },
     { id: "mypage",   label: "마이페이지" },
   ];
 
@@ -1155,7 +1248,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       {/* 탭 네비 */}
       <div style={{ background: "#fff", borderBottom: "1px solid rgba(0,0,0,0.08)", display: "flex", gap: 0, overflowX: "auto" }}>
         {TABS.map(t =>
-          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); if(t.id==="analysis") loadScoreAnalysis(); if(t.id==="files") loadAttachments(); if(t.id==="mypage") loadMyProfile(); }}
+          <button key={t.id} onClick={() => { setTeacherView(t.id); if(t.id==="notes") loadNotes(); if(t.id==="analysis") loadScoreAnalysis(); if(t.id==="files") loadAttachments(); if(t.id==="schedule") loadScheduleRequests(); if(t.id==="mypage") loadMyProfile(); }}
             style={{ padding: "16px 24px", background: "none", border: "none", borderBottom: teacherView===t.id ? "2px solid #E60012" : "2px solid transparent", fontSize: "14px", fontWeight: "700", color: teacherView===t.id ? "#E60012" : "rgba(0,0,0,0.55)", cursor: "pointer", fontFamily: "Manrope, sans-serif", whiteSpace: "nowrap" }}>
             {t.label}
           </button>
@@ -2326,6 +2419,134 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           }
         </div>
       )}
+
+      {/* ── 탭8: 일정 변경 신청 ── */}
+      {teacherView === "schedule" && (() => {
+        const y = scrMonth.y, m = scrMonth.m;
+        const monthLabel = y + '.' + String(m+1).padStart(2,'0');
+        const firstDay = new Date(y, m, 1).getDay(); // 0=일
+        const daysInMonth = new Date(y, m+1, 0).getDate();
+        const cells = [];
+        for (let i = 0; i < firstDay; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+        while (cells.length % 7 !== 0) cells.push(null);
+        const todayStr = new Date().toISOString().slice(0,10);
+        function dateStrOf(d) { return y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0'); }
+        const reqsByDate = {};
+        scrRequests.forEach(r => { (reqsByDate[r.target_date] = reqsByDate[r.target_date] || []).push(r); });
+        const myRequests = scrRequests.filter(r => teacherInfo && r.teacher_id === teacherInfo.id);
+        function shiftMonth(delta) {
+          const nm = m + delta;
+          const ny = y + Math.floor(nm / 12);
+          const nmm = ((nm % 12) + 12) % 12;
+          setScrMonth({ y: ny, m: nmm });
+        }
+        return (
+          <div style={{ ...cardStyle, marginBottom: '24px' }}>
+            <h2 style={{ marginBottom: '6px' }}>일정 변경 신청</h2>
+            <p style={{ marginTop: 0, marginBottom: '16px', color: '#6b7280', fontSize: '14px' }}>날짜를 클릭하면 변경 사유와 첨부서류를 함께 제출할 수 있습니다. 학원 전체 신청 일정이 함께 표시됩니다.</p>
+
+            {/* 월 네비게이션 */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
+              <button onClick={() => shiftMonth(-1)} style={{ ...lightButtonStyle, padding:'8px 14px' }}>‹ 이전</button>
+              <div style={{ fontSize:'18px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{monthLabel}</div>
+              <button onClick={() => shiftMonth(1)} style={{ ...lightButtonStyle, padding:'8px 14px' }}>다음 ›</button>
+            </div>
+
+            {/* 달력 */}
+            {scrLoading ? <div style={{ color:'#9ca3af' }}>불러오는 중...</div> : (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px', marginBottom:'24px' }}>
+                {['일','월','화','수','목','금','토'].map((w,i) => (
+                  <div key={w} style={{ textAlign:'center', padding:'8px 0', fontSize:'12px', fontWeight:'700', color: i===0 ? '#c82014' : i===6 ? '#1d4ed8' : '#374151', fontFamily:'Manrope, sans-serif' }}>{w}</div>
+                ))}
+                {cells.map((d, i) => {
+                  if (d === null) return <div key={'e'+i} style={{ minHeight:'88px', background:'transparent' }} />;
+                  const ds = dateStrOf(d);
+                  const reqs = reqsByDate[ds] || [];
+                  const isToday = ds === todayStr;
+                  const dow = (firstDay + d - 1) % 7;
+                  const dColor = dow === 0 ? '#c82014' : dow === 6 ? '#1d4ed8' : '#111827';
+                  return (
+                    <button key={d} onClick={() => openScrForm(ds)} style={{
+                      minHeight:'88px', textAlign:'left', padding:'6px 8px',
+                      background: isToday ? '#fef3c7' : '#fff',
+                      border: isToday ? '2px solid #F8B500' : '1px solid #e5e7eb',
+                      borderRadius:'8px', cursor:'pointer',
+                      display:'flex', flexDirection:'column', gap:'4px',
+                      fontFamily:'Manrope, sans-serif', overflow:'hidden'
+                    }}>
+                      <span style={{ fontSize:'13px', fontWeight:'700', color: dColor }}>{d}</span>
+                      {reqs.slice(0,3).map((r,ri) => {
+                        const mine = teacherInfo && r.teacher_id === teacherInfo.id;
+                        return (
+                          <span key={ri} style={{
+                            fontSize:'10px', fontWeight:'700',
+                            background: mine ? '#E60012' : '#1A1A1A',
+                            color:'#fff', borderRadius:'4px', padding:'2px 5px',
+                            whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+                          }}>{r.teacher_name}</span>
+                        );
+                      })}
+                      {reqs.length > 3 && <span style={{ fontSize:'10px', color:'#6b7280' }}>+{reqs.length-3}건</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 본인 신청 내역 */}
+            <div style={{ marginTop:'8px' }}>
+              <h3 style={{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }}>내 신청 내역 ({myRequests.length}건)</h3>
+              {myRequests.length === 0 ? (
+                <div style={{ color:'#9ca3af', fontSize:'13px' }}>아직 신청한 일정 변경이 없습니다.</div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                  {myRequests.slice().sort((a,b) => String(b.target_date).localeCompare(String(a.target_date))).map(r => (
+                    <div key={r.id} style={{ display:'flex', alignItems:'flex-start', gap:'12px', padding:'12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px' }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:'13px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{r.target_date}</div>
+                        <div style={{ fontSize:'13px', color:'#374151', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line', marginTop:'4px' }}>{r.reason}</div>
+                        {r.file_path && (
+                          <div style={{ marginTop:'6px' }}>
+                            <a href={scrPublicUrl(r.file_path)} target="_blank" rel="noopener" style={{ fontSize:'12px', color:'#E60012', fontWeight:'700', textDecoration:'underline', fontFamily:'Manrope, sans-serif' }}>📎 {r.file_name} ({scrFormatBytes(r.file_size)})</a>
+                          </div>
+                        )}
+                        <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>신청일: {String(r.created_at||'').slice(0,16).replace('T',' ')}</div>
+                      </div>
+                      <button onClick={() => deleteScheduleRequest(r)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>취소</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 신청 폼 모달 */}
+            {scrFormOpen && (
+              <div onClick={closeScrForm} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+                <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'460px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px' }}>
+                    <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>일정 변경 신청</h3>
+                    <button onClick={closeScrForm} style={{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' }}>×</button>
+                  </div>
+                  <div style={{ fontSize:'13px', color:'#6b7280', marginBottom:'16px' }}>대상 날짜: <strong style={{ color:'#111827' }}>{scrSelectedDate}</strong></div>
+
+                  <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>변경 사유 *</label>
+                  <textarea value={scrDraft.reason} onChange={e => setScrDraft({ ...scrDraft, reason: e.target.value })} rows={4} placeholder="일정 변경이 필요한 사유를 입력해 주세요." style={{ ...inputStyle, resize:'vertical', marginBottom:'16px' }} />
+
+                  <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>첨부서류 (선택)</label>
+                  <input type="file" onChange={e => setScrDraft({ ...scrDraft, file: e.target.files?.[0] || null })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                  {scrDraft.file && <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'16px' }}>{scrDraft.file.name} ({scrFormatBytes(scrDraft.file.size)})</div>}
+
+                  <div style={{ display:'flex', gap:'8px', marginTop:'16px' }}>
+                    <button onClick={closeScrForm} style={{ ...lightButtonStyle, flex:1 }}>취소</button>
+                    <button onClick={submitScheduleRequest} disabled={scrSubmitting} style={{ ...buttonStyle, flex:1, opacity: scrSubmitting ? 0.6 : 1, cursor: scrSubmitting ? 'not-allowed' : 'pointer' }}>{scrSubmitting ? '제출 중...' : '제출'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── 탭7: 마이페이지 ── */}
       {teacherView === "mypage" && (
