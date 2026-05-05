@@ -270,6 +270,16 @@ async function loadAboutContent() {
     setAboutDraft(data && data.value ? data.value : {});
   } catch (e) { console.error('학원안내 로드 실패:', e); setAboutDraft({}); }
 }
+async function uploadAboutImage(file, key) {
+  if (!file) return null;
+  var sb = window.supabase;
+  var ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  var path = 'about/' + key + '_' + Date.now() + '.' + ext;
+  var up = await sb.storage.from('attachments').upload(path, file, { cacheControl:'3600', upsert:false });
+  if (up.error) throw up.error;
+  var { data } = sb.storage.from('attachments').getPublicUrl(path);
+  return data && data.publicUrl ? data.publicUrl : null;
+}
 async function saveAboutContent() {
   if (!aboutDraft) return;
   setAboutSaving(true);
@@ -3099,7 +3109,11 @@ tab==='about' && React.createElement('div', null,
         );
       }),
       React.createElement('label', { style:labelS }, '키워드 (한 줄에 하나씩)'),
-      React.createElement('textarea', { value: (aboutDraft.keywords || []).join('\n'), onChange: function(e){ var v = e.target.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean); setAboutDraft(function(p){ return Object.assign({}, p, { keywords: v }); }); }, rows:4, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
+      React.createElement('textarea', { value: (aboutDraft.keywords || []).join('\n'), onChange: function(e){ var v = e.target.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean); setAboutDraft(function(p){ return Object.assign({}, p, { keywords: v }); }); }, rows:4, style:Object.assign({}, inputS, { width:'100%', resize:'vertical', marginBottom:'10px' }) }),
+      React.createElement('label', { style:labelS }, '히어로 배경 이미지 (선택)'),
+      aboutDraft.hero_image && React.createElement('img', { src: aboutDraft.hero_image, alt:'', style:{ width:'160px', height:'90px', objectFit:'cover', borderRadius:'6px', marginBottom:'6px', display:'block' } }),
+      React.createElement('input', { type:'file', accept:'image/*', onChange: async function(e){ var f = e.target.files && e.target.files[0]; if (!f) return; try { var url = await uploadAboutImage(f, 'hero'); if (url) setAboutDraft(function(p){ return Object.assign({}, p, { hero_image: url }); }); } catch(err){ alert('업로드 실패: ' + (err.message||err)); } }, style:{ fontSize:'12px' } }),
+      aboutDraft.hero_image && React.createElement('button', { onClick: function(){ setAboutDraft(function(p){ return Object.assign({}, p, { hero_image:'' }); }); }, style:{ marginLeft:'8px', background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '이미지 제거')
     ),
     /* 미션 섹션 */
     React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
@@ -3117,7 +3131,11 @@ tab==='about' && React.createElement('div', null,
           React.createElement('label', { style:labelS }, l),
           React.createElement('textarea', { value: aboutDraft[f] || '', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ return Object.assign({}, p, (function(o){ o[f]=v; return o; })({})); }); }, rows:3, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
         );
-      })
+      }),
+      React.createElement('label', { style:labelS }, '미션 본문 위 이미지 (선택)'),
+      aboutDraft.mission_image && React.createElement('img', { src: aboutDraft.mission_image, alt:'', style:{ width:'160px', height:'90px', objectFit:'cover', borderRadius:'6px', marginBottom:'6px', display:'block' } }),
+      React.createElement('input', { type:'file', accept:'image/*', onChange: async function(e){ var f = e.target.files && e.target.files[0]; if (!f) return; try { var url = await uploadAboutImage(f, 'mission'); if (url) setAboutDraft(function(p){ return Object.assign({}, p, { mission_image: url }); }); } catch(err){ alert('업로드 실패: ' + (err.message||err)); } }, style:{ fontSize:'12px' } }),
+      aboutDraft.mission_image && React.createElement('button', { onClick: function(){ setAboutDraft(function(p){ return Object.assign({}, p, { mission_image:'' }); }); }, style:{ marginLeft:'8px', background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '이미지 제거')
     ),
     /* 약속 섹션 */
     React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
@@ -3133,7 +3151,12 @@ tab==='about' && React.createElement('div', null,
             React.createElement('input', { value:item.num || '', placeholder:'번호 (예: 01)', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.promise_items || []).slice(); items[idx] = Object.assign({}, items[idx], { num:v }); return Object.assign({}, p, { promise_items: items }); }); }, style:Object.assign({}, inputS, { width:'80px' }) }),
             React.createElement('input', { value:item.title || '', placeholder:'제목', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.promise_items || []).slice(); items[idx] = Object.assign({}, items[idx], { title:v }); return Object.assign({}, p, { promise_items: items }); }); }, style:Object.assign({}, inputS, { flex:1 }) })
           ),
-          React.createElement('textarea', { value:item.desc || '', placeholder:'설명', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.promise_items || []).slice(); items[idx] = Object.assign({}, items[idx], { desc:v }); return Object.assign({}, p, { promise_items: items }); }); }, rows:2, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
+          React.createElement('textarea', { value:item.desc || '', placeholder:'설명', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.promise_items || []).slice(); items[idx] = Object.assign({}, items[idx], { desc:v }); return Object.assign({}, p, { promise_items: items }); }); }, rows:2, style:Object.assign({}, inputS, { width:'100%', resize:'vertical', marginBottom:'6px' }) }),
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
+            item.image && React.createElement('img', { src:item.image, alt:'', style:{ width:'80px', height:'48px', objectFit:'cover', borderRadius:'4px' } }),
+            React.createElement('input', { type:'file', accept:'image/*', onChange: async function(e){ var f = e.target.files && e.target.files[0]; if (!f) return; try { var url = await uploadAboutImage(f, 'promise_' + (idx+1)); if (url) setAboutDraft(function(p){ var items = (p.promise_items || []).slice(); items[idx] = Object.assign({}, items[idx], { image: url }); return Object.assign({}, p, { promise_items: items }); }); } catch(err){ alert('업로드 실패: ' + (err.message||err)); } }, style:{ fontSize:'11px', flex:1 } }),
+            item.image && React.createElement('button', { onClick: function(){ setAboutDraft(function(p){ var items = (p.promise_items || []).slice(); items[idx] = Object.assign({}, items[idx], { image:'' }); return Object.assign({}, p, { promise_items: items }); }); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'4px', padding:'3px 8px', fontSize:'10px', fontWeight:'700', cursor:'pointer' } }, '제거')
+          )
         );
       })
     ),
@@ -3152,7 +3175,12 @@ tab==='about' && React.createElement('div', null,
             React.createElement('input', { value:item.sub || '', placeholder:'영문', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { sub:v }); return Object.assign({}, p, { subjects: items }); }); }, style:Object.assign({}, inputS, { width:'110px' }) }),
             React.createElement('input', { type:'color', value:item.color || '#1A1A1A', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { color:v }); return Object.assign({}, p, { subjects: items }); }); }, style:{ width:'48px', height:'34px', border:'1px solid #d6dbde', borderRadius:'4px', cursor:'pointer' } })
           ),
-          React.createElement('textarea', { value:item.desc || '', placeholder:'설명', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { desc:v }); return Object.assign({}, p, { subjects: items }); }); }, rows:2, style:Object.assign({}, inputS, { width:'100%', resize:'vertical' }) })
+          React.createElement('textarea', { value:item.desc || '', placeholder:'설명', onChange: function(e){ var v = e.target.value; setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { desc:v }); return Object.assign({}, p, { subjects: items }); }); }, rows:2, style:Object.assign({}, inputS, { width:'100%', resize:'vertical', marginBottom:'6px' }) }),
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
+            item.image && React.createElement('img', { src:item.image, alt:'', style:{ width:'80px', height:'48px', objectFit:'cover', borderRadius:'4px' } }),
+            React.createElement('input', { type:'file', accept:'image/*', onChange: async function(e){ var f = e.target.files && e.target.files[0]; if (!f) return; try { var url = await uploadAboutImage(f, 'subject_' + (idx+1)); if (url) setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { image: url }); return Object.assign({}, p, { subjects: items }); }); } catch(err){ alert('업로드 실패: ' + (err.message||err)); } }, style:{ fontSize:'11px', flex:1 } }),
+            item.image && React.createElement('button', { onClick: function(){ setAboutDraft(function(p){ var items = (p.subjects || []).slice(); items[idx] = Object.assign({}, items[idx], { image:'' }); return Object.assign({}, p, { subjects: items }); }); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'4px', padding:'3px 8px', fontSize:'10px', fontWeight:'700', cursor:'pointer' } }, '제거')
+          )
         );
       })
     ),

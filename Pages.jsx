@@ -415,7 +415,7 @@ function AboutPage({ setPage }) {
   return React.createElement('div', { style:{ background:'#fff', minHeight:'80vh' } },
 
     /* HERO */
-    React.createElement('section', { style:{ position:'relative', overflow:'hidden', background:'linear-gradient(135deg, #1A1A1A 0%, #2a2a2a 60%, #3a0007 100%)', padding: isMobile ? '64px 16px 80px' : '120px 40px' } },
+    React.createElement('section', { style:{ position:'relative', overflow:'hidden', background: c.hero_image ? `linear-gradient(135deg, rgba(26,26,26,0.85) 0%, rgba(58,0,7,0.85) 100%), url(${c.hero_image}) center/cover no-repeat` : 'linear-gradient(135deg, #1A1A1A 0%, #2a2a2a 60%, #3a0007 100%)', padding: isMobile ? '64px 16px 80px' : '120px 40px' } },
       React.createElement('div', { style:{ position:'absolute', top:'-80px', right: isMobile ? '-100px' : '-60px', width:'360px', height:'360px', borderRadius:'50%', background:'radial-gradient(circle, rgba(230,0,18,0.18) 0%, rgba(230,0,18,0) 70%)', pointerEvents:'none' } }),
       React.createElement('div', { style:{ position:'relative', maxWidth:'1100px', margin:'0 auto' } },
         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', letterSpacing:'0.18em', textTransform:'uppercase', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } }, c.hero_eyebrow || 'About B2BIGBANG'),
@@ -439,9 +439,12 @@ function AboutPage({ setPage }) {
           React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, c.mission_eyebrow || 'Our Mission'),
           React.createElement('h2', { style:{ fontSize: isMobile ? '24px' : '34px', fontWeight:'800', color:'#1A1A1A', letterSpacing:'-0.02em', lineHeight:'1.25', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line' } }, c.mission_title || '학생 한 명 한 명의\n목표를 현실로')
         ),
-        React.createElement('div', { style:{ fontSize: isMobile ? '15px' : '17px', color:'rgba(0,0,0,0.72)', fontFamily:'Manrope, sans-serif', lineHeight:'1.95' } },
-          React.createElement('p', { style:{ marginBottom:'18px' } }, c.mission_body_1 || 'B2빅뱅학원은 인천 검암동에 위치한 입시 전문 학원입니다. 국어·영어·수학·과학 전 과목을 아우르는 전문 강사진이 학생 한 명 한 명의 목표에 맞는 맞춤 학습을 제공합니다.'),
-          React.createElement('p', null, c.mission_body_2 || '내신부터 수능까지, 학생의 현재 위치에서 목표 대학·목표 점수까지의 거리를 정확히 측정하고 그 사이를 메우는 체계적인 커리큘럼을 운영합니다.')
+        React.createElement('div', null,
+          c.mission_image && React.createElement('div', { style:{ width:'100%', aspectRatio:'16/10', borderRadius:'14px', overflow:'hidden', marginBottom:'20px', background:`url(${c.mission_image}) center/cover no-repeat #f3f4f6` } }),
+          React.createElement('div', { style:{ fontSize: isMobile ? '15px' : '17px', color:'rgba(0,0,0,0.72)', fontFamily:'Manrope, sans-serif', lineHeight:'1.95' } },
+            React.createElement('p', { style:{ marginBottom:'18px' } }, c.mission_body_1 || 'B2빅뱅학원은 인천 검암동에 위치한 입시 전문 학원입니다. 국어·영어·수학·과학 전 과목을 아우르는 전문 강사진이 학생 한 명 한 명의 목표에 맞는 맞춤 학습을 제공합니다.'),
+            React.createElement('p', null, c.mission_body_2 || '내신부터 수능까지, 학생의 현재 위치에서 목표 대학·목표 점수까지의 거리를 정확히 측정하고 그 사이를 메우는 체계적인 커리큘럼을 운영합니다.')
+          )
         )
       )
     ),
@@ -452,10 +455,13 @@ function AboutPage({ setPage }) {
         sectionTitle('Promise', c.promise_title || '우리의 약속'),
         React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px' } },
           values.map(v =>
-            React.createElement('div', { key:v.num, style:{ background:'#fff', borderRadius:'14px', padding: isMobile ? '24px' : '32px', border:'1px solid rgba(0,0,0,0.06)', transition:'transform 0.2s, box-shadow 0.2s', boxShadow:'0 1px 2px rgba(0,0,0,0.04)' } },
-              React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#E60012', letterSpacing:'0.04em', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, v.num),
-              React.createElement('div', { style:{ fontSize:'19px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'10px', letterSpacing:'-0.01em' } }, v.title),
-              React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.75', margin:0 } }, v.desc)
+            React.createElement('div', { key:v.num, style:{ background:'#fff', borderRadius:'14px', overflow:'hidden', border:'1px solid rgba(0,0,0,0.06)', transition:'transform 0.2s, box-shadow 0.2s', boxShadow:'0 1px 2px rgba(0,0,0,0.04)' } },
+              v.image && React.createElement('div', { style:{ width:'100%', aspectRatio:'16/9', background:`url(${v.image}) center/cover no-repeat #f3f4f6` } }),
+              React.createElement('div', { style:{ padding: isMobile ? '24px' : '32px' } },
+                React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#E60012', letterSpacing:'0.04em', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, v.num),
+                React.createElement('div', { style:{ fontSize:'19px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'10px', letterSpacing:'-0.01em' } }, v.title),
+                React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.75', margin:0 } }, v.desc)
+              )
             )
           )
         )
@@ -468,7 +474,7 @@ function AboutPage({ setPage }) {
         sectionTitle('Subjects', c.subjects_title || '개설 과목'),
         React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap:'14px' } },
           subjects.map(s =>
-            React.createElement('div', { key:s.name, style:{ background:s.color, borderRadius:'16px', padding: isMobile ? '24px 18px' : '32px 24px', minHeight: isMobile ? '160px' : '220px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', overflow:'hidden' } },
+            React.createElement('div', { key:s.name, style:{ background: s.image ? `linear-gradient(135deg, ${s.color}EE, ${s.color}CC), url(${s.image}) center/cover no-repeat` : s.color, borderRadius:'16px', padding: isMobile ? '24px 18px' : '32px 24px', minHeight: isMobile ? '160px' : '220px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', overflow:'hidden' } },
               React.createElement('div', null,
                 React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'rgba(255,255,255,0.55)', letterSpacing:'0.14em', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, s.sub),
                 React.createElement('div', { style:{ fontSize: isMobile ? '24px' : '28px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.02em' } }, s.name)
