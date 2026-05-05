@@ -309,13 +309,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260507i"></script>
-<script src="TopNav.js?v=20260507i"></script>
-<script src="HomePage.js?v=20260507i"></script>
-<script src="Pages.js?v=20260507i"></script>
-<script src="StudentPortal.js?v=20260507i"></script>
-<script src="TeacherPortal.js?v=20260507i"></script>
-<script src="AdminPanel.js?v=20260507i"></script>
+<script src="Utils.js?v=20260507j"></script>
+<script src="TopNav.js?v=20260507j"></script>
+<script src="HomePage.js?v=20260507j"></script>
+<script src="Pages.js?v=20260507j"></script>
+<script src="StudentPortal.js?v=20260507j"></script>
+<script src="TeacherPortal.js?v=20260507j"></script>
+<script src="AdminPanel.js?v=20260507j"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -385,6 +385,15 @@ const [state, setState] = React.useState(() => {
   return INITIAL_STATE;
 });
 const [dbLoaded, setDbLoaded] = React.useState(false);
+const [eventButton, setEventButton] = React.useState({ enabled:true, badge:'EVENT', text:'무료 레벨테스트', target_page:'leveltest' });
+React.useEffect(() => {
+  (async () => {
+    try {
+      const { data } = await window.supabase.from('site_content').select('value').eq('key','event_button').maybeSingle();
+      if (data && data.value) setEventButton(prev => Object.assign({}, prev, data.value));
+    } catch (e) {}
+  })();
+}, []);
 
 // DB 응답 캐시 (다음 새로고침 시 깜빡임 방지)
 function saveDbCache(s) {
@@ -657,9 +666,9 @@ onLogout: null,
 }),
 ),
 
-/* 무료 레벨테스트 이벤트 floating 버튼 (레벨테스트/관리자/선생님 페이지 제외) */
-page !== 'leveltest' && page !== 'admin' && page !== 'teacher' && React.createElement('button', {
-  onClick: function(){ navigate('leveltest'); },
+/* 이벤트 floating 버튼 (관리자가 enabled로 토글 / 페이지별 제외) */
+eventButton.enabled && page !== (eventButton.target_page || 'leveltest') && page !== 'admin' && page !== 'teacher' && React.createElement('button', {
+  onClick: function(){ navigate(eventButton.target_page || 'leveltest'); },
   style:{
     position:'fixed', right:'20px', bottom:'24px',
     background:'linear-gradient(135deg, #E60012 0%, #B8000F 100%)',
@@ -673,8 +682,8 @@ page !== 'leveltest' && page !== 'admin' && page !== 'teacher' && React.createEl
   onMouseEnter: function(e){ e.currentTarget.style.transform = 'translateY(-2px)'; },
   onMouseLeave: function(e){ e.currentTarget.style.transform = 'translateY(0)'; }
 },
-  React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fff', color:'#E60012', borderRadius:'999px', padding:'2px 8px', letterSpacing:'0.04em' } }, 'EVENT'),
-  '무료 레벨테스트'
+  eventButton.badge && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fff', color:'#E60012', borderRadius:'999px', padding:'2px 8px', letterSpacing:'0.04em' } }, eventButton.badge),
+  eventButton.text || '무료 레벨테스트'
 )
 );
 }

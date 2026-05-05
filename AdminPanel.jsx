@@ -128,6 +128,8 @@ const [aboutDraft, setAboutDraft] = React.useState(null);
 const [aboutSaving, setAboutSaving] = React.useState(false);
 const [programsDraft, setProgramsDraft] = React.useState(null);
 const [programsSaving, setProgramsSaving] = React.useState(false);
+const [eventBtnDraft, setEventBtnDraft] = React.useState(null);
+const [eventBtnSaving, setEventBtnSaving] = React.useState(false);
 const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); // { exam_id: [requests] }
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
@@ -272,6 +274,25 @@ async function loadAboutContent() {
     setAboutDraft(data && data.value ? data.value : {});
   } catch (e) { console.error('학원안내 로드 실패:', e); setAboutDraft({}); }
 }
+async function loadEventBtn() {
+  var sb = window.supabase;
+  try {
+    var { data } = await sb.from('site_content').select('value').eq('key', 'event_button').maybeSingle();
+    setEventBtnDraft(data && data.value ? data.value : { enabled:true, badge:'EVENT', text:'무료 레벨테스트', target_page:'leveltest' });
+  } catch (e) { console.error('이벤트 버튼 로드 실패:', e); setEventBtnDraft({ enabled:true, badge:'EVENT', text:'무료 레벨테스트', target_page:'leveltest' }); }
+}
+async function saveEventBtn() {
+  if (!eventBtnDraft) return;
+  setEventBtnSaving(true);
+  var sb = window.supabase;
+  try {
+    var { error } = await sb.from('site_content').upsert({ key:'event_button', value: eventBtnDraft, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    alert('이벤트 버튼이 저장되었습니다. (메인 페이지 새로고침 시 반영)');
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+  finally { setEventBtnSaving(false); }
+}
+
 async function loadProgramsContent() {
   var sb = window.supabase;
   try {
@@ -816,10 +837,11 @@ const tabs = [
 { id:'feature', label:'섹션 편집' },
 { id:'about',   label:'학원안내 편집' },
 { id:'programs',label:'프로그램 편집' },
+{ id:'eventbtn',label:'이벤트 버튼' },
 ];
 
 const tabGroups = [
-{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about','programs'] },
+{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about','programs','eventbtn'] },
 { id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
 { id:'students', label:'수강생',    tabs:['enrollee','views','analysis'] },
 { id:'academy',  label:'학원 관리', tabs:['leveltest','member','schedule','files'] },
@@ -934,7 +956,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'8px 14px', fontSize:'13px', display:'inline-flex', alignItems:'center' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -3233,6 +3255,45 @@ tab==='about' && React.createElement('div', null,
     ),
     React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', gap:'8px' } },
       React.createElement('button', { onClick: saveAboutContent, disabled: aboutSaving, style:{ background: aboutSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'800', cursor: aboutSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, aboutSaving ? '저장 중...' : '변경사항 저장')
+    )
+  )
+),
+
+/* ── 이벤트 버튼 편집 TAB ── */
+tab==='eventbtn' && React.createElement('div', null,
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
+    React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '이벤트 floating 버튼'),
+    React.createElement('button', { onClick: saveEventBtn, disabled: eventBtnSaving || !eventBtnDraft, style:{ background: eventBtnSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: eventBtnSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, eventBtnSaving ? '저장 중...' : '변경사항 저장')
+  ),
+  React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } }, '메인/모든 페이지 우하단에 떠 있는 빨간 floating 버튼을 편집합니다. 표시 여부, 배지 라벨, 텍스트, 이동 페이지를 변경할 수 있습니다.'),
+  !eventBtnDraft ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
+  React.createElement('div', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px', display:'flex', flexDirection:'column', gap:'14px' } },
+    React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer' } },
+      React.createElement('input', { type:'checkbox', checked: !!eventBtnDraft.enabled, onChange: function(e){ var v = e.target.checked; setEventBtnDraft(function(p){ return Object.assign({}, p, { enabled:v }); }); } }),
+      React.createElement('span', { style:{ fontSize:'14px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, '버튼 표시')
+    ),
+    React.createElement('div', null,
+      React.createElement('label', { style:labelS }, '배지 텍스트 (예: EVENT)'),
+      React.createElement('input', { value: eventBtnDraft.badge || '', onChange: function(e){ var v = e.target.value; setEventBtnDraft(function(p){ return Object.assign({}, p, { badge:v }); }); }, placeholder:'EVENT', style:Object.assign({}, inputS, { width:'100%' }) }),
+      React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' } }, '비워두면 배지 미표시')
+    ),
+    React.createElement('div', null,
+      React.createElement('label', { style:labelS }, '버튼 텍스트'),
+      React.createElement('input', { value: eventBtnDraft.text || '', onChange: function(e){ var v = e.target.value; setEventBtnDraft(function(p){ return Object.assign({}, p, { text:v }); }); }, placeholder:'무료 레벨테스트', style:Object.assign({}, inputS, { width:'100%' }) })
+    ),
+    React.createElement('div', null,
+      React.createElement('label', { style:labelS }, '이동 페이지'),
+      React.createElement('select', { value: eventBtnDraft.target_page || 'leveltest', onChange: function(e){ var v = e.target.value; setEventBtnDraft(function(p){ return Object.assign({}, p, { target_page:v }); }); }, style:Object.assign({}, inputS, { width:'100%' }) },
+        ['leveltest','about','service','recruit','contact','portal'].map(function(p){ return React.createElement('option', { key:p, value:p }, p); })
+      )
+    ),
+    /* 미리보기 */
+    React.createElement('div', { style:{ marginTop:'8px', padding:'16px', background:'#f9fafb', borderRadius:'8px', display:'flex', alignItems:'center', gap:'10px' } },
+      React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#6b7280' } }, '미리보기:'),
+      React.createElement('div', { style:{ background:'linear-gradient(135deg, #E60012 0%, #B8000F 100%)', color:'#fff', borderRadius:'999px', padding:'10px 18px', fontSize:'13px', fontWeight:'800', display:'inline-flex', alignItems:'center', gap:'8px', boxShadow:'0 6px 18px rgba(230,0,18,0.3)' } },
+        eventBtnDraft.badge && React.createElement('span', { style:{ fontSize:'9px', fontWeight:'800', background:'#fff', color:'#E60012', borderRadius:'999px', padding:'2px 7px' } }, eventBtnDraft.badge),
+        eventBtnDraft.text || '무료 레벨테스트'
+      )
     )
   )
 ),
