@@ -309,13 +309,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260506w"></script>
-<script src="TopNav.js?v=20260506w"></script>
-<script src="HomePage.js?v=20260506w"></script>
-<script src="Pages.js?v=20260506w"></script>
-<script src="StudentPortal.js?v=20260506w"></script>
-<script src="TeacherPortal.js?v=20260506w"></script>
-<script src="AdminPanel.js?v=20260506w"></script>
+<script src="Utils.js?v=20260506x"></script>
+<script src="TopNav.js?v=20260506x"></script>
+<script src="HomePage.js?v=20260506x"></script>
+<script src="Pages.js?v=20260506x"></script>
+<script src="StudentPortal.js?v=20260506x"></script>
+<script src="TeacherPortal.js?v=20260506x"></script>
+<script src="AdminPanel.js?v=20260506x"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -656,6 +656,26 @@ setAdminAuthed,
 onLogout: null,
 }),
 ),
+
+/* 무료 레벨테스트 이벤트 floating 버튼 (레벨테스트/관리자/선생님 페이지 제외) */
+page !== 'leveltest' && page !== 'admin' && page !== 'teacher' && React.createElement('button', {
+  onClick: function(){ navigate('leveltest'); },
+  style:{
+    position:'fixed', right:'20px', bottom:'24px',
+    background:'linear-gradient(135deg, #E60012 0%, #B8000F 100%)',
+    color:'#fff', border:'none', borderRadius:'999px',
+    padding:'14px 22px', fontSize:'14px', fontWeight:'800',
+    cursor:'pointer', fontFamily:'Manrope, sans-serif',
+    boxShadow:'0 10px 30px rgba(230,0,18,0.35)',
+    zIndex: 9000, letterSpacing:'-0.01em',
+    display:'flex', alignItems:'center', gap:'8px'
+  },
+  onMouseEnter: function(e){ e.currentTarget.style.transform = 'translateY(-2px)'; },
+  onMouseLeave: function(e){ e.currentTarget.style.transform = 'translateY(0)'; }
+},
+  React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fff', color:'#E60012', borderRadius:'999px', padding:'2px 8px', letterSpacing:'0.04em' } }, 'EVENT'),
+  '무료 레벨테스트'
+)
 );
 }
 

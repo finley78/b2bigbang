@@ -866,18 +866,18 @@ tab === 'home' && React.createElement('div', null,
         React.createElement('h2', { style:{ fontSize: adminIsMobile ? '16px' : '18px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' } }, g.label),
         React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, g.tabs.length + '개')
       ),
-      React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'8px' } },
+      React.createElement('div', { style: adminIsMobile ? { display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:'10px' } : { display:'flex', flexWrap:'wrap', gap:'8px' } },
         g.tabs.map(function(tid){
           var t = tabs.find(function(x){ return x.id === tid; });
           if (!t) return null;
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); }, style:{
+          var pcStyle = { padding:'8px 14px', fontSize:'13px', display:'inline-flex', alignItems:'center' };
+          var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
-            padding:'8px 14px', textAlign:'left', cursor:'pointer',
-            fontFamily:'Manrope, sans-serif',
-            fontSize:'13px', fontWeight:'700', color:'#111827',
-            letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s',
-            display:'inline-flex', alignItems:'center'
-          }, onMouseEnter:function(e){ e.currentTarget.style.borderColor = groupColor; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; } }, t.label);
+            cursor:'pointer', fontFamily:'Manrope, sans-serif',
+            fontWeight:'700', color:'#111827',
+            letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s'
+          }, adminIsMobile ? mobileStyle : pcStyle), onMouseEnter:function(e){ e.currentTarget.style.borderColor = groupColor; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; } }, t.label);
         })
       )
     );

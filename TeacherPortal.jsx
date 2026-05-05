@@ -19,6 +19,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [lectureCourseName, setLectureCourseName] = React.useState("");
   const [savingOnline, setSavingOnline] = React.useState(false);
   const [teacherView, setTeacherView] = React.useState("dashboard");
+  const [teacherIsMobile, setTeacherIsMobile] = React.useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  React.useEffect(() => {
+    function h() { setTeacherIsMobile(window.innerWidth < 768); }
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
   // 업무일지
   const [teacherNotes, setTeacherNotes] = React.useState([]);
   const [noteDraft, setNoteDraft] = React.useState({ date: new Date().toISOString().slice(0,10), content: '' });
@@ -1476,22 +1482,22 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <h2 style={{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' }}>{g.label}</h2>
                 <span style={{ fontSize:'11px', fontWeight:'700', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{g.tabs.length}개</span>
               </div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
+              <div style={teacherIsMobile ? { display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:'10px' } : { display:'flex', flexWrap:'wrap', gap:'8px' }}>
                 {g.tabs.map(tid => {
                   const t = TABS.find(x => x.id === tid);
                   if (!t) return null;
+                  const pcStyle = { padding:'8px 14px', fontSize:'13px', display:'inline-flex', alignItems:'center', textAlign:'left' };
+                  const mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
                   return (
                     <button key={tid} onClick={() => { setTeacherView(tid); loadOnTabClick(tid); }}
                       onMouseEnter={(e) => { e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
-                      style={{
+                      style={Object.assign({
                         background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
-                        padding:'8px 14px', textAlign:'left', cursor:'pointer',
-                        fontFamily:'Manrope, sans-serif',
-                        fontSize:'13px', fontWeight:'700', color:'#111827',
-                        letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s',
-                        display:'inline-flex', alignItems:'center'
-                      }}>
+                        cursor:'pointer', fontFamily:'Manrope, sans-serif',
+                        fontWeight:'700', color:'#111827',
+                        letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s'
+                      }, teacherIsMobile ? mobileStyle : pcStyle)}>
                       {t.label}
                     </button>
                   );
