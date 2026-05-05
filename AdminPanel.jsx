@@ -56,6 +56,13 @@ function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) 
 const authed = adminAuthed;
 const setAuthed = setAdminAuthed;
 const [tab, setTab] = React.useState('banner');
+const [tabGroup, setTabGroup] = React.useState('webapp');
+const [adminIsMobile, setAdminIsMobile] = React.useState(typeof window !== 'undefined' && window.innerWidth < 1024);
+React.useEffect(function(){
+  function h(){ setAdminIsMobile(window.innerWidth < 1024); }
+  window.addEventListener('resize', h);
+  return function(){ window.removeEventListener('resize', h); };
+}, []);
 const [editingBanner, setEditingBanner] = React.useState(null);
 const [editingNotice, setEditingNotice] = React.useState(null);
 const [editingCourse, setEditingCourse] = React.useState(null);
@@ -748,6 +755,13 @@ const tabs = [
 { id:'feature', label:'섹션 편집' },
 ];
 
+const tabGroups = [
+{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature'] },
+{ id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
+{ id:'students', label:'수강생',    tabs:['enrollee','views'] },
+{ id:'misc',     label:'기타',      tabs:['member','analysis','files','schedule','leveltest'] },
+];
+
 const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'8px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box' };
 const labelS = { fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'4px', display:'block' };
 const cardS = { background:'#fff', borderRadius:'12px', padding:'16px 18px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', marginBottom:'12px' };
@@ -833,13 +847,36 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.
 React.createElement('button', { onClick:onLogout, style:{ background:'rgba(255,255,255,0.1)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'8px', padding:'8px 18px', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '로그아웃')
 ),
 
-React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'0 40px', display:'flex', gap:'0', overflowX:'auto' } },
+// 모바일 가로 탭바
+adminIsMobile && React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'0 16px', display:'flex', gap:'0', overflowX:'auto' } },
 tabs.map(t =>
-React.createElement('button', { key:t.id, onClick:()=>{ setTab(t.id); if (t.id === 'files') loadAdminAttachments(); if (t.id === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (t.id === 'leveltest') loadAdminLevelTests(); }, style:{ padding:'16px 20px', background:'none', border:'none', borderBottom: tab===t.id?'2px solid #E60012':'2px solid transparent', fontSize:'14px', fontWeight:'700', color: tab===t.id?'#E60012':'rgba(0,0,0,0.55)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', marginBottom:'-1px', whiteSpace:'nowrap' } }, t.label)
+React.createElement('button', { key:t.id, onClick:()=>{ setTab(t.id); if (t.id === 'files') loadAdminAttachments(); if (t.id === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (t.id === 'leveltest') loadAdminLevelTests(); }, style:{ padding:'14px 16px', background:'none', border:'none', borderBottom: tab===t.id?'2px solid #E60012':'2px solid transparent', fontSize:'13px', fontWeight:'700', color: tab===t.id?'#E60012':'rgba(0,0,0,0.55)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', marginBottom:'-1px', whiteSpace:'nowrap' } }, t.label)
 )
 ),
 
-React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'32px 40px' } },
+// PC 좌측 사이드바 (fixed positioning)
+!adminIsMobile && React.createElement('aside', { style:{ position:'fixed', left:0, top:'88px', bottom:0, width:'240px', background:'#fff', borderRight:'1px solid rgba(0,0,0,0.08)', padding:'24px 0', overflowY:'auto', zIndex:5, fontFamily:'Manrope, sans-serif' } },
+  tabGroups.map(function(g){
+    return React.createElement('div', { key:g.id, style:{ marginBottom:'20px' } },
+      React.createElement('div', { style:{ padding:'4px 24px 8px', fontSize:'10px', fontWeight:'800', color:'#9ca3af', letterSpacing:'0.14em', textTransform:'uppercase' } }, g.label),
+      g.tabs.map(function(tid){
+        var t = tabs.find(function(x){ return x.id === tid; });
+        if (!t) return null;
+        var active = tab === tid;
+        return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); }, style:{
+          width:'100%', textAlign:'left', padding:'10px 24px',
+          background: active ? '#FFEBED' : 'transparent',
+          color: active ? '#E60012' : '#374151',
+          border:'none', borderLeft: active ? '3px solid #E60012' : '3px solid transparent',
+          fontSize:'14px', fontWeight: active ? '800' : '600',
+          cursor:'pointer', fontFamily:'Manrope, sans-serif', display:'block'
+        } }, t.label);
+      })
+    );
+  })
+),
+
+React.createElement('div', { style:{ maxWidth: adminIsMobile ? '960px' : '1280px', margin:'0 auto', padding: adminIsMobile ? '24px 16px' : '32px 40px', paddingLeft: adminIsMobile ? '16px' : '280px' } },
 
 /* ── BANNER TAB ── */
 tab==='banner' && React.createElement('div', null,
