@@ -707,11 +707,41 @@ function HomePage({ banners, slides, categories, notices, announcements, setPage
 
   return React.createElement('div', null,
     React.createElement(HeroBanner, { banners, isAdmin, onEdit:()=>onAdminAction('banner'), onSelectBanner:setSelectedBanner }),
-    React.createElement(LevelTestCTA, { user, onLoginClick, setPage }),
     React.createElement(SplitSection, { notices, announcements, isAdmin, onEditNotices:()=>onAdminAction('notice'), onSelectNotice:setSelectedNotice, slides }),
     React.createElement(StatsBand),
     React.createElement(FeatureBand, { setPage, isAdmin, content, onEdit:()=>onAdminAction('feature') })
   );
 }
 
-Object.assign(window, { HomePage });
+/* ── 레벨테스트 페이지 (별도 페이지 wrapper) ─────────── */
+function LevelTestPage({ user, onLoginClick, setPage }) {
+  const isMobile = useIsMobile();
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
+    React.createElement('div', { style:{ background:'#fff', padding: isMobile ? '40px 16px 28px' : '64px 40px 40px', textAlign:'center', borderBottom:'1px solid rgba(0,0,0,0.06)' } },
+      React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1d4ed8', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '🎯 LEVEL TEST'),
+      React.createElement('h1', { style:{ fontSize: isMobile ? '26px' : '34px', fontWeight:'800', color:'#111827', margin:'4px 0 10px', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.02em' } }, '레벨테스트 신청'),
+      React.createElement('p', { style:{ fontSize: isMobile ? '14px' : '15px', color:'#6b7280', maxWidth:'600px', margin:'0 auto', lineHeight:'1.7', fontFamily:'Manrope, sans-serif' } }, '학교급·학년·내신 점수에 맞는 시험이 자동으로 매칭되어\n집에서 무료로 응시할 수 있습니다.')
+    ),
+    React.createElement(LevelTestCTA, { user, onLoginClick, setPage }),
+    React.createElement('div', { style:{ background:'#fff', padding: isMobile ? '24px 16px 40px' : '40px', borderTop:'1px solid rgba(0,0,0,0.06)' } },
+      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto' } },
+        React.createElement('h2', { style:{ fontSize: isMobile ? '18px' : '22px', fontWeight:'800', color:'#111827', marginBottom:'18px', fontFamily:'Manrope, sans-serif', textAlign:'center' } }, '신청 절차'),
+        React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap:'16px' } },
+          [
+            { step:'01', title:'회원가입 · 로그인', desc:'간단한 회원가입 후 로그인하세요.' },
+            { step:'02', title:'레벨테스트 신청', desc:'학교급·학년·내신 점수를 입력하면 시험이 자동 매칭됩니다.' },
+            { step:'03', title:'집에서 응시', desc:'강의실에서 본인 시간에 응시하고 답안을 제출합니다.' },
+          ].map(function(s){
+            return React.createElement('div', { key:s.step, style:{ background:'#f9fafb', borderRadius:'12px', padding:'20px', border:'1px solid #e5e7eb', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1d4ed8', marginBottom:'6px', letterSpacing:'0.06em' } }, s.step),
+              React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'4px' } }, s.title),
+              React.createElement('div', { style:{ fontSize:'13px', color:'#6b7280', lineHeight:'1.6' } }, s.desc)
+            );
+          })
+        )
+      )
+    )
+  );
+}
+
+Object.assign(window, { HomePage, LevelTestPage, LevelTestCTA });
