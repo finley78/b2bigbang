@@ -551,6 +551,9 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
   const [draft, setDraft] = React.useState({ school_level:'중', grade:'', semester:'', subject:'', score:'' });
   const [submitting, setSubmitting] = React.useState(false);
   const [myReqs, setMyReqs] = React.useState({});
+  const [mySubs, setMySubs] = React.useState({}); // exam_id -> submission
+  const [resultExam, setResultExam] = React.useState(null);
+  const [resultSub, setResultSub] = React.useState(null);
 
   React.useEffect(function(){
     (async function(){
@@ -561,6 +564,13 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
           const { data: reqs } = await sb.from('level_test_requests').select('*').eq('student_id', user.id);
           const m = {}; (reqs || []).forEach(function(r){ m[r.exam_id] = r; });
           setMyReqs(m);
+          // 본인 답안(제출/채점 결과 확인용)
+          if (Object.keys(m).length > 0) {
+            const ids = Object.keys(m);
+            const { data: subs } = await sb.from('exam_submissions').select('*').eq('student_id', user.id).in('exam_id', ids);
+            const sm = {}; (subs || []).forEach(function(s){ sm[s.exam_id] = s; });
+            setMySubs(sm);
+          }
         }
       } catch (e) { console.error('레벨테스트 CTA 로드 실패:', e); }
       finally { setLoaded(true); }
@@ -622,8 +632,18 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
     } catch (e) {}
     if (setPage) setPage('portal');
   }
+  function viewResult(exam) {
+    const sub = mySubs[exam.id];
+    if (!sub) { alert('답안 정보가 없습니다.'); return; }
+    setResultExam(exam);
+    setResultSub(sub);
+  }
 
   if (!loaded) return null;
+
+  if (resultExam && resultSub) {
+    return React.createElement(ExamResultPage, { exam: resultExam, submission: resultSub, onClose: function(){ setResultExam(null); setResultSub(null); } });
+  }
 
   const hasMyReq = Object.keys(myReqs).length > 0;
   const hasTests = tests.length > 0;
@@ -650,17 +670,22 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
         React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'12px' } },
           myExamList.map(function(item){
             const ex = item.exam, req = item.req;
+            const sub = mySubs[ex.id];
+            const submitted = !!sub;
             const imgsCount = Array.isArray(ex.image_paths) ? ex.image_paths.length : 0;
-            return React.createElement('div', { key:ex.id, style:{ background:'#fff', border:'2px solid #1d4ed8', borderRadius:'12px', padding:'16px', fontFamily:'Manrope, sans-serif' } },
+            const statusLabel = submitted ? (sub.graded_at ? '채점 완료' : '응시 완료') : '응시 가능';
+            const statusColor = submitted ? (sub.graded_at ? '#16a34a' : '#F8B500') : '#1d4ed8';
+            return React.createElement('div', { key:ex.id, style:{ background:'#fff', border:'2px solid ' + statusColor, borderRadius:'12px', padding:'16px', fontFamily:'Manrope, sans-serif' } },
               React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px', flexWrap:'wrap' } },
-                React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#1d4ed8', color:'#fff', borderRadius:'4px', padding:'2px 7px' } }, '응시 가능'),
+                React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:statusColor, color:'#fff', borderRadius:'4px', padding:'2px 7px' } }, statusLabel),
                 ex.subject && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 7px' } }, ex.subject),
                 ex.time_limit_minutes > 0 && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', color:'#6b7280' } }, '제한 ' + ex.time_limit_minutes + '분')
               ),
               React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'4px' } }, ex.title),
               (req.school_level || req.grade) && React.createElement('div', { style:{ fontSize:'11px', color:'#1d4ed8', fontWeight:'700' } }, '신청 정보: ' + [req.school_level, req.grade ? req.grade + '학년' : null, req.semester ? req.semester + '학기' : null, req.subject, req.score != null ? req.score + '점' : null].filter(Boolean).join(' / ')),
               React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginTop:'4px' } }, '이미지 ' + imgsCount + '장' + (ex.question_count > 0 ? ' · 객관식 ' + ex.question_count + '문항' : '') + ((ex.text_question_count || 0) > 0 ? ' · 서술형 ' + ex.text_question_count + '문항' : '')),
-              React.createElement('button', { onClick:function(){ startExam(ex); }, style:{ marginTop:'12px', width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:'pointer' } }, '응시하기')
+              !submitted && React.createElement('button', { onClick:function(){ startExam(ex); }, style:{ marginTop:'12px', width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:'pointer' } }, '응시하기'),
+              submitted && React.createElement('button', { onClick:function(){ viewResult(ex); }, style:{ marginTop:'12px', width:'100%', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:'pointer' } }, '결과 / 분석 보기')
             );
           })
         )
@@ -755,6 +780,112 @@ function HomePage({ banners, slides, categories, notices, announcements, setPage
   );
 }
 
+/* ── 시험 결과(채점·분석) 페이지 ─────────── */
+function ExamResultPage({ exam, submission, onClose }) {
+  const isMobile = useIsMobile();
+  if (!exam || !submission) return null;
+  const ak = (exam.answer_key && typeof exam.answer_key === 'object') ? exam.answer_key : {};
+  const hasKey = Object.keys(ak).length > 0;
+  const qc = exam.question_count || 0;
+  const cpq = exam.choices_per_question || 5;
+  const circles = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+  const objScore = submission.objective_score;
+  const objTotal = submission.objective_total || qc;
+  const objRate = (objTotal > 0 && objScore != null) ? Math.round(objScore * 100 / objTotal) : null;
+  const ts = (submission.text_scores && typeof submission.text_scores === 'object') ? submission.text_scores : {};
+  const tqc = exam.text_question_count || 0;
+  const totalScore = submission.score;
+  const isGraded = !!submission.graded_at;
+  // 객관식 문제별 결과
+  const qResults = [];
+  if (qc > 0) {
+    for (let i = 1; i <= qc; i++) {
+      const my = (submission.answers && submission.answers[i]) || '';
+      const correct = ak[i] != null ? String(ak[i]) : null;
+      const isOk = correct ? String(my) === correct : null;
+      qResults.push({ num:i, my, correct, isOk });
+    }
+  }
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
+    React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding: isMobile ? '24px 16px' : '40px' } },
+      React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, '← 돌아가기'),
+
+      /* 헤더 (총점/요약) */
+      React.createElement('div', { style:{ background:'linear-gradient(135deg, #1A1A1A, #3a0007)', color:'#fff', borderRadius:'16px', padding: isMobile ? '24px 20px' : '36px 32px', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:'8px' } }, 'Result'),
+        React.createElement('h1', { style:{ fontSize: isMobile ? '22px' : '28px', fontWeight:'800', margin:'4px 0 14px', letterSpacing:'-0.02em' } }, exam.title),
+        React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:'14px', marginTop:'14px' } },
+          React.createElement('div', null,
+            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.55)' } }, '총점'),
+            React.createElement('div', { style:{ fontSize:'24px', fontWeight:'800', color:'#fff' } }, totalScore != null ? totalScore + '점' : (isGraded ? '-' : '채점 대기'))
+          ),
+          objRate != null && React.createElement('div', null,
+            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.55)' } }, '객관식'),
+            React.createElement('div', { style:{ fontSize:'24px', fontWeight:'800', color:'#fff' } }, objScore + '/' + objTotal),
+            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.55)' } }, '정답률 ' + objRate + '%')
+          ),
+          tqc > 0 && React.createElement('div', null,
+            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.55)' } }, '서술형'),
+            React.createElement('div', { style:{ fontSize:'24px', fontWeight:'800', color:'#fff' } }, tqc + '문항'),
+            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.55)' } }, '관리자 채점')
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.55)' } }, '제출일'),
+            React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'#fff', marginTop:'4px' } }, String(submission.submitted_at||'').slice(0,16).replace('T',' '))
+          )
+        )
+      ),
+
+      /* 강사 코멘트 */
+      submission.feedback && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'20px', marginBottom:'18px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, 'Feedback'),
+        React.createElement('div', { style:{ fontSize:'14px', color:'#374151', whiteSpace:'pre-line', lineHeight:'1.8', fontFamily:'Manrope, sans-serif' } }, submission.feedback)
+      ),
+
+      /* 객관식 결과 */
+      qc > 0 && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding: isMobile ? '20px' : '28px', marginBottom:'18px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' } },
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px' } },
+          React.createElement('h2', { style:{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif' } }, '객관식 결과'),
+          hasKey && objRate != null && React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, objScore + ' / ' + objTotal + ' (' + objRate + '%)')
+        ),
+        !hasKey ? React.createElement('div', { style:{ fontSize:'13px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '정답이 등록되지 않은 시험입니다. 채점이 완료되면 결과가 표시됩니다.') :
+        React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap:'8px' } },
+          qResults.map(function(r){
+            var bg = r.isOk ? '#ecfdf5' : '#fef2f2';
+            var color = r.isOk ? '#16a34a' : '#c82014';
+            var border = r.isOk ? '1px solid #a7f3d0' : '1px solid #fecaca';
+            return React.createElement('div', { key:r.num, style:{ background:bg, border:border, borderRadius:'8px', padding:'10px 12px', display:'flex', alignItems:'center', gap:'10px', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', minWidth:'28px' } }, r.num + '.'),
+              React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', color:color, minWidth:'30px' } }, r.isOk ? '정답' : '오답'),
+              React.createElement('span', { style:{ fontSize:'12px', color:'#374151' } }, '내 답: ' + (r.my ? (circles[Number(r.my)-1] || r.my) : '미답')),
+              !r.isOk && React.createElement('span', { style:{ fontSize:'12px', color:'#16a34a', fontWeight:'700' } }, '(정답 ' + (circles[Number(r.correct)-1] || r.correct) + ')')
+            );
+          })
+        )
+      ),
+
+      /* 서술형 결과 */
+      tqc > 0 && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding: isMobile ? '20px' : '28px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' } },
+        React.createElement('h2', { style:{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:'0 0 14px', fontFamily:'Manrope, sans-serif' } }, '서술형 답안'),
+        React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+          Array.from({ length: tqc }).map(function(_, i){
+            var num = i + 1;
+            var ans = (submission.text_answers && submission.text_answers[num]) || '';
+            var sc = ts[num] != null ? ts[num] : null;
+            return React.createElement('div', { key:num, style:{ border:'1px solid #e5e7eb', borderRadius:'10px', padding:'14px', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px' } },
+                React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, '서술형 ' + num + '번'),
+                sc != null && React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', background:'#1d4ed8', color:'#fff', borderRadius:'4px', padding:'2px 8px' } }, sc + '점')
+              ),
+              React.createElement('div', { style:{ fontSize:'13px', color:'#374151', whiteSpace:'pre-line', lineHeight:'1.7', background:'#f9fafb', borderRadius:'6px', padding:'10px 12px' } }, ans || '미답')
+            );
+          })
+        )
+      )
+    )
+  );
+}
+
 /* ── 레벨테스트 페이지 (별도 페이지 wrapper) ─────────── */
 function LevelTestPage({ user, onLoginClick, setPage }) {
   const isMobile = useIsMobile();
@@ -786,4 +917,4 @@ function LevelTestPage({ user, onLoginClick, setPage }) {
   );
 }
 
-Object.assign(window, { HomePage, LevelTestPage, LevelTestCTA });
+Object.assign(window, { HomePage, LevelTestPage, LevelTestCTA, ExamResultPage });

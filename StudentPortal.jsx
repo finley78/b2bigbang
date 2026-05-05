@@ -1319,12 +1319,27 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     try {
       var nowIso = new Date().toISOString();
       var firstText = examTextAnswers['1'] || examTextAnswer || null;
+      // 객관식 자동 채점
+      var ak = (activeExam.answer_key && typeof activeExam.answer_key === 'object') ? activeExam.answer_key : {};
+      var qc = activeExam.question_count || 0;
+      var hasAnswerKey = Object.keys(ak).length > 0;
+      var objScore = null, objTotal = null;
+      if (qc > 0 && hasAnswerKey) {
+        var correct = 0;
+        for (var i = 1; i <= qc; i++) {
+          if (ak[i] != null && String(examAnswers[i] || '') === String(ak[i])) correct++;
+        }
+        objScore = correct;
+        objTotal = qc;
+      }
       var row;
       if (existing) {
         row = {
           answers: examAnswers || {},
           text_answers: examTextAnswers || {},
           text_answer: firstText,
+          objective_score: objScore,
+          objective_total: objTotal,
           updated_at: nowIso,
         };
         var { error } = await sb.from('exam_submissions').update(row).eq('id', existing.id);
@@ -1337,6 +1352,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           answers: examAnswers || {},
           text_answers: examTextAnswers || {},
           text_answer: firstText,
+          objective_score: objScore,
+          objective_total: objTotal,
           submitted_at: nowIso,
           updated_at: nowIso,
         };

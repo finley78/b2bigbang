@@ -122,7 +122,7 @@ const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); 
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
 const [adminLtFormOpen, setAdminLtFormOpen] = React.useState(false);
-const [adminLtDraft, setAdminLtDraft] = React.useState({ title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
+const [adminLtDraft, setAdminLtDraft] = React.useState({ title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
 const [adminLtUploading, setAdminLtUploading] = React.useState(false);
 const [adminScrMode, setAdminScrMode] = React.useState('change'); // 'change' | 'academic'
 const [adminAcademicList, setAdminAcademicList] = React.useState([]);
@@ -282,7 +282,7 @@ async function loadAdminLevelTests() {
   }
 }
 function adminOpenLtForm() {
-  setAdminLtDraft({ title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0' });
+  setAdminLtDraft({ title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
   setAdminLtFormOpen(true);
 }
 function adminCloseLtForm() { setAdminLtFormOpen(false); }
@@ -325,6 +325,8 @@ async function adminSubmitLevelTest() {
       target_semester: d.target_semester || null,
       min_score: minS,
       max_score: maxS,
+      answer_key: d.answer_key || {},
+      objective_total: qc,
       description: d.description.trim() || null,
       image_paths: paths,
       question_count: qc,
@@ -354,6 +356,17 @@ async function adminToggleLtStatus(t) {
     await loadAdminLevelTests();
   } catch (e) { alert('변경 실패: ' + (e.message || e)); }
 }
+async function adminSaveGrading(submissionId, payload) {
+  var sb = window.supabase;
+  try {
+    payload.graded_at = new Date().toISOString();
+    var { error } = await sb.from('exam_submissions').update(payload).eq('id', submissionId);
+    if (error) throw error;
+    alert('채점이 저장되었습니다.');
+    await loadAdminLevelTests();
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+}
+
 async function adminDeleteLevelTest(t) {
   if (!confirm('이 레벨테스트를 삭제하시겠습니까? 신청 내역과 답안도 함께 삭제됩니다.')) return;
   var sb = window.supabase;
@@ -2813,12 +2826,31 @@ tab==='leveltest' && React.createElement('div', null,
                   '신청: ' + String(r.requested_at||'').slice(0,16).replace('T',' ') + (matched ? ' · 제출: ' + String(matched.submitted_at||'').slice(0,16).replace('T',' ') : ''),
                   (r.school_level || r.grade || r.semester || r.subject || r.score != null) && React.createElement('span', { style:{ marginLeft:'8px', color:'#1d4ed8', fontWeight:'700' } }, '응시 정보: ' + [r.school_level, r.grade ? r.grade + '학년' : null, r.semester ? r.semester + '학기' : null, r.subject, r.score != null ? r.score + '점' : null].filter(Boolean).join(' / '))
                 ),
-                matched && (t.question_count||0) > 0 && matched.answers && Object.keys(matched.answers).length > 0 && React.createElement('div', { style:{ marginTop:'4px', color:'#374151', fontSize:'11px' } },
-                  '객관식: ' + Object.keys(matched.answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){ return k + '. ' + matched.answers[k]; }).join(' / ')
-                ),
+                matched && (t.question_count||0) > 0 && matched.answers && Object.keys(matched.answers).length > 0 && (function(){
+                  var ak = (t.answer_key && typeof t.answer_key === 'object') ? t.answer_key : {};
+                  var hasKey = Object.keys(ak).length > 0;
+                  var qc = t.question_count || 0;
+                  var correct = 0;
+                  if (hasKey) {
+                    for (var i = 1; i <= qc; i++) {
+                      if (ak[i] != null && String(matched.answers[i] || '') === String(ak[i])) correct++;
+                    }
+                  }
+                  return React.createElement('div', { style:{ marginTop:'4px', color:'#374151', fontSize:'11px' } },
+                    '객관식: ' + Object.keys(matched.answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){
+                      var my = matched.answers[k];
+                      if (!hasKey) return k + '. ' + my;
+                      var ok = String(my) === String(ak[k]);
+                      return k + '. ' + my + (ok ? ' ✓' : ' ✗(' + ak[k] + ')');
+                    }).join(' / '),
+                    hasKey && React.createElement('span', { style:{ marginLeft:'8px', fontWeight:'800', color:'#E60012' } }, '자동채점: ' + correct + '/' + qc)
+                  );
+                })(),
                 matched && matched.text_answers && Object.keys(matched.text_answers).length > 0 && Object.keys(matched.text_answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){
                   return React.createElement('div', { key:k, style:{ marginTop:'4px', color:'#374151', fontSize:'11px', whiteSpace:'pre-line' } }, '서술형 ' + k + '. ' + matched.text_answers[k]);
-                })
+                }),
+                /* 채점 폼 */
+                matched && React.createElement(GradingForm, { exam: t, submission: matched, onSave: adminSaveGrading })
               );
             })
           )
@@ -2904,6 +2936,34 @@ tab==='leveltest' && React.createElement('div', null,
           React.createElement('input', { type:'number', min:'0', value:adminLtDraft.time_limit_minutes, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { time_limit_minutes:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
         )
       ),
+      /* 객관식 정답 입력 */
+      (function(){
+        var qc = parseInt(adminLtDraft.question_count, 10) || 0;
+        var cpq = parseInt(adminLtDraft.choices_per_question, 10) || 5;
+        if (qc <= 0) return null;
+        return React.createElement('div', { style:{ marginBottom:'14px' } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 정답 (자동 채점에 사용, 비워두면 자동 채점 X)'),
+          React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(80px, 1fr))', gap:'6px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' } },
+            Array.from({ length: qc }).map(function(_, i){
+              var num = i + 1;
+              return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'4px' } },
+                React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#6b7280', minWidth:'22px', textAlign:'right' } }, num + '.'),
+                React.createElement('select', { value:(adminLtDraft.answer_key && adminLtDraft.answer_key[num]) || '', onChange:function(e){
+                  var v = e.target.value;
+                  setAdminLtDraft(function(p){
+                    var ak = Object.assign({}, p.answer_key || {});
+                    if (v) ak[num] = v; else delete ak[num];
+                    return Object.assign({}, p, { answer_key: ak });
+                  });
+                }, style:{ flex:1, border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } },
+                  React.createElement('option', { value:'' }, '-'),
+                  Array.from({ length: cpq }).map(function(_, ci){ var v = String(ci+1); return React.createElement('option', { key:v, value:v }, v); })
+                )
+              );
+            })
+          )
+        );
+      })(),
       React.createElement('div', { style:{ display:'flex', gap:'8px', marginTop:'8px' } },
         React.createElement('button', { onClick:adminCloseLtForm, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor:'pointer' } }, '취소'),
         React.createElement('button', { onClick:adminSubmitLevelTest, disabled:adminLtUploading, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: adminLtUploading?'not-allowed':'pointer', opacity: adminLtUploading ? 0.6 : 1 } }, adminLtUploading ? '발행 중...' : '발행')
@@ -3026,4 +3086,72 @@ kakaoTarget && (function(){
 );
 }
 
-Object.assign(window, { AdminPanel });
+/* ── 시험 채점 폼 (관리자/선생님 공용) ─────────── */
+function GradingForm({ exam, submission, onSave }) {
+  const tqc = exam.text_question_count || 0;
+  const initialTextScores = (submission.text_scores && typeof submission.text_scores === 'object') ? submission.text_scores : {};
+  const [textScores, setTextScores] = React.useState(initialTextScores);
+  const [totalScore, setTotalScore] = React.useState(submission.score != null ? String(submission.score) : '');
+  const [feedback, setFeedback] = React.useState(submission.feedback || '');
+  const [saving, setSaving] = React.useState(false);
+
+  // 객관식 자동 채점 점수
+  const ak = (exam.answer_key && typeof exam.answer_key === 'object') ? exam.answer_key : {};
+  const hasKey = Object.keys(ak).length > 0;
+  const qc = exam.question_count || 0;
+  let objAuto = null;
+  if (hasKey && qc > 0) {
+    let c = 0;
+    for (let i = 1; i <= qc; i++) {
+      if (ak[i] != null && String((submission.answers && submission.answers[i]) || '') === String(ak[i])) c++;
+    }
+    objAuto = c;
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    var sc = totalScore.trim() === '' ? null : parseInt(totalScore, 10);
+    if (sc != null && (isNaN(sc) || sc < 0)) { alert('총점을 0 이상의 숫자로 입력해 주세요.'); setSaving(false); return; }
+    var payload = {
+      score: sc,
+      text_scores: textScores || {},
+      feedback: feedback || null,
+      objective_score: objAuto != null ? objAuto : submission.objective_score,
+      objective_total: qc || submission.objective_total,
+    };
+    try {
+      await onSave(submission.id, payload);
+    } catch (e) {}
+    setSaving(false);
+  }
+
+  return React.createElement('div', { style:{ marginTop:'10px', padding:'10px', background:'#fff', border:'1px dashed #d1d5db', borderRadius:'6px' } },
+    React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#1d4ed8', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '채점' + (objAuto != null ? ' (자동 객관식 ' + objAuto + '/' + qc + ')' : '')),
+    tqc > 0 && React.createElement('div', { style:{ marginBottom:'8px' } },
+      React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '서술형 점수'),
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(110px, 1fr))', gap:'4px' } },
+        Array.from({ length: tqc }).map(function(_, i){
+          var num = i + 1;
+          return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'4px' } },
+            React.createElement('span', { style:{ fontSize:'11px', minWidth:'30px', color:'#6b7280' } }, num + '번:'),
+            React.createElement('input', { type:'number', min:'0', value: textScores[num] != null ? textScores[num] : '', onChange:function(e){ var v = e.target.value; setTextScores(function(p){ var n = Object.assign({}, p); if (v === '') delete n[num]; else n[num] = parseInt(v,10) || 0; return n; }); }, style:{ flex:1, border:'1px solid #d6dbde', borderRadius:'4px', padding:'4px 6px', fontSize:'11px', boxSizing:'border-box' } })
+          );
+        })
+      )
+    ),
+    React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'8px' } },
+      React.createElement('div', { style:{ flex:1 } },
+        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'4px' } }, '총점'),
+        React.createElement('input', { type:'number', min:'0', value:totalScore, onChange:function(e){ setTotalScore(e.target.value); }, placeholder:'예: 85', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'5px 8px', fontSize:'12px', boxSizing:'border-box' } })
+      ),
+      React.createElement('div', { style:{ flex:2 } },
+        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'4px' } }, '학생에게 보일 코멘트'),
+        React.createElement('input', { type:'text', value:feedback, onChange:function(e){ setFeedback(e.target.value); }, placeholder:'예: 객관식 8문항 정답, 서술형 보강 필요', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'5px 8px', fontSize:'12px', boxSizing:'border-box' } })
+      )
+    ),
+    React.createElement('button', { onClick:handleSave, disabled:saving, style:{ background: saving?'#9ca3af':'#1d4ed8', color:'#fff', border:'none', borderRadius:'6px', padding:'6px 14px', fontSize:'12px', fontWeight:'800', cursor: saving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, saving ? '저장 중...' : '채점 저장'),
+    submission.graded_at && React.createElement('span', { style:{ marginLeft:'10px', fontSize:'11px', color:'#16a34a', fontWeight:'700' } }, '채점 완료: ' + String(submission.graded_at).slice(0,16).replace('T',' '))
+  );
+}
+
+Object.assign(window, { AdminPanel, GradingForm });
