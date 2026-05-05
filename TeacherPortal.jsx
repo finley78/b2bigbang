@@ -1642,31 +1642,24 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   </div>
                 </div>
 
-                {/* 객관식 정답 입력 (자동 채점용) */}
+                {/* 객관식 정답 입력 (직접 기입) */}
                 {(parseInt(examDraft.question_count, 10) || 0) > 0 && (
                   <div style={{ marginBottom:'14px' }}>
-                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>객관식 정답 (자동 채점에 사용, 비워두면 자동 채점 X)</label>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(80px, 1fr))', gap:'6px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>객관식 정답 (직접 기입, 비워두면 자동 채점 X)</label>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(90px, 1fr))', gap:'6px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' }}>
                       {Array.from({ length: parseInt(examDraft.question_count, 10) || 0 }).map((_, i) => {
                         const num = i + 1;
-                        const cpq = parseInt(examDraft.choices_per_question, 10) || 5;
                         return (
                           <div key={num} style={{ display:'flex', alignItems:'center', gap:'4px' }}>
                             <span style={{ fontSize:'12px', fontWeight:'700', color:'#6b7280', minWidth:'22px', textAlign:'right' }}>{num}.</span>
-                            <select value={(examDraft.answer_key && examDraft.answer_key[num]) || ''} onChange={e => {
+                            <input type="text" value={(examDraft.answer_key && examDraft.answer_key[num]) || ''} onChange={e => {
                               const v = e.target.value;
                               setExamDraft(p => {
                                 const ak = Object.assign({}, p.answer_key || {});
                                 if (v) ak[num] = v; else delete ak[num];
                                 return Object.assign({}, p, { answer_key: ak });
                               });
-                            }} style={{ flex:1, border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
-                              <option value="">-</option>
-                              {Array.from({ length: cpq }).map((_, ci) => {
-                                const v = String(ci+1);
-                                return <option key={v} value={v}>{v}</option>;
-                              })}
-                            </select>
+                            }} placeholder="예: 3" style={{ flex:1, border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 6px', fontSize:'12px', fontFamily:'Manrope, sans-serif', textAlign:'center', boxSizing:'border-box' }} />
                           </div>
                         );
                       })}

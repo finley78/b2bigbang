@@ -2936,29 +2936,25 @@ tab==='leveltest' && React.createElement('div', null,
           React.createElement('input', { type:'number', min:'0', value:adminLtDraft.time_limit_minutes, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { time_limit_minutes:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
         )
       ),
-      /* 객관식 정답 입력 */
+      /* 객관식 정답 입력 (직접 기입) */
       (function(){
         var qc = parseInt(adminLtDraft.question_count, 10) || 0;
-        var cpq = parseInt(adminLtDraft.choices_per_question, 10) || 5;
         if (qc <= 0) return null;
         return React.createElement('div', { style:{ marginBottom:'14px' } },
-          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 정답 (자동 채점에 사용, 비워두면 자동 채점 X)'),
-          React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(80px, 1fr))', gap:'6px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 정답 (직접 기입, 비워두면 자동 채점 X)'),
+          React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(90px, 1fr))', gap:'6px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' } },
             Array.from({ length: qc }).map(function(_, i){
               var num = i + 1;
               return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'4px' } },
                 React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#6b7280', minWidth:'22px', textAlign:'right' } }, num + '.'),
-                React.createElement('select', { value:(adminLtDraft.answer_key && adminLtDraft.answer_key[num]) || '', onChange:function(e){
+                React.createElement('input', { type:'text', value:(adminLtDraft.answer_key && adminLtDraft.answer_key[num]) || '', onChange:function(e){
                   var v = e.target.value;
                   setAdminLtDraft(function(p){
                     var ak = Object.assign({}, p.answer_key || {});
                     if (v) ak[num] = v; else delete ak[num];
                     return Object.assign({}, p, { answer_key: ak });
                   });
-                }, style:{ flex:1, border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } },
-                  React.createElement('option', { value:'' }, '-'),
-                  Array.from({ length: cpq }).map(function(_, ci){ var v = String(ci+1); return React.createElement('option', { key:v, value:v }, v); })
-                )
+                }, placeholder:'예: 3', style:{ flex:1, border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 6px', fontSize:'12px', fontFamily:'Manrope, sans-serif', textAlign:'center', boxSizing:'border-box' } })
               );
             })
           )

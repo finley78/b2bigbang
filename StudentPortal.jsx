@@ -1029,6 +1029,20 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   }, []);
   // PC 답안지 팝업 최소화 토글
   var [answerPanelOpen, setAnswerPanelOpen] = React.useState(true);
+  // 결과 페이지 표시
+  var [resultExam, setResultExam] = React.useState(null);
+  var [resultSub, setResultSub] = React.useState(null);
+
+  function viewExamResult(exam) {
+    var sub = mySubmissions[exam.id];
+    if (!sub) { alert('답안 정보가 없습니다.'); return; }
+    setResultExam(exam);
+    setResultSub(sub);
+  }
+  function closeExamResult() {
+    setResultExam(null);
+    setResultSub(null);
+  }
   // 모바일 답안지 시트 모드: 'small' | 'large' | 'closed'
   var [sheetMode, setSheetMode] = React.useState('small');
 
@@ -1598,6 +1612,11 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     );
   }
 
+  // 시험 결과 화면 (응시 완료 후 결과/분석)
+  if (resultExam && resultSub && window.ExamResultPage) {
+    return React.createElement(window.ExamResultPage, { exam: resultExam, submission: resultSub, onClose: closeExamResult });
+  }
+
   // 시험 응시 화면
   if (portalView === 'exam' && activeExam) {
     var imgs = Array.isArray(activeExam.image_paths) ? activeExam.image_paths : [];
@@ -1938,7 +1957,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
                   var isStartedSub = !!(sub && sub.started_at && !isLockedSub);
                   var statusLabel = isLockedSub ? '시간 종료' : (isStartedSub ? '응시 중' : (sub ? '제출 완료' : '미응시'));
                   var statusColor = isLockedSub ? '#6b7280' : (isStartedSub ? '#F8B500' : (sub ? '#16a34a' : '#E60012'));
-                  return React.createElement('button', { key:ex.id, onClick:function(){ openExam(ex); }, style:{ textAlign:'left', cursor:'pointer', background:'#fff', border: '2px solid ' + statusColor, borderRadius:'12px', padding:'16px', fontFamily:'Manrope, sans-serif' } },
+                  return React.createElement('button', { key:ex.id, onClick:function(){ if (sub) viewExamResult(ex); else openExam(ex); }, style:{ textAlign:'left', cursor:'pointer', background:'#fff', border: '2px solid ' + statusColor, borderRadius:'12px', padding:'16px', fontFamily:'Manrope, sans-serif' } },
                     React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px', flexWrap:'wrap' } },
                       React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background: statusColor, color:'#fff', borderRadius:'4px', padding:'2px 7px' } }, statusLabel),
                       ex.subject && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 7px' } }, ex.subject),
