@@ -167,7 +167,7 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
 
   const [selectedCourse, setSelectedCourse] = React.useState(null);
 
-  const teachers = [
+  const teachers = (pc.teachers && pc.teachers.length > 0) ? pc.teachers : [
     { name:'김민준', subject:'수학', career:'서울대 수학교육과, 수능 출제 경험 10년', badge:'수학 대표 강사' },
     { name:'이수진', subject:'영어', career:'연세대 영어영문과, 수능 영어 전문 15년', badge:'영어 대표 강사' },
     { name:'박지영', subject:'국어', career:'고려대 국어국문과, 수능 국어 전문 12년', badge:'국어 대표 강사' },
@@ -255,20 +255,22 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
           )
         )
       ),
-      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#E60012', letterSpacing:'-0.16px', marginBottom:'24px', fontFamily:'Manrope, sans-serif' } }, '강사진'),
+      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#E60012', letterSpacing:'-0.16px', marginBottom:'24px', fontFamily:'Manrope, sans-serif' } }, pc.teachers_title || '강사진'),
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMob ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:'16px', marginBottom:'40px' } },
         teachers.map((t,i) =>
           React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'24px 20px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', textAlign:'center' } },
-            React.createElement('div', { style:{ width:'60px', height:'60px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:'22px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, t.name[0]),
+            t.image
+              ? React.createElement('div', { style:{ width:'72px', height:'72px', borderRadius:'50%', overflow:'hidden', margin:'0 auto 12px', background:`url(${t.image}) center/cover no-repeat #FFEBED` } })
+              : React.createElement('div', { style:{ width:'60px', height:'60px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:'22px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, (t.name || '?')[0]),
             React.createElement('div', { style:{ fontSize:'16px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, t.name),
-            React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', background:'#FFEBED', borderRadius:'8px', padding:'3px 10px', display:'inline-block', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, t.badge),
+            t.badge && React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', background:'#FFEBED', borderRadius:'8px', padding:'3px 10px', display:'inline-block', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, t.badge),
             React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', letterSpacing:'-0.01em', lineHeight:'1.5', fontFamily:'Manrope, sans-serif' } }, t.career)
           )
         )
       ),
       React.createElement('div', { style:{ textAlign:'center' } },
         React.createElement('button', { onClick:()=>setPage('contact'), style:{ background:'#E60012', color:'#fff', border:'1px solid #E60012', borderRadius:'8px', padding:'14px 36px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
-          onMouseDown:e=>e.currentTarget.style.transform='scale(0.95)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' }, '무료 상담 신청하기')
+          onMouseDown:e=>e.currentTarget.style.transform='scale(0.95)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' }, pc.cta_button || '무료 상담 신청하기')
       )
     )
   );
