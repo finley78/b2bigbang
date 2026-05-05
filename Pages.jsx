@@ -374,7 +374,7 @@ function ContactPage() {
 }
 
 /* ── About Page (학원안내) ───────────────────── */
-function AboutPage() {
+function AboutPage({ setPage }) {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   React.useEffect(() => {
     function onResize() { setIsMobile(window.innerWidth < 768); }
@@ -383,55 +383,103 @@ function AboutPage() {
   }, []);
 
   const values = [
-    { icon:'', title:'목표 중심 학습', desc:'단순 수업이 아닌 목표 대학과 목표 점수를 기준으로 역산한 맞춤형 커리큘럼을 제공합니다.' },
-    { icon:'', title:'소수 정예 수업', desc:'학생 한 명 한 명의 진도와 이해도를 파악할 수 있는 소수 정예 반 운영을 원칙으로 합니다.' },
-    { icon:'', title:'체계적 성과 관리', desc:'정기적인 성취도 평가와 피드백으로 학습 상태를 투명하게 관리합니다.' },
-    { icon:'', title:'학부모 소통', desc:'정기 상담과 알림 서비스로 학부모님과 긴밀하게 소통합니다.' },
+    { num:'01', title:'목표 중심 학습', desc:'단순 수업이 아닌 목표 대학과 목표 점수를 기준으로 역산한 맞춤형 커리큘럼을 제공합니다.' },
+    { num:'02', title:'소수 정예 수업', desc:'학생 한 명 한 명의 진도와 이해도를 파악할 수 있는 소수 정예 반 운영을 원칙으로 합니다.' },
+    { num:'03', title:'체계적 성과 관리', desc:'정기적인 성취도 평가와 피드백으로 학습 상태를 투명하게 관리합니다.' },
+    { num:'04', title:'학부모 소통', desc:'정기 상담과 알림 서비스로 학부모님과 긴밀하게 소통합니다.' },
   ];
 
   const subjects = [
-    { name:'국어', color:'#3A3A3A', desc:'독서·문학·화작 전 영역 / 내신 + 수능 통합 대비' },
-    { name:'영어', color:'#E60012', desc:'독해·어휘·듣기 통합 / 내신 + 수능 1등급 목표' },
-    { name:'수학', color:'#E60012', desc:'개념→유형→실전 3단계 / 내신 + 수능 완성' },
-    { name:'과학', color:'#1A1A1A', desc:'물리·화학·생물·지구과학 / 내신 집중 대비' },
+    { name:'국어', sub:'KOREAN', color:'#1A1A1A',  desc:'독서·문학·화작 전 영역\n내신 + 수능 통합 대비' },
+    { name:'영어', sub:'ENGLISH', color:'#E60012', desc:'독해·어휘·듣기 통합\n내신 + 수능 1등급 목표' },
+    { name:'수학', sub:'MATH',    color:'#3A3A3A', desc:'개념·유형·실전 3단계\n내신 + 수능 완성' },
+    { name:'과학', sub:'SCIENCE', color:'#0d2520', desc:'물리·화학·생물·지구과학\n내신 집중 대비' },
   ];
 
-  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
-    // 헤더
-    React.createElement('div', { style:{ background:'#1A1A1A', padding: isMobile ? '40px 16px' : '64px 40px' } },
-      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto' } },
-        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(255,255,255,0.5)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'About'),
-        React.createElement('h1', { style:{ fontSize: isMobile ? '30px' : '44px', fontWeight:'800', color:'#fff', letterSpacing:'-0.16px', lineHeight:'1.2', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, 'B2빅뱅학원\n소개'),
-        React.createElement('p', { style:{ fontSize:'16px', color:'rgba(255,255,255,0.65)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } }, '체계적인 커리큘럼과 전문 강사진으로\n목표를 현실로 만드는 학원입니다.')
+  const keywords = ['#소수정예', '#목표역산', '#1:1관리', '#투명한소통'];
+
+  const sectionTitle = (eyebrow, title) => React.createElement('div', { style:{ marginBottom:'28px' } },
+    React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, eyebrow),
+    React.createElement('h2', { style:{ fontSize: isMobile ? '24px' : '32px', fontWeight:'800', color:'#1A1A1A', letterSpacing:'-0.02em', lineHeight:'1.25', fontFamily:'Manrope, sans-serif' } }, title)
+  );
+
+  return React.createElement('div', { style:{ background:'#fff', minHeight:'80vh' } },
+
+    /* HERO */
+    React.createElement('section', { style:{ position:'relative', overflow:'hidden', background:'linear-gradient(135deg, #1A1A1A 0%, #2a2a2a 60%, #3a0007 100%)', padding: isMobile ? '64px 16px 80px' : '120px 40px' } },
+      React.createElement('div', { style:{ position:'absolute', top:'-80px', right: isMobile ? '-100px' : '-60px', width:'360px', height:'360px', borderRadius:'50%', background:'radial-gradient(circle, rgba(230,0,18,0.18) 0%, rgba(230,0,18,0) 70%)', pointerEvents:'none' } }),
+      React.createElement('div', { style:{ position:'relative', maxWidth:'1100px', margin:'0 auto' } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', letterSpacing:'0.18em', textTransform:'uppercase', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } }, 'About B2BIGBANG'),
+        React.createElement('h1', { style:{ fontSize: isMobile ? '34px' : '60px', fontWeight:'800', color:'#fff', letterSpacing:'-0.03em', lineHeight:'1.15', fontFamily:'Manrope, sans-serif', marginBottom:'18px' } },
+          React.createElement('span', null, '인천 검암동'), React.createElement('br'),
+          React.createElement('span', { style:{ color:'#E60012' } }, '입시 전문'), React.createElement('span', null, ' 학원')
+        ),
+        React.createElement('p', { style:{ fontSize: isMobile ? '15px' : '17px', color:'rgba(255,255,255,0.72)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7', maxWidth:'600px' } }, '체계적인 커리큘럼과 전문 강사진이 학생 한 명 한 명의 목표를 현실로 바꿉니다.'),
+        React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginTop:'28px' } },
+          keywords.map(k =>
+            React.createElement('span', { key:k, style:{ fontSize:'13px', fontWeight:'700', color:'rgba(255,255,255,0.85)', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'999px', padding:'7px 14px', fontFamily:'Manrope, sans-serif' } }, k)
+          )
+        )
       )
     ),
-    // 학원 소개
-    React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding: isMobile ? '32px 16px' : '56px 40px' } },
-      React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', padding: isMobile ? '24px 20px' : '40px', marginBottom:'32px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
-        React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } }, '학원 소개'),
-        React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.7)', fontFamily:'Manrope, sans-serif', lineHeight:'1.9', whiteSpace:'pre-line' } },
-          'B2빅뱅학원은 인천 검암동에 위치한 입시 전문 학원입니다.\n\n국어, 영어, 수학, 과학 전 과목을 아우르는 전문 강사진이 학생 한 명 한 명의 목표에 맞는 맞춤 학습을 제공합니다.\n\n내신부터 수능까지, 체계적인 커리큘럼으로 원하는 결과를 만들어 드립니다.'
+
+    /* 미션 / 학원 소개 */
+    React.createElement('section', { style:{ background:'#fff', padding: isMobile ? '56px 16px' : '96px 40px', borderBottom:'1px solid rgba(0,0,0,0.06)' } },
+      React.createElement('div', { style:{ maxWidth:'1100px', margin:'0 auto', display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.2fr', gap: isMobile ? '24px' : '64px', alignItems:'start' } },
+        React.createElement('div', null,
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, 'Our Mission'),
+          React.createElement('h2', { style:{ fontSize: isMobile ? '24px' : '34px', fontWeight:'800', color:'#1A1A1A', letterSpacing:'-0.02em', lineHeight:'1.25', fontFamily:'Manrope, sans-serif' } }, '학생 한 명 한 명의\n목표를 현실로')
+        ),
+        React.createElement('div', { style:{ fontSize: isMobile ? '15px' : '17px', color:'rgba(0,0,0,0.72)', fontFamily:'Manrope, sans-serif', lineHeight:'1.95' } },
+          React.createElement('p', { style:{ marginBottom:'18px' } }, 'B2빅뱅학원은 인천 검암동에 위치한 입시 전문 학원입니다. 국어·영어·수학·과학 전 과목을 아우르는 전문 강사진이 학생 한 명 한 명의 목표에 맞는 맞춤 학습을 제공합니다.'),
+          React.createElement('p', null, '내신부터 수능까지, 학생의 현재 위치에서 목표 대학·목표 점수까지의 거리를 정확히 측정하고 그 사이를 메우는 체계적인 커리큘럼을 운영합니다.')
         )
-      ),
-      // 핵심 가치
-      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '우리의 약속'),
-      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', marginBottom:'40px' } },
-        values.map((v, i) =>
-          React.createElement('div', { key:i, style:{ background:'#fff', borderRadius:'12px', padding:'24px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
-            v.icon ? React.createElement('div', { style:{ fontSize:'28px', marginBottom:'12px' } }, v.icon) : null,
-            React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, v.title),
-            React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } }, v.desc)
+      )
+    ),
+
+    /* 핵심 가치 */
+    React.createElement('section', { style:{ background:'#f8fafc', padding: isMobile ? '56px 16px' : '96px 40px' } },
+      React.createElement('div', { style:{ maxWidth:'1100px', margin:'0 auto' } },
+        sectionTitle('Promise', '우리의 약속'),
+        React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px' } },
+          values.map(v =>
+            React.createElement('div', { key:v.num, style:{ background:'#fff', borderRadius:'14px', padding: isMobile ? '24px' : '32px', border:'1px solid rgba(0,0,0,0.06)', transition:'transform 0.2s, box-shadow 0.2s', boxShadow:'0 1px 2px rgba(0,0,0,0.04)' } },
+              React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#E60012', letterSpacing:'0.04em', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, v.num),
+              React.createElement('div', { style:{ fontSize:'19px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'10px', letterSpacing:'-0.01em' } }, v.title),
+              React.createElement('p', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.75', margin:0 } }, v.desc)
+            )
           )
         )
-      ),
-      // 개설 과목
-      React.createElement('h2', { style:{ fontSize:'22px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '개설 과목'),
-      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap:'12px' } },
-        subjects.map((s, i) =>
-          React.createElement('div', { key:i, style:{ background:s.color, borderRadius:'12px', padding:'20px 16px', textAlign:'center' } },
-            React.createElement('div', { style:{ fontSize:'20px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, s.name),
-            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.75)', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, s.desc)
+      )
+    ),
+
+    /* 개설 과목 */
+    React.createElement('section', { style:{ background:'#fff', padding: isMobile ? '56px 16px' : '96px 40px' } },
+      React.createElement('div', { style:{ maxWidth:'1100px', margin:'0 auto' } },
+        sectionTitle('Subjects', '개설 과목'),
+        React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap:'14px' } },
+          subjects.map(s =>
+            React.createElement('div', { key:s.name, style:{ background:s.color, borderRadius:'16px', padding: isMobile ? '24px 18px' : '32px 24px', minHeight: isMobile ? '160px' : '220px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', overflow:'hidden' } },
+              React.createElement('div', null,
+                React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'rgba(255,255,255,0.55)', letterSpacing:'0.14em', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, s.sub),
+                React.createElement('div', { style:{ fontSize: isMobile ? '24px' : '28px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.02em' } }, s.name)
+              ),
+              React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.78)', fontFamily:'Manrope, sans-serif', lineHeight:'1.65', whiteSpace:'pre-line', marginTop:'14px' } }, s.desc)
+            )
           )
+        )
+      )
+    ),
+
+    /* CTA */
+    React.createElement('section', { style:{ background:'#1A1A1A', padding: isMobile ? '56px 16px' : '96px 40px', textAlign:'center' } },
+      React.createElement('div', { style:{ maxWidth:'720px', margin:'0 auto' } },
+        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, 'Get Started'),
+        React.createElement('h2', { style:{ fontSize: isMobile ? '26px' : '36px', fontWeight:'800', color:'#fff', letterSpacing:'-0.02em', lineHeight:'1.25', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '지금 시작해 보세요'),
+        React.createElement('p', { style:{ fontSize:'15px', color:'rgba(255,255,255,0.65)', fontFamily:'Manrope, sans-serif', lineHeight:'1.75', marginBottom:'28px' } }, '레벨테스트로 현재 실력을 확인하거나 전화 한 통으로 상담을 시작하세요.'),
+        React.createElement('div', { style:{ display:'flex', gap:'10px', justifyContent:'center', flexWrap:'wrap' } },
+          React.createElement('button', { onClick: function(){ if (setPage) setPage('leveltest'); }, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding: isMobile ? '13px 22px' : '15px 32px', fontSize: isMobile ? '14px' : '15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '레벨테스트 신청'),
+          React.createElement('button', { onClick: function(){ if (setPage) setPage('contact'); }, style:{ background:'transparent', color:'#fff', border:'1px solid rgba(255,255,255,0.4)', borderRadius:'10px', padding: isMobile ? '12px 22px' : '14px 32px', fontSize: isMobile ? '14px' : '15px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '문의하기')
         )
       )
     )
