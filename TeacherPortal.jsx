@@ -2619,30 +2619,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             )}
 
             {/* 모드별 하단 영역 */}
-            {scrMode === 'change' ? (
-              myRequests.length > 0 && (
-                <div style={{ marginTop:'8px' }}>
-                  <h3 style={{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }}>내 신청 내역 ({myRequests.length}건)</h3>
-                  <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-                    {myRequests.slice().sort((a,b) => String(b.target_date).localeCompare(String(a.target_date))).map(r => (
-                      <div key={r.id} style={{ display:'flex', alignItems:'flex-start', gap:'12px', padding:'12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px' }}>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:'13px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{r.target_date}</div>
-                          <div style={{ fontSize:'13px', color:'#374151', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line', marginTop:'4px' }}>{r.reason}</div>
-                          {r.file_path && (
-                            <div style={{ marginTop:'6px' }}>
-                              <a href={scrPublicUrl(r.file_path)} target="_blank" rel="noopener" style={{ fontSize:'12px', color:'#E60012', fontWeight:'700', textDecoration:'underline', fontFamily:'Manrope, sans-serif' }}>📎 {r.file_name} ({scrFormatBytes(r.file_size)})</a>
-                            </div>
-                          )}
-                          <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>신청일: {String(r.created_at||'').slice(0,16).replace('T',' ')}</div>
-                        </div>
-                        <button onClick={() => deleteScheduleRequest(r)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>취소</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            ) : (
+            {scrMode === 'change' ? null : (
               <div style={{ marginTop:'8px' }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
                   <h3 style={{ fontSize:'15px', fontWeight:'800', color:'#111827', margin:0, fontFamily:'Manrope, sans-serif' }}>이 달 학사일정 ({academicInMonth.length}건)</h3>
