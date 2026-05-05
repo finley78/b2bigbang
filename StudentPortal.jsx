@@ -1830,21 +1830,21 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
               React.createElement('h2', { style:{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' } }, g.label),
               React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, g.items.length + '개')
             ),
-            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'10px' } },
+            React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'8px' } },
               g.items.map(function(it){
                 return React.createElement('button', { key:it.id, onClick:it.onClick,
                   onMouseEnter:function(e){ e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; },
                   onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; },
                   style:{
-                    background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px',
-                    padding:'10px 14px', textAlign:'left', cursor:'pointer',
+                    background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
+                    padding:'8px 14px', textAlign:'left', cursor:'pointer',
                     fontFamily:'Manrope, sans-serif',
-                    fontSize:'14px', fontWeight:'700', color:'#111827',
+                    fontSize:'13px', fontWeight:'700', color:'#111827',
                     letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s',
-                    position:'relative'
+                    display:'inline-flex', alignItems:'center', gap:'8px'
                   } },
                   it.title,
-                  it.badge && React.createElement('span', { style:{ marginLeft:'8px', fontSize:'10px', fontWeight:'800', background:g.color, color:'#fff', borderRadius:'999px', padding:'2px 8px' } }, it.badge)
+                  it.badge && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:g.color, color:'#fff', borderRadius:'999px', padding:'2px 8px' } }, it.badge)
                 );
               })
             )
