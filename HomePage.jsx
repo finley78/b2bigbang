@@ -540,7 +540,142 @@ function NoticeDetailPage({ notice, onBack, setPage }) {
   );
 }
 
-function HomePage({ banners, slides, categories, notices, announcements, setPage, isAdmin, content, onAdminAction }) {
+/* ── 레벨테스트 신청 CTA (메인 페이지) ─────────────── */
+function LevelTestCTA({ user, onLoginClick, setPage }) {
+  const isMobile = useIsMobile();
+  const sb = window.supabase;
+  const [tests, setTests] = React.useState([]);
+  const [loaded, setLoaded] = React.useState(false);
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [draft, setDraft] = React.useState({ school_level:'중', grade:'', semester:'', score:'' });
+  const [submitting, setSubmitting] = React.useState(false);
+  const [myReqs, setMyReqs] = React.useState({});
+
+  React.useEffect(function(){
+    (async function(){
+      try {
+        const { data } = await sb.from('exams').select('*').eq('kind','level').eq('status','open').order('created_at', { ascending:false });
+        setTests(data || []);
+        if (user && user.id) {
+          const { data: reqs } = await sb.from('level_test_requests').select('*').eq('student_id', user.id);
+          const m = {}; (reqs || []).forEach(function(r){ m[r.exam_id] = r; });
+          setMyReqs(m);
+        }
+      } catch (e) { console.error('레벨테스트 CTA 로드 실패:', e); }
+      finally { setLoaded(true); }
+    })();
+  }, [user]);
+
+  function pickMatching(school_level, grade, semester, score) {
+    const matched = tests.filter(function(ex){
+      if (ex.school_level && ex.school_level !== school_level) return false;
+      if (ex.target_grade && String(ex.target_grade) !== String(grade)) return false;
+      if (ex.target_semester && semester && String(ex.target_semester) !== String(semester)) return false;
+      if (ex.min_score != null && score < ex.min_score) return false;
+      if (ex.max_score != null && score > ex.max_score) return false;
+      return true;
+    });
+    if (matched.length === 0) return null;
+    const both = matched.filter(function(ex){ return ex.target_semester && semester && String(ex.target_semester) === String(semester); });
+    return both.length > 0 ? both[0] : matched[0];
+  }
+
+  function openForm() {
+    if (!user) { alert('로그인 후 신청할 수 있습니다.'); if (onLoginClick) onLoginClick(); return; }
+    setDraft({ school_level:'중', grade:'', semester:'', score:'' });
+    setFormOpen(true);
+  }
+
+  async function submit() {
+    if (!user) { alert('로그인 후 신청할 수 있습니다.'); return; }
+    if (!draft.school_level) { alert('학교급을 선택해 주세요.'); return; }
+    if (!draft.grade) { alert('학년을 선택해 주세요.'); return; }
+    const sc = parseInt(draft.score, 10);
+    if (isNaN(sc) || sc < 0 || sc > 100) { alert('내신 점수를 0~100 사이로 입력해 주세요.'); return; }
+    const matched = pickMatching(draft.school_level, draft.grade, draft.semester, sc);
+    if (!matched) { alert('입력하신 정보에 맞는 레벨테스트가 없습니다.\n관리자에게 문의해 주세요.'); return; }
+    setSubmitting(true);
+    try {
+      const { error } = await sb.from('level_test_requests').insert({
+        exam_id: matched.id, student_id: user.id, student_name: user.name || '',
+        school_level: draft.school_level, grade: draft.grade,
+        semester: draft.semester || null, score: sc,
+      });
+      if (error && !String(error.message||'').includes('duplicate')) throw error;
+      const { data: reqs } = await sb.from('level_test_requests').select('*').eq('student_id', user.id);
+      const m = {}; (reqs || []).forEach(function(r){ m[r.exam_id] = r; });
+      setMyReqs(m);
+      setFormOpen(false);
+      const goPortal = confirm('"' + matched.title + '" 시험이 매칭되었습니다.\n지금 강의실로 이동해서 응시하시겠습니까?');
+      if (goPortal && setPage) setPage('portal');
+    } catch (e) { alert('신청 실패: ' + (e.message || e)); }
+    finally { setSubmitting(false); }
+  }
+
+  if (!loaded || tests.length === 0) return null;
+
+  const hasMyReq = Object.keys(myReqs).length > 0;
+  return React.createElement('div', { style:{ background:'linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%)', padding: isMobile ? '28px 16px' : '36px 40px' } },
+    React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'space-between', gap: isMobile ? '16px' : '24px' } },
+      React.createElement('div', { style:{ flex:1 } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'rgba(255,255,255,0.7)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '🎯 LEVEL TEST'),
+        React.createElement('div', { style:{ fontSize: isMobile ? '22px' : '28px', fontWeight:'800', color:'#fff', lineHeight:'1.3', fontFamily:'Manrope, sans-serif', marginBottom:'6px' } }, '내 실력에 맞는 레벨테스트, 무료로 신청'),
+        React.createElement('div', { style:{ fontSize:'13px', color:'rgba(255,255,255,0.75)', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '학교급·학년·내신 점수에 맞는 시험이 자동으로 매칭되어 집에서 응시할 수 있습니다.' + (user ? '' : ' (회원가입 후 신청)'))
+      ),
+      React.createElement('div', { style:{ display:'flex', gap:'10px', flexShrink:0, flexWrap:'wrap' } },
+        hasMyReq && React.createElement('button', { onClick:function(){ if (setPage) setPage('portal'); }, style:{ background:'transparent', color:'#fff', border:'1px solid rgba(255,255,255,0.55)', borderRadius:'10px', padding:'12px 22px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '내 신청 보기'),
+        React.createElement('button', { onClick:openForm, style:{ background:'#fff', color:'#1d4ed8', border:'none', borderRadius:'10px', padding:'12px 26px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 8px 20px rgba(0,0,0,0.18)' } }, hasMyReq ? '추가 신청' : '레벨테스트 신청')
+      )
+    ),
+
+    /* 신청 폼 모달 */
+    formOpen && React.createElement('div', { onClick:function(){ setFormOpen(false); }, style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' } },
+      React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'14px', padding:'24px', width:'100%', maxWidth:'420px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' } },
+          React.createElement('h3', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 } }, '레벨테스트 신청'),
+          React.createElement('button', { onClick:function(){ setFormOpen(false); }, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' } }, '×')
+        ),
+        React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'14px' } }, '학교급·학년·내신 성적에 맞는 시험이 자동으로 매칭됩니다.'),
+        React.createElement('div', { style:{ marginBottom:'12px' } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '학교급 *'),
+          React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+            ['초','중','고'].map(function(s){
+              const picked = draft.school_level === s;
+              return React.createElement('button', { key:s, onClick:function(){ setDraft(Object.assign({}, draft, { school_level:s, grade:'' })); }, style:{ flex:1, padding:'10px', borderRadius:'8px', cursor:'pointer', fontSize:'14px', fontWeight:'800', fontFamily:'Manrope, sans-serif', background: picked ? '#1d4ed8' : '#fff', color: picked ? '#fff' : '#374151', border: '1px solid ' + (picked ? '#1d4ed8' : '#d1d5db') } }, s);
+            })
+          )
+        ),
+        React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'10px' } },
+          React.createElement('div', { style:{ flex:1 } },
+            React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '학년 *'),
+            React.createElement('select', { value:draft.grade, onChange:function(e){ setDraft(Object.assign({}, draft, { grade:e.target.value })); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } },
+              React.createElement('option', { value:'' }, '학년 선택'),
+              (draft.school_level === '초' ? ['1','2','3','4','5','6'] : ['1','2','3']).map(function(g){ return React.createElement('option', { key:g, value:g }, g + '학년'); })
+            )
+          ),
+          React.createElement('div', { style:{ flex:1 } },
+            React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '학기 (선택)'),
+            React.createElement('select', { value:draft.semester, onChange:function(e){ setDraft(Object.assign({}, draft, { semester:e.target.value })); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } },
+              React.createElement('option', { value:'' }, '학기 무관'),
+              ['1','2'].map(function(s){ return React.createElement('option', { key:s, value:s }, s + '학기'); })
+            )
+          )
+        ),
+        React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'10px' } }, '※ 선행 학습 중이라면 더 높은 학년/학기를 선택할 수 있습니다.'),
+        React.createElement('div', { style:{ marginBottom:'14px' } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '내신 성적 (0~100점) *'),
+          React.createElement('input', { type:'number', min:'0', max:'100', value:draft.score, onChange:function(e){ setDraft(Object.assign({}, draft, { score:e.target.value })); }, placeholder:'예: 85', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })
+        ),
+        React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+          React.createElement('button', { onClick:function(){ setFormOpen(false); }, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor:'pointer' } }, '취소'),
+          React.createElement('button', { onClick:submit, disabled:submitting, style:{ flex:1, background:'#1d4ed8', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: submitting?'not-allowed':'pointer', opacity: submitting ? 0.6 : 1 } }, submitting ? '매칭 중...' : '시험 매칭 및 신청')
+        )
+      )
+    )
+  );
+}
+
+function HomePage({ banners, slides, categories, notices, announcements, setPage, isAdmin, content, onAdminAction, user, onLoginClick }) {
   const [selectedNotice, setSelectedNotice] = React.useState(null);
   const [selectedBanner, setSelectedBanner] = React.useState(null);
 
@@ -553,6 +688,7 @@ function HomePage({ banners, slides, categories, notices, announcements, setPage
 
   return React.createElement('div', null,
     React.createElement(HeroBanner, { banners, isAdmin, onEdit:()=>onAdminAction('banner'), onSelectBanner:setSelectedBanner }),
+    React.createElement(LevelTestCTA, { user, onLoginClick, setPage }),
     React.createElement(SplitSection, { notices, announcements, isAdmin, onEditNotices:()=>onAdminAction('notice'), onSelectNotice:setSelectedNotice, slides }),
     React.createElement(StatsBand),
     React.createElement(FeatureBand, { setPage, isAdmin, content, onEdit:()=>onAdminAction('feature') })
