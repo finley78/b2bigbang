@@ -1476,7 +1476,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <h2 style={{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' }}>{g.label}</h2>
                 <span style={{ fontSize:'11px', fontWeight:'700', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{g.tabs.length}개</span>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'10px' }}>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
                 {g.tabs.map(tid => {
                   const t = TABS.find(x => x.id === tid);
                   if (!t) return null;
@@ -1485,11 +1485,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       onMouseEnter={(e) => { e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
                       style={{
-                        background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px',
-                        padding:'10px 14px', textAlign:'left', cursor:'pointer',
+                        background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
+                        padding:'8px 14px', textAlign:'left', cursor:'pointer',
                         fontFamily:'Manrope, sans-serif',
-                        fontSize:'14px', fontWeight:'700', color:'#111827',
-                        letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s'
+                        fontSize:'13px', fontWeight:'700', color:'#111827',
+                        letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s',
+                        display:'inline-flex', alignItems:'center'
                       }}>
                       {t.label}
                     </button>
