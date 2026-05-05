@@ -2620,11 +2620,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
             {/* 모드별 하단 영역 */}
             {scrMode === 'change' ? (
-              <div style={{ marginTop:'8px' }}>
-                <h3 style={{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }}>내 신청 내역 ({myRequests.length}건)</h3>
-                {myRequests.length === 0 ? (
-                  <div style={{ color:'#9ca3af', fontSize:'13px' }}>아직 신청한 일정 변경이 없습니다. 위 달력에서 날짜를 클릭해 신청하세요.</div>
-                ) : (
+              myRequests.length > 0 && (
+                <div style={{ marginTop:'8px' }}>
+                  <h3 style={{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }}>내 신청 내역 ({myRequests.length}건)</h3>
                   <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
                     {myRequests.slice().sort((a,b) => String(b.target_date).localeCompare(String(a.target_date))).map(r => (
                       <div key={r.id} style={{ display:'flex', alignItems:'flex-start', gap:'12px', padding:'12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px' }}>
@@ -2642,8 +2640,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )
             ) : (
               <div style={{ marginTop:'8px' }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
