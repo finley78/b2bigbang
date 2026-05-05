@@ -55,7 +55,7 @@ React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.35)', te
 function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) {
 const authed = adminAuthed;
 const setAuthed = setAdminAuthed;
-const [tab, setTab] = React.useState('banner');
+const [tab, setTab] = React.useState('home');
 const [tabGroup, setTabGroup] = React.useState('webapp');
 const [adminIsMobile, setAdminIsMobile] = React.useState(typeof window !== 'undefined' && window.innerWidth < 1024);
 React.useEffect(function(){
@@ -847,36 +847,44 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(255,255,255,0.
 React.createElement('button', { onClick:onLogout, style:{ background:'rgba(255,255,255,0.1)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'8px', padding:'8px 18px', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '로그아웃')
 ),
 
-// 모바일 가로 탭바
-adminIsMobile && React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'0 16px', display:'flex', gap:'0', overflowX:'auto' } },
-tabs.map(t =>
-React.createElement('button', { key:t.id, onClick:()=>{ setTab(t.id); if (t.id === 'files') loadAdminAttachments(); if (t.id === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (t.id === 'leveltest') loadAdminLevelTests(); }, style:{ padding:'14px 16px', background:'none', border:'none', borderBottom: tab===t.id?'2px solid #E60012':'2px solid transparent', fontSize:'13px', fontWeight:'700', color: tab===t.id?'#E60012':'rgba(0,0,0,0.55)', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease', marginBottom:'-1px', whiteSpace:'nowrap' } }, t.label)
-)
+// 홈이 아닐 때 상단에 '← 관리자 홈으로' 버튼
+tab !== 'home' && React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding: adminIsMobile ? '12px 16px' : '14px 40px', display:'flex', alignItems:'center', gap:'12px' } },
+  React.createElement('button', { onClick:function(){ setTab('home'); }, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'800', fontFamily:'Manrope, sans-serif' } }, '← 관리자 홈'),
+  React.createElement('span', { style:{ fontSize:'13px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '·'),
+  React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, (tabs.find(function(x){ return x.id === tab; }) || {}).label || '')
 ),
 
-// PC 좌측 사이드바 (fixed positioning)
-!adminIsMobile && React.createElement('aside', { style:{ position:'fixed', left:0, top:'88px', bottom:0, width:'240px', background:'#fff', borderRight:'1px solid rgba(0,0,0,0.08)', padding:'24px 0', overflowY:'auto', zIndex:5, fontFamily:'Manrope, sans-serif' } },
+React.createElement('div', { style:{ maxWidth: adminIsMobile ? '960px' : '1280px', margin:'0 auto', padding: adminIsMobile ? '20px 16px' : '32px 40px' } },
+
+// 홈 카드 그리드 (그룹별 섹션)
+tab === 'home' && React.createElement('div', null,
   tabGroups.map(function(g){
-    return React.createElement('div', { key:g.id, style:{ marginBottom:'20px' } },
-      React.createElement('div', { style:{ padding:'4px 24px 8px', fontSize:'10px', fontWeight:'800', color:'#9ca3af', letterSpacing:'0.14em', textTransform:'uppercase' } }, g.label),
-      g.tabs.map(function(tid){
-        var t = tabs.find(function(x){ return x.id === tid; });
-        if (!t) return null;
-        var active = tab === tid;
-        return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); }, style:{
-          width:'100%', textAlign:'left', padding:'10px 24px',
-          background: active ? '#FFEBED' : 'transparent',
-          color: active ? '#E60012' : '#374151',
-          border:'none', borderLeft: active ? '3px solid #E60012' : '3px solid transparent',
-          fontSize:'14px', fontWeight: active ? '800' : '600',
-          cursor:'pointer', fontFamily:'Manrope, sans-serif', display:'block'
-        } }, t.label);
-      })
+    var groupColor = g.id === 'webapp' ? '#1A1A1A' : g.id === 'teachers' ? '#1d4ed8' : g.id === 'students' ? '#E60012' : '#6b7280';
+    return React.createElement('div', { key:g.id, style:{ marginBottom: adminIsMobile ? '24px' : '36px' } },
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'14px' } },
+        React.createElement('div', { style:{ width:'4px', height:'18px', background: groupColor, borderRadius:'2px' } }),
+        React.createElement('h2', { style:{ fontSize: adminIsMobile ? '16px' : '18px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' } }, g.label),
+        React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, g.tabs.length + '개')
+      ),
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: adminIsMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px' } },
+        g.tabs.map(function(tid){
+          var t = tabs.find(function(x){ return x.id === tid; });
+          if (!t) return null;
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); }, style:{
+            background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
+            padding: adminIsMobile ? '18px 14px' : '22px 18px',
+            textAlign:'left', cursor:'pointer', fontFamily:'Manrope, sans-serif',
+            transition:'transform 0.1s, box-shadow 0.15s, border-color 0.15s',
+            boxShadow:'0 1px 2px rgba(0,0,0,0.04)'
+          }, onMouseEnter:function(e){ e.currentTarget.style.borderColor = groupColor; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'; } },
+            React.createElement('div', { style:{ fontSize: adminIsMobile ? '14px' : '15px', fontWeight:'800', color:'#111827', marginBottom:'4px', letterSpacing:'-0.01em' } }, t.label),
+            React.createElement('div', { style:{ fontSize:'11px', color: groupColor, fontWeight:'700' } }, '바로가기 →')
+          );
+        })
+      )
     );
   })
 ),
-
-React.createElement('div', { style:{ maxWidth: adminIsMobile ? '960px' : '1280px', margin:'0 auto', padding: adminIsMobile ? '24px 16px' : '32px 40px', paddingLeft: adminIsMobile ? '16px' : '280px' } },
 
 /* ── BANNER TAB ── */
 tab==='banner' && React.createElement('div', null,
