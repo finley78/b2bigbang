@@ -385,7 +385,7 @@ function SplitSection({ notices, announcements, isAdmin, onEditNotices, onSelect
                     onClick: function(){ onSelectNotice(a); },
                     style:{
                       position:'relative',
-                      aspectRatio:'10/12',
+                      aspectRatio:'1/1',
                       borderRadius:'14px',
                       overflow:'hidden',
                       cursor:'pointer',
