@@ -758,8 +758,9 @@ const tabs = [
 const tabGroups = [
 { id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature'] },
 { id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
-{ id:'students', label:'수강생',    tabs:['enrollee','views'] },
-{ id:'misc',     label:'기타',      tabs:['member','analysis','files','schedule','leveltest'] },
+{ id:'students', label:'수강생',    tabs:['enrollee','views','analysis'] },
+{ id:'academy',  label:'학원 관리', tabs:['leveltest','member','schedule'] },
+{ id:'misc',     label:'기타',      tabs:['files'] },
 ];
 
 const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'8px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box' };
@@ -859,7 +860,7 @@ React.createElement('div', { style:{ maxWidth: adminIsMobile ? '960px' : '1280px
 // 홈 카드 그리드 (그룹별 섹션)
 tab === 'home' && React.createElement('div', null,
   tabGroups.map(function(g){
-    var groupColor = g.id === 'webapp' ? '#1A1A1A' : g.id === 'teachers' ? '#1d4ed8' : g.id === 'students' ? '#E60012' : '#6b7280';
+    var groupColor = g.id === 'webapp' ? '#1A1A1A' : g.id === 'teachers' ? '#1d4ed8' : g.id === 'students' ? '#E60012' : g.id === 'academy' ? '#c87000' : '#6b7280';
     return React.createElement('div', { key:g.id, style:{ marginBottom: adminIsMobile ? '24px' : '36px' } },
       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'14px' } },
         React.createElement('div', { style:{ width:'4px', height:'18px', background: groupColor, borderRadius:'2px' } }),
