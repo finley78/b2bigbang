@@ -86,6 +86,7 @@ const [filterSchool, setFilterSchool] = React.useState('전체');
 const [filterLevel, setFilterLevel] = React.useState('전체');
 const [filterGrade, setFilterGrade] = React.useState('전체');
 const [filterTeacher, setFilterTeacher] = React.useState('전체');
+const [sortStudentBy, setSortStudentBy] = React.useState('created_desc');
 const [selectedIds, setSelectedIds] = React.useState([]);
 const [bulkLevel, setBulkLevel] = React.useState('');
 const [bulkGrade, setBulkGrade] = React.useState('');
@@ -1677,6 +1678,17 @@ React.createElement('option', { value:'전체' }, '담당 선생님'),
 dbTeachers.filter(function(t){ return t.role === 'teacher'; }).map(function(t){
 return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님');
 })
+),
+
+React.createElement('select', {
+value: sortStudentBy,
+onChange: function(e) { setSortStudentBy(e.target.value); },
+style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer', marginLeft:'auto' }
+},
+React.createElement('option', { value:'created_desc' }, '↓ 등록일 최신순'),
+React.createElement('option', { value:'created_asc' }, '↑ 등록일 오래된순'),
+React.createElement('option', { value:'name_asc' }, '↓ 이름 가나다순'),
+React.createElement('option', { value:'name_desc' }, '↑ 이름 가나다 역순')
 )
 ),
 
@@ -1907,6 +1919,23 @@ var hasTeacherCourse = assignedCourseIds.some(function(courseId) { return studen
 if (!hasTeacherCourse) return false;
 }
 return true;
+});
+
+filtered = filtered.slice().sort(function(a, b) {
+if (sortStudentBy === 'name_asc') return (a.name || '').localeCompare(b.name || '', 'ko');
+if (sortStudentBy === 'name_desc') return (b.name || '').localeCompare(a.name || '', 'ko');
+var aDate = a.created_at || '';
+var bDate = b.created_at || '';
+if (sortStudentBy === 'created_asc') {
+if (!aDate && !bDate) return 0;
+if (!aDate) return 1;
+if (!bDate) return -1;
+return aDate.localeCompare(bDate);
+}
+if (!aDate && !bDate) return 0;
+if (!aDate) return 1;
+if (!bDate) return -1;
+return bDate.localeCompare(aDate);
 });
 
 if (filtered.length === 0) return React.createElement('div', { style:{ ...cardS, textAlign:'center', padding:'48px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px' } }, '해당하는 수강생이 없습니다');
