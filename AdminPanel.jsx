@@ -734,9 +734,13 @@ async function importStudentsExcel(file) {
     rows.forEach(function(r, i) {
       var rowNum = i + 2; // 헤더가 1행
       var name = String(r['이름']||'').trim();
+      var grade = String(r['학년']||'').trim();
+      var subjects = parseSubjectsCell(r['수강 과목']);
       var phone = normPhoneDigits(r['전화번호']);
+      // 필수: 이름, 학년, 수강 과목
       if (!name) { errors.push(rowNum + '행: 이름 누락'); return; }
-      if (!phone) { errors.push(rowNum + '행: 전화번호 누락'); return; }
+      if (!grade) { errors.push(rowNum + '행: 학년 누락'); return; }
+      if (!subjects.length) { errors.push(rowNum + '행: 수강 과목 누락'); return; }
       var rawCreated = r['최초등록일'];
       var rawWithdrawn = r['퇴원일'];
       var createdAt = parseDateCell(rawCreated);
@@ -748,11 +752,11 @@ async function importStudentsExcel(file) {
       valid.push({
         name: name,
         school: String(r['학교']||'').trim(),
-        grade: String(r['학년']||'').trim(),
+        grade: grade,
         phone: phone,
         address: String(r['주소']||'').trim(),
         parent_phone: normPhoneDigits(r['학부모 전화번호']),
-        subjects: parseSubjectsCell(r['수강 과목']),
+        subjects: subjects,
         created_at: createdAt,
         withdrawn_at: withdrawnAt,
         has_withdrawn_input: hasWithdrawnInput,
@@ -765,7 +769,9 @@ async function importStudentsExcel(file) {
       preview += '\n\n오류 ' + errors.length + '건:\n  ' + errors.slice(0,8).join('\n  ');
       if (errors.length > 8) preview += '\n  ... 외 ' + (errors.length - 8) + '건';
     }
-    preview += '\n\n전화번호가 같은 기존 학생은 업데이트되고, 없으면 신규로 추가됩니다.\n진행할까요?';
+    preview += '\n\n· 전화번호가 같은 기존 학생은 업데이트';
+    preview += '\n· 전화번호가 없으면 항상 신규 추가 (중복 주의)';
+    preview += '\n\n진행할까요?';
     if (!confirm(preview)) return;
 
     var phones = valid.map(function(v){ return v.phone; }).filter(Boolean);
@@ -780,7 +786,8 @@ async function importStudentsExcel(file) {
     var added = 0, updated = 0, fails = 0, failMsgs = [];
     for (var i = 0; i < valid.length; i++) {
       var v = valid[i];
-      var match = existingByPhone[v.phone];
+      // 전화번호가 있을 때만 기존 학생 매칭. 없으면 무조건 신규.
+      var match = v.phone ? existingByPhone[v.phone] : null;
       var payload = {
         name: v.name, school: v.school, grade: v.grade, phone: v.phone,
         address: v.address, parent_phone: v.parent_phone, subjects: v.subjects,
@@ -1660,7 +1667,7 @@ if (f) await importStudentsExcel(f);
 })
 ),
 React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
-'※ 가져오기는 전화번호 기준으로 기존 학생 자동 업데이트, 없으면 신규 추가'
+'※ 필수: 이름·학년·수강 과목 / 전화번호 있으면 기존 학생 업데이트, 없으면 신규'
 )
 ),
 
