@@ -955,4 +955,85 @@ function SiteFooter() {
   );
 }
 
-Object.assign(window, { HomePage, LevelTestPage, LevelTestCTA, ExamResultPage, SiteFooter });
+/* ── 비밀번호 재설정 페이지 (?reset=<token>) ─────────── */
+function ResetPasswordPage({ token, onDone }) {
+  const isMobile = useIsMobile();
+  const [pw, setPw] = React.useState('');
+  const [pw2, setPw2] = React.useState('');
+  const [msg, setMsg] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [done, setDone] = React.useState(false);
+  const [tokenChecked, setTokenChecked] = React.useState(false);
+  const [tokenValid, setTokenValid] = React.useState(false);
+  const [tokenError, setTokenError] = React.useState('');
+
+  React.useEffect(function(){
+    (async function(){
+      try {
+        const sb = window.supabase;
+        const anonKey = sb && sb.supabaseKey ? sb.supabaseKey : '';
+        const url = 'https://ldsjysjavwssadheeiog.supabase.co/functions/v1/verify-password-reset';
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + anonKey },
+          body: JSON.stringify({ action: 'check', token: token }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) { setTokenValid(true); }
+        else { setTokenError(data.error || '유효하지 않은 링크입니다.'); }
+      } catch (e) { setTokenError('네트워크 오류'); }
+      finally { setTokenChecked(true); }
+    })();
+  }, [token]);
+
+  async function submit() {
+    setMsg('');
+    if (!pw || pw.length < 6) { setMsg('비밀번호는 6자 이상이어야 합니다.'); return; }
+    if (pw !== pw2) { setMsg('비밀번호 확인이 일치하지 않습니다.'); return; }
+    setLoading(true);
+    try {
+      const sb = window.supabase;
+      const anonKey = sb && sb.supabaseKey ? sb.supabaseKey : '';
+      const url = 'https://ldsjysjavwssadheeiog.supabase.co/functions/v1/verify-password-reset';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + anonKey },
+        body: JSON.stringify({ action: 'reset', token: token, newPassword: pw }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setMsg(data.error || '재설정에 실패했습니다.'); setLoading(false); return; }
+      setDone(true);
+    } catch (e) { setMsg('네트워크 오류'); }
+    finally { setLoading(false); }
+  }
+
+  return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh', display:'flex', alignItems:'flex-start', justifyContent:'center', padding: isMobile ? '40px 16px' : '64px 24px' } },
+    React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', padding: isMobile ? '28px 22px' : '36px', width:'100%', maxWidth:'440px', boxShadow:'0 10px 40px rgba(0,0,0,0.08)', fontFamily:'Manrope, sans-serif' } },
+      React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:'8px' } }, 'Reset Password'),
+      React.createElement('h1', { style:{ fontSize: isMobile ? '22px' : '24px', fontWeight:'800', color:'#111827', margin:'4px 0 16px' } }, '비밀번호 재설정'),
+
+      !tokenChecked && React.createElement('div', { style:{ color:'#9ca3af', fontSize:'14px' } }, '링크 확인 중...'),
+
+      tokenChecked && !tokenValid && React.createElement('div', null,
+        React.createElement('div', { style:{ background:'#fff5f5', color:'#c82014', padding:'14px', borderRadius:'8px', fontSize:'14px', lineHeight:'1.7' } }, tokenError || '유효하지 않은 링크입니다.'),
+        React.createElement('button', { onClick: function(){ if (onDone) onDone(); }, style:{ width:'100%', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', marginTop:'18px' } }, '홈으로')
+      ),
+
+      tokenChecked && tokenValid && done && React.createElement('div', null,
+        React.createElement('div', { style:{ background:'#f0fdf4', color:'#16a34a', padding:'14px', borderRadius:'8px', fontSize:'14px', fontWeight:'700' } }, '✓ 비밀번호가 변경되었습니다.'),
+        React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', marginTop:'12px' } }, '새 비밀번호로 로그인해 주세요.'),
+        React.createElement('button', { onClick: function(){ if (onDone) onDone(); }, style:{ width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', marginTop:'18px' } }, '로그인하러 가기')
+      ),
+
+      tokenChecked && tokenValid && !done && React.createElement('div', null,
+        React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', margin:'0 0 14px', lineHeight:'1.7' } }, '새 비밀번호를 입력해 주세요. (6자 이상)'),
+        React.createElement('input', { type:'password', name:'new-password', autoComplete:'new-password', placeholder:'새 비밀번호', value:pw, onChange:function(e){ setPw(e.target.value); setMsg(''); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', boxSizing:'border-box', marginBottom:'10px' } }),
+        React.createElement('input', { type:'password', name:'new-password-confirm', autoComplete:'new-password', placeholder:'새 비밀번호 확인', value:pw2, onChange:function(e){ setPw2(e.target.value); setMsg(''); }, onKeyDown:function(e){ if (e.key==='Enter') submit(); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', boxSizing:'border-box', marginBottom:'12px' } }),
+        msg && React.createElement('div', { style:{ background:'#fff5f5', color:'#c82014', padding:'10px 12px', borderRadius:'6px', fontSize:'13px', marginBottom:'12px' } }, msg),
+        React.createElement('button', { onClick:submit, disabled:loading, style:{ width:'100%', background: loading?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer' } }, loading ? '변경 중...' : '비밀번호 변경')
+      )
+    )
+  );
+}
+
+Object.assign(window, { HomePage, LevelTestPage, LevelTestCTA, ExamResultPage, ResetPasswordPage, SiteFooter });

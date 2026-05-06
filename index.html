@@ -311,13 +311,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260508s"></script>
-<script src="TopNav.js?v=20260508s"></script>
-<script src="HomePage.js?v=20260508s"></script>
-<script src="Pages.js?v=20260508s"></script>
-<script src="StudentPortal.js?v=20260508s"></script>
-<script src="TeacherPortal.js?v=20260508s"></script>
-<script src="AdminPanel.js?v=20260508s"></script>
+<script src="Utils.js?v=20260508t"></script>
+<script src="TopNav.js?v=20260508t"></script>
+<script src="HomePage.js?v=20260508t"></script>
+<script src="Pages.js?v=20260508t"></script>
+<script src="StudentPortal.js?v=20260508t"></script>
+<script src="TeacherPortal.js?v=20260508t"></script>
+<script src="AdminPanel.js?v=20260508t"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -369,6 +369,7 @@ const [user, setUser] = React.useState(() => {
   try { const s = sessionStorage.getItem('b2_user'); return s ? JSON.parse(s) : null; } catch { return null; }
 });
 const [showLogin, setShowLogin] = React.useState(false);
+const [resetToken, setResetToken] = React.useState(null);
 const [isAdmin, setIsAdmin] = React.useState(() => {
   try { return sessionStorage.getItem('b2_is_admin') === 'true'; } catch { return false; }
 });
@@ -495,10 +496,24 @@ setPage(p);
 try { sessionStorage.setItem('b2_page', p); } catch {}
 }
 window.addEventListener('popstate', handlePopState);
+// URL의 ?reset=<token> 감지 → 비밀번호 재설정 페이지
+let initialPage = (()=>{ try { return sessionStorage.getItem('b2_page')||'home'; } catch { return 'home'; } })();
+try {
+  const params = new URLSearchParams(window.location.search);
+  const rt = params.get('reset');
+  if (rt) {
+    setResetToken(rt);
+    initialPage = 'reset';
+    // URL에서 토큰 제거 (히스토리 깨끗하게)
+    const u = new URL(window.location.href);
+    u.searchParams.delete('reset');
+    window.history.replaceState({ page: 'reset' }, '', u.pathname + (u.search || '') + u.hash);
+  }
+} catch {}
 // 초기 스택: home을 두 번 쌓아서 첫 뒤로가기가 앱 내에서 처리되게
-const curPage = (()=>{ try { return sessionStorage.getItem('b2_page')||'home'; } catch { return 'home'; } })();
 window.history.replaceState({ page: 'home' }, '', '');
-window.history.pushState({ page: curPage }, '', '');
+window.history.pushState({ page: initialPage }, '', '');
+setPage(initialPage);
 return () => window.removeEventListener('popstate', handlePopState);
 }, []);
 
@@ -646,6 +661,8 @@ page === 'contact' && React.createElement(ContactPage),
 page === 'about' && React.createElement(AboutPage, { setPage: navigate }),
 page === 'recruit' && React.createElement(RecruitPage, { setPage: navigate }),
 page === 'leveltest' && React.createElement(LevelTestPage, { user: effectiveUser, onLoginClick: ()=>setShowLogin(true), setPage: navigate }),
+
+page === 'reset' && resetToken && React.createElement(ResetPasswordPage, { token: resetToken, onDone: ()=>{ setResetToken(null); navigate('home'); setShowLogin(true); } }),
 
 page === 'signup' && React.createElement(SignupPage, {
 onBack: ()=>{ navigate('home'); },

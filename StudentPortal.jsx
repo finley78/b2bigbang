@@ -22,6 +22,10 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
   const [password, setPassword] = React.useState('');
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [msg, setMsg] = React.useState('');
+  const [forgotMode, setForgotMode] = React.useState(false);
+  const [forgotEmail, setForgotEmail] = React.useState('');
+  const [forgotSending, setForgotSending] = React.useState(false);
+  const [forgotDone, setForgotDone] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   React.useEffect(() => {
@@ -122,6 +126,57 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
     else handleEmailLogin();
   }
 
+  async function submitForgot() {
+    setMsg('');
+    if (!forgotEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail.trim())) {
+      setMsg('올바른 이메일 주소를 입력해 주세요.'); return;
+    }
+    setForgotSending(true);
+    try {
+      const url = 'https://ldsjysjavwssadheeiog.supabase.co/functions/v1/send-password-reset';
+      const sb = window.supabase;
+      const anonKey = sb && sb.supabaseKey ? sb.supabaseKey : '';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + anonKey },
+        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(data.error || '요청 처리 중 오류가 발생했습니다.');
+        setForgotSending(false); return;
+      }
+      setForgotDone(true);
+    } catch (e) {
+      setMsg('네트워크 오류가 발생했습니다.');
+    } finally {
+      setForgotSending(false);
+    }
+  }
+
+  // 비밀번호 찾기 모드
+  if (forgotMode) {
+    return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }, onClick:onClose },
+      React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', width:'400px', padding:'36px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', position:'relative', maxHeight:'90vh', overflowY:'auto' }, onClick:e=>e.stopPropagation() },
+        React.createElement('button', { onClick:onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
+        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 8px', fontFamily:'Manrope, sans-serif' } }, '비밀번호 찾기'),
+        forgotDone
+          ? React.createElement('div', null,
+              React.createElement('p', { style:{ fontSize:'13px', color:'#16a34a', fontWeight:'700', margin:'12px 0', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } }, '✓ 입력하신 이메일로 재설정 안내를 보냈습니다.'),
+              React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } }, '메일이 안 보이면 스팸함도 확인해 주세요. 링크는 1시간 동안 유효합니다.'),
+              React.createElement('button', { onClick: function(){ setForgotMode(false); setForgotDone(false); setForgotEmail(''); setMsg(''); }, style:{ width:'100%', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', marginTop:'18px' } }, '로그인 화면으로')
+            )
+          : React.createElement('div', null,
+              React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.5)', margin:'0 0 16px', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } }, '가입 시 등록한 이메일을 입력하시면 재설정 링크를 보내드려요.'),
+              React.createElement('input', { type:'email', name:'email', autoComplete:'email', placeholder:'example@email.com', value:forgotEmail, onChange:function(e){ setForgotEmail(e.target.value); setMsg(''); }, onKeyDown:function(e){ if (e.key==='Enter') submitForgot(); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box', marginBottom:'12px' } }),
+              msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', background:'#fff5f5', borderRadius:'6px', padding:'8px 12px' } }, msg),
+              React.createElement('button', { onClick:submitForgot, disabled:forgotSending, style:{ width:'100%', background: forgotSending?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: forgotSending?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, forgotSending ? '발송 중...' : '재설정 메일 받기'),
+              React.createElement('button', { onClick:function(){ setForgotMode(false); setMsg(''); }, style:{ width:'100%', background:'transparent', color:'rgba(0,0,0,0.55)', border:'none', fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '← 로그인으로 돌아가기')
+            )
+      )
+    );
+  }
+
   return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }, onClick:onClose },
     React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', width:'400px', padding:'36px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', position:'relative', maxHeight:'90vh', overflowY:'auto' }, onClick:e=>e.stopPropagation() },
 
@@ -172,7 +227,7 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
           React.createElement('span', { onClick:()=>{ onClose(); onSignup&&onSignup(); }, style:{ fontSize:'13px', color:'#E60012', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '회원가입')
         ),
         React.createElement('div', { style:{ textAlign:'center', marginTop:'10px' } },
-          React.createElement('span', { onClick: function(){ alert('비밀번호 찾기는 곧 제공됩니다.\n\n현재는 학원에 연락하여 임시 비밀번호를 받아주세요.'); }, style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '비밀번호 잊으셨나요?')
+          React.createElement('span', { onClick: function(){ setForgotMode(true); setForgotEmail(email); setMsg(''); }, style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '비밀번호 잊으셨나요?')
         ),
         React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'12px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.')
       )
