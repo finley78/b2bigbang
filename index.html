@@ -309,13 +309,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260507o"></script>
-<script src="TopNav.js?v=20260507o"></script>
-<script src="HomePage.js?v=20260507o"></script>
-<script src="Pages.js?v=20260507o"></script>
-<script src="StudentPortal.js?v=20260507o"></script>
-<script src="TeacherPortal.js?v=20260507o"></script>
-<script src="AdminPanel.js?v=20260507o"></script>
+<script src="Utils.js?v=20260507p"></script>
+<script src="TopNav.js?v=20260507p"></script>
+<script src="HomePage.js?v=20260507p"></script>
+<script src="Pages.js?v=20260507p"></script>
+<script src="StudentPortal.js?v=20260507p"></script>
+<script src="TeacherPortal.js?v=20260507p"></script>
+<script src="AdminPanel.js?v=20260507p"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -386,6 +386,11 @@ const [state, setState] = React.useState(() => {
 });
 const [dbLoaded, setDbLoaded] = React.useState(false);
 const [eventButton, setEventButton] = React.useState({ enabled:true, badge:'EVENT', text:'무료 레벨테스트', target_page:'leveltest' });
+const eventButtonKey = (eventButton.target_page || 'leveltest') + '|' + (eventButton.text || '');
+const [eventClickedKey, setEventClickedKey] = React.useState(function(){
+  try { return localStorage.getItem('b2_event_button_clicked') || ''; } catch (e) { return ''; }
+});
+const eventClicked = eventClickedKey === eventButtonKey;
 React.useEffect(() => {
   (async () => {
     try {
@@ -673,9 +678,13 @@ onLogout: null,
 /* 사이트 푸터 (관리자/선생님/응시 화면 제외) */
 page !== 'admin' && page !== 'teacher' && React.createElement(SiteFooter),
 
-/* 이벤트 floating 버튼 (관리자가 enabled로 토글 / 페이지별 제외) */
-eventButton.enabled && page !== (eventButton.target_page || 'leveltest') && page !== 'admin' && page !== 'teacher' && React.createElement('button', {
-  onClick: function(){ navigate(eventButton.target_page || 'leveltest'); },
+/* 이벤트 floating 버튼 (관리자가 enabled로 토글 / 페이지별 제외 / 한 번 누르면 영구 숨김) */
+eventButton.enabled && !eventClicked && page !== (eventButton.target_page || 'leveltest') && page !== 'admin' && page !== 'teacher' && React.createElement('button', {
+  onClick: function(){
+    try { localStorage.setItem('b2_event_button_clicked', eventButtonKey); } catch (e) {}
+    setEventClickedKey(eventButtonKey);
+    navigate(eventButton.target_page || 'leveltest');
+  },
   style:{
     position:'fixed', right:'20px', bottom:'24px',
     background:'linear-gradient(135deg, #E60012 0%, #B8000F 100%)',
