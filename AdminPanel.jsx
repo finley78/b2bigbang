@@ -187,6 +187,7 @@ id: st.id, name: st.name, email: st.email, provider: st.login_provider,
 grade: st.grade || '', school: st.school || '', subjects: st.subjects || [],
 enrolledCourses: (st.enrollments || []).map(e => e.course_id),
 phone: st.phone || '', parent_phone: st.parent_phone || '', parent_id: st.parent_id || null,
+address: st.address || '',
 role: 'student',
 }));
 setDbStudents(mapped);
@@ -627,6 +628,143 @@ var teacherId = profile ? profile.id : teacher.id;
 return (teacherClasses || []).filter(function(cls){
   return String(cls.teacher_id) === String(teacherId) && cls.grade;
 });
+}
+
+/* ── 수강생 엑셀 가져오기/내보내기 ─────────────────── */
+const STUDENT_EXCEL_HEADERS = ['이름','학교','학년','전화번호','주소','학부모 전화번호','수강 과목'];
+const STUDENT_EXCEL_COLS = [{wch:10},{wch:14},{wch:8},{wch:16},{wch:30},{wch:16},{wch:30}];
+
+function ensureXlsxLoaded() {
+  if (window.XLSX) return true;
+  alert('엑셀 라이브러리가 아직 로드되지 않았습니다. 잠시 후 다시 시도해 주세요.');
+  return false;
+}
+
+function studentRowsForExcel(list) {
+  return list.map(function(s) {
+    return {
+      '이름': s.name || '',
+      '학교': s.school || '',
+      '학년': s.grade || '',
+      '전화번호': s.phone || '',
+      '주소': s.address || '',
+      '학부모 전화번호': s.parent_phone || '',
+      '수강 과목': (s.subjects || []).join(', '),
+    };
+  });
+}
+
+function exportStudentsExcel(list) {
+  if (!ensureXlsxLoaded()) return;
+  var rows = studentRowsForExcel(list);
+  var ws = window.XLSX.utils.json_to_sheet(rows.length ? rows : [{}], { header: STUDENT_EXCEL_HEADERS });
+  ws['!cols'] = STUDENT_EXCEL_COLS;
+  var wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, '수강생');
+  var ts = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  window.XLSX.writeFile(wb, '수강생_' + ts + '.xlsx');
+}
+
+function downloadStudentTemplate() {
+  if (!ensureXlsxLoaded()) return;
+  var sample = [{
+    '이름':'홍길동','학교':'검암중','학년':'중2',
+    '전화번호':'01012345678','주소':'인천 서구 ...',
+    '학부모 전화번호':'01098765432','수강 과목':'국어, 수학'
+  }];
+  var ws = window.XLSX.utils.json_to_sheet(sample, { header: STUDENT_EXCEL_HEADERS });
+  ws['!cols'] = STUDENT_EXCEL_COLS;
+  var wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, '수강생');
+  window.XLSX.writeFile(wb, '수강생_템플릿.xlsx');
+}
+
+function normPhoneDigits(v) { return String(v == null ? '' : v).replace(/[^0-9]/g, ''); }
+
+function parseSubjectsCell(v) {
+  if (v == null) return [];
+  if (Array.isArray(v)) return v.map(function(x){ return String(x).trim(); }).filter(Boolean);
+  return String(v).split(/[,/·\s]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+}
+
+async function importStudentsExcel(file) {
+  if (!ensureXlsxLoaded()) return;
+  try {
+    var buf = await file.arrayBuffer();
+    var wb = window.XLSX.read(buf, { type:'array' });
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    if (!ws) { alert('엑셀에 시트가 없습니다.'); return; }
+    var rows = window.XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if (!rows.length) { alert('엑셀에 데이터가 없습니다.'); return; }
+
+    var errors = [];
+    var valid = [];
+    rows.forEach(function(r, i) {
+      var rowNum = i + 2; // 헤더가 1행
+      var name = String(r['이름']||'').trim();
+      var phone = normPhoneDigits(r['전화번호']);
+      if (!name) { errors.push(rowNum + '행: 이름 누락'); return; }
+      if (!phone) { errors.push(rowNum + '행: 전화번호 누락'); return; }
+      valid.push({
+        name: name,
+        school: String(r['학교']||'').trim(),
+        grade: String(r['학년']||'').trim(),
+        phone: phone,
+        address: String(r['주소']||'').trim(),
+        parent_phone: normPhoneDigits(r['학부모 전화번호']),
+        subjects: parseSubjectsCell(r['수강 과목']),
+      });
+    });
+
+    var preview = '총 ' + rows.length + '행 중 ' + valid.length + '명 처리 가능';
+    if (errors.length) {
+      preview += '\n\n오류 ' + errors.length + '건:\n  ' + errors.slice(0,8).join('\n  ');
+      if (errors.length > 8) preview += '\n  ... 외 ' + (errors.length - 8) + '건';
+    }
+    preview += '\n\n전화번호가 같은 기존 학생은 업데이트되고, 없으면 신규로 추가됩니다.\n진행할까요?';
+    if (!confirm(preview)) return;
+
+    var phones = valid.map(function(v){ return v.phone; }).filter(Boolean);
+    var existing = [];
+    if (phones.length) {
+      var res = await sb.from('students').select('id, phone, role').in('phone', phones);
+      existing = res.data || [];
+    }
+    var existingByPhone = {};
+    existing.forEach(function(e) { existingByPhone[normPhoneDigits(e.phone)] = e; });
+
+    var added = 0, updated = 0, fails = 0, failMsgs = [];
+    for (var i = 0; i < valid.length; i++) {
+      var v = valid[i];
+      var match = existingByPhone[v.phone];
+      var payload = {
+        name: v.name, school: v.school, grade: v.grade, phone: v.phone,
+        address: v.address, parent_phone: v.parent_phone, subjects: v.subjects,
+      };
+      try {
+        if (match) {
+          var u = await sb.from('students').update(payload).eq('id', match.id);
+          if (u.error) { fails++; failMsgs.push(v.name + ': ' + u.error.message); } else { updated++; }
+        } else {
+          payload.role = 'student';
+          payload.is_active = true;
+          payload.agree_privacy = true;
+          payload.created_at = new Date().toISOString();
+          var ins = await sb.from('students').insert(payload);
+          if (ins.error) { fails++; failMsgs.push(v.name + ': ' + ins.error.message); } else { added++; }
+        }
+      } catch (e) {
+        fails++; failMsgs.push(v.name + ': ' + (e && e.message ? e.message : '오류'));
+      }
+    }
+
+    var done = '가져오기 완료\n신규 ' + added + '명 / 업데이트 ' + updated + '명' + (fails ? ' / 실패 ' + fails + '건' : '');
+    if (failMsgs.length) done += '\n\n' + failMsgs.slice(0,5).join('\n') + (failMsgs.length>5?'\n... 외 '+(failMsgs.length-5)+'건':'');
+    alert(done);
+    await loadAllData();
+  } catch (e) {
+    alert('가져오기 실패: ' + (e && e.message ? e.message : '알 수 없는 오류'));
+  }
 }
 
 async function loadStudentViews(studentId) {
@@ -1443,6 +1581,35 @@ React.createElement('option', { value:'전체' }, '담당 선생님'),
 dbTeachers.filter(function(t){ return t.role === 'teacher'; }).map(function(t){
 return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님');
 })
+)
+),
+
+/* 엑셀 가져오기/내보내기 */
+React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'14px' } },
+React.createElement('button', {
+onClick: function(){ downloadStudentTemplate(); },
+style:{ background:'#fff', color:'#374151', border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+}, '📋 엑셀 템플릿'),
+React.createElement('button', {
+onClick: function(){ exportStudentsExcel(dbStudents); },
+style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+}, '⬇ 엑셀 내보내기 (' + dbStudents.length + '명)'),
+React.createElement('label', {
+style:{ background:'#E60012', color:'#fff', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', display:'inline-flex', alignItems:'center', gap:'4px' }
+},
+'⬆ 엑셀 가져오기',
+React.createElement('input', {
+type:'file', accept:'.xlsx,.xls,.csv',
+style:{ display:'none' },
+onChange: async function(e) {
+var f = e.target.files && e.target.files[0];
+e.target.value = '';
+if (f) await importStudentsExcel(f);
+}
+})
+),
+React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
+'※ 가져오기는 전화번호 기준으로 기존 학생 자동 업데이트, 없으면 신규 추가'
 )
 ),
 
