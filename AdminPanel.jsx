@@ -416,7 +416,7 @@ async function loadAdminLevelTests() {
   setAdminLevelTestLoading(true);
   var sb = window.supabase;
   try {
-    var { data: tests } = await sb.from('exams').select('*').in('kind', ['level','weekly','monthly']).order('created_at', { ascending: false });
+    var { data: tests } = await sb.from('exams').select('*').in('kind', ['level','weekly','monthly','homework']).order('created_at', { ascending: false });
     setAdminLevelTests(tests || []);
     if (tests && tests.length > 0) {
       var ids = tests.map(function(t){ return t.id; });
@@ -502,7 +502,7 @@ async function adminSubmitLevelTest() {
         paths.push(path);
       }
     }
-    var kindVal = (d.kind === 'weekly' || d.kind === 'monthly') ? d.kind : 'level';
+    var kindVal = (d.kind === 'weekly' || d.kind === 'monthly' || d.kind === 'homework') ? d.kind : 'level';
     var row = {
       kind: kindVal,
       title: d.title.trim(),
@@ -522,7 +522,7 @@ async function adminSubmitLevelTest() {
       allow_text_answer: tqc > 0,
       time_limit_minutes: tlm,
     };
-    var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : '레벨테스트');
+    var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : (kindVal === 'homework' ? '숙제' : '레벨테스트'));
     if (isEdit) {
       var { error } = await sb.from('exams').update(row).eq('id', d.id);
       if (error) throw error;
@@ -565,8 +565,8 @@ async function adminSaveGrading(submissionId, payload) {
 }
 
 async function adminDeleteLevelTest(t) {
-  var label = t.kind === 'weekly' ? '주간 테스트' : (t.kind === 'monthly' ? '월말 테스트' : '레벨테스트');
-  if (!confirm('이 ' + label + '을(를) 삭제하시겠습니까? 응시 내역과 답안도 함께 삭제됩니다.')) return;
+  var label = t.kind === 'weekly' ? '주간 테스트' : (t.kind === 'monthly' ? '월말 테스트' : (t.kind === 'homework' ? '숙제' : '레벨테스트'));
+  if (!confirm('이 ' + label + '을(를) 삭제하시겠습니까? 제출 내역과 답안도 함께 삭제됩니다.')) return;
   var sb = window.supabase;
   try {
     var paths = Array.isArray(t.image_paths) ? t.image_paths : [];
@@ -3500,19 +3500,19 @@ tab==='schedule' && React.createElement('div', null,
 
 /* ── 시험 관리 TAB ── */
 tab==='leveltest' && (function(){
-  var KIND_LABELS = { level:'레벨테스트', weekly:'주간 테스트', monthly:'월말 테스트' };
-  var KIND_COLORS = { level:'#E60012', weekly:'#1d4ed8', monthly:'#7c3aed' };
+  var KIND_LABELS = { level:'레벨테스트', weekly:'주간 테스트', monthly:'월말 테스트', homework:'숙제' };
+  var KIND_COLORS = { level:'#E60012', weekly:'#1d4ed8', monthly:'#7c3aed', homework:'#f59e0b' };
   var visibleTests = adminTestKindFilter === 'all' ? adminLevelTests : adminLevelTests.filter(function(t){ return (t.kind||'level') === adminTestKindFilter; });
   return React.createElement('div', null,
   React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px' } },
     React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '시험 관리'),
     React.createElement('button', { onClick: adminOpenLtForm, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 16px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 새 시험 발행')
   ),
-  React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '레벨테스트 / 주간 테스트 / 월말 테스트를 발행하고 답안을 자동 채점합니다.'),
+  React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '레벨테스트 / 주간 · 월말 테스트 / 숙제를 발행하고 답안을 자동 채점합니다.'),
 
   /* 종류 필터 */
   React.createElement('div', { style:{ display:'inline-flex', background:'#f2f0eb', borderRadius:'8px', padding:'3px', gap:'2px', marginBottom:'14px' } },
-    [{v:'all',l:'전체'},{v:'level',l:'레벨'},{v:'weekly',l:'주간'},{v:'monthly',l:'월말'}].map(function(o){
+    [{v:'all',l:'전체'},{v:'level',l:'레벨'},{v:'weekly',l:'주간'},{v:'monthly',l:'월말'},{v:'homework',l:'숙제'}].map(function(o){
       var on = adminTestKindFilter === o.v;
       var count = o.v === 'all' ? adminLevelTests.length : adminLevelTests.filter(function(t){ return (t.kind||'level') === o.v; }).length;
       return React.createElement('button', { key:o.v, onClick:function(){ setAdminTestKindFilter(o.v); }, style:{ background: on?'#1A1A1A':'transparent', color: on?'#fff':'rgba(0,0,0,0.55)', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, o.l + ' ' + count);
@@ -3531,7 +3531,7 @@ tab==='leveltest' && (function(){
           React.createElement('div', { style:{ flex:1, minWidth:0 } },
             React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
               React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: KIND_COLORS[t.kind||'level']||'#E60012', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, KIND_LABELS[t.kind||'level']||'레벨테스트'),
-              React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: t.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, t.status==='open' ? ((t.kind==='level') ? '신청 가능' : '응시 가능') : '마감'),
+              React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: t.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, t.status==='open' ? (t.kind==='level' ? '신청 가능' : (t.kind==='homework' ? '제출 가능' : '응시 가능')) : '마감'),
               t.subject && React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, t.subject),
               (t.school_level || t.target_grade) && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#1d4ed8', fontFamily:'Manrope, sans-serif' } }, '대상: ' + [t.school_level, t.target_grade ? t.target_grade + '학년' : null, t.target_semester ? t.target_semester + '학기' : null].filter(Boolean).join(' ')),
               (t.min_score != null && t.max_score != null) && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#c87000', fontFamily:'Manrope, sans-serif' } }, t.min_score + '~' + t.max_score + '점'),
@@ -3618,7 +3618,8 @@ tab==='leveltest' && (function(){
       React.createElement('select', { value: adminLtDraft.kind || 'level', onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { kind:e.target.value })); }, style:Object.assign({}, inputS, { marginBottom:'14px', width:'100%', cursor:'pointer' }) },
         React.createElement('option', { value:'level' }, '레벨테스트 (회원이 신청 후 응시)'),
         React.createElement('option', { value:'weekly' }, '주간 테스트 (학원 학생 모두 응시 가능)'),
-        React.createElement('option', { value:'monthly' }, '월말 테스트 (학원 학생 모두 응시 가능)')
+        React.createElement('option', { value:'monthly' }, '월말 테스트 (학원 학생 모두 응시 가능)'),
+        React.createElement('option', { value:'homework' }, '숙제 (학원 학생 모두 제출 가능)')
       ),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '제목 *'),
       React.createElement('input', { value: adminLtDraft.title, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { title:e.target.value })); }, placeholder: adminLtDraft.kind==='weekly' ? '예: 수학 주간 테스트 (중1, 5월 1주차)' : (adminLtDraft.kind==='monthly' ? '예: 수학 월말 테스트 (중1, 5월)' : '예: 수학 레벨테스트 (중1)'), style:Object.assign({}, inputS, { marginBottom:'14px', width:'100%' }) }),

@@ -999,7 +999,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!classId) { setExamList([]); setExamSubmissionsByExam({}); return; }
     setExamLoading(true);
     try {
-      var { data: exams } = await sb.from('exams').select('*').in('kind', ['class','weekly','monthly']).eq('class_id', classId).order('created_at', { ascending: false });
+      var { data: exams } = await sb.from('exams').select('*').in('kind', ['class','weekly','monthly','homework']).eq('class_id', classId).order('created_at', { ascending: false });
       setExamList(exams || []);
       if (exams && exams.length > 0) {
         var ids = exams.map(function(e){ return e.id; });
@@ -1056,7 +1056,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         if (up.error) throw up.error;
         paths.push(path);
       }
-      var kindVal = (d.kind === 'weekly' || d.kind === 'monthly') ? d.kind : 'class';
+      var kindVal = (d.kind === 'weekly' || d.kind === 'monthly' || d.kind === 'homework') ? d.kind : 'class';
       var insertRow = {
         kind: kindVal,
         class_id: selectedClass.id,
@@ -1078,7 +1078,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       };
       var { error } = await sb.from('exams').insert(insertRow);
       if (error) throw error;
-      var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : '시험지');
+      var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : (kindVal === 'homework' ? '숙제' : '시험지'));
       alert(kindLabel + '이(가) 발행되었습니다.');
       closeExamForm();
       await loadClassExams(selectedClass.id);
@@ -1655,6 +1655,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <option value="class">반 시험 (일반)</option>
                   <option value="weekly">주간 테스트</option>
                   <option value="monthly">월말 테스트</option>
+                  <option value="homework">숙제</option>
                 </select>
 
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>제목 *</label>
