@@ -574,6 +574,143 @@ function StudentAudioRecorder({ examId, studentId, existingPath, isLocked, onPat
   );
 }
 
+/* ── 숙제 연습 영역 (숙제 0건일 때 노출) ───────────────────────
+   진짜 제출은 안 되지만 어린 학생이 답안지 양식을 직접 써보며 친숙해지도록.
+   localStorage에 임시 저장해서 새로고침해도 남는다. 학원 시스템과는 별개.
+*/
+function HomeworkPracticeArea({ user }) {
+  var key = 'b2_practice_' + (user && user.id ? user.id : 'anon');
+  var [omr, setOmr] = React.useState({});
+  var [text, setText] = React.useState('');
+  var [previewUrl, setPreviewUrl] = React.useState('');
+  var [recording, setRecording] = React.useState(false);
+  var [elapsed, setElapsed] = React.useState(0);
+  var [error, setError] = React.useState('');
+  var mrRef = React.useRef(null), streamRef = React.useRef(null), timerRef = React.useRef(null), chunksRef = React.useRef([]);
+  var MAX_SEC = 300;
+
+  React.useEffect(function(){
+    try {
+      var saved = JSON.parse(localStorage.getItem(key) || '{}');
+      if (saved.omr) setOmr(saved.omr);
+      if (saved.text) setText(saved.text);
+    } catch (e) {}
+  }, []);
+  React.useEffect(function(){
+    try { localStorage.setItem(key, JSON.stringify({ omr: omr, text: text })); } catch (e) {}
+  }, [omr, text]);
+  React.useEffect(function(){
+    return function(){
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach(function(t){ t.stop(); });
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, []);
+
+  function fmtSec(s) { var m = Math.floor(s/60), r = s%60; return String(m).padStart(2,'0') + ':' + String(r).padStart(2,'0'); }
+
+  async function startRecord() {
+    setError('');
+    if (!window.B2Utils || !window.B2Utils.isAudioRecordingSupported()) { setError('이 브라우저는 녹음을 지원하지 않아요.'); return; }
+    try {
+      var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      var mr; try { mr = new MediaRecorder(stream); } catch (e) { setError('녹음을 시작할 수 없어요.'); stream.getTracks().forEach(function(t){ t.stop(); }); return; }
+      chunksRef.current = [];
+      mr.ondataavailable = function(e){ if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = function(){
+        var blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(URL.createObjectURL(blob));
+        setRecording(false);
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        if (streamRef.current) { streamRef.current.getTracks().forEach(function(t){ t.stop(); }); streamRef.current = null; }
+      };
+      mr.start();
+      mrRef.current = mr;
+      setRecording(true);
+      setElapsed(0);
+      var startTs = Date.now();
+      timerRef.current = setInterval(function(){
+        var sec = Math.floor((Date.now() - startTs) / 1000);
+        setElapsed(sec);
+        if (sec >= MAX_SEC) { try { mr.stop(); } catch (e) {} }
+      }, 200);
+    } catch (e) {
+      setError('마이크 사용 권한이 필요해요. 주소창의 자물쇠 아이콘에서 마이크를 허용해 주세요.');
+    }
+  }
+  function stopRecord() { var mr = mrRef.current; if (mr && mr.state !== 'inactive') { try { mr.stop(); } catch(e) {} } }
+  function resetRecord() { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(''); setElapsed(0); }
+  function clearAll() {
+    if (!confirm('연습 답안을 모두 지울까요?')) return;
+    setOmr({}); setText(''); resetRecord();
+    try { localStorage.removeItem(key); } catch (e) {}
+  }
+
+  var remaining = MAX_SEC - elapsed;
+  var timeColor = remaining <= 10 ? '#dc2626' : (remaining <= 30 ? '#f59e0b' : '#1A1A1A');
+  var circles = ['①','②','③','④','⑤'];
+
+  return React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'14px' } },
+    React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', textAlign:'center', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' } },
+      React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 6px', fontFamily:'Manrope, sans-serif' } }, '지금 숙제는 없어요'),
+      React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif', margin:0 } }, '선생님이 숙제를 발행하면 이 곳에 표시됩니다. 답안지에 자유롭게 연습해 보세요!')
+    ),
+
+    /* 녹음 연습 */
+    React.createElement('div', { style:{ background:'#fffbeb', border:'2px solid #f59e0b', borderRadius:'12px', padding:'18px' } },
+      React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#92400e', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, '🎤 녹음 연습 (최대 5분)'),
+      error && React.createElement('div', { style:{ background:'#fee2e2', color:'#991b1b', padding:'10px 12px', borderRadius:'8px', fontSize:'13px', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, error),
+      !recording && !previewUrl && React.createElement('button', { onClick:startRecord, style:{ width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'12px', padding:'18px', fontSize:'17px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minHeight:'56px' } }, '⚫  녹음 시작'),
+      recording && React.createElement('div', { style:{ textAlign:'center' } },
+        React.createElement('div', { style:{ fontSize:'42px', fontWeight:'800', color: timeColor, fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, fmtSec(elapsed) + ' / 05:00'),
+        React.createElement('div', { style:{ fontSize:'13px', color:'#dc2626', marginBottom:'14px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '🔴 녹음 중...'),
+        React.createElement('button', { onClick:stopRecord, style:{ width:'100%', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'12px', padding:'16px', fontSize:'16px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minHeight:'56px' } }, '⏹  정지')
+      ),
+      previewUrl && !recording && React.createElement('div', null,
+        React.createElement('audio', { controls:true, src:previewUrl, style:{ width:'100%', marginBottom:'10px' } }),
+        React.createElement('button', { onClick:resetRecord, style:{ width:'100%', background:'#fff', color:'#92400e', border:'2px solid #f59e0b', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '↺ 다시 녹음')
+      )
+    ),
+
+    /* OMR 답안지 (10문항 5지선다) */
+    React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'18px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' } },
+      React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#1A1A1A', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, '📝 OMR 답안지 (객관식 10문항 · 5지선다)'),
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'8px' } },
+        Array.from({ length: 10 }).map(function(_, i){
+          var num = i + 1;
+          return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'6px' } },
+            React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#374151', minWidth:'28px', fontFamily:'Manrope, sans-serif' } }, num + '.'),
+            React.createElement('div', { style:{ display:'flex', gap:'4px' } },
+              [1,2,3,4,5].map(function(c){
+                var on = String(omr[num] || '') === String(c);
+                return React.createElement('button', {
+                  key:c,
+                  onClick: function(){ setOmr(function(p){ var n = Object.assign({}, p); if (on) delete n[num]; else n[num] = c; return n; }); },
+                  style:{ width:'30px', height:'30px', borderRadius:'50%', border: on ? '2px solid #E60012' : '1px solid #d1d5db', background: on ? '#E60012' : '#fff', color: on ? '#fff' : '#374151', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', padding:0 }
+                }, circles[c-1]);
+              })
+            )
+          );
+        })
+      )
+    ),
+
+    /* 서술형 답안지 */
+    React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'18px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' } },
+      React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#1A1A1A', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '✏️ 서술형 답안지'),
+      React.createElement('textarea', {
+        value: text, onChange: function(e){ setText(e.target.value); }, rows: 8, placeholder: '여기에 자유롭게 답안을 써 보세요.',
+        style:{ width:'100%', border:'1px solid #1A1A1A', borderRadius:'8px', padding:'12px 14px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box', resize:'vertical', lineHeight:'1.7', backgroundImage: 'linear-gradient(transparent, transparent calc(1.7em - 1px), #e5e7eb calc(1.7em - 1px), #e5e7eb 1.7em)', backgroundSize: '100% 1.7em', backgroundAttachment:'local' }
+      })
+    ),
+
+    /* 초기화 */
+    React.createElement('button', { onClick:clearAll, style:{ background:'#fff', color:'#6b7280', border:'1px solid #d1d5db', borderRadius:'10px', padding:'10px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '연습 답안 모두 지우기')
+  );
+}
+
 /* ── Video Player ─────────────────────────────── */
 function VideoPlayer({ lecture, course, onBack, studentName, userId }) {
   var videoRef = React.useRef(null);
@@ -1158,6 +1295,13 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   var [examTextAnswer, setExamTextAnswer] = React.useState(''); // legacy 단일 서술형
   var [examTextAnswers, setExamTextAnswers] = React.useState({}); // { qNum: text } 다중 서술형
   var [examAudioPath, setExamAudioPath] = React.useState(null); // 숙제 녹음 답안 path
+  // ── 학부모 view ──
+  var [parentChildren, setParentChildren] = React.useState([]);
+  var [parentSelectedChildId, setParentSelectedChildId] = React.useState(null);
+  var [parentChildExams, setParentChildExams] = React.useState([]); // [{ exam, submission }]
+  var [parentChildVideos, setParentChildVideos] = React.useState([]); // [{ video, view }]
+  var [parentLoading, setParentLoading] = React.useState(false);
+  var [parentTab, setParentTab] = React.useState('test'); // 'test' | 'homework' | 'video'
   var [examSubmitting, setExamSubmitting] = React.useState(false);
   var [examImgIdx, setExamImgIdx] = React.useState(0);
   var [examTimeLeft, setExamTimeLeft] = React.useState(null); // 남은 초
@@ -1261,6 +1405,55 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       } catch (e) { console.error('시험 로드 실패:', e); }
     })();
   }, [user, portalView, studentMode]);
+
+  // ── 학부모: 자녀 목록 로드 ──
+  React.useEffect(function(){
+    if (!user || user.role !== 'parent') { setParentChildren([]); return; }
+    (async function(){
+      var sb = window.supabase;
+      try {
+        var { data } = await sb.from('students').select('*').eq('parent_id', user.id).eq('role', 'student');
+        setParentChildren(data || []);
+      } catch (e) { console.error('자녀 목록 로드 실패:', e); }
+    })();
+  }, [user]);
+
+  // ── 학부모: 선택한 자녀의 시험·숙제·영상 시청 데이터 로드 ──
+  React.useEffect(function(){
+    if (!parentSelectedChildId) { setParentChildExams([]); setParentChildVideos([]); return; }
+    (async function(){
+      setParentLoading(true);
+      var sb = window.supabase;
+      try {
+        // 시험·숙제 (자녀 ID로 모든 submission)
+        var { data: subs } = await sb.from('exam_submissions').select('*').eq('student_id', parentSelectedChildId).order('submitted_at', { ascending:false });
+        var examIds = Array.from(new Set((subs || []).map(function(s){ return s.exam_id; }).filter(Boolean)));
+        var exams = [];
+        if (examIds.length > 0) {
+          var { data: ex } = await sb.from('exams').select('*').in('id', examIds);
+          exams = ex || [];
+        }
+        var combined = (subs || []).map(function(s){
+          return { submission: s, exam: exams.find(function(e){ return e.id === s.exam_id; }) || null };
+        }).filter(function(x){ return x.exam; });
+        setParentChildExams(combined);
+
+        // 영상 시청
+        var { data: vv } = await sb.from('video_views').select('*').eq('student_id', parentSelectedChildId).order('updated_at', { ascending:false });
+        var videoIds = Array.from(new Set((vv || []).map(function(v){ return v.video_id; }).filter(Boolean)));
+        var videos = [];
+        if (videoIds.length > 0) {
+          var { data: vs } = await sb.from('videos').select('*').in('id', videoIds);
+          videos = vs || [];
+        }
+        var combinedVids = (vv || []).map(function(v){
+          return { view: v, video: videos.find(function(vid){ return vid.id === v.video_id; }) || null };
+        }).filter(function(x){ return x.video; });
+        setParentChildVideos(combinedVids);
+      } catch (e) { console.error('자녀 데이터 로드 실패:', e); }
+      finally { setParentLoading(false); }
+    })();
+  }, [parentSelectedChildId]);
 
   function openLtApplyForm() {
     if (!user) {
@@ -1971,7 +2164,123 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   var homeworkExamsAll = availableExams.filter(function(ex){ return ex.kind === 'homework'; });
   var pendingExams = testExamsAll.filter(function(ex){ var s = mySubmissions[ex.id]; return !(s && s.locked); });
   var pendingHomework = homeworkExamsAll.filter(function(ex){ var s = mySubmissions[ex.id]; return !(s && s.locked); });
-  var isStudent = !adminMode && !isTeacherMode;
+  var isParent = !!(user && user.role === 'parent') && !adminMode && !isTeacherMode;
+  var isStudent = !adminMode && !isTeacherMode && !isParent;
+
+  // ── 학부모: 자녀 학습 현황 read-only ───────────────────────────
+  if (isParent) {
+    // 자녀 미선택 — 자녀 목록
+    if (!parentSelectedChildId) {
+      return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
+        renderHeader(false),
+        React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'32px 16px' } },
+          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '학부모'),
+          React.createElement('h1', { style:{ fontSize:'22px', fontWeight:'800', color:'#111827', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } }, '자녀 학습 현황'),
+          parentChildren.length === 0
+            ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'40px', textAlign:'center', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' } },
+                React.createElement('p', { style:{ fontSize:'14px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '연결된 자녀가 없습니다. 학원에 자녀 등록을 요청해 주세요.')
+              )
+            : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+                parentChildren.map(function(c){
+                  return React.createElement('div', {
+                    key:c.id,
+                    onClick: function(){ setParentSelectedChildId(c.id); setParentTab('test'); },
+                    style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', padding:'18px 20px', display:'flex', alignItems:'center', gap:'14px', cursor:'pointer' }
+                  },
+                    React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (c.name || '?')[0]),
+                    React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                      React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, c.name),
+                      React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, [c.school, c.grade].filter(Boolean).join(' · ') || '-')
+                    ),
+                    React.createElement('div', { style:{ fontSize:'22px', color:'rgba(0,0,0,0.2)' } }, '›')
+                  );
+                })
+              )
+        )
+      );
+    }
+    // 자녀 상세
+    var selectedChild = parentChildren.find(function(c){ return c.id === parentSelectedChildId; }) || {};
+    var examItems = parentChildExams.filter(function(x){ return x.exam.kind !== 'homework'; });
+    var hwItems = parentChildExams.filter(function(x){ return x.exam.kind === 'homework'; });
+
+    var KIND_LABELS_PARENT = { level:'레벨', weekly:'주간', monthly:'월말', class:'반 시험', homework:'숙제' };
+    function renderChildCard(item) {
+      var ex = item.exam, sub = item.submission;
+      var audioUrl = sub.audio_path && window.B2Utils ? window.B2Utils.audioPublicUrl(sub.audio_path) : '';
+      var graded = !!sub.graded_at;
+      return React.createElement('div', { key:sub.id, style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)', marginBottom:'10px' } },
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'8px' } },
+          React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#1A1A1A', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, KIND_LABELS_PARENT[ex.kind] || ex.kind),
+          ex.subject && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, ex.subject),
+          React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', color: graded ? '#16a34a' : '#9ca3af', fontFamily:'Manrope, sans-serif' } }, graded ? '채점 완료' : '채점 대기')
+        ),
+        React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, ex.title),
+        React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '제출: ' + String(sub.submitted_at || '').slice(0,16).replace('T',' ')),
+        sub.score != null && React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#1d4ed8', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '점수: ' + sub.score + '점'),
+        sub.objective_score != null && sub.objective_total != null && React.createElement('div', { style:{ fontSize:'12px', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '객관식: ' + sub.objective_score + ' / ' + sub.objective_total),
+        sub.feedback && React.createElement('div', { style:{ fontSize:'12px', color:'#374151', background:'#f9fafb', borderRadius:'8px', padding:'10px', marginBottom:'8px', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line' } }, '코멘트: ' + sub.feedback),
+        audioUrl && React.createElement('div', { style:{ background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:'8px', padding:'10px', marginBottom:'8px' } },
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#92400e', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '🎤 자녀 녹음 답안'),
+          React.createElement('audio', { controls:true, src: audioUrl, style:{ width:'100%' } })
+        ),
+        sub.text_answers && Object.keys(sub.text_answers).length > 0 && React.createElement('div', { style:{ marginTop:'8px' } },
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '서술형 답안'),
+          React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px' } },
+            Object.keys(sub.text_answers).map(function(k){
+              return React.createElement('div', { key:k, style:{ background:'#f9fafb', borderRadius:'6px', padding:'8px 10px', fontSize:'12px', color:'#374151', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line' } },
+                React.createElement('strong', { style:{ marginRight:'6px' } }, k + '번:'), sub.text_answers[k]
+              );
+            })
+          )
+        )
+      );
+    }
+
+    return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
+      renderHeader(false),
+      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
+        React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'18px 20px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'14px' } },
+          React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (selectedChild.name || '?')[0]),
+          React.createElement('div', { style:{ flex:1, minWidth:0 } },
+            React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, selectedChild.name || '자녀'),
+            React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, [selectedChild.school, selectedChild.grade].filter(Boolean).join(' · ') || '-')
+          ),
+          parentChildren.length > 1 && React.createElement('button', { onClick:function(){ setParentSelectedChildId(null); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '다른 자녀')
+        ),
+        React.createElement('div', { style:{ display:'inline-flex', background:'#f2f0eb', borderRadius:'8px', padding:'3px', gap:'2px', marginBottom:'14px', flexWrap:'wrap' } },
+          [{v:'test',l:'시험 ' + examItems.length},{v:'homework',l:'숙제 ' + hwItems.length},{v:'video',l:'영상 시청 ' + parentChildVideos.length}].map(function(o){
+            var on = parentTab === o.v;
+            return React.createElement('button', { key:o.v, onClick:function(){ setParentTab(o.v); }, style:{ background: on?'#1A1A1A':'transparent', color: on?'#fff':'rgba(0,0,0,0.55)', border:'none', borderRadius:'6px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, o.l);
+          })
+        ),
+        parentLoading && React.createElement('div', { style:{ color:'#9ca3af', padding:'20px', fontFamily:'Manrope, sans-serif' } }, '불러오는 중...'),
+        !parentLoading && parentTab === 'test' && (examItems.length === 0
+          ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'30px', textAlign:'center', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '응시한 시험이 없습니다.')
+          : React.createElement('div', null, examItems.map(renderChildCard))
+        ),
+        !parentLoading && parentTab === 'homework' && (hwItems.length === 0
+          ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'30px', textAlign:'center', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '제출한 숙제가 없습니다.')
+          : React.createElement('div', null, hwItems.map(renderChildCard))
+        ),
+        !parentLoading && parentTab === 'video' && (parentChildVideos.length === 0
+          ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'30px', textAlign:'center', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '시청한 영상이 없습니다.')
+          : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
+              parentChildVideos.map(function(it){
+                var v = it.video, vw = it.view;
+                var pct = vw.progress != null ? Math.round(parseFloat(vw.progress) * 100) : null;
+                return React.createElement('div', { key: vw.id || v.id, style:{ background:'#fff', borderRadius:'12px', padding:'14px 16px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' } },
+                  React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, v.title || '영상'),
+                  React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } },
+                    (pct != null ? ('진도 ' + pct + '%') : '시청 시작') + ' · 마지막 시청 ' + String(vw.updated_at || vw.created_at || '').slice(0,16).replace('T',' ')
+                  )
+                );
+              })
+            )
+        )
+      )
+    );
+  }
 
   // 학생 강의실 홈 (세 카드 선택)
   if (isStudent && studentMode === 'home') {
@@ -2181,10 +2490,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px', display:'flex', flexDirection:'column', gap:'16px' } },
         React.createElement('button', { onClick:function(){ setStudentMode('home'); }, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', alignSelf:'flex-start' } }, '← 강의실로'),
         homeworkExamsAll.length === 0
-          ? React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'40px', textAlign:'center', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' } },
-              React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 8px', fontFamily:'Manrope, sans-serif' } }, '제출할 숙제가 없습니다'),
-              React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '선생님이 숙제를 발행하면 이 곳에 표시됩니다.')
-            )
+          ? React.createElement(HomeworkPracticeArea, { user: user })
           : React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', border:'2px solid #1A1A1A' } },
               React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', flexWrap:'wrap', gap:'8px' } },
                 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:0, fontFamily:'Manrope, sans-serif' } }, '내 숙제'),
