@@ -3261,9 +3261,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
               <div style={{ borderTop:'1px solid #e5e7eb', marginTop:'24px', paddingTop:'18px' }}>
                 <h3 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'10px' }}>비밀번호 변경</h3>
-                <input type="password" placeholder="현재 비밀번호" value={pwDraft.current} onChange={e => setPwDraft({ ...pwDraft, current: e.target.value })} style={{ ...inputStyle, marginBottom:'8px' }} />
-                <input type="password" placeholder="새 비밀번호" value={pwDraft.next} onChange={e => setPwDraft({ ...pwDraft, next: e.target.value })} style={{ ...inputStyle, marginBottom:'8px' }} />
-                <input type="password" placeholder="새 비밀번호 확인" value={pwDraft.confirm} onChange={e => setPwDraft({ ...pwDraft, confirm: e.target.value })} style={{ ...inputStyle, marginBottom:'10px' }} />
+                <input type="password" name="current-password" autoComplete="current-password" placeholder="현재 비밀번호" value={pwDraft.current} onChange={e => setPwDraft({ ...pwDraft, current: e.target.value })} style={{ ...inputStyle, marginBottom:'8px' }} />
+                <input type="password" name="new-password" autoComplete="new-password" placeholder="새 비밀번호" value={pwDraft.next} onChange={e => setPwDraft({ ...pwDraft, next: e.target.value })} style={{ ...inputStyle, marginBottom:'8px' }} />
+                <input type="password" name="new-password-confirm" autoComplete="new-password" placeholder="새 비밀번호 확인" value={pwDraft.confirm} onChange={e => setPwDraft({ ...pwDraft, confirm: e.target.value })} style={{ ...inputStyle, marginBottom:'10px' }} />
                 <button style={lightButtonStyle} onClick={changeMyPassword}>비밀번호 변경</button>
               </div>
 

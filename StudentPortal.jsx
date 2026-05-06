@@ -135,13 +135,13 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
       // 이메일/아이디 입력
       React.createElement('div', { style:inputFieldStyle },
         React.createElement('div', { style:floatLabelStyle }, isAdmin ? '관리자 아이디' : '이메일'),
-        React.createElement('input', { type: isAdmin ? 'text' : 'email', placeholder: isAdmin ? '관리자 아이디 입력' : 'example@email.com', value:email, onChange:e=>{ setEmail(e.target.value); setMsg(''); }, style:inputStyle })
+        React.createElement('input', { type: isAdmin ? 'text' : 'email', name: isAdmin ? 'username' : 'email', autoComplete: isAdmin ? 'username' : 'email', placeholder: isAdmin ? '관리자 아이디 입력' : 'example@email.com', value:email, onChange:e=>{ setEmail(e.target.value); setMsg(''); }, style:inputStyle })
       ),
 
       // 비밀번호 입력
       React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'12px' } },
         React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
-        React.createElement('input', { type:'password', placeholder:'비밀번호 입력', value:password, onChange:e=>{ setPassword(e.target.value); setMsg(''); }, onKeyDown:e=>e.key==='Enter'&&handleLogin(), style:inputStyle })
+        React.createElement('input', { type:'password', name:'password', autoComplete:'current-password', placeholder:'비밀번호 입력', value:password, onChange:e=>{ setPassword(e.target.value); setMsg(''); }, onKeyDown:e=>e.key==='Enter'&&handleLogin(), style:inputStyle })
       ),
 
       // 관리자 체크박스
@@ -1807,9 +1807,9 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           ),
           React.createElement('div', { style:{ borderTop:'1px solid #e5e7eb', marginTop:'24px', paddingTop:'18px' } },
             React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '비밀번호 변경'),
-            React.createElement('div', { style:{ marginBottom:'8px' } }, React.createElement('input', { type:'password', placeholder:'현재 비밀번호', value:pwDraft.current, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { current:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
-            React.createElement('div', { style:{ marginBottom:'8px' } }, React.createElement('input', { type:'password', placeholder:'새 비밀번호', value:pwDraft.next, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { next:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
-            React.createElement('div', { style:{ marginBottom:'10px' } }, React.createElement('input', { type:'password', placeholder:'새 비밀번호 확인', value:pwDraft.confirm, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { confirm:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
+            React.createElement('div', { style:{ marginBottom:'8px' } }, React.createElement('input', { type:'password', name:'current-password', autoComplete:'current-password', placeholder:'현재 비밀번호', value:pwDraft.current, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { current:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
+            React.createElement('div', { style:{ marginBottom:'8px' } }, React.createElement('input', { type:'password', name:'new-password', autoComplete:'new-password', placeholder:'새 비밀번호', value:pwDraft.next, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { next:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
+            React.createElement('div', { style:{ marginBottom:'10px' } }, React.createElement('input', { type:'password', name:'new-password-confirm', autoComplete:'new-password', placeholder:'새 비밀번호 확인', value:pwDraft.confirm, onChange:function(e){ var v = e.target.value; setPwDraft(function(p){ return Object.assign({}, p, { confirm:v }); }); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })),
             React.createElement('button', { onClick:changePassword, style:{ background:'#fff', color:'#E60012', border:'1px solid #E60012', borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, '비밀번호 변경')
           ),
           React.createElement('div', { style:{ borderTop:'1px solid #fef2f2', marginTop:'24px', paddingTop:'18px' } },
