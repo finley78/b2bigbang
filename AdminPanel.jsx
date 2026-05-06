@@ -644,12 +644,22 @@ return (teacherClasses || []).filter(function(cls){
 }
 
 /* ── 수강생 엑셀 가져오기/내보내기 ─────────────────── */
-// 가져오기/템플릿: 기본 6개 필드 (이름·학생 연락처·학부모 연락처·주소·최초 등원일·퇴원일)
-const STUDENT_IMPORT_HEADERS = ['이름','학생 연락처','학부모 연락처','주소','최초 등원일','퇴원일'];
+// 가져오기/템플릿: 기본 6개 필드 (이름·학생전화·학부모전화·주소·최초 등원일·퇴원일)
+const STUDENT_IMPORT_HEADERS = ['이름','학생전화','학부모전화','주소','최초 등원일','퇴원일'];
 const STUDENT_IMPORT_COLS = [{wch:10},{wch:16},{wch:16},{wch:30},{wch:14},{wch:14}];
 // 내보내기: 기본 6개 + 배정 정보 (학교급·학년·학교·수강 과목·담당 선생님(반))
-const STUDENT_EXPORT_HEADERS = ['이름','학생 연락처','학부모 연락처','주소','학교급','학년','학교','수강 과목','담당 선생님(반)','최초 등원일','퇴원일'];
+const STUDENT_EXPORT_HEADERS = ['이름','학생전화','학부모전화','주소','학교급','학년','학교','수강 과목','담당 선생님(반)','최초 등원일','퇴원일'];
 const STUDENT_EXPORT_COLS = [{wch:10},{wch:16},{wch:16},{wch:30},{wch:8},{wch:8},{wch:14},{wch:30},{wch:30},{wch:14},{wch:14}];
+
+// 다양한 헤더 변형을 한 값으로 통일 — 사용자가 다른 학원 시스템에서 받은 엑셀도 인식
+function pickField(row /*, ...candidates */) {
+  for (var i = 1; i < arguments.length; i++) {
+    var k = arguments[i];
+    var v = row[k];
+    if (v !== undefined && v !== '' && v !== null) return v;
+  }
+  return '';
+}
 
 function ensureXlsxLoaded() {
   if (window.XLSX) return true;
@@ -682,8 +692,8 @@ function exportStudentsExcel(list) {
   var rows = list.map(function(s) {
     return {
       '이름': s.name || '',
-      '학생 연락처': s.phone || '',
-      '학부모 연락처': s.parent_phone || '',
+      '학생전화': s.phone || '',
+      '학부모전화': s.parent_phone || '',
       '주소': s.address || '',
       '학교급': levelFromGrade(s.grade),
       '학년': s.grade || '',
@@ -706,8 +716,8 @@ function downloadStudentTemplate() {
   if (!ensureXlsxLoaded()) return;
   var sample = [{
     '이름':'홍길동',
-    '학생 연락처':'01012345678',
-    '학부모 연락처':'01098765432',
+    '학생전화':'01012345678',
+    '학부모전화':'01098765432',
     '주소':'인천 서구 ...',
     '최초 등원일':'2025-03-15',
     '퇴원일':''
@@ -764,14 +774,15 @@ async function importStudentsExcel(file) {
     var valid = [];
     rows.forEach(function(r, i) {
       var rowNum = i + 2; // 헤더가 1행
-      var name = String(r['이름']||'').trim();
-      // 새/구 헤더 둘 다 호환
-      var phone = normPhoneDigits(r['학생 연락처'] !== undefined && r['학생 연락처'] !== '' ? r['학생 연락처'] : r['전화번호']);
-      var parentPhone = normPhoneDigits(r['학부모 연락처'] !== undefined && r['학부모 연락처'] !== '' ? r['학부모 연락처'] : r['학부모 전화번호']);
+      var name = String(pickField(r, '이름', '학생이름', '학생 이름')||'').trim();
+      // 학생 전화: 학생전화 / 학생 연락처 / 학생 전화 / 전화번호 / 연락처
+      var phone = normPhoneDigits(pickField(r, '학생전화', '학생 전화', '학생 연락처', '학생연락처', '전화번호', '연락처'));
+      // 학부모 전화: 학부모전화 / 학부모 전화 / 학부모 연락처 / 학부모 전화번호 / 보호자전화 / 휴대전화1
+      var parentPhone = normPhoneDigits(pickField(r, '학부모전화', '학부모 전화', '학부모 연락처', '학부모연락처', '학부모 전화번호', '보호자전화', '보호자 전화', '휴대전화1', '휴대전화'));
       // 필수: 이름
       if (!name) { errors.push(rowNum + '행: 이름 누락'); return; }
-      var rawCreated = r['최초 등원일'] !== undefined && r['최초 등원일'] !== '' ? r['최초 등원일'] : r['최초등록일'];
-      var rawWithdrawn = r['퇴원일'];
+      var rawCreated = pickField(r, '최초 등원일', '최초등원일', '최초등록일', '등원일', '등록일');
+      var rawWithdrawn = pickField(r, '퇴원일', '퇴원 일');
       var createdAt = parseDateCell(rawCreated);
       var withdrawnAt = parseDateCell(rawWithdrawn);
       var hasCreatedInput = rawCreated !== '' && rawCreated != null && rawCreated !== undefined;
@@ -781,7 +792,7 @@ async function importStudentsExcel(file) {
       valid.push({
         name: name,
         phone: phone,
-        address: String(r['주소']||'').trim(),
+        address: String(pickField(r, '주소', '자택주소', '거주지', '집주소')||'').trim(),
         parent_phone: parentPhone,
         created_at: createdAt,
         withdrawn_at: withdrawnAt,
@@ -1693,7 +1704,7 @@ if (f) await importStudentsExcel(f);
 })
 ),
 React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
-'※ 필수: 이름만 / 전화번호 있으면 기존 학생 업데이트, 없으면 신규'
+'※ 필수: 이름만 / 학생전화 있으면 기존 학생 업데이트, 없으면 신규'
 )
 ),
 
