@@ -1406,6 +1406,49 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     })();
   }, [user, portalView, studentMode]);
 
+  // ── 모바일 뒤로가기 처리: PWA 종료 대신 portal 내부 단계 복귀 ──
+  // index.html에 page 레벨 popstate 핸들러가 이미 있음. capture phase로 가로채서
+  // portal 내부의 깊은 화면(응시 / 학부모 자녀 상세 / 강의실 모드)에서는 한 단계만 복귀시키고,
+  // 이미 강의실 홈이면 통과시켜 page='home'으로 자연스럽게 이동.
+  React.useEffect(function(){
+    if (typeof window === 'undefined') return;
+    function onPop(e) {
+      if (portalView === 'exam') {
+        e.stopImmediatePropagation();
+        closeExam();
+        try { window.history.pushState({ page:'portal', b2Inner:true }, ''); } catch (err) {}
+        return;
+      }
+      if (parentSelectedChildId) {
+        e.stopImmediatePropagation();
+        setParentSelectedChildId(null);
+        try { window.history.pushState({ page:'portal', b2Inner:true }, ''); } catch (err) {}
+        return;
+      }
+      if (studentMode !== 'home') {
+        e.stopImmediatePropagation();
+        setStudentMode('home');
+        setSelectedSubject(null);
+        try { window.history.pushState({ page:'portal', b2Inner:true }, ''); } catch (err) {}
+        return;
+      }
+      // 강의실 홈이면 통과 → index.html 핸들러가 page='home'으로 복귀
+    }
+    window.addEventListener('popstate', onPop, true); // capture phase
+    return function(){ window.removeEventListener('popstate', onPop, true); };
+  }, [portalView, studentMode, parentSelectedChildId]);
+
+  // 깊은 화면 진입 시 history에 한 단계 push (뒤로가기가 popstate를 유발하도록)
+  React.useEffect(function(){
+    if (typeof window === 'undefined') return;
+    var deep = (portalView === 'exam') || !!parentSelectedChildId || (studentMode !== 'home' && studentMode != null);
+    if (!deep) return;
+    var st = window.history.state || {};
+    if (!st.b2Inner) {
+      try { window.history.pushState({ page:'portal', b2Inner:true }, ''); } catch (err) {}
+    }
+  }, [studentMode, portalView, parentSelectedChildId]);
+
   // ── 학부모: 자녀 목록 로드 ──
   React.useEffect(function(){
     if (!user || user.role !== 'parent') { setParentChildren([]); return; }
