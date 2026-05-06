@@ -8,16 +8,23 @@ const COURSE_GRADES_BY_LEVEL = {
 '중등': ['중1','중2','중3'],
 '고등': ['고1','고2','고3'],
 };
-const SCHOOLS = ['전체','은지초','검암초','간재울초','검암중','간재울중','백석중','대인고','서인천고','백석고'];
+const SCHOOLS = ['전체','은지초','검암초','간재울초','검암중','간재울중','백석중','서곶중','대인고','서인천고','백석고'];
 const TEACHER_LEVELS = ['초등','중등','고등'];
 const TEACHER_GRADES = ['1학년','2학년','3학년','4학년','5학년','6학년'];
 const TEACHER_ASSIGN_LEVELS = ['초등','중등','고등'];
 const TEACHER_ASSIGN_GRADES = ['1학년','2학년','3학년','4학년','5학년','6학년'];
 const SCHOOL_LEVELS = {
 '초등': { schools:['은지초','검암초','간재울초'], grades:['1학년','2학년','3학년','4학년','5학년','6학년'] },
-'중등': { schools:['검암중','간재울중','백석중'], grades:['중1','중2','중3'] },
+'중등': { schools:['검암중','간재울중','백석중','서곶중'], grades:['중1','중2','중3'] },
 '고등': { schools:['대인고','서인천고','백석고'], grades:['고1','고2','고3'] },
 };
+function levelFromGrade(grade) {
+  if (!grade) return '';
+  if (/학년$/.test(grade)) return '초등';
+  if (/^중[1-3]$/.test(grade)) return '중등';
+  if (/^고[1-3]$/.test(grade)) return '고등';
+  return '';
+}
 
 // ── 성적 분석 헬퍼 (관리자/선생님 공유 로직과 동일 규칙) ──
 function adminGradeBucket(score) { var s = Number(score); if (isNaN(s)) return null; if (s>=90) return 1; if (s>=80) return 2; if (s>=70) return 3; return 0; }
@@ -80,8 +87,13 @@ const [filterLevel, setFilterLevel] = React.useState('전체');
 const [filterGrade, setFilterGrade] = React.useState('전체');
 const [filterTeacher, setFilterTeacher] = React.useState('전체');
 const [selectedIds, setSelectedIds] = React.useState([]);
+const [bulkLevel, setBulkLevel] = React.useState('');
 const [bulkGrade, setBulkGrade] = React.useState('');
 const [bulkSchool, setBulkSchool] = React.useState('');
+const [bulkSchoolCustom, setBulkSchoolCustom] = React.useState('');
+const [bulkSubjects, setBulkSubjects] = React.useState([]);
+const [bulkTeacherId, setBulkTeacherId] = React.useState('');
+const [bulkClassId, setBulkClassId] = React.useState('');
 const [dbStudents, setDbStudents] = React.useState([]);
 const [dbMembers, setDbMembers] = React.useState([]);
 const [dbTeachers, setDbTeachers] = React.useState([]);
@@ -632,8 +644,12 @@ return (teacherClasses || []).filter(function(cls){
 }
 
 /* ── 수강생 엑셀 가져오기/내보내기 ─────────────────── */
-const STUDENT_EXCEL_HEADERS = ['이름','학교','학년','전화번호','주소','학부모 전화번호','수강 과목','최초등록일','퇴원일'];
-const STUDENT_EXCEL_COLS = [{wch:10},{wch:14},{wch:8},{wch:16},{wch:30},{wch:16},{wch:30},{wch:12},{wch:12}];
+// 가져오기/템플릿: 기본 6개 필드 (이름·학생 연락처·학부모 연락처·주소·최초 등원일·퇴원일)
+const STUDENT_IMPORT_HEADERS = ['이름','학생 연락처','학부모 연락처','주소','최초 등원일','퇴원일'];
+const STUDENT_IMPORT_COLS = [{wch:10},{wch:16},{wch:16},{wch:30},{wch:14},{wch:14}];
+// 내보내기: 기본 6개 + 배정 정보 (학교급·학년·학교·수강 과목·담당 선생님(반))
+const STUDENT_EXPORT_HEADERS = ['이름','학생 연락처','학부모 연락처','주소','학교급','학년','학교','수강 과목','담당 선생님(반)','최초 등원일','퇴원일'];
+const STUDENT_EXPORT_COLS = [{wch:10},{wch:16},{wch:16},{wch:30},{wch:8},{wch:8},{wch:14},{wch:30},{wch:30},{wch:14},{wch:14}];
 
 function ensureXlsxLoaded() {
   if (window.XLSX) return true;
@@ -646,27 +662,40 @@ function fmtExcelDate(ts) {
   return String(ts).slice(0, 10); // YYYY-MM-DD
 }
 
-function studentRowsForExcel(list) {
-  return list.map(function(s) {
+function exportStudentsExcel(list) {
+  if (!ensureXlsxLoaded()) return;
+  // 학생별 (선생님-반) 라벨 매핑 사전 구축
+  var teacherClassByStudent = {};
+  Object.keys(classStudents || {}).forEach(function(classId) {
+    var members = (classStudents[classId] || []);
+    var cls = (teacherClasses || []).find(function(c) { return String(c.id) === String(classId); });
+    if (!cls) return;
+    var teacher = (dbTeachers || []).find(function(t) { return String(t.id) === String(cls.teacher_id); });
+    var teacherName = teacher ? (teacher.name || '선생님') : '';
+    var clsName = cls.name || '반';
+    var label = (teacherName ? teacherName + '-' : '') + clsName;
+    members.forEach(function(sid) {
+      if (!teacherClassByStudent[sid]) teacherClassByStudent[sid] = [];
+      teacherClassByStudent[sid].push(label);
+    });
+  });
+  var rows = list.map(function(s) {
     return {
       '이름': s.name || '',
-      '학교': s.school || '',
-      '학년': s.grade || '',
-      '전화번호': s.phone || '',
+      '학생 연락처': s.phone || '',
+      '학부모 연락처': s.parent_phone || '',
       '주소': s.address || '',
-      '학부모 전화번호': s.parent_phone || '',
+      '학교급': levelFromGrade(s.grade),
+      '학년': s.grade || '',
+      '학교': s.school || '',
       '수강 과목': (s.subjects || []).join(', '),
-      '최초등록일': fmtExcelDate(s.created_at),
+      '담당 선생님(반)': (teacherClassByStudent[s.id] || []).join(', '),
+      '최초 등원일': fmtExcelDate(s.created_at),
       '퇴원일': fmtExcelDate(s.withdrawn_at),
     };
   });
-}
-
-function exportStudentsExcel(list) {
-  if (!ensureXlsxLoaded()) return;
-  var rows = studentRowsForExcel(list);
-  var ws = window.XLSX.utils.json_to_sheet(rows.length ? rows : [{}], { header: STUDENT_EXCEL_HEADERS });
-  ws['!cols'] = STUDENT_EXCEL_COLS;
+  var ws = window.XLSX.utils.json_to_sheet(rows.length ? rows : [{}], { header: STUDENT_EXPORT_HEADERS });
+  ws['!cols'] = STUDENT_EXPORT_COLS;
   var wb = window.XLSX.utils.book_new();
   window.XLSX.utils.book_append_sheet(wb, ws, '수강생');
   var ts = new Date().toISOString().slice(0,10).replace(/-/g,'');
@@ -676,13 +705,15 @@ function exportStudentsExcel(list) {
 function downloadStudentTemplate() {
   if (!ensureXlsxLoaded()) return;
   var sample = [{
-    '이름':'홍길동','학교':'검암중','학년':'중2',
-    '전화번호':'01012345678','주소':'인천 서구 ...',
-    '학부모 전화번호':'01098765432','수강 과목':'국어, 수학',
-    '최초등록일':'2025-03-15','퇴원일':''
+    '이름':'홍길동',
+    '학생 연락처':'01012345678',
+    '학부모 연락처':'01098765432',
+    '주소':'인천 서구 ...',
+    '최초 등원일':'2025-03-15',
+    '퇴원일':''
   }];
-  var ws = window.XLSX.utils.json_to_sheet(sample, { header: STUDENT_EXCEL_HEADERS });
-  ws['!cols'] = STUDENT_EXCEL_COLS;
+  var ws = window.XLSX.utils.json_to_sheet(sample, { header: STUDENT_IMPORT_HEADERS });
+  ws['!cols'] = STUDENT_IMPORT_COLS;
   var wb = window.XLSX.utils.book_new();
   window.XLSX.utils.book_append_sheet(wb, ws, '수강생');
   window.XLSX.writeFile(wb, '수강생_템플릿.xlsx');
@@ -734,27 +765,24 @@ async function importStudentsExcel(file) {
     rows.forEach(function(r, i) {
       var rowNum = i + 2; // 헤더가 1행
       var name = String(r['이름']||'').trim();
-      var grade = String(r['학년']||'').trim();
-      var subjects = parseSubjectsCell(r['수강 과목']);
-      var phone = normPhoneDigits(r['전화번호']);
+      // 새/구 헤더 둘 다 호환
+      var phone = normPhoneDigits(r['학생 연락처'] !== undefined && r['학생 연락처'] !== '' ? r['학생 연락처'] : r['전화번호']);
+      var parentPhone = normPhoneDigits(r['학부모 연락처'] !== undefined && r['학부모 연락처'] !== '' ? r['학부모 연락처'] : r['학부모 전화번호']);
       // 필수: 이름
       if (!name) { errors.push(rowNum + '행: 이름 누락'); return; }
-      var rawCreated = r['최초등록일'];
+      var rawCreated = r['최초 등원일'] !== undefined && r['최초 등원일'] !== '' ? r['최초 등원일'] : r['최초등록일'];
       var rawWithdrawn = r['퇴원일'];
       var createdAt = parseDateCell(rawCreated);
       var withdrawnAt = parseDateCell(rawWithdrawn);
-      var hasCreatedInput = rawCreated !== '' && rawCreated != null;
-      var hasWithdrawnInput = rawWithdrawn !== '' && rawWithdrawn != null;
-      if (hasCreatedInput && !createdAt) errors.push(rowNum + '행: 최초등록일 형식 오류 (예: 2025-03-15)');
+      var hasCreatedInput = rawCreated !== '' && rawCreated != null && rawCreated !== undefined;
+      var hasWithdrawnInput = rawWithdrawn !== '' && rawWithdrawn != null && rawWithdrawn !== undefined;
+      if (hasCreatedInput && !createdAt) errors.push(rowNum + '행: 최초 등원일 형식 오류 (예: 2025-03-15)');
       if (hasWithdrawnInput && !withdrawnAt) errors.push(rowNum + '행: 퇴원일 형식 오류 (예: 2025-03-15)');
       valid.push({
         name: name,
-        school: String(r['학교']||'').trim(),
-        grade: grade,
         phone: phone,
         address: String(r['주소']||'').trim(),
-        parent_phone: normPhoneDigits(r['학부모 전화번호']),
-        subjects: subjects,
+        parent_phone: parentPhone,
         created_at: createdAt,
         withdrawn_at: withdrawnAt,
         has_withdrawn_input: hasWithdrawnInput,
@@ -787,8 +815,8 @@ async function importStudentsExcel(file) {
       // 전화번호가 있을 때만 기존 학생 매칭. 없으면 무조건 신규.
       var match = v.phone ? existingByPhone[v.phone] : null;
       var payload = {
-        name: v.name, school: v.school, grade: v.grade, phone: v.phone,
-        address: v.address, parent_phone: v.parent_phone, subjects: v.subjects,
+        name: v.name, phone: v.phone,
+        address: v.address, parent_phone: v.parent_phone,
       };
       // 최초등록일: 입력된 값이 있고 파싱 성공한 경우만 덮어씀
       if (v.has_created_input && v.created_at) payload.created_at = v.created_at;
@@ -1669,61 +1697,187 @@ React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)',
 )
 ),
 
-selectedIds.length > 0 && React.createElement('div', { style:{ background:'#1A1A1A', borderRadius:'10px', padding:'12px 16px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' } },
-React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, `${selectedIds.length}명 선택됨`),
-React.createElement('select', {
-value: bulkGrade,
-onChange: function(e) { setBulkGrade(e.target.value); },
-style:{ border:'none', borderRadius:'6px', padding:'6px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'rgba(255,255,255,0.15)', color:'#fff', outline:'none', cursor:'pointer' }
-},
-React.createElement('option', { value:'' }, '학년 일괄 변경'),
-['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'].map(function(g){ return React.createElement('option',{key:g,value:g},g); })
-),
-React.createElement('select', {
-value: bulkSchool,
-onChange: function(e) { setBulkSchool(e.target.value); },
-style:{ border:'none', borderRadius:'6px', padding:'6px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'rgba(255,255,255,0.15)', color:'#fff', outline:'none', cursor:'pointer' }
-},
-React.createElement('option', { value:'' }, '학교 일괄 변경'),
-SCHOOLS.filter(function(s){ return s !== '전체'; }).map(function(s){ return React.createElement('option',{key:s,value:s},s); })
-),
-React.createElement('button', {
-onClick: async function() {
-if (!bulkGrade && !bulkSchool) { alert('변경할 학년 또는 학교를 선택하세요.'); return; }
-var updates = {};
-if (bulkGrade) updates.grade = bulkGrade;
-if (bulkSchool) updates.school = bulkSchool;
-for (var i = 0; i < selectedIds.length; i++) {
-await sb.from('students').update(updates).eq('id', selectedIds[i]);
-}
-setDbStudents(function(prev) {
-return prev.map(function(s) {
-if (!selectedIds.includes(s.id)) return s;
-return Object.assign({}, s, bulkGrade?{grade:bulkGrade}:{}, bulkSchool?{school:bulkSchool}:{});
-});
-});
-setBulkGrade(''); setBulkSchool(''); setSelectedIds([]);
-alert('저장 완료!');
-},
-style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'6px', padding:'7px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-}, '일괄 저장'),
-React.createElement('button', {
-onClick: async function() {
-if (!confirm(`선택한 ${selectedIds.length}명을 삭제할까요?`)) return;
-for (var i = 0; i < selectedIds.length; i++) {
-await sb.from('students').delete().eq('id', selectedIds[i]);
-}
-setDbStudents(function(prev) { return prev.filter(function(s){ return !selectedIds.includes(s.id); }); });
-setDbMembers(function(prev) { return prev.filter(function(m){ return !selectedIds.includes(m.id); }); });
-setSelectedIds([]);
-},
-style:{ background:'#c82014', color:'#fff', border:'none', borderRadius:'6px', padding:'7px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-}, '삭제'),
-React.createElement('button', {
-onClick: function() { setSelectedIds([]); setBulkGrade(''); setBulkSchool(''); },
-style:{ background:'transparent', color:'rgba(255,255,255,0.6)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-}, '취소')
-),
+selectedIds.length > 0 && (function() {
+var bulkLabelS = { fontSize:'11px', fontWeight:'700', color:'rgba(255,255,255,0.6)', fontFamily:'Manrope, sans-serif', minWidth:'70px' };
+var bulkSelectS = { border:'none', borderRadius:'6px', padding:'7px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'rgba(255,255,255,0.15)', color:'#fff', outline:'none', cursor:'pointer' };
+var bulkInputS = Object.assign({}, bulkSelectS, { cursor:'text', minWidth:'140px' });
+var availableGrades = bulkLevel ? (SCHOOL_LEVELS[bulkLevel].grades) : [];
+var availableSchools = bulkLevel ? (SCHOOL_LEVELS[bulkLevel].schools) : [];
+var teacherClassList = bulkTeacherId
+  ? (teacherClasses || []).filter(function(c){ return String(c.teacher_id) === String(bulkTeacherId); })
+  : [];
+var resetBulk = function() {
+  setBulkLevel(''); setBulkGrade(''); setBulkSchool(''); setBulkSchoolCustom('');
+  setBulkSubjects([]); setBulkTeacherId(''); setBulkClassId('');
+};
+return React.createElement('div', { style:{ background:'#1A1A1A', borderRadius:'10px', padding:'14px 16px', marginBottom:'14px', display:'flex', flexDirection:'column', gap:'10px' } },
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
+    React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', color:'#fff', fontFamily:'Manrope, sans-serif' } }, selectedIds.length + '명 선택됨'),
+    React.createElement('span', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.5)', fontFamily:'Manrope, sans-serif' } }, '· 학교급/학년/학교/과목/담당 선생님 일괄 배정')
+  ),
+
+  /* 1행: 학교급 → 학년 / 학교 */
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' } },
+    React.createElement('span', { style:bulkLabelS }, '학교급'),
+    React.createElement('select', {
+      value: bulkLevel,
+      onChange: function(e) {
+        var v = e.target.value;
+        setBulkLevel(v);
+        setBulkGrade(''); setBulkSchool(''); setBulkSchoolCustom('');
+      },
+      style: bulkSelectS
+    },
+      React.createElement('option', { value:'' }, '선택 안 함'),
+      ['초등','중등','고등'].map(function(l){ return React.createElement('option', { key:l, value:l }, l); })
+    ),
+    React.createElement('span', { style: Object.assign({}, bulkLabelS, { minWidth:'40px' }) }, '학년'),
+    React.createElement('select', {
+      value: bulkGrade,
+      onChange: function(e){ setBulkGrade(e.target.value); },
+      disabled: !bulkLevel,
+      style: Object.assign({}, bulkSelectS, { opacity: bulkLevel ? 1 : 0.4 })
+    },
+      React.createElement('option', { value:'' }, bulkLevel ? '선택 안 함' : '학교급 먼저'),
+      availableGrades.map(function(g){ return React.createElement('option', { key:g, value:g }, g); })
+    ),
+    React.createElement('span', { style: Object.assign({}, bulkLabelS, { minWidth:'40px' }) }, '학교'),
+    React.createElement('select', {
+      value: bulkSchool,
+      onChange: function(e){
+        var v = e.target.value;
+        setBulkSchool(v);
+        if (v !== '__custom__') setBulkSchoolCustom('');
+      },
+      disabled: !bulkLevel,
+      style: Object.assign({}, bulkSelectS, { opacity: bulkLevel ? 1 : 0.4 })
+    },
+      React.createElement('option', { value:'' }, bulkLevel ? '선택 안 함' : '학교급 먼저'),
+      availableSchools.map(function(s){ return React.createElement('option', { key:s, value:s }, s); }),
+      React.createElement('option', { value:'__custom__' }, '+ 직접 입력')
+    ),
+    bulkSchool === '__custom__' && React.createElement('input', {
+      value: bulkSchoolCustom,
+      onChange: function(e){ setBulkSchoolCustom(e.target.value); },
+      placeholder: '학교명 입력',
+      style: bulkInputS
+    })
+  ),
+
+  /* 2행: 수강 과목 */
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+    React.createElement('span', { style:bulkLabelS }, '수강 과목'),
+    SUBJECTS.map(function(sub) {
+      var on = bulkSubjects.includes(sub);
+      return React.createElement('button', {
+        key: sub,
+        onClick: function() {
+          setBulkSubjects(function(prev){ return prev.includes(sub) ? prev.filter(function(x){ return x !== sub; }) : prev.concat(sub); });
+        },
+        style: { background: on ? '#E60012' : 'rgba(255,255,255,0.15)', color:'#fff', border:'none', borderRadius:'6px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+      }, sub);
+    })
+  ),
+
+  /* 3행: 담당 선생님 → 반 */
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' } },
+    React.createElement('span', { style:bulkLabelS }, '담당 선생님'),
+    React.createElement('select', {
+      value: bulkTeacherId,
+      onChange: function(e){ setBulkTeacherId(e.target.value); setBulkClassId(''); },
+      style: bulkSelectS
+    },
+      React.createElement('option', { value:'' }, '선택 안 함'),
+      (dbTeachers || []).filter(function(t){ return t.role === 'teacher'; }).map(function(t){
+        return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님');
+      })
+    ),
+    React.createElement('span', { style: Object.assign({}, bulkLabelS, { minWidth:'40px' }) }, '반'),
+    React.createElement('select', {
+      value: bulkClassId,
+      onChange: function(e){ setBulkClassId(e.target.value); },
+      disabled: !bulkTeacherId,
+      style: Object.assign({}, bulkSelectS, { opacity: bulkTeacherId ? 1 : 0.4 })
+    },
+      React.createElement('option', { value:'' }, bulkTeacherId ? (teacherClassList.length ? '선택 안 함' : '이 선생님의 반 없음') : '선생님 먼저'),
+      teacherClassList.map(function(c){ return React.createElement('option', { key:c.id, value:String(c.id) }, (c.name || '반') + (c.grade ? ' · ' + c.grade : '')); })
+    )
+  ),
+
+  /* 4행: 적용 / 삭제 / 취소 */
+  React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:'10px' } },
+    React.createElement('button', {
+      onClick: async function() {
+        var schoolValue = bulkSchool === '__custom__' ? bulkSchoolCustom.trim() : bulkSchool;
+        if (bulkSchool === '__custom__' && !schoolValue) { alert('학교명을 입력해 주세요.'); return; }
+        var hasUpdate = bulkGrade || schoolValue || (bulkSubjects.length > 0) || bulkClassId;
+        if (!hasUpdate) { alert('변경/배정할 항목을 하나 이상 선택해 주세요.'); return; }
+
+        var updates = {};
+        if (bulkGrade) updates.grade = bulkGrade;
+        if (schoolValue) updates.school = schoolValue;
+        if (bulkSubjects.length > 0) updates.subjects = bulkSubjects;
+
+        for (var i = 0; i < selectedIds.length; i++) {
+          if (Object.keys(updates).length > 0) {
+            await sb.from('students').update(updates).eq('id', selectedIds[i]);
+          }
+          if (bulkClassId) {
+            var current = classStudents[bulkClassId] || [];
+            if (current.indexOf(selectedIds[i]) === -1) {
+              await sb.from('class_students').insert({ class_id: bulkClassId, student_id: selectedIds[i] });
+            }
+          }
+        }
+
+        setDbStudents(function(prev) {
+          return prev.map(function(s) {
+            if (!selectedIds.includes(s.id)) return s;
+            var n = Object.assign({}, s);
+            if (updates.grade != null) n.grade = updates.grade;
+            if (updates.school != null) n.school = updates.school;
+            if (updates.subjects != null) n.subjects = updates.subjects;
+            return n;
+          });
+        });
+        if (bulkClassId) {
+          var savedClassId = bulkClassId;
+          var newMembers = selectedIds.slice();
+          setClassStudents(function(prev) {
+            var existing = (prev[savedClassId] || []).slice();
+            newMembers.forEach(function(sid) { if (existing.indexOf(sid) === -1) existing.push(sid); });
+            var next = Object.assign({}, prev);
+            next[savedClassId] = existing;
+            return next;
+          });
+        }
+
+        resetBulk();
+        setSelectedIds([]);
+        alert('일괄 적용 완료!');
+      },
+      style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'6px', padding:'8px 18px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+    }, '일괄 적용'),
+    React.createElement('button', {
+      onClick: async function() {
+        if (!confirm('선택한 ' + selectedIds.length + '명을 삭제할까요?')) return;
+        for (var i = 0; i < selectedIds.length; i++) {
+          await sb.from('students').delete().eq('id', selectedIds[i]);
+        }
+        setDbStudents(function(prev) { return prev.filter(function(s){ return !selectedIds.includes(s.id); }); });
+        setDbMembers(function(prev) { return prev.filter(function(m){ return !selectedIds.includes(m.id); }); });
+        resetBulk();
+        setSelectedIds([]);
+      },
+      style:{ background:'#c82014', color:'#fff', border:'none', borderRadius:'6px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+    }, '삭제'),
+    React.createElement('button', {
+      onClick: function() { resetBulk(); setSelectedIds([]); },
+      style:{ background:'transparent', color:'rgba(255,255,255,0.6)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'6px', padding:'7px 12px', fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif', marginLeft:'auto' }
+    }, '취소')
+  )
+);
+})(),
 
 (function() {
 var filtered = dbStudents.filter(function(st) {
