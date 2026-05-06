@@ -53,7 +53,10 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
       if (user.withdrawn_at || user.is_active === false) { setMsg('탈퇴 처리된 계정입니다.'); setLoading(false); return; }
       if (user.role === 'pending_teacher') { setMsg('관리자 승인 대기 중입니다.'); setLoading(false); return; }
       if (user.role === 'pending_student' || user.role === 'pending_parent') { setMsg('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); setLoading(false); return; }
-      if (user.password_hash !== password) { setMsg('비밀번호가 틀렸습니다.'); setLoading(false); return; }
+      var pwOk = await window.B2Utils.verifyPassword(password, user.password_hash);
+      if (!pwOk) { setMsg('비밀번호가 틀렸습니다.'); setLoading(false); return; }
+      // 평문이면 이번 기회에 해시로 자동 변환 (사용자 영향 없음)
+      await window.B2Utils.migrateIfPlain(user.password_hash, password, user.id);
       const { data: enrollments } = await sb.from('enrollments').select('course_id').eq('student_id', user.id).eq('is_active', true);
       const { data: classRows } = await sb.from('class_students').select('class_id').eq('student_id', user.id);
       onLogin({
@@ -1693,8 +1696,10 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     if (pwDraft.next !== pwDraft.confirm) { alert('새 비밀번호 확인이 일치하지 않습니다.'); return; }
     var sb = window.supabase;
     var { data: row } = await sb.from('students').select('password_hash').eq('id', user.id).single();
-    if (!row || row.password_hash !== pwDraft.current) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
-    var { error } = await sb.from('students').update({ password_hash: pwDraft.next }).eq('id', user.id);
+    var curOk = row && await window.B2Utils.verifyPassword(pwDraft.current, row.password_hash);
+    if (!curOk) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
+    var newHash = await window.B2Utils.hashPassword(pwDraft.next);
+    var { error } = await sb.from('students').update({ password_hash: newHash }).eq('id', user.id);
     if (error) { alert('변경 실패: ' + error.message); return; }
     alert('비밀번호가 변경되었습니다.');
     setPwDraft({ current:'', next:'', confirm:'' });

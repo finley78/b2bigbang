@@ -1357,8 +1357,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!pwDraft.current || !pwDraft.next) { alert('현재/새 비밀번호를 모두 입력해 주세요.'); return; }
     if (pwDraft.next !== pwDraft.confirm) { alert('새 비밀번호 확인이 일치하지 않습니다.'); return; }
     var { data: row } = await sb.from('students').select('password_hash').eq('id', profileDraft._row_id).single();
-    if (!row || row.password_hash !== pwDraft.current) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
-    var { error } = await sb.from('students').update({ password_hash: pwDraft.next }).eq('id', profileDraft._row_id);
+    var curOk = row && await window.B2Utils.verifyPassword(pwDraft.current, row.password_hash);
+    if (!curOk) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
+    var newHash = await window.B2Utils.hashPassword(pwDraft.next);
+    var { error } = await sb.from('students').update({ password_hash: newHash }).eq('id', profileDraft._row_id);
     if (error) { alert('변경 실패: ' + error.message); return; }
     alert('비밀번호가 변경되었습니다.');
     setPwDraft({ current:'', next:'', confirm:'' });
