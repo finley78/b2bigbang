@@ -432,6 +432,148 @@ function ensureYouTubeIframeApi() {
   return window._ytApiPromise;
 }
 
+/* ── 학생 녹음 답안 (숙제용) ───────────────────────────────
+   어린 학생도 쓸 수 있게 큰 버튼 + 한 번에 한 상태만 노출.
+   외부 의존성: window.B2Utils.{isAudioRecordingSupported,uploadAudioBlob,audioPublicUrl,deleteAudio}
+   미래에 시놀로지로 옮기더라도 B2Utils 내부만 바꾸면 됨.
+*/
+function StudentAudioRecorder({ examId, studentId, existingPath, isLocked, onPathChange }) {
+  var [path, setPath] = React.useState(existingPath || null);
+  var [recording, setRecording] = React.useState(false);
+  var [elapsedSec, setElapsedSec] = React.useState(0);
+  var [uploading, setUploading] = React.useState(false);
+  var [error, setError] = React.useState('');
+  var [previewBlob, setPreviewBlob] = React.useState(null);
+  var [previewUrl, setPreviewUrl] = React.useState('');
+  var mediaRecorderRef = React.useRef(null);
+  var streamRef = React.useRef(null);
+  var timerRef = React.useRef(null);
+  var chunksRef = React.useRef([]);
+  var MAX_SEC = 300;
+
+  React.useEffect(function(){ setPath(existingPath || null); }, [existingPath]);
+  React.useEffect(function(){
+    if (!previewBlob) { setPreviewUrl(''); return; }
+    var u = URL.createObjectURL(previewBlob);
+    setPreviewUrl(u);
+    return function(){ URL.revokeObjectURL(u); };
+  }, [previewBlob]);
+  React.useEffect(function(){
+    return function(){
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach(function(t){ t.stop(); });
+    };
+  }, []);
+
+  function fmtSec(s) { var m = Math.floor(s/60), r = s%60; return String(m).padStart(2,'0') + ':' + String(r).padStart(2,'0'); }
+
+  async function startRecord() {
+    setError('');
+    if (!window.B2Utils || !window.B2Utils.isAudioRecordingSupported()) { setError('이 브라우저는 녹음 기능을 지원하지 않아요. 다른 브라우저(크롬·사파리 최신 버전)에서 다시 시도해 주세요.'); return; }
+    try {
+      var stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      streamRef.current = stream;
+      var mr;
+      try { mr = new MediaRecorder(stream); }
+      catch (e) { setError('녹음을 시작할 수 없어요. 마이크가 연결되었는지 확인해 주세요.'); stream.getTracks().forEach(function(t){ t.stop(); }); return; }
+      chunksRef.current = [];
+      mr.ondataavailable = function(e){ if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = function(){
+        var blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
+        setPreviewBlob(blob);
+        setRecording(false);
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        if (streamRef.current) { streamRef.current.getTracks().forEach(function(t){ t.stop(); }); streamRef.current = null; }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+      setElapsedSec(0);
+      var startTs = Date.now();
+      timerRef.current = setInterval(function(){
+        var sec = Math.floor((Date.now() - startTs) / 1000);
+        setElapsedSec(sec);
+        if (sec >= MAX_SEC) { try { mr.stop(); } catch(e) {} }
+      }, 200);
+    } catch (e) {
+      setError('마이크 사용 권한이 필요해요. 브라우저 주소창의 자물쇠 아이콘을 눌러 마이크를 허용해 주세요.');
+    }
+  }
+
+  function stopRecord() {
+    var mr = mediaRecorderRef.current;
+    if (mr && mr.state !== 'inactive') { try { mr.stop(); } catch(e) {} }
+  }
+
+  async function submit() {
+    if (!previewBlob) return;
+    setUploading(true); setError('');
+    try {
+      if (path) { try { await window.B2Utils.deleteAudio(path); } catch(e) {} }
+      var res = await window.B2Utils.uploadAudioBlob(previewBlob, examId, studentId);
+      if (res.error) throw res.error;
+      setPath(res.path);
+      setPreviewBlob(null);
+      if (onPathChange) onPathChange(res.path);
+    } catch (e) {
+      setError('업로드 실패: ' + (e.message || e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function deleteAndRedo() {
+    if (!confirm('이전 녹음을 지우고 새로 녹음할까요?')) return;
+    if (path) { try { await window.B2Utils.deleteAudio(path); } catch(e) {} }
+    setPath(null); setPreviewBlob(null); setElapsedSec(0); setError('');
+    if (onPathChange) onPathChange(null);
+  }
+  function discardPreview() { setPreviewBlob(null); setElapsedSec(0); }
+
+  var remainingSec = MAX_SEC - elapsedSec;
+  var timeColor = remainingSec <= 10 ? '#dc2626' : (remainingSec <= 30 ? '#f59e0b' : '#1A1A1A');
+
+  return React.createElement('div', { style:{ background:'#fffbeb', border:'2px solid #f59e0b', borderRadius:'12px', padding:'18px', marginTop:'16px' } },
+    React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#92400e', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, '🎤 녹음 답안 (최대 5분)'),
+
+    error && React.createElement('div', { style:{ background:'#fee2e2', color:'#991b1b', padding:'10px 12px', borderRadius:'8px', fontSize:'13px', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, error),
+
+    !isLocked && !recording && !previewBlob && !path && React.createElement('button', {
+      onClick: startRecord,
+      style:{ width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'12px', padding:'18px', fontSize:'17px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minHeight:'56px' }
+    }, '⚫  녹음 시작'),
+
+    !isLocked && recording && React.createElement('div', { style:{ textAlign:'center' } },
+      React.createElement('div', { style:{ fontSize:'42px', fontWeight:'800', color: timeColor, fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, fmtSec(elapsedSec) + ' / 05:00'),
+      React.createElement('div', { style:{ fontSize:'13px', color:'#dc2626', marginBottom:'14px', fontFamily:'Manrope, sans-serif', fontWeight:'700' } }, '🔴 녹음 중...'),
+      React.createElement('button', {
+        onClick: stopRecord,
+        style:{ width:'100%', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'12px', padding:'16px', fontSize:'16px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minHeight:'56px' }
+      }, '⏹  정지')
+    ),
+
+    !isLocked && previewBlob && React.createElement('div', null,
+      React.createElement('div', { style:{ fontSize:'13px', color:'#92400e', marginBottom:'10px', fontFamily:'Manrope, sans-serif', fontWeight:'700' } }, '들어보고 제출하거나, 다시 녹음할 수 있어요.'),
+      previewUrl && React.createElement('audio', { controls:true, src: previewUrl, style:{ width:'100%', marginBottom:'12px' } }),
+      React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+        React.createElement('button', { onClick:discardPreview, disabled:uploading, style:{ flex:1, background:'#fff', color:'#92400e', border:'2px solid #f59e0b', borderRadius:'10px', padding:'14px', fontSize:'14px', fontWeight:'800', cursor: uploading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', minHeight:'52px' } }, '↺ 다시 녹음'),
+        React.createElement('button', { onClick:submit, disabled:uploading, style:{ flex:1, background: uploading ? '#9ca3af' : '#16a34a', color:'#fff', border:'none', borderRadius:'10px', padding:'14px', fontSize:'14px', fontWeight:'800', cursor: uploading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', minHeight:'52px' } }, uploading ? '업로드 중...' : '✓ 이 녹음 제출')
+      )
+    ),
+
+    isLocked && path && React.createElement('div', null,
+      React.createElement('div', { style:{ fontSize:'13px', color:'#6b7280', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '제출된 녹음입니다.'),
+      React.createElement('audio', { controls:true, src: window.B2Utils.audioPublicUrl(path), style:{ width:'100%' } })
+    ),
+
+    !isLocked && path && !previewBlob && React.createElement('div', null,
+      React.createElement('div', { style:{ fontSize:'13px', color:'#16a34a', fontWeight:'800', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '✓ 녹음 제출 완료'),
+      React.createElement('audio', { controls:true, src: window.B2Utils.audioPublicUrl(path), style:{ width:'100%', marginBottom:'12px' } }),
+      React.createElement('button', { onClick:deleteAndRedo, style:{ width:'100%', background:'#fff', color:'#dc2626', border:'2px solid #dc2626', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minHeight:'52px' } }, '🗑 녹음 삭제하고 다시')
+    )
+  );
+}
+
 /* ── Video Player ─────────────────────────────── */
 function VideoPlayer({ lecture, course, onBack, studentName, userId }) {
   var videoRef = React.useRef(null);
@@ -1015,6 +1157,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   var [examAnswers, setExamAnswers] = React.useState({}); // { qNum: answer }
   var [examTextAnswer, setExamTextAnswer] = React.useState(''); // legacy 단일 서술형
   var [examTextAnswers, setExamTextAnswers] = React.useState({}); // { qNum: text } 다중 서술형
+  var [examAudioPath, setExamAudioPath] = React.useState(null); // 숙제 녹음 답안 path
   var [examSubmitting, setExamSubmitting] = React.useState(false);
   var [examImgIdx, setExamImgIdx] = React.useState(0);
   var [examTimeLeft, setExamTimeLeft] = React.useState(null); // 남은 초
@@ -1108,6 +1251,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
               if ((!ta || Object.keys(ta).length === 0) && existing && existing.text_answer) ta = { '1': existing.text_answer };
               setExamTextAnswers(ta);
               setExamTextAnswer(existing && existing.text_answer ? existing.text_answer : '');
+              setExamAudioPath(existing && existing.audio_path ? existing.audio_path : null);
               setExamImgIdx(0);
               autoSubmitDoneRef.current = false;
               setPortalView('exam');
@@ -1219,6 +1363,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     }
     setExamTextAnswers(ta);
     setExamTextAnswer(existing && existing.text_answer ? existing.text_answer : '');
+    setExamAudioPath(existing && existing.audio_path ? existing.audio_path : null);
     setExamImgIdx(0);
     autoSubmitDoneRef.current = false;
     setPortalView('exam');
@@ -1229,6 +1374,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     setExamAnswers({});
     setExamTextAnswer('');
     setExamTextAnswers({});
+    setExamAudioPath(null);
     setExamTimeLeft(null);
     autoSubmitDoneRef.current = false;
     setPortalView('main');
@@ -1356,6 +1502,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           answers: examAnswers || {},
           text_answers: examTextAnswers || {},
           text_answer: firstText,
+          audio_path: examAudioPath,
           objective_score: objScore,
           objective_total: objTotal,
           updated_at: nowIso,
@@ -1370,6 +1517,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           answers: examAnswers || {},
           text_answers: examTextAnswers || {},
           text_answer: firstText,
+          audio_path: examAudioPath,
           objective_score: objScore,
           objective_total: objTotal,
           submitted_at: nowIso,
@@ -1775,6 +1923,15 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
               )
             );
           })(),
+
+          /* 녹음 답안 (allow_audio_answer 일 때만) */
+          activeExam.allow_audio_answer && React.createElement(StudentAudioRecorder, {
+            examId: activeExam.id,
+            studentId: user && user.id,
+            existingPath: examAudioPath,
+            isLocked: isLocked,
+            onPathChange: function(p){ setExamAudioPath(p); }
+          }),
 
           /* 서술형 (다중) */
           (function(){

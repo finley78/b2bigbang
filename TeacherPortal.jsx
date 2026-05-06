@@ -1023,7 +1023,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return data?.publicUrl || '';
   }
   function openExamForm() {
-    setExamDraft({ kind:'class', title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
+    setExamDraft({ kind:'class', title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
     setExamFormOpen(true);
   }
   function closeExamForm() {
@@ -1075,6 +1075,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         answer_key: d.answer_key || {},
         objective_total: qc,
         status: 'open',
+        allow_audio_answer: !!d.allow_audio_answer && kindVal === 'homework',
       };
       var { error } = await sb.from('exams').insert(insertRow);
       if (error) throw error;
@@ -1706,6 +1707,19 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     <input type="number" min="0" value={examDraft.time_limit_minutes} onChange={e => setExamDraft({ ...examDraft, time_limit_minutes: e.target.value })} placeholder="예: 50" style={inputStyle} />
                   </div>
                 </div>
+
+                {/* 녹음 제출 받기 (숙제일 때만) */}
+                {examDraft.kind === 'homework' && (
+                  <div style={{ background:'#fef3c7', borderRadius:'8px', padding:'12px 14px', marginBottom:'14px' }}>
+                    <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                      <input type="checkbox" checked={!!examDraft.allow_audio_answer} onChange={e => setExamDraft({ ...examDraft, allow_audio_answer: e.target.checked })} style={{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' }} />
+                      <div>
+                        <div style={{ fontSize:'13px', fontWeight:'800', color:'#92400e' }}>🎤 녹음 제출 받기</div>
+                        <div style={{ fontSize:'11px', color:'#92400e', marginTop:'2px' }}>학생이 마이크로 녹음하여 제출 (최대 5분). 채점 화면에서 들을 수 있습니다.</div>
+                      </div>
+                    </label>
+                  </div>
+                )}
 
                 {/* 객관식 정답 입력 (직접 기입) */}
                 {(parseInt(examDraft.question_count, 10) || 0) > 0 && (

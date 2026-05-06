@@ -439,7 +439,7 @@ async function loadAdminLevelTests() {
   }
 }
 function adminOpenLtForm() {
-  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
+  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
   setAdminLtFormOpen(true);
 }
 function adminOpenLtEditForm(t) {
@@ -461,6 +461,7 @@ function adminOpenLtEditForm(t) {
     text_question_count: t.text_question_count != null ? String(t.text_question_count) : '0',
     time_limit_minutes: t.time_limit_minutes != null ? String(t.time_limit_minutes) : '0',
     answer_key: (t.answer_key && typeof t.answer_key === 'object') ? Object.assign({}, t.answer_key) : {},
+    allow_audio_answer: !!t.allow_audio_answer,
   });
   setAdminLtFormOpen(true);
 }
@@ -521,6 +522,7 @@ async function adminSubmitLevelTest() {
       text_question_count: tqc,
       allow_text_answer: tqc > 0,
       time_limit_minutes: tlm,
+      allow_audio_answer: !!d.allow_audio_answer && kindVal === 'homework',
     };
     var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : (kindVal === 'homework' ? '숙제' : '레벨테스트'));
     if (isEdit) {
@@ -3692,6 +3694,17 @@ tab==='leveltest' && (function(){
           React.createElement('input', { type:'number', min:'0', value:adminLtDraft.time_limit_minutes, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { time_limit_minutes:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
         )
       ),
+      /* 녹음 제출 받기 (숙제일 때만) */
+      adminLtDraft.kind === 'homework' && React.createElement('div', { style:{ background:'#fef3c7', borderRadius:'8px', padding:'12px 14px', marginBottom:'14px' } },
+        React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
+          React.createElement('input', { type:'checkbox', checked: !!adminLtDraft.allow_audio_answer, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { allow_audio_answer:e.target.checked })); }, style:{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' } }),
+          React.createElement('div', null,
+            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#92400e' } }, '🎤 녹음 제출 받기'),
+            React.createElement('div', { style:{ fontSize:'11px', color:'#92400e', marginTop:'2px' } }, '학생이 마이크로 녹음하여 제출 (최대 5분). 선생님이 채점 화면에서 들을 수 있습니다.')
+          )
+        )
+      ),
+
       /* 객관식 정답 입력 (직접 기입) */
       (function(){
         var qc = parseInt(adminLtDraft.question_count, 10) || 0;
@@ -4184,8 +4197,16 @@ function GradingForm({ exam, submission, onSave }) {
     setSaving(false);
   }
 
+  var audioUrl = submission.audio_path && window.B2Utils ? window.B2Utils.audioPublicUrl(submission.audio_path) : '';
+
   return React.createElement('div', { style:{ marginTop:'10px', padding:'10px', background:'#fff', border:'1px dashed #d1d5db', borderRadius:'6px' } },
     React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#1d4ed8', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '채점' + (objAuto != null ? ' (자동 객관식 ' + objAuto + '/' + qc + ')' : '')),
+
+    audioUrl && React.createElement('div', { style:{ marginBottom:'10px', padding:'8px 10px', background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:'6px' } },
+      React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#92400e', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '🎤 학생 녹음 답안'),
+      React.createElement('audio', { controls:true, src: audioUrl, style:{ width:'100%' } })
+    ),
+
     tqc > 0 && React.createElement('div', { style:{ marginBottom:'8px' } },
       React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '서술형 점수'),
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(110px, 1fr))', gap:'4px' } },

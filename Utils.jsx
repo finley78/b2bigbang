@@ -76,5 +76,40 @@
     return lines.join('\n');
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao };
+  // ── 음성 답안 (학생 녹음 제출) ─────────────────────────────────
+  // 모든 음성 업로드/재생 URL은 이 helper를 통과시킨다.
+  // 나중에 시놀로지로 옮길 때 이 두 함수의 내부만 바꾸면 호출하는 코드는 한 줄도 안 바뀜.
+  async function uploadAudioBlob(blob, examId, studentId) {
+    var sb = window.supabase;
+    if (!sb) return { path:null, error:new Error('supabase 미초기화') };
+    if (!blob || !examId || !studentId) return { path:null, error:new Error('인자 누락') };
+    var ext = (blob.type && blob.type.indexOf('mp4') >= 0) ? 'm4a' : 'webm';
+    var path = 'exams/homework_audio/' + examId + '/' + studentId + '_' + Date.now() + '.' + ext;
+    var up = await sb.storage.from('attachments').upload(path, blob, { cacheControl:'3600', upsert:false, contentType: blob.type || 'audio/webm' });
+    if (up.error) return { path:null, error: up.error };
+    return { path: path, error: null };
+  }
+  function audioPublicUrl(path) {
+    if (!path) return '';
+    var sb = window.supabase;
+    if (!sb) return '';
+    try {
+      var res = sb.storage.from('attachments').getPublicUrl(path);
+      return (res && res.data && res.data.publicUrl) || '';
+    } catch (e) { return ''; }
+  }
+  async function deleteAudio(path) {
+    if (!path) return { error:null };
+    var sb = window.supabase;
+    if (!sb) return { error:new Error('supabase 미초기화') };
+    try { return await sb.storage.from('attachments').remove([path]); }
+    catch (e) { return { error: e }; }
+  }
+
+  // 녹음 헬퍼 — MediaRecorder 지원 여부 확인
+  function isAudioRecordingSupported() {
+    return !!(navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof MediaRecorder !== 'undefined');
+  }
+
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported };
 })();
