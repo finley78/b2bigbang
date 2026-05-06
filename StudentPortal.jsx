@@ -1822,8 +1822,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     if (portalIsMobile) {
       var classroomItems = [
         { id:'video',    color:'#E60012', title:'영상 강의', sub:'수강 과목 ' + studentSubjects.length + '개', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
-        { id:'test',     color:'#1d4ed8', title:'테스트',  sub:'응시 가능 ' + testExamsAll.length + '건' + (pendingExams.length > 0 ? ' · 미응시 ' + pendingExams.length : ''), onClick:function(){ setStudentMode('test'); } },
-        { id:'homework', color:'#f59e0b', title:'숙제',    sub:'제출 가능 ' + homeworkExamsAll.length + '건' + (pendingHomework.length > 0 ? ' · 미제출 ' + pendingHomework.length : ''), onClick:function(){ setStudentMode('homework'); } },
+        { id:'test',     color:'#E60012', title:'테스트',  sub:'응시 가능 ' + testExamsAll.length + '건' + (pendingExams.length > 0 ? ' · 미응시 ' + pendingExams.length : ''), onClick:function(){ setStudentMode('test'); } },
+        { id:'homework', color:'#E60012', title:'숙제',    sub:'제출 가능 ' + homeworkExamsAll.length + '건' + (pendingHomework.length > 0 ? ' · 미제출 ' + pendingHomework.length : ''), onClick:function(){ setStudentMode('homework'); } },
       ];
       return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
         renderHeader(false),
@@ -1853,8 +1853,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     // PC - 영상 강의 진입 시와 동일한 카드 스타일 (좌측 색띠 + 큰 제목 + 우측 화살표)
     var classroomItemsPC = [
       { id:'video',    color:'#E60012', title:'영상 강의', sub:'수강 과목 ' + studentSubjects.length + '개', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
-      { id:'test',     color:'#1d4ed8', title:'테스트',  sub:'응시 가능 ' + testExamsAll.length + '건' + (pendingExams.length > 0 ? ' · 미응시 ' + pendingExams.length : ''), onClick:function(){ setStudentMode('test'); } },
-      { id:'homework', color:'#f59e0b', title:'숙제',    sub:'제출 가능 ' + homeworkExamsAll.length + '건' + (pendingHomework.length > 0 ? ' · 미제출 ' + pendingHomework.length : ''), onClick:function(){ setStudentMode('homework'); } },
+      { id:'test',     color:'#E60012', title:'테스트',  sub:'응시 가능 ' + testExamsAll.length + '건' + (pendingExams.length > 0 ? ' · 미응시 ' + pendingExams.length : ''), onClick:function(){ setStudentMode('test'); } },
+      { id:'homework', color:'#E60012', title:'숙제',    sub:'제출 가능 ' + homeworkExamsAll.length + '건' + (pendingHomework.length > 0 ? ' · 미제출 ' + pendingHomework.length : ''), onClick:function(){ setStudentMode('homework'); } },
     ];
     return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
       renderHeader(false),
@@ -2022,16 +2022,16 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
       renderHeader(false),
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px', display:'flex', flexDirection:'column', gap:'16px' } },
-        React.createElement('button', { onClick:function(){ setStudentMode('home'); }, style:{ background:'none', border:'none', color:'#f59e0b', cursor:'pointer', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', alignSelf:'flex-start' } }, '← 강의실로'),
+        React.createElement('button', { onClick:function(){ setStudentMode('home'); }, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', alignSelf:'flex-start' } }, '← 강의실로'),
         homeworkExamsAll.length === 0
           ? React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'40px', textAlign:'center', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' } },
               React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 8px', fontFamily:'Manrope, sans-serif' } }, '제출할 숙제가 없습니다'),
               React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '선생님이 숙제를 발행하면 이 곳에 표시됩니다.')
             )
-          : React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', border:'2px solid #f59e0b' } },
+          : React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', border:'2px solid #1A1A1A' } },
               React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', flexWrap:'wrap', gap:'8px' } },
                 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:0, fontFamily:'Manrope, sans-serif' } }, '내 숙제'),
-                React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#fff', background: pendingHomework.length > 0 ? '#f59e0b' : '#16a34a', borderRadius:'999px', padding:'4px 12px', fontFamily:'Manrope, sans-serif' } }, pendingHomework.length > 0 ? ('미제출 ' + pendingHomework.length + '건') : '모두 제출 완료')
+                React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#fff', background: pendingHomework.length > 0 ? '#E60012' : '#16a34a', borderRadius:'999px', padding:'4px 12px', fontFamily:'Manrope, sans-serif' } }, pendingHomework.length > 0 ? ('미제출 ' + pendingHomework.length + '건') : '모두 제출 완료')
               ),
               React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'12px' } },
                 homeworkExamsAll.map(function(ex){
@@ -2039,11 +2039,11 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
                   var imgsCount = Array.isArray(ex.image_paths) ? ex.image_paths.length : 0;
                   var isLockedSub = !!(sub && sub.locked);
                   var statusLabel = isLockedSub ? '마감' : (sub ? '제출 완료' : '미제출');
-                  var statusColor = isLockedSub ? '#6b7280' : (sub ? '#16a34a' : '#f59e0b');
+                  var statusColor = isLockedSub ? '#6b7280' : (sub ? '#16a34a' : '#E60012');
                   return React.createElement('button', { key:ex.id, onClick:function(){ if (sub) viewExamResult(ex); else openExam(ex); }, style:{ textAlign:'left', cursor:'pointer', background:'#fff', border: '2px solid ' + statusColor, borderRadius:'12px', padding:'16px', fontFamily:'Manrope, sans-serif' } },
                     React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px', flexWrap:'wrap' } },
                       React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background: statusColor, color:'#fff', borderRadius:'4px', padding:'2px 7px' } }, statusLabel),
-                      ex.subject && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#b45309', borderRadius:'4px', padding:'2px 7px' } }, ex.subject)
+                      ex.subject && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 7px' } }, ex.subject)
                     ),
                     React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'#111827', marginBottom:'4px' } }, ex.title),
                     ex.test_date && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280' } }, '마감 ' + ex.test_date),
