@@ -1060,18 +1060,21 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     (async function(){
       var sb = window.supabase;
       try {
-        // 클래스 시험
+        // 반 단위 시험 (반 시험 + 선생님 발행 주간/월말)
         var classExams = [];
         if (user.classIds && user.classIds.length > 0) {
-          var { data: ce } = await sb.from('exams').select('*').eq('kind','class').in('class_id', user.classIds).eq('status', 'open').order('created_at', { ascending: false });
+          var { data: ce } = await sb.from('exams').select('*').in('kind', ['class','weekly','monthly']).in('class_id', user.classIds).eq('status', 'open').order('created_at', { ascending: false });
           classExams = ce || [];
         }
-        setAvailableExams(classExams);
+        // 학원 전체 발행 (관리자가 class_id 없이 발행한 주간/월말도 모두에게 응시 가능)
+        var { data: globalExams } = await sb.from('exams').select('*').in('kind', ['weekly','monthly']).is('class_id', null).eq('status', 'open').order('created_at', { ascending: false });
+        var combinedClassExams = classExams.concat(globalExams || []);
+        setAvailableExams(combinedClassExams);
         // 레벨테스트 (자동 응시 진입용으로만 fetch)
         var { data: lt } = await sb.from('exams').select('*').eq('kind','level').eq('status', 'open').order('created_at', { ascending: false });
         setLevelTests(lt || []);
         // 본인 신청·답안
-        var allIds = classExams.map(function(e){ return e.id; }).concat((lt || []).map(function(e){ return e.id; }));
+        var allIds = combinedClassExams.map(function(e){ return e.id; }).concat((lt || []).map(function(e){ return e.id; }));
         if (allIds.length > 0) {
           var { data: subs } = await sb.from('exam_submissions').select('*').eq('student_id', user.id).in('exam_id', allIds);
           var map = {};

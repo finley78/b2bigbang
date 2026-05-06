@@ -999,7 +999,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!classId) { setExamList([]); setExamSubmissionsByExam({}); return; }
     setExamLoading(true);
     try {
-      var { data: exams } = await sb.from('exams').select('*').eq('kind','class').eq('class_id', classId).order('created_at', { ascending: false });
+      var { data: exams } = await sb.from('exams').select('*').in('kind', ['class','weekly','monthly']).eq('class_id', classId).order('created_at', { ascending: false });
       setExamList(exams || []);
       if (exams && exams.length > 0) {
         var ids = exams.map(function(e){ return e.id; });
@@ -1023,7 +1023,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return data?.publicUrl || '';
   }
   function openExamForm() {
-    setExamDraft({ title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
+    setExamDraft({ kind:'class', title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
     setExamFormOpen(true);
   }
   function closeExamForm() {
@@ -1056,8 +1056,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         if (up.error) throw up.error;
         paths.push(path);
       }
+      var kindVal = (d.kind === 'weekly' || d.kind === 'monthly') ? d.kind : 'class';
       var insertRow = {
-        kind: 'class',
+        kind: kindVal,
         class_id: selectedClass.id,
         teacher_id: teacherInfo.id,
         teacher_name: teacherInfo.name || user?.name || '선생님',
@@ -1077,7 +1078,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       };
       var { error } = await sb.from('exams').insert(insertRow);
       if (error) throw error;
-      alert('시험지가 발행되었습니다.');
+      var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : '시험지');
+      alert(kindLabel + '이(가) 발행되었습니다.');
       closeExamForm();
       await loadClassExams(selectedClass.id);
     } catch (e) {
@@ -1647,6 +1649,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>새 시험 발행 — {selectedClass?.name}</h3>
                   <button onClick={closeExamForm} style={{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' }}>×</button>
                 </div>
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험 종류 *</label>
+                <select value={examDraft.kind || 'class'} onChange={e => setExamDraft({ ...examDraft, kind: e.target.value })} style={{ ...inputStyle, marginBottom:'14px', cursor:'pointer' }}>
+                  <option value="class">반 시험 (일반)</option>
+                  <option value="weekly">주간 테스트</option>
+                  <option value="monthly">월말 테스트</option>
+                </select>
 
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>제목 *</label>
                 <input value={examDraft.title} onChange={e => setExamDraft({ ...examDraft, title: e.target.value })} placeholder="예: 1학기 중간고사 영어" style={{ ...inputStyle, marginBottom:'14px' }} />
