@@ -1842,45 +1842,32 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       );
     }
 
-    // PC - 콤팩트 그룹별 카드
-    var classroomGroups = [
-      { id:'learn', label:'학습', color:'#1A1A1A', items:[
-        { id:'video', title:'영상 강의', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
-      ]},
-      { id:'test',  label:'평가', color:'#E60012', items:[
-        { id:'test',  title:'테스트', badge: pendingExams.length > 0 ? ('미응시 ' + pendingExams.length) : null, onClick:function(){ setStudentMode('test'); } },
-      ]},
+    // PC - 영상 강의 진입 시와 동일한 카드 스타일 (좌측 색띠 + 큰 제목 + 우측 화살표)
+    var classroomItemsPC = [
+      { id:'video', color:'#E60012', title:'영상 강의', sub:'수강 과목 ' + studentSubjects.length + '개', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
+      { id:'test',  color:'#E60012', title:'테스트',  sub:'응시 가능 ' + availableExams.length + '건' + (pendingExams.length > 0 ? ' · 미응시 ' + pendingExams.length : ''), onClick:function(){ setStudentMode('test'); } },
     ];
     return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
       renderHeader(false),
-      React.createElement('div', { style:{ maxWidth:'1100px', margin:'0 auto', padding:'24px 16px' } },
-        classroomGroups.map(function(g){
-          return React.createElement('div', { key:g.id, style:{ marginBottom:'28px' } },
-            React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px' } },
-              React.createElement('div', { style:{ width:'4px', height:'18px', background:g.color, borderRadius:'2px' } }),
-              React.createElement('h2', { style:{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' } }, g.label),
-              React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, g.items.length + '개')
-            ),
-            React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'8px' } },
-              g.items.map(function(it){
-                return React.createElement('button', { key:it.id, onClick:it.onClick,
-                  onMouseEnter:function(e){ e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; },
-                  onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; },
-                  style:{
-                    background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
-                    padding:'8px 14px', cursor:'pointer',
-                    fontFamily:'Manrope, sans-serif',
-                    fontSize:'13px', fontWeight:'700', color:'#111827',
-                    letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s',
-                    display:'inline-flex', alignItems:'center', gap:'8px'
-                  } },
-                  it.title,
-                  it.badge && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:g.color, color:'#fff', borderRadius:'999px', padding:'2px 8px' } }, it.badge)
-                );
-              })
-            )
-          );
-        })
+      React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'32px 16px' } },
+        React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.08em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'16px' } }, '강의실'),
+        React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+          classroomItemsPC.map(function(it){
+            return React.createElement('div', {
+              key:it.id, onClick:it.onClick,
+              style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'center', transition:'transform 0.15s ease' },
+              onMouseEnter:function(e){ e.currentTarget.style.transform='translateX(3px)'; },
+              onMouseLeave:function(e){ e.currentTarget.style.transform='translateX(0)'; }
+            },
+              React.createElement('div', { style:{ width:'6px', alignSelf:'stretch', background:it.color, flexShrink:0 } }),
+              React.createElement('div', { style:{ flex:1, padding:'18px 16px', display:'flex', alignItems:'baseline', gap:'10px', flexWrap:'wrap' } },
+                React.createElement('span', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, it.title),
+                React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, it.sub)
+              ),
+              React.createElement('div', { style:{ padding:'0 20px', fontSize:'22px', color:'rgba(0,0,0,0.2)' } }, '›')
+            );
+          })
+        )
       )
     );
   }
