@@ -96,6 +96,8 @@ const [bulkSubjects, setBulkSubjects] = React.useState([]);
 const [bulkTeacherId, setBulkTeacherId] = React.useState('');
 const [bulkClassId, setBulkClassId] = React.useState('');
 const [dbStudents, setDbStudents] = React.useState([]);
+const [dbWithdrawnStudents, setDbWithdrawnStudents] = React.useState([]);
+const [studentViewMode, setStudentViewMode] = React.useState('active'); // 'active' | 'withdrawn'
 const [dbMembers, setDbMembers] = React.useState([]);
 const [dbTeachers, setDbTeachers] = React.useState([]);
 const [dbTeacherProfiles, setDbTeacherProfiles] = React.useState([]);
@@ -205,6 +207,20 @@ created_at: st.created_at || '', withdrawn_at: st.withdrawn_at || '',
 role: 'student',
 }));
 setDbStudents(mapped);
+}
+
+const { data: withdrawnStudents } = await sb.from('students').select('*, enrollments(course_id)').eq('is_active', false).eq('role', 'student');
+if (withdrawnStudents) {
+const mappedW = withdrawnStudents.map(st => ({
+id: st.id, name: st.name, email: st.email, provider: st.login_provider,
+grade: st.grade || '', school: st.school || '', subjects: st.subjects || [],
+enrolledCourses: (st.enrollments || []).map(e => e.course_id),
+phone: st.phone || '', parent_phone: st.parent_phone || '', parent_id: st.parent_id || null,
+address: st.address || '',
+created_at: st.created_at || '', withdrawn_at: st.withdrawn_at || '',
+role: 'student',
+}));
+setDbWithdrawnStudents(mappedW);
 }
 
 const { data: allMembers } = await sb.from('students').select('*, enrollments(course_id)').in('role', ['student','parent','teacher']).eq('is_active', true);
@@ -673,7 +689,7 @@ function fmtExcelDate(ts) {
   return String(ts).slice(0, 10); // YYYY-MM-DD
 }
 
-function exportStudentsExcel(list) {
+function exportStudentsExcel(list, viewMode) {
   if (!ensureXlsxLoaded()) return;
   // 학생별 (선생님-반) 라벨 매핑 사전 구축
   var teacherClassByStudent = {};
@@ -710,7 +726,8 @@ function exportStudentsExcel(list) {
   var wb = window.XLSX.utils.book_new();
   window.XLSX.utils.book_append_sheet(wb, ws, '수강생');
   var ts = new Date().toISOString().slice(0,10).replace(/-/g,'');
-  window.XLSX.writeFile(wb, '수강생_' + ts + '.xlsx');
+  var prefix = viewMode === 'withdrawn' ? '퇴원생_' : '수강생_';
+  window.XLSX.writeFile(wb, prefix + ts + '.xlsx');
 }
 
 function downloadStudentTemplate() {
@@ -1630,10 +1647,24 @@ React.createElement('input', { value:lec.youtubeId||'', onChange:function(e){ va
 ),
 
 /* ── 수강생 관리 TAB ── */
-tab==='enrollee' && React.createElement('div', null,
+tab==='enrollee' && (function() {
+var studentSource = studentViewMode === 'withdrawn' ? dbWithdrawnStudents : dbStudents;
+return React.createElement('div', null,
 React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'16px' } },
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginRight:'8px', flexShrink:0 } },
-`수강생 관리 (${dbStudents.length}명)`),
+studentViewMode === 'withdrawn' ? `퇴원 학생 (${dbWithdrawnStudents.length}명)` : `수강생 관리 (${dbStudents.length}명)`),
+
+/* 활성/퇴원 토글 */
+React.createElement('div', { style:{ display:'inline-flex', background:'#f2f0eb', borderRadius:'8px', padding:'3px', gap:'2px' } },
+React.createElement('button', {
+onClick: function(){ setStudentViewMode('active'); setSelectedIds([]); setExpandedStudent(null); },
+style:{ background: studentViewMode==='active'?'#1A1A1A':'transparent', color: studentViewMode==='active'?'#fff':'rgba(0,0,0,0.55)', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+}, '재원생 ' + dbStudents.length),
+React.createElement('button', {
+onClick: function(){ setStudentViewMode('withdrawn'); setSelectedIds([]); setExpandedStudent(null); },
+style:{ background: studentViewMode==='withdrawn'?'#1A1A1A':'transparent', color: studentViewMode==='withdrawn'?'#fff':'rgba(0,0,0,0.55)', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+}, '퇴원생 ' + dbWithdrawnStudents.length)
+),
 
 React.createElement('select', {
 value: filterLevel,
@@ -1699,9 +1730,9 @@ onClick: function(){ downloadStudentTemplate(); },
 style:{ background:'#fff', color:'#374151', border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
 }, '📋 엑셀 템플릿'),
 React.createElement('button', {
-onClick: function(){ exportStudentsExcel(dbStudents); },
+onClick: function(){ exportStudentsExcel(studentSource, studentViewMode); },
 style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-}, '⬇ 엑셀 내보내기 (' + dbStudents.length + '명)'),
+}, '⬇ 엑셀 내보내기 (' + studentSource.length + '명' + (studentViewMode==='withdrawn'?' · 퇴원생':'') + ')'),
 React.createElement('label', {
 style:{ background:'#E60012', color:'#fff', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', display:'inline-flex', alignItems:'center', gap:'4px' }
 },
@@ -1882,6 +1913,40 @@ return React.createElement('div', { style:{ background:'#1A1A1A', borderRadius:'
       },
       style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'6px', padding:'8px 18px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
     }, '일괄 적용'),
+    studentViewMode === 'active' && React.createElement('button', {
+      onClick: async function() {
+        if (!confirm('선택한 ' + selectedIds.length + '명을 퇴원 처리할까요?\n(엑셀 내보내기·검색은 퇴원생 탭에서 가능)')) return;
+        var nowIso = new Date().toISOString();
+        var movedIds = selectedIds.slice();
+        for (var i = 0; i < movedIds.length; i++) {
+          await sb.from('students').update({ is_active: false, withdrawn_at: nowIso }).eq('id', movedIds[i]);
+        }
+        var moving = dbStudents.filter(function(s){ return movedIds.includes(s.id); }).map(function(s){ return Object.assign({}, s, { withdrawn_at: nowIso }); });
+        setDbStudents(function(prev) { return prev.filter(function(s){ return !movedIds.includes(s.id); }); });
+        setDbWithdrawnStudents(function(prev) { return prev.concat(moving); });
+        setDbMembers(function(prev) { return prev.filter(function(m){ return !movedIds.includes(m.id); }); });
+        resetBulk();
+        setSelectedIds([]);
+        alert('퇴원 처리 완료');
+      },
+      style:{ background:'#7a7a7a', color:'#fff', border:'none', borderRadius:'6px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+    }, '퇴원 처리'),
+    studentViewMode === 'withdrawn' && React.createElement('button', {
+      onClick: async function() {
+        if (!confirm('선택한 ' + selectedIds.length + '명을 재원 처리할까요?')) return;
+        var movedIds = selectedIds.slice();
+        for (var i = 0; i < movedIds.length; i++) {
+          await sb.from('students').update({ is_active: true, withdrawn_at: null }).eq('id', movedIds[i]);
+        }
+        var moving = dbWithdrawnStudents.filter(function(s){ return movedIds.includes(s.id); }).map(function(s){ return Object.assign({}, s, { withdrawn_at: '' }); });
+        setDbWithdrawnStudents(function(prev) { return prev.filter(function(s){ return !movedIds.includes(s.id); }); });
+        setDbStudents(function(prev) { return prev.concat(moving); });
+        resetBulk();
+        setSelectedIds([]);
+        alert('재원 처리 완료');
+      },
+      style:{ background:'#1f7a3d', color:'#fff', border:'none', borderRadius:'6px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+    }, '재원 처리'),
     React.createElement('button', {
       onClick: async function() {
         if (!confirm('선택한 ' + selectedIds.length + '명을 삭제할까요?')) return;
@@ -1889,6 +1954,7 @@ return React.createElement('div', { style:{ background:'#1A1A1A', borderRadius:'
           await sb.from('students').delete().eq('id', selectedIds[i]);
         }
         setDbStudents(function(prev) { return prev.filter(function(s){ return !selectedIds.includes(s.id); }); });
+        setDbWithdrawnStudents(function(prev) { return prev.filter(function(s){ return !selectedIds.includes(s.id); }); });
         setDbMembers(function(prev) { return prev.filter(function(m){ return !selectedIds.includes(m.id); }); });
         resetBulk();
         setSelectedIds([]);
@@ -1904,7 +1970,7 @@ return React.createElement('div', { style:{ background:'#1A1A1A', borderRadius:'
 })(),
 
 (function() {
-var filtered = dbStudents.filter(function(st) {
+var filtered = studentSource.filter(function(st) {
 if (filterLevel !== '전체') {
 var lvGrades = SCHOOL_LEVELS[filterLevel].grades;
 if (!lvGrades.includes(st.grade)) return false;
@@ -1960,7 +2026,8 @@ React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'
 ),
 filtered.map(function(st) {
 var isSelected = selectedIds.includes(st.id);
-return React.createElement('div', { key:st.id, style:{ ...cardS, border: isSelected?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s' } },
+var isWithdrawn = studentViewMode === 'withdrawn';
+return React.createElement('div', { key:st.id, style:{ ...cardS, border: isSelected?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s', opacity: isWithdrawn ? 0.78 : 1 } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
 React.createElement('div', {
 onClick: function() { setSelectedIds(function(prev){ return isSelected?prev.filter(function(i){ return i!==st.id; }):[...prev,st.id]; }); },
@@ -1970,12 +2037,13 @@ isSelected && React.createElement('svg', { width:'11', height:'11', viewBox:'0 0
 React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' })
 )
 ),
-React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name[0]),
+React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background: isWithdrawn?'#e8e8e8':'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color: isWithdrawn?'#7a7a7a':'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name[0]),
 React.createElement('div', { style:{ flex:1, minWidth:0, cursor:'pointer' }, onClick:function(){ setExpandedStudent(expandedStudent===st.id?null:st.id); } },
-React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.name),
+React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', textDecoration: isWithdrawn?'line-through':'none' } }, st.name),
 React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [st.school, st.grade, st.phone].filter(Boolean).join(' · ') || '정보 없음')
 ),
-React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap' } },
+React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap', alignItems:'center' } },
+isWithdrawn && st.withdrawn_at && React.createElement('span', { style:{ background:'#f0f0f0', color:'#5a5a5a', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '퇴원 ' + String(st.withdrawn_at).slice(0,10)),
 st.grade && React.createElement('span', { style:{ background:'#1A1A1A', color:'#fff', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, st.grade),
 (st.subjects||[]).map(function(sub){ return React.createElement('span', { key:sub, style:{ background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, sub); })
 ),
@@ -2120,12 +2188,44 @@ addCourseStudentId===st.id && React.createElement('div', { style:{ background:'#
   )
 )
 )
+),
+expandedStudent===st.id && React.createElement('div', {
+  style:{ marginTop:'10px', paddingTop:'12px', borderTop:'1px solid rgba(0,0,0,0.08)', display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }
+},
+  studentViewMode === 'active' && React.createElement('button', {
+    onClick: async function() {
+      if (!confirm(st.name + ' 학생을 퇴원 처리할까요?\n(엑셀 내보내기·검색은 퇴원생 탭에서 가능)')) return;
+      var nowIso = new Date().toISOString();
+      await sb.from('students').update({ is_active: false, withdrawn_at: nowIso }).eq('id', st.id);
+      var moving = Object.assign({}, st, { withdrawn_at: nowIso });
+      setDbStudents(function(prev){ return prev.filter(function(s){ return s.id !== st.id; }); });
+      setDbWithdrawnStudents(function(prev){ return prev.concat([moving]); });
+      setDbMembers(function(prev){ return prev.filter(function(m){ return m.id !== st.id; }); });
+      setExpandedStudent(null);
+    },
+    style:{ background:'#7a7a7a', color:'#fff', border:'none', borderRadius:'6px', padding:'7px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+  }, '퇴원 처리'),
+  studentViewMode === 'withdrawn' && React.createElement('button', {
+    onClick: async function() {
+      if (!confirm(st.name + ' 학생을 재원 처리할까요?')) return;
+      await sb.from('students').update({ is_active: true, withdrawn_at: null }).eq('id', st.id);
+      var moving = Object.assign({}, st, { withdrawn_at: '' });
+      setDbWithdrawnStudents(function(prev){ return prev.filter(function(s){ return s.id !== st.id; }); });
+      setDbStudents(function(prev){ return prev.concat([moving]); });
+      setExpandedStudent(null);
+    },
+    style:{ background:'#1f7a3d', color:'#fff', border:'none', borderRadius:'6px', padding:'7px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+  }, '재원 처리'),
+  studentViewMode === 'withdrawn' && st.withdrawn_at && React.createElement('span', {
+    style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif' }
+  }, '퇴원일 ' + String(st.withdrawn_at).slice(0,10))
 )
 );
 })
 );
 })()
-),
+);
+})(),
 
 /* ── 회원 정보 TAB ── */
 tab==='member' && React.createElement('div', null,
