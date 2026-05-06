@@ -843,7 +843,8 @@ async function importStudentsExcel(file) {
         } else {
           payload.role = 'student';
           if (payload.is_active == null) payload.is_active = true;
-          payload.agree_privacy = true;
+          payload.privacy_agreed = true;
+          payload.agreed_at = new Date().toISOString();
           if (!payload.created_at) payload.created_at = new Date().toISOString();
           var ins = await sb.from('students').insert(payload);
           if (ins.error) { fails++; failMsgs.push(v.name + ': ' + ins.error.message); } else { added++; }

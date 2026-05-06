@@ -243,7 +243,8 @@ function SignupPage({ onBack, onComplete }) {
       address: form.address.trim(),
       role: dbRole,
       is_active: roleType !== 'teacher',
-      agree_privacy: true,
+      privacy_agreed: true,
+      agreed_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
     };
     if (roleType === 'student') {
