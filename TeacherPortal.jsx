@@ -1054,8 +1054,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var { data } = sb.storage.from('attachments').getPublicUrl(path);
     return data?.publicUrl || '';
   }
-  function openExamForm() {
-    setExamDraft({ kind:'class', title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
+  function openExamForm(presetKind) {
+    var k = presetKind === 'homework' ? 'homework' : 'class';
+    setExamDraft({ kind:k, title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count: k==='homework' ? '0' : '10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
     setExamFormOpen(true);
   }
   function closeExamForm() {
@@ -1470,6 +1471,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     { id: "classes",  label: "담당 클래스" },
     { id: "course",   label: "강좌 개설" },
     { id: "lecture",  label: "강의 추가" },
+    { id: "tests",    label: "시험" },
+    { id: "homework", label: "숙제" },
     { id: "notes",    label: "특이사항" },
     { id: "scores",   label: "성적" },
     { id: "files",    label: "자료실" },
@@ -1478,7 +1481,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   ];
 
   const TAB_GROUPS = [
-    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','course','lecture','scores'] },
+    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','course','lecture','tests','homework','scores'] },
     { id: 'academy', label: '학원',      color:'#c87000', tabs:['schedule','files','notes'] },
     { id: 'me',      label: '내 정보',   color:'#1A1A1A', tabs:['mypage'] },
   ];
@@ -1489,6 +1492,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (id === "files") loadAttachments();
     if (id === "schedule") { loadScheduleRequests(); loadAcademicSchedules(); }
     if (id === "mypage") loadMyProfile();
+    if ((id === "tests" || id === "homework") && selectedClass?.id) loadClassExams(selectedClass.id);
   }
 
   return (
@@ -1594,22 +1598,47 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         </div>
       )}
 
-      {/* ── 시험지 발행 (담당 클래스 탭, 반 선택 시) ── */}
-      {teacherView === "classes" && selectedClass && (
+      {/* ── 반 선택 카드 (시험/숙제 탭에서 반 미선택 시) ── */}
+      {(teacherView === "tests" || teacherView === "homework") && !selectedClass && (
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
-            <h2 style={{ margin:0 }}>시험지 발행</h2>
-            <button onClick={openExamForm} style={{ ...buttonStyle, padding:'9px 16px', fontSize:'13px' }}>+ 새 시험 발행</button>
+          <h2 style={{ marginTop: 0 }}>반 선택</h2>
+          <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>{teacherView === 'homework' ? '숙제' : '시험'}을 발행할 반을 먼저 선택해 주세요.</p>
+          {availableClassCards.length === 0 ? (
+            <div style={{ color: "#6b7280" }}>담당 클래스가 없습니다. 관리자에게 배정을 요청해 주세요.</div>
+          ) : (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'12px' }}>
+              {availableClassCards.map(cls => (
+                <button key={cls.id} onClick={() => { selectClass(cls); setTimeout(() => loadClassExams(cls.id), 0); }} style={{ textAlign:'left', border:'1px solid #e5e7eb', background:'white', borderRadius:'12px', padding:'16px', cursor:'pointer' }}>
+                  <strong style={{ display:'block', fontSize:'15px', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{cls.name}</strong>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 시험·숙제 발행 (시험/숙제 탭, 반 선택 시) ── */}
+      {(teacherView === "tests" || teacherView === "homework") && selectedClass && (() => {
+        const isHwTab = teacherView === 'homework';
+        const filteredExamList = examList.filter(ex => isHwTab ? ex.kind === 'homework' : ex.kind !== 'homework');
+        return (
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px', flexWrap:'wrap', gap:'8px' }}>
+            <h2 style={{ margin:0 }}>{isHwTab ? '숙제 발행' : '시험 발행'} — {selectedClass.name}</h2>
+            <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+              <button onClick={() => { setSelectedClass(null); setSelectedClassId(""); }} style={{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>다른 반</button>
+              <button onClick={() => openExamForm(isHwTab ? 'homework' : 'class')} style={{ ...buttonStyle, padding:'9px 16px', fontSize:'13px' }}>+ 새 {isHwTab ? '숙제' : '시험'} 발행</button>
+            </div>
           </div>
-          <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>이 반의 학생들에게 시험지를 발행합니다. 학생들은 자기 포털에서 시험지를 보고 답안을 제출할 수 있습니다.</p>
+          <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>{isHwTab ? '이 반의 학생들에게 숙제를 발행합니다. 객관식/서술형/녹음 중 원하는 답안을 받을 수 있습니다.' : '이 반의 학생들에게 시험지를 발행합니다. 학생들은 자기 포털에서 시험지를 보고 답안을 제출할 수 있습니다.'}</p>
 
           {examLoading ? (
             <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div>
-          ) : examList.length === 0 ? (
-            <div style={{ color:'#9ca3af', fontSize:'13px' }}>아직 발행된 시험이 없습니다.</div>
+          ) : filteredExamList.length === 0 ? (
+            <div style={{ color:'#9ca3af', fontSize:'13px' }}>아직 발행된 {isHwTab ? '숙제' : '시험'}이 없습니다.</div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-              {examList.map(ex => {
+              {filteredExamList.map(ex => {
                 const subs = examSubmissionsByExam[ex.id] || [];
                 const totalStudents = students.length;
                 const submittedCount = subs.length;
@@ -1683,16 +1712,21 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             <div onClick={closeExamForm} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
               <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'520px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }}>
-                  <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>새 시험 발행 — {selectedClass?.name}</h3>
+                  <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>새 {examDraft.kind === 'homework' ? '숙제' : '시험'} 발행 — {selectedClass?.name}</h3>
                   <button onClick={closeExamForm} style={{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' }}>×</button>
                 </div>
 
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험 종류 *</label>
                 <select value={examDraft.kind || 'class'} onChange={e => setExamDraft({ ...examDraft, kind: e.target.value })} style={{ ...inputStyle, marginBottom:'14px', cursor:'pointer' }}>
-                  <option value="class">반 시험 (일반)</option>
-                  <option value="weekly">주간 테스트</option>
-                  <option value="monthly">월말 테스트</option>
-                  <option value="homework">숙제</option>
+                  {examDraft.kind === 'homework' ? (
+                    <option value="homework">숙제</option>
+                  ) : (
+                    <>
+                      <option value="class">반 시험 (일반)</option>
+                      <option value="weekly">주간 테스트</option>
+                      <option value="monthly">월말 테스트</option>
+                    </>
+                  )}
                 </select>
 
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>제목 *</label>
@@ -1837,7 +1871,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             </div>
           )}
         </div>
-      )}
+      );
+      })()}
 
       {/* ── 탭1.5: 강좌 개설 ── */}
       {teacherView === "course" && (() => {
