@@ -737,10 +737,8 @@ async function importStudentsExcel(file) {
       var grade = String(r['학년']||'').trim();
       var subjects = parseSubjectsCell(r['수강 과목']);
       var phone = normPhoneDigits(r['전화번호']);
-      // 필수: 이름, 학년, 수강 과목
+      // 필수: 이름
       if (!name) { errors.push(rowNum + '행: 이름 누락'); return; }
-      if (!grade) { errors.push(rowNum + '행: 학년 누락'); return; }
-      if (!subjects.length) { errors.push(rowNum + '행: 수강 과목 누락'); return; }
       var rawCreated = r['최초등록일'];
       var rawWithdrawn = r['퇴원일'];
       var createdAt = parseDateCell(rawCreated);
@@ -1667,7 +1665,7 @@ if (f) await importStudentsExcel(f);
 })
 ),
 React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
-'※ 필수: 이름·학년·수강 과목 / 전화번호 있으면 기존 학생 업데이트, 없으면 신규'
+'※ 필수: 이름만 / 전화번호 있으면 기존 학생 업데이트, 없으면 신규'
 )
 ),
 
