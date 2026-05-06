@@ -10,7 +10,7 @@ function dDay(targetDateStr) {
   return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
 }
 
-function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick, onAdminClick, onLogout, examDate }) {
+function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick, onAdminClick, onLogout, examDate, onForgotClick }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   const d = dDay(examDate || '2026-11-12');
@@ -119,7 +119,9 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
             )
           : React.createElement('div', null,
               React.createElement('div', { style:{ ...mnStyles.mobileMenuItem }, onClick:()=>{ onLoginClick(); setMenuOpen(false); } }, '로그인'),
-              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#E60012', fontWeight:'700' }, onClick:()=>{ (onSignupClick || onLoginClick)(); setMenuOpen(false); } }, '회원가입')
+              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'#E60012', fontWeight:'700' }, onClick:()=>{ (onSignupClick || onLoginClick)(); setMenuOpen(false); } }, '회원가입'),
+              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'rgba(0,0,0,0.55)', fontSize:'13px' }, onClick:()=>{ alert('아이디(이메일)를 잊으셨다면 학원에 연락해 주세요.\n등록된 전화번호로 본인 확인 후 알려드립니다.'); setMenuOpen(false); } }, '아이디 찾기'),
+              React.createElement('div', { style:{ ...mnStyles.mobileMenuItem, color:'rgba(0,0,0,0.55)', fontSize:'13px' }, onClick:()=>{ if (onForgotClick) onForgotClick(); else onLoginClick(); setMenuOpen(false); } }, '비밀번호 찾기')
             )
       )
     ),

@@ -17,12 +17,12 @@ function levelFromGrade(g) {
 }
 
 /* ── Login Modal ──────────────────────────────── */
-function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
+function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot }) {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [msg, setMsg] = React.useState('');
-  const [forgotMode, setForgotMode] = React.useState(false);
+  const [forgotMode, setForgotMode] = React.useState(!!initialForgot);
   const [forgotEmail, setForgotEmail] = React.useState('');
   const [forgotSending, setForgotSending] = React.useState(false);
   const [forgotDone, setForgotDone] = React.useState(false);
@@ -305,14 +305,16 @@ function SignupPage({ onBack, onComplete }) {
 
     try {
       if (sb) {
-        const { data: inserted, error } = await sb.from('students').insert(insertData).select().single();
-        if (error) {
-          if (String(error.message || '').toLowerCase().indexOf('duplicate') >= 0 || String(error.code || '') === '23505') {
+        const insertRes = await sb.from('students').insert(insertData).select().maybeSingle();
+        if (insertRes.error) {
+          if (String(insertRes.error.message || '').toLowerCase().indexOf('duplicate') >= 0 || String(insertRes.error.code || '') === '23505') {
             setMsg('이미 가입된 이메일입니다. 다른 이메일을 사용하거나 로그인해 주세요.');
-            setLoading(false); return;
+          } else {
+            setMsg('가입 실패: ' + (insertRes.error.message || ''));
           }
-          throw error;
+          setLoading(false); return;
         }
+        const inserted = insertRes.data;
 
         // 학생-학부모 자동 연결 (전화번호 매칭)
         if (roleType === 'student' && inserted?.id) {

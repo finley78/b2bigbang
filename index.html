@@ -311,13 +311,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260508t"></script>
-<script src="TopNav.js?v=20260508t"></script>
-<script src="HomePage.js?v=20260508t"></script>
-<script src="Pages.js?v=20260508t"></script>
-<script src="StudentPortal.js?v=20260508t"></script>
-<script src="TeacherPortal.js?v=20260508t"></script>
-<script src="AdminPanel.js?v=20260508t"></script>
+<script src="Utils.js?v=20260508u"></script>
+<script src="TopNav.js?v=20260508u"></script>
+<script src="HomePage.js?v=20260508u"></script>
+<script src="Pages.js?v=20260508u"></script>
+<script src="StudentPortal.js?v=20260508u"></script>
+<script src="TeacherPortal.js?v=20260508u"></script>
+<script src="AdminPanel.js?v=20260508u"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -370,6 +370,7 @@ const [user, setUser] = React.useState(() => {
 });
 const [showLogin, setShowLogin] = React.useState(false);
 const [resetToken, setResetToken] = React.useState(null);
+const [loginInitialForgot, setLoginInitialForgot] = React.useState(false);
 const [isAdmin, setIsAdmin] = React.useState(() => {
   try { return sessionStorage.getItem('b2_is_admin') === 'true'; } catch { return false; }
 });
@@ -592,8 +593,10 @@ return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', f
 
 // 로그인 모달
 showLogin && React.createElement(LoginModal, {
+key: loginInitialForgot ? 'login-forgot' : 'login-normal',
+initialForgot: loginInitialForgot,
 onLogin: handleLogin,
-onClose: ()=>setShowLogin(false),
+onClose: ()=>{ setShowLogin(false); setLoginInitialForgot(false); },
 onAdminLogin: ()=>{
 const adminUser = { id:'admin', name:'관리자', role:'admin', isAdmin:true };
 setUser(adminUser);
@@ -617,6 +620,7 @@ user: effectiveUser,
 adminAuthed,
 onLoginClick: ()=>setShowLogin(true),
 onSignupClick: handleSignup,
+onForgotClick: ()=>{ setLoginInitialForgot(true); setShowLogin(true); },
 onAdminClick: handleAdminClick,
 onLogout: handleLogout,
 examDate: EXAM_DATE,
