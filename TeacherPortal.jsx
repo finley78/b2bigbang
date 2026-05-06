@@ -2232,17 +2232,17 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </datalist>
             </div>
 
-            {/* 3. 강의 입력 */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr 130px auto", gap: "10px", alignItems: "end", marginBottom: "16px" }}>
-              <div>
-                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 제목</label>
-                <input style={inputStyle} value={courseVideoTitle} onChange={e => setCourseVideoTitle(e.target.value)} placeholder="예: 명사" />
-              </div>
-              <div>
-                <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 링크</label>
-                <input style={inputStyle} value={courseVideoLink} onChange={e => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 영상 URL" />
-              </div>
-              <div>
+            {/* 3. 강의 입력 — 강좌명과 동일하게 풀폭으로 통일 */}
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 제목</label>
+              <input style={inputStyle} value={courseVideoTitle} onChange={e => setCourseVideoTitle(e.target.value)} placeholder="예: 명사" />
+            </div>
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>강의 링크</label>
+              <input style={inputStyle} value={courseVideoLink} onChange={e => setCourseVideoLink(e.target.value)} placeholder="YouTube 링크/ID 또는 영상 URL" />
+            </div>
+            <div style={{ display: "flex", gap: "10px", alignItems: "end", marginBottom: "16px", flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 160px", minWidth: "140px" }}>
                 <label style={{ fontSize: "12px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px" }}>노출 기간</label>
                 <select style={inputStyle} value={videoExpireDays} onChange={e => setVideoExpireDays(e.target.value)}>
                   <option value="">제한 없음</option>
@@ -2251,7 +2251,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <option value="60">60일</option>
                 </select>
               </div>
-              <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
+              <button style={{ ...buttonStyle, padding: "11px 22px" }} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
             </div>
 
             {/* 4. 강의 목록 (강좌명이 입력되면 표시) */}
