@@ -202,7 +202,7 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup }) {
 function SignupPage({ onBack, onComplete }) {
   const [step, setStep] = React.useState(1); // 1: 역할선택, 2: 양식작성, 3: 완료
   const [roleType, setRoleType] = React.useState(''); // 'student' | 'parent' | 'teacher'
-  const [form, setForm] = React.useState({ name:'', school:'', grade:'', phone:'', address:'', agree:false, parentPhone:'', studentPhone:'' });
+  const [form, setForm] = React.useState({ name:'', email:'', password:'', passwordConfirm:'', school:'', grade:'', phone:'', address:'', agree:false, parentPhone:'', studentPhone:'' });
   const [msg, setMsg] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const sb = window.supabase;
@@ -225,6 +225,11 @@ function SignupPage({ onBack, onComplete }) {
 
   async function handleSubmit() {
     if (!form.name.trim()) { setMsg('이름을 입력해 주세요.'); return; }
+    if (!form.email.trim()) { setMsg('이메일을 입력해 주세요. (비밀번호 찾기에 사용됩니다)'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { setMsg('이메일 형식이 올바르지 않습니다.'); return; }
+    if (!form.password) { setMsg('비밀번호를 입력해 주세요.'); return; }
+    if (form.password.length < 6) { setMsg('비밀번호는 6자 이상이어야 합니다.'); return; }
+    if (form.password !== form.passwordConfirm) { setMsg('비밀번호 확인이 일치하지 않습니다.'); return; }
     if (roleType === 'student') {
       if (!form.school.trim()) { setMsg('학교를 입력해 주세요.'); return; }
       if (!form.grade.trim()) { setMsg('학년을 입력해 주세요.'); return; }
@@ -240,8 +245,13 @@ function SignupPage({ onBack, onComplete }) {
     setLoading(true); setMsg('');
     const dbRole = roleType === 'teacher' ? 'pending_teacher' : roleType;
     const ownPhoneNorm = normalizePhone(form.phone);
+    let pwHash = '';
+    try { pwHash = await window.B2Utils.hashPassword(form.password); }
+    catch (e) { setMsg('비밀번호 처리 중 오류가 발생했습니다.'); setLoading(false); return; }
     const insertData = {
       name: form.name.trim(),
+      email: form.email.trim().toLowerCase(),
+      password_hash: pwHash,
       phone: form.phone.trim(),
       address: form.address.trim(),
       role: dbRole,
@@ -259,7 +269,13 @@ function SignupPage({ onBack, onComplete }) {
     try {
       if (sb) {
         const { data: inserted, error } = await sb.from('students').insert(insertData).select().single();
-        if (error) throw error;
+        if (error) {
+          if (String(error.message || '').toLowerCase().indexOf('duplicate') >= 0 || String(error.code || '') === '23505') {
+            setMsg('이미 가입된 이메일입니다. 다른 이메일을 사용하거나 로그인해 주세요.');
+            setLoading(false); return;
+          }
+          throw error;
+        }
 
         // 학생-학부모 자동 연결 (전화번호 매칭)
         if (roleType === 'student' && inserted?.id) {
@@ -341,6 +357,22 @@ function SignupPage({ onBack, onComplete }) {
         React.createElement('div', { style:fieldS },
           React.createElement('label', { style:labelS }, '이름 *'),
           React.createElement('input', { value:form.name, onChange:e=>setF('name',e.target.value), placeholder:'홍길동', style:inputS })
+        ),
+
+        // 이메일 (공통, 비밀번호 찾기용)
+        React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '이메일 * (로그인 ID · 비밀번호 찾기에 사용)'),
+          React.createElement('input', { type:'email', name:'email', autoComplete:'email', value:form.email, onChange:e=>setF('email',e.target.value), placeholder:'example@email.com', style:inputS })
+        ),
+
+        // 비밀번호 (공통)
+        React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '비밀번호 * (6자 이상)'),
+          React.createElement('input', { type:'password', name:'new-password', autoComplete:'new-password', value:form.password, onChange:e=>setF('password',e.target.value), placeholder:'영문/숫자/특수문자 조합 권장', style:inputS })
+        ),
+        React.createElement('div', { style:fieldS },
+          React.createElement('label', { style:labelS }, '비밀번호 확인 *'),
+          React.createElement('input', { type:'password', name:'new-password-confirm', autoComplete:'new-password', value:form.passwordConfirm, onChange:e=>setF('passwordConfirm',e.target.value), placeholder:'비밀번호 다시 입력', style:inputS })
         ),
 
         // 학교 + 학년 (학생만)
