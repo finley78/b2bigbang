@@ -51,7 +51,7 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
   background: #ffffff;
   border: 1px solid #FFD0D5;
   border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(230, 0, 18, 0.22), 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
   padding: 16px 18px;
   z-index: 10000;
   font-family: 'Manrope', sans-serif;
@@ -309,13 +309,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260507p"></script>
-<script src="TopNav.js?v=20260507p"></script>
-<script src="HomePage.js?v=20260507p"></script>
-<script src="Pages.js?v=20260507p"></script>
-<script src="StudentPortal.js?v=20260507p"></script>
-<script src="TeacherPortal.js?v=20260507p"></script>
-<script src="AdminPanel.js?v=20260507p"></script>
+<script src="Utils.js?v=20260507q"></script>
+<script src="TopNav.js?v=20260507q"></script>
+<script src="HomePage.js?v=20260507q"></script>
+<script src="Pages.js?v=20260507q"></script>
+<script src="StudentPortal.js?v=20260507q"></script>
+<script src="TeacherPortal.js?v=20260507q"></script>
+<script src="AdminPanel.js?v=20260507q"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -691,7 +691,7 @@ eventButton.enabled && !eventClicked && page !== (eventButton.target_page || 'le
     color:'#fff', border:'none', borderRadius:'999px',
     padding:'14px 22px', fontSize:'14px', fontWeight:'800',
     cursor:'pointer', fontFamily:'Manrope, sans-serif',
-    boxShadow:'0 10px 30px rgba(230,0,18,0.35)',
+    boxShadow:'0 8px 22px rgba(0,0,0,0.18)',
     zIndex: 9000, letterSpacing:'-0.01em',
     display:'flex', alignItems:'center', gap:'8px'
   },

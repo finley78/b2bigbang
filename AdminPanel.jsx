@@ -3350,7 +3350,7 @@ tab==='eventbtn' && React.createElement('div', null,
     /* 미리보기 */
     React.createElement('div', { style:{ marginTop:'8px', padding:'16px', background:'#f9fafb', borderRadius:'8px', display:'flex', alignItems:'center', gap:'10px' } },
       React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#6b7280' } }, '미리보기:'),
-      React.createElement('div', { style:{ background:'linear-gradient(135deg, #E60012 0%, #B8000F 100%)', color:'#fff', borderRadius:'999px', padding:'10px 18px', fontSize:'13px', fontWeight:'800', display:'inline-flex', alignItems:'center', gap:'8px', boxShadow:'0 6px 18px rgba(230,0,18,0.3)' } },
+      React.createElement('div', { style:{ background:'linear-gradient(135deg, #E60012 0%, #B8000F 100%)', color:'#fff', borderRadius:'999px', padding:'10px 18px', fontSize:'13px', fontWeight:'800', display:'inline-flex', alignItems:'center', gap:'8px', boxShadow:'0 6px 14px rgba(0,0,0,0.15)' } },
         eventBtnDraft.badge && React.createElement('span', { style:{ fontSize:'9px', fontWeight:'800', background:'#fff', color:'#E60012', borderRadius:'999px', padding:'2px 7px' } }, eventBtnDraft.badge),
         eventBtnDraft.text || '무료 레벨테스트'
       )

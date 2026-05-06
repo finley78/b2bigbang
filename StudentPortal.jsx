@@ -1800,7 +1800,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           )
         ),
         /* 답안지 접혔을 때 floating 펼치기 버튼 (PC: answerPanel 닫힘 / 모바일: 시트 closed) */
-        ((!portalIsMobile && !answerPanelOpen) || (portalIsMobile && sheetMode === 'closed')) && React.createElement('button', { onClick:function(){ if (portalIsMobile) setSheetMode('small'); else setAnswerPanelOpen(true); }, style:{ position:'fixed', right:'20px', bottom:'20px', background:'#E60012', color:'#fff', border:'none', borderRadius:'999px', padding:'14px 22px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 10px 30px rgba(230,0,18,0.35)', zIndex: 60 } }, '답안지 열기')
+        ((!portalIsMobile && !answerPanelOpen) || (portalIsMobile && sheetMode === 'closed')) && React.createElement('button', { onClick:function(){ if (portalIsMobile) setSheetMode('small'); else setAnswerPanelOpen(true); }, style:{ position:'fixed', right:'20px', bottom:'20px', background:'#E60012', color:'#fff', border:'none', borderRadius:'999px', padding:'14px 22px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', boxShadow:'0 8px 22px rgba(0,0,0,0.18)', zIndex: 60 } }, '답안지 열기')
       )
     );
   }
