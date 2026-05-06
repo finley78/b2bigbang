@@ -188,6 +188,7 @@ grade: st.grade || '', school: st.school || '', subjects: st.subjects || [],
 enrolledCourses: (st.enrollments || []).map(e => e.course_id),
 phone: st.phone || '', parent_phone: st.parent_phone || '', parent_id: st.parent_id || null,
 address: st.address || '',
+created_at: st.created_at || '', withdrawn_at: st.withdrawn_at || '',
 role: 'student',
 }));
 setDbStudents(mapped);
@@ -631,13 +632,18 @@ return (teacherClasses || []).filter(function(cls){
 }
 
 /* ── 수강생 엑셀 가져오기/내보내기 ─────────────────── */
-const STUDENT_EXCEL_HEADERS = ['이름','학교','학년','전화번호','주소','학부모 전화번호','수강 과목'];
-const STUDENT_EXCEL_COLS = [{wch:10},{wch:14},{wch:8},{wch:16},{wch:30},{wch:16},{wch:30}];
+const STUDENT_EXCEL_HEADERS = ['이름','학교','학년','전화번호','주소','학부모 전화번호','수강 과목','최초등록일','퇴원일'];
+const STUDENT_EXCEL_COLS = [{wch:10},{wch:14},{wch:8},{wch:16},{wch:30},{wch:16},{wch:30},{wch:12},{wch:12}];
 
 function ensureXlsxLoaded() {
   if (window.XLSX) return true;
   alert('엑셀 라이브러리가 아직 로드되지 않았습니다. 잠시 후 다시 시도해 주세요.');
   return false;
+}
+
+function fmtExcelDate(ts) {
+  if (!ts) return '';
+  return String(ts).slice(0, 10); // YYYY-MM-DD
 }
 
 function studentRowsForExcel(list) {
@@ -650,6 +656,8 @@ function studentRowsForExcel(list) {
       '주소': s.address || '',
       '학부모 전화번호': s.parent_phone || '',
       '수강 과목': (s.subjects || []).join(', '),
+      '최초등록일': fmtExcelDate(s.created_at),
+      '퇴원일': fmtExcelDate(s.withdrawn_at),
     };
   });
 }
@@ -670,7 +678,8 @@ function downloadStudentTemplate() {
   var sample = [{
     '이름':'홍길동','학교':'검암중','학년':'중2',
     '전화번호':'01012345678','주소':'인천 서구 ...',
-    '학부모 전화번호':'01098765432','수강 과목':'국어, 수학'
+    '학부모 전화번호':'01098765432','수강 과목':'국어, 수학',
+    '최초등록일':'2025-03-15','퇴원일':''
   }];
   var ws = window.XLSX.utils.json_to_sheet(sample, { header: STUDENT_EXCEL_HEADERS });
   ws['!cols'] = STUDENT_EXCEL_COLS;
@@ -687,11 +696,34 @@ function parseSubjectsCell(v) {
   return String(v).split(/[,/·\s]+/).map(function(s){ return s.trim(); }).filter(Boolean);
 }
 
+// '2025-03-15' / '2025/3/15' / Date 객체 / Excel 시리얼 숫자 모두 ISO 문자열로 변환. 비어있으면 null.
+function parseDateCell(v) {
+  if (v == null || v === '') return null;
+  if (v instanceof Date && !isNaN(v.getTime())) return v.toISOString();
+  var s = String(v).trim();
+  if (!s) return null;
+  var m = s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+  if (m) {
+    var y = m[1];
+    var mo = String(parseInt(m[2],10)).padStart(2,'0');
+    var d = String(parseInt(m[3],10)).padStart(2,'0');
+    return y + '-' + mo + '-' + d + 'T00:00:00.000Z';
+  }
+  if (/^\d+(\.\d+)?$/.test(s)) {
+    // Excel 시리얼: 1899-12-30 기준 일수
+    var serial = parseFloat(s);
+    var ms = (serial - 25569) * 86400 * 1000;
+    var dt = new Date(ms);
+    if (!isNaN(dt.getTime())) return dt.toISOString();
+  }
+  return null;
+}
+
 async function importStudentsExcel(file) {
   if (!ensureXlsxLoaded()) return;
   try {
     var buf = await file.arrayBuffer();
-    var wb = window.XLSX.read(buf, { type:'array' });
+    var wb = window.XLSX.read(buf, { type:'array', cellDates: true });
     var ws = wb.Sheets[wb.SheetNames[0]];
     if (!ws) { alert('엑셀에 시트가 없습니다.'); return; }
     var rows = window.XLSX.utils.sheet_to_json(ws, { defval: '' });
@@ -705,6 +737,14 @@ async function importStudentsExcel(file) {
       var phone = normPhoneDigits(r['전화번호']);
       if (!name) { errors.push(rowNum + '행: 이름 누락'); return; }
       if (!phone) { errors.push(rowNum + '행: 전화번호 누락'); return; }
+      var rawCreated = r['최초등록일'];
+      var rawWithdrawn = r['퇴원일'];
+      var createdAt = parseDateCell(rawCreated);
+      var withdrawnAt = parseDateCell(rawWithdrawn);
+      var hasCreatedInput = rawCreated !== '' && rawCreated != null;
+      var hasWithdrawnInput = rawWithdrawn !== '' && rawWithdrawn != null;
+      if (hasCreatedInput && !createdAt) errors.push(rowNum + '행: 최초등록일 형식 오류 (예: 2025-03-15)');
+      if (hasWithdrawnInput && !withdrawnAt) errors.push(rowNum + '행: 퇴원일 형식 오류 (예: 2025-03-15)');
       valid.push({
         name: name,
         school: String(r['학교']||'').trim(),
@@ -713,6 +753,10 @@ async function importStudentsExcel(file) {
         address: String(r['주소']||'').trim(),
         parent_phone: normPhoneDigits(r['학부모 전화번호']),
         subjects: parseSubjectsCell(r['수강 과목']),
+        created_at: createdAt,
+        withdrawn_at: withdrawnAt,
+        has_withdrawn_input: hasWithdrawnInput,
+        has_created_input: hasCreatedInput,
       });
     });
 
@@ -741,15 +785,22 @@ async function importStudentsExcel(file) {
         name: v.name, school: v.school, grade: v.grade, phone: v.phone,
         address: v.address, parent_phone: v.parent_phone, subjects: v.subjects,
       };
+      // 최초등록일: 입력된 값이 있고 파싱 성공한 경우만 덮어씀
+      if (v.has_created_input && v.created_at) payload.created_at = v.created_at;
+      // 퇴원일: 입력 시 → withdrawn_at + is_active=false. 빈칸 → 기존값 유지(건드리지 않음).
+      if (v.has_withdrawn_input && v.withdrawn_at) {
+        payload.withdrawn_at = v.withdrawn_at;
+        payload.is_active = false;
+      }
       try {
         if (match) {
           var u = await sb.from('students').update(payload).eq('id', match.id);
           if (u.error) { fails++; failMsgs.push(v.name + ': ' + u.error.message); } else { updated++; }
         } else {
           payload.role = 'student';
-          payload.is_active = true;
+          if (payload.is_active == null) payload.is_active = true;
           payload.agree_privacy = true;
-          payload.created_at = new Date().toISOString();
+          if (!payload.created_at) payload.created_at = new Date().toISOString();
           var ins = await sb.from('students').insert(payload);
           if (ins.error) { fails++; failMsgs.push(v.name + ': ' + ins.error.message); } else { added++; }
         }
