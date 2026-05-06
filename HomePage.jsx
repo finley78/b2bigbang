@@ -808,11 +808,11 @@ function ExamResultPage({ exam, submission, onClose }) {
   }
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
     React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding: isMobile ? '24px 16px' : '40px' } },
-      React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, '← 돌아가기'),
+      React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color:'#1d4ed8', cursor:'pointer', fontSize:'13px', fontWeight:'700', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, '← 돌아가기'),
 
       /* 헤더 (총점/요약) */
-      React.createElement('div', { style:{ background:'linear-gradient(135deg, #1A1A1A, #3a0007)', color:'#fff', borderRadius:'16px', padding: isMobile ? '24px 20px' : '36px 32px', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } },
-        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#E60012', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:'8px' } }, 'Result'),
+      React.createElement('div', { style:{ background:'linear-gradient(135deg, #1d4ed8, #1e3a8a)', color:'#fff', borderRadius:'16px', padding: isMobile ? '24px 20px' : '36px 32px', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#bfdbfe', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:'8px' } }, 'Result'),
         React.createElement('h1', { style:{ fontSize: isMobile ? '22px' : '28px', fontWeight:'800', margin:'4px 0 14px', letterSpacing:'-0.02em' } }, exam.title),
         React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:'14px', marginTop:'14px' } },
           React.createElement('div', null,
@@ -838,7 +838,7 @@ function ExamResultPage({ exam, submission, onClose }) {
 
       /* 강사 코멘트 */
       submission.feedback && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'20px', marginBottom:'18px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' } },
-        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, 'Feedback'),
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1d4ed8', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, 'Feedback'),
         React.createElement('div', { style:{ fontSize:'14px', color:'#374151', whiteSpace:'pre-line', lineHeight:'1.8', fontFamily:'Manrope, sans-serif' } }, submission.feedback)
       ),
 
@@ -846,7 +846,7 @@ function ExamResultPage({ exam, submission, onClose }) {
       qc > 0 && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding: isMobile ? '20px' : '28px', marginBottom:'18px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' } },
         React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px' } },
           React.createElement('h2', { style:{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif' } }, '객관식 결과'),
-          hasKey && objRate != null && React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, objScore + ' / ' + objTotal + ' (' + objRate + '%)')
+          hasKey && objRate != null && React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1d4ed8', fontFamily:'Manrope, sans-serif' } }, objScore + ' / ' + objTotal + ' (' + objRate + '%)')
         ),
         !hasKey ? React.createElement('div', { style:{ fontSize:'13px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '정답이 등록되지 않은 시험입니다. 채점이 완료되면 결과가 표시됩니다.') :
         React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap:'8px' } },
