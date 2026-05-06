@@ -85,6 +85,38 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [examList, setExamList] = React.useState([]);
   const [examLoading, setExamLoading] = React.useState(false);
   const [examFormOpen, setExamFormOpen] = React.useState(false);
+
+  // ── 모바일 뒤로가기: 선생님 portal 단계별 복귀 (PWA 종료 방지) ──
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    function onPop(e) {
+      if (examFormOpen) {
+        e.stopImmediatePropagation();
+        setExamFormOpen(false);
+        try { window.history.pushState({ page:'teacher', b2Inner:true }, ''); } catch (err) {}
+        return;
+      }
+      if (selectedClass) {
+        e.stopImmediatePropagation();
+        setSelectedClass(null);
+        setSelectedClassId("");
+        try { window.history.pushState({ page:'teacher', b2Inner:true }, ''); } catch (err) {}
+        return;
+      }
+    }
+    window.addEventListener('popstate', onPop, true);
+    return () => window.removeEventListener('popstate', onPop, true);
+  }, [selectedClass, examFormOpen]);
+
+  // 깊은 화면 진입 시 history에 한 단계 push
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!selectedClass && !examFormOpen) return;
+    const st = window.history.state || {};
+    if (!st.b2Inner) {
+      try { window.history.pushState({ page:'teacher', b2Inner:true }, ''); } catch (err) {}
+    }
+  }, [selectedClass, examFormOpen]);
   const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
   const [examUploading, setExamUploading] = React.useState(false);
   const [examSubmissionsByExam, setExamSubmissionsByExam] = React.useState({}); // { exam_id: [submissions] }

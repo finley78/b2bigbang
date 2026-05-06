@@ -153,6 +153,39 @@ const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); 
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
 const [adminLtFormOpen, setAdminLtFormOpen] = React.useState(false);
+
+// ── 모바일 뒤로가기: 관리자 탭/모달 단계별 복귀 (PWA 종료 방지) ──
+React.useEffect(function(){
+  if (typeof window === 'undefined') return;
+  function onPop(e) {
+    if (adminLtFormOpen) {
+      e.stopImmediatePropagation();
+      setAdminLtFormOpen(false);
+      try { window.history.pushState({ page:'admin', b2Inner:true }, ''); } catch (err) {}
+      return;
+    }
+    if (tab !== 'home') {
+      e.stopImmediatePropagation();
+      setTab('home');
+      try { window.history.pushState({ page:'admin', b2Inner:true }, ''); } catch (err) {}
+      return;
+    }
+    // 관리자 홈이면 통과 → page='home'으로 복귀
+  }
+  window.addEventListener('popstate', onPop, true);
+  return function(){ window.removeEventListener('popstate', onPop, true); };
+}, [tab, adminLtFormOpen]);
+
+// 관리자 탭/모달 진입 시 history에 한 단계 push
+React.useEffect(function(){
+  if (typeof window === 'undefined') return;
+  var deep = (tab !== 'home') || adminLtFormOpen;
+  if (!deep) return;
+  var st = window.history.state || {};
+  if (!st.b2Inner) {
+    try { window.history.pushState({ page:'admin', b2Inner:true }, ''); } catch (err) {}
+  }
+}, [tab, adminLtFormOpen]);
 const [adminLtDraft, setAdminLtDraft] = React.useState({ title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
 const [adminLtUploading, setAdminLtUploading] = React.useState(false);
 const [adminScrMode, setAdminScrMode] = React.useState('change'); // 'change' | 'academic'
