@@ -1042,7 +1042,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (cpq > 9) cpq = 9;
     var tqc = parseInt(d.text_question_count, 10);
     if (isNaN(tqc) || tqc < 0) tqc = 0;
-    if (qc === 0 && tqc === 0) { alert('객관식 또는 서술형 문제 수 중 하나는 1 이상이어야 합니다.'); return; }
+    var isHw2 = d.kind === 'homework';
+    if (qc === 0 && tqc === 0 && !(isHw2 && d.allow_audio_answer)) {
+      alert(isHw2 ? '객관식 / 서술형 / 녹음 중 최소 한 가지 답안 종류를 선택해 주세요.' : '객관식 또는 서술형 문제 수 중 하나는 1 이상이어야 합니다.');
+      return;
+    }
     var tlm = parseInt(d.time_limit_minutes, 10);
     if (isNaN(tlm) || tlm < 0) tlm = 0;
     setExamUploading(true);
@@ -1685,41 +1689,88 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>{examDraft.files.length}장 선택됨 — {examDraft.files.map(f => f.name).join(', ')}</div>
                 )}
 
-                <div style={{ display:'flex', gap:'10px', marginBottom:'10px' }}>
-                  <div style={{ flex:1 }}>
-                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>객관식 문제 수</label>
-                    <input type="number" min="0" value={examDraft.question_count} onChange={e => setExamDraft({ ...examDraft, question_count: e.target.value })} style={inputStyle} />
-                  </div>
-                  <div style={{ flex:1 }}>
-                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>보기 수 (객관식)</label>
-                    <select value={examDraft.choices_per_question} onChange={e => setExamDraft({ ...examDraft, choices_per_question: e.target.value })} style={inputStyle}>
-                      {["3","4","5"].map(n => <option key={n} value={n}>{n}지선다</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
-                  <div style={{ flex:1 }}>
-                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>서술형 문제 수 (0 = 없음)</label>
-                    <input type="number" min="0" value={examDraft.text_question_count} onChange={e => setExamDraft({ ...examDraft, text_question_count: e.target.value })} style={inputStyle} />
-                  </div>
-                  <div style={{ flex:1 }}>
-                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시간 제한 (분, 0 = 무제한)</label>
-                    <input type="number" min="0" value={examDraft.time_limit_minutes} onChange={e => setExamDraft({ ...examDraft, time_limit_minutes: e.target.value })} placeholder="예: 50" style={inputStyle} />
-                  </div>
-                </div>
-
-                {/* 녹음 제출 받기 (숙제일 때만) */}
-                {examDraft.kind === 'homework' && (
-                  <div style={{ background:'#fef3c7', borderRadius:'8px', padding:'12px 14px', marginBottom:'14px' }}>
-                    <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                      <input type="checkbox" checked={!!examDraft.allow_audio_answer} onChange={e => setExamDraft({ ...examDraft, allow_audio_answer: e.target.checked })} style={{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' }} />
-                      <div>
-                        <div style={{ fontSize:'13px', fontWeight:'800', color:'#92400e' }}>🎤 녹음 제출 받기</div>
-                        <div style={{ fontSize:'11px', color:'#92400e', marginTop:'2px' }}>학생이 마이크로 녹음하여 제출 (최대 5분). 채점 화면에서 들을 수 있습니다.</div>
+                {/* 일반 시험: 기존 입력 그대로 */}
+                {examDraft.kind !== 'homework' && (
+                  <>
+                    <div style={{ display:'flex', gap:'10px', marginBottom:'10px' }}>
+                      <div style={{ flex:1 }}>
+                        <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>객관식 문제 수</label>
+                        <input type="number" min="0" value={examDraft.question_count} onChange={e => setExamDraft({ ...examDraft, question_count: e.target.value })} style={inputStyle} />
                       </div>
-                    </label>
-                  </div>
+                      <div style={{ flex:1 }}>
+                        <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>보기 수 (객관식)</label>
+                        <select value={examDraft.choices_per_question} onChange={e => setExamDraft({ ...examDraft, choices_per_question: e.target.value })} style={inputStyle}>
+                          {["3","4","5"].map(n => <option key={n} value={n}>{n}지선다</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
+                      <div style={{ flex:1 }}>
+                        <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>서술형 문제 수 (0 = 없음)</label>
+                        <input type="number" min="0" value={examDraft.text_question_count} onChange={e => setExamDraft({ ...examDraft, text_question_count: e.target.value })} style={inputStyle} />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시간 제한 (분, 0 = 무제한)</label>
+                        <input type="number" min="0" value={examDraft.time_limit_minutes} onChange={e => setExamDraft({ ...examDraft, time_limit_minutes: e.target.value })} placeholder="예: 50" style={inputStyle} />
+                      </div>
+                    </div>
+                  </>
                 )}
+
+                {/* 숙제: 답안 종류 통합 카드 */}
+                {examDraft.kind === 'homework' && (() => {
+                  const objOn = parseInt(examDraft.question_count, 10) > 0;
+                  const txtOn = parseInt(examDraft.text_question_count, 10) > 0;
+                  return (
+                    <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'14px', marginBottom:'14px' }}>
+                      <div style={{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }}>답안 종류 — 받을 항목을 골라주세요 (1개 이상)</div>
+                      {/* 객관식 */}
+                      <div style={{ marginBottom:'10px' }}>
+                        <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                          <input type="checkbox" checked={objOn} onChange={e => setExamDraft({ ...examDraft, question_count: e.target.checked ? '5' : '0', answer_key: e.target.checked ? (examDraft.answer_key || {}) : {} })} style={{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' }} />
+                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>📝 객관식</span>
+                        </label>
+                        {objOn && (
+                          <div style={{ display:'flex', gap:'10px', marginTop:'8px', paddingLeft:'26px' }}>
+                            <div style={{ flex:1 }}>
+                              <label style={{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' }}>문항 수</label>
+                              <input type="number" min="1" value={examDraft.question_count} onChange={e => setExamDraft({ ...examDraft, question_count: e.target.value })} style={inputStyle} />
+                            </div>
+                            <div style={{ flex:1 }}>
+                              <label style={{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' }}>보기 수</label>
+                              <select value={examDraft.choices_per_question} onChange={e => setExamDraft({ ...examDraft, choices_per_question: e.target.value })} style={inputStyle}>
+                                {["3","4","5"].map(n => <option key={n} value={n}>{n}지선다</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {/* 서술형 */}
+                      <div style={{ marginBottom:'10px' }}>
+                        <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                          <input type="checkbox" checked={txtOn} onChange={e => setExamDraft({ ...examDraft, text_question_count: e.target.checked ? '1' : '0' })} style={{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' }} />
+                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>✏️ 서술형</span>
+                        </label>
+                        {txtOn && (
+                          <div style={{ marginTop:'8px', paddingLeft:'26px' }}>
+                            <label style={{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' }}>문항 수</label>
+                            <input type="number" min="1" value={examDraft.text_question_count} onChange={e => setExamDraft({ ...examDraft, text_question_count: e.target.value })} style={{ ...inputStyle, width:'120px' }} />
+                          </div>
+                        )}
+                      </div>
+                      {/* 녹음 */}
+                      <div>
+                        <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                          <input type="checkbox" checked={!!examDraft.allow_audio_answer} onChange={e => setExamDraft({ ...examDraft, allow_audio_answer: e.target.checked })} style={{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' }} />
+                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>🎤 녹음 (학생 마이크 답안)</span>
+                        </label>
+                        {!!examDraft.allow_audio_answer && (
+                          <div style={{ marginTop:'4px', paddingLeft:'26px', fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>학생이 마이크로 녹음하여 제출 (최대 5분).</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 객관식 정답 입력 (직접 기입) */}
                 {(parseInt(examDraft.question_count, 10) || 0) > 0 && (

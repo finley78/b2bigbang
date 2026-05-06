@@ -477,7 +477,11 @@ async function adminSubmitLevelTest() {
   var qc = parseInt(d.question_count, 10); if (isNaN(qc) || qc < 0) qc = 0;
   var cpq = parseInt(d.choices_per_question, 10); if (isNaN(cpq) || cpq < 2) cpq = 5; if (cpq > 9) cpq = 9;
   var tqc = parseInt(d.text_question_count, 10); if (isNaN(tqc) || tqc < 0) tqc = 0;
-  if (qc === 0 && tqc === 0) { alert('객관식 또는 서술형 문제 수 중 하나는 1 이상이어야 합니다.'); return; }
+  var isHw = d.kind === 'homework';
+  if (qc === 0 && tqc === 0 && !(isHw && d.allow_audio_answer)) {
+    alert(isHw ? '객관식 / 서술형 / 녹음 중 최소 한 가지 답안 종류를 선택해 주세요.' : '객관식 또는 서술형 문제 수 중 하나는 1 이상이어야 합니다.');
+    return;
+  }
   var tlm = parseInt(d.time_limit_minutes, 10); if (isNaN(tlm) || tlm < 0) tlm = 0;
   if (!d.school_level) { alert('학교급을 선택해 주세요.'); return; }
   if (!d.target_grade) { alert('대상 학년을 선택해 주세요.'); return; }
@@ -3672,7 +3676,8 @@ tab==='leveltest' && (function(){
       adminLtDraft.id && adminLtDraft.existing_paths && adminLtDraft.existing_paths.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#1d4ed8', fontWeight:'700', marginBottom:'4px' } }, '기존 이미지 ' + adminLtDraft.existing_paths.length + '장 등록됨'),
       React.createElement('input', { type:'file', accept:'image/*', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
       adminLtDraft.files && adminLtDraft.files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' } }, adminLtDraft.files.length + '장 선택됨'),
-      React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'10px' } },
+      /* 일반 시험: 기존 입력 그대로 */
+      adminLtDraft.kind !== 'homework' && React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'10px' } },
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 문제 수'),
           React.createElement('input', { type:'number', min:'0', value:adminLtDraft.question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { question_count:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
@@ -3684,7 +3689,7 @@ tab==='leveltest' && (function(){
           )
         )
       ),
-      React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px' } },
+      adminLtDraft.kind !== 'homework' && React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px' } },
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '서술형 문제 수'),
           React.createElement('input', { type:'number', min:'0', value:adminLtDraft.text_question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { text_question_count:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
@@ -3694,14 +3699,56 @@ tab==='leveltest' && (function(){
           React.createElement('input', { type:'number', min:'0', value:adminLtDraft.time_limit_minutes, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { time_limit_minutes:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
         )
       ),
-      /* 녹음 제출 받기 (숙제일 때만) */
-      adminLtDraft.kind === 'homework' && React.createElement('div', { style:{ background:'#fef3c7', borderRadius:'8px', padding:'12px 14px', marginBottom:'14px' } },
-        React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
-          React.createElement('input', { type:'checkbox', checked: !!adminLtDraft.allow_audio_answer, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { allow_audio_answer:e.target.checked })); }, style:{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' } }),
-          React.createElement('div', null,
-            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#92400e' } }, '🎤 녹음 제출 받기'),
-            React.createElement('div', { style:{ fontSize:'11px', color:'#92400e', marginTop:'2px' } }, '학생이 마이크로 녹음하여 제출 (최대 5분). 선생님이 채점 화면에서 들을 수 있습니다.')
-          )
+
+      /* 숙제: 답안 종류 통합 카드 */
+      adminLtDraft.kind === 'homework' && React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'10px', padding:'14px', marginBottom:'14px' } },
+        React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '답안 종류 — 받을 항목을 골라주세요 (1개 이상)'),
+
+        /* 객관식 */
+        (function(){
+          var on = parseInt(adminLtDraft.question_count, 10) > 0;
+          return React.createElement('div', { style:{ marginBottom:'10px' } },
+            React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('input', { type:'checkbox', checked:on, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { question_count: e.target.checked ? '5' : '0', answer_key: e.target.checked ? (adminLtDraft.answer_key || {}) : {} })); }, style:{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' } }),
+              React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, '📝 객관식')
+            ),
+            on && React.createElement('div', { style:{ display:'flex', gap:'10px', marginTop:'8px', paddingLeft:'26px' } },
+              React.createElement('div', { style:{ flex:1 } },
+                React.createElement('label', { style:{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' } }, '문항 수'),
+                React.createElement('input', { type:'number', min:'1', value: adminLtDraft.question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { question_count: e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+              ),
+              React.createElement('div', { style:{ flex:1 } },
+                React.createElement('label', { style:{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' } }, '보기 수'),
+                React.createElement('select', { value: adminLtDraft.choices_per_question, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { choices_per_question: e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) },
+                  ['3','4','5'].map(function(n){ return React.createElement('option', { key:n, value:n }, n + '지선다'); })
+                )
+              )
+            )
+          );
+        })(),
+
+        /* 서술형 */
+        (function(){
+          var on = parseInt(adminLtDraft.text_question_count, 10) > 0;
+          return React.createElement('div', { style:{ marginBottom:'10px' } },
+            React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('input', { type:'checkbox', checked:on, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { text_question_count: e.target.checked ? '1' : '0' })); }, style:{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' } }),
+              React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, '✏️ 서술형')
+            ),
+            on && React.createElement('div', { style:{ marginTop:'8px', paddingLeft:'26px' } },
+              React.createElement('label', { style:{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' } }, '문항 수'),
+              React.createElement('input', { type:'number', min:'1', value: adminLtDraft.text_question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { text_question_count: e.target.value })); }, style:Object.assign({}, inputS, { width:'120px' }) })
+            )
+          );
+        })(),
+
+        /* 녹음 */
+        React.createElement('div', null,
+          React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
+            React.createElement('input', { type:'checkbox', checked: !!adminLtDraft.allow_audio_answer, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { allow_audio_answer:e.target.checked })); }, style:{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' } }),
+            React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, '🎤 녹음 (학생 마이크 답안)')
+          ),
+          !!adminLtDraft.allow_audio_answer && React.createElement('div', { style:{ marginTop:'4px', paddingLeft:'26px', fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '학생이 마이크로 녹음하여 제출 (최대 5분).')
         )
       ),
 
