@@ -18,6 +18,12 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
   // 데스크탑 폭으로 넘어가면 모바일 메뉴 자동 닫기
   React.useEffect(() => { if (!isMobile) setMenuOpen(false); }, [isMobile]);
 
+  // 페이지가 바뀌면(어떤 경로로든) 햄버거 메뉴 자동 닫기 — 화면 전환 후 메뉴가 살아있는 일 방지
+  React.useEffect(() => { setMenuOpen(false); }, [page]);
+
+  // 로그인 상태가 바뀌어도 닫기 (로그인 직후 메뉴가 그대로 떠 있는 케이스 방지)
+  React.useEffect(() => { setMenuOpen(false); }, [user, adminAuthed]);
+
   return React.createElement('nav', { style: { ...mnStyles.nav, position: 'sticky', top: 0, zIndex: 100 } },
 
     // 데스크탑 네비
