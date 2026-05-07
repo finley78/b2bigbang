@@ -313,13 +313,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260509c"></script>
-<script src="TopNav.js?v=20260509c"></script>
-<script src="HomePage.js?v=20260509c"></script>
-<script src="Pages.js?v=20260509c"></script>
-<script src="StudentPortal.js?v=20260509c"></script>
-<script src="TeacherPortal.js?v=20260509c"></script>
-<script src="AdminPanel.js?v=20260509c"></script>
+<script src="Utils.js?v=20260509d"></script>
+<script src="TopNav.js?v=20260509d"></script>
+<script src="HomePage.js?v=20260509d"></script>
+<script src="Pages.js?v=20260509d"></script>
+<script src="StudentPortal.js?v=20260509d"></script>
+<script src="TeacherPortal.js?v=20260509d"></script>
+<script src="AdminPanel.js?v=20260509d"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -363,22 +363,46 @@ featureCta2:'프로그램 보기',
 
 const EXAM_DATE = '2026-11-12';
 
+// 세션 5분 그레이스 — 페이지 로드 시 만료 체크
+// PWA가 백그라운드 → OS가 메모리 회수해도 localStorage는 유지됨
+// 마지막 hidden 시각으로부터 5분 초과되면 인증 정보 제거
+const SESSION_GRACE_MS = 5 * 60 * 1000;
+(function checkSessionExpiryOnLoad() {
+  try {
+    // 일회성 마이그레이션: sessionStorage에 남아있던 인증 정보 → localStorage
+    ['b2_user', 'b2_is_admin', 'b2_admin_authed'].forEach(function(k){
+      try {
+        var v = sessionStorage.getItem(k);
+        if (v && !localStorage.getItem(k)) localStorage.setItem(k, v);
+        sessionStorage.removeItem(k);
+      } catch (e) {}
+    });
+    var t = localStorage.getItem('b2_hidden_at');
+    if (t && Date.now() - parseInt(t, 10) > SESSION_GRACE_MS) {
+      localStorage.removeItem('b2_user');
+      localStorage.removeItem('b2_is_admin');
+      localStorage.removeItem('b2_admin_authed');
+    }
+    localStorage.removeItem('b2_hidden_at');
+  } catch (e) {}
+})();
+
 function App() {
 const [page, setPage] = React.useState(() => {
   try { return sessionStorage.getItem('b2_page') || 'home'; } catch { return 'home'; }
 });
 const [user, setUser] = React.useState(() => {
-  try { const s = sessionStorage.getItem('b2_user'); return s ? JSON.parse(s) : null; } catch { return null; }
+  try { const s = localStorage.getItem('b2_user'); return s ? JSON.parse(s) : null; } catch { return null; }
 });
 const [showLogin, setShowLogin] = React.useState(false);
 const [resetToken, setResetToken] = React.useState(null);
 const [loginInitialForgot, setLoginInitialForgot] = React.useState(false);
 const [oauthPrefill, setOauthPrefill] = React.useState(null); // { email, name } — 소셜 로그인 후 학원 미등록 시 회원가입 prefill
 const [isAdmin, setIsAdmin] = React.useState(() => {
-  try { return sessionStorage.getItem('b2_is_admin') === 'true'; } catch { return false; }
+  try { return localStorage.getItem('b2_is_admin') === 'true'; } catch { return false; }
 });
 const [adminAuthed, setAdminAuthed] = React.useState(() => {
-  try { return sessionStorage.getItem('b2_admin_authed') === 'true'; } catch { return false; }
+  try { return localStorage.getItem('b2_admin_authed') === 'true'; } catch { return false; }
 });
 const [state, setState] = React.useState(() => {
   // 이전 DB 응답을 localStorage에서 즉시 hydrate → INITIAL_STATE 플래시 방지
@@ -535,6 +559,34 @@ window.scrollTo({ top: 0, behavior: 'smooth' });
 // 다른 컴포넌트에서 navigate를 호출할 수 있도록 노출
 try { window.b2Navigate = navigate; } catch {}
 
+// PWA 백그라운드 5분 그레이스 — hidden 시각 기록 + visible 시 초과면 로그아웃
+React.useEffect(() => {
+  function onVisibilityChange() {
+    try {
+      if (document.visibilityState === 'hidden') {
+        localStorage.setItem('b2_hidden_at', String(Date.now()));
+      } else if (document.visibilityState === 'visible') {
+        const t = localStorage.getItem('b2_hidden_at');
+        localStorage.removeItem('b2_hidden_at');
+        if (t && Date.now() - parseInt(t, 10) > SESSION_GRACE_MS) {
+          // 5분 초과 — 자동 로그아웃
+          setUser(null);
+          setIsAdmin(false);
+          setAdminAuthed(false);
+          try {
+            localStorage.removeItem('b2_user');
+            localStorage.removeItem('b2_is_admin');
+            localStorage.removeItem('b2_admin_authed');
+          } catch (e) {}
+          try { window.supabase.auth.signOut(); } catch (e) {}
+        }
+      }
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+}, []);
+
 // 소셜 로그인 OAuth 콜백 처리
 //   Google/Kakao: Supabase가 hash의 access_token으로 세션 생성 → onAuthStateChange로 매칭
 //   Naver       : Supabase 미지원 → ?code&state=naver_* 감지 → naver-oauth-exchange Edge Function 호출 → 매칭
@@ -575,7 +627,7 @@ React.useEffect(() => {
           classIds: ((classRes && classRes.data) || []).map(r => r.class_id),
         };
         setUser(u);
-        try { sessionStorage.setItem('b2_user', JSON.stringify(u)); } catch {}
+        try { localStorage.setItem('b2_user', JSON.stringify(u)); } catch {}
         const role = String(u.role || '').toLowerCase();
         let nextPage = 'home';
         if (role === 'teacher' || role === '선생님' || role === '강사') nextPage = 'teacher';
@@ -598,7 +650,7 @@ React.useEffect(() => {
   // Google/Kakao: Supabase 세션에서 이메일/이름 추출
   async function processOAuth(session) {
     if (cancelled || !session || !session.user) return;
-    try { if (sessionStorage.getItem('b2_user')) return; } catch {}
+    try { if (localStorage.getItem('b2_user')) return; } catch {}
 
     const sUser = session.user;
     const email = String(sUser.email || '').toLowerCase();
@@ -618,7 +670,7 @@ React.useEffect(() => {
   // Naver: ?code=...&state=naver_* → Edge Function으로 token + user info 교환
   async function processNaverCallback() {
     if (cancelled) return;
-    try { if (sessionStorage.getItem('b2_user')) return; } catch {}
+    try { if (localStorage.getItem('b2_user')) return; } catch {}
 
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
@@ -687,14 +739,14 @@ function handleLogin(u) {
 setUser(u);
 setShowLogin(false);
 try {
-  sessionStorage.setItem('b2_user', JSON.stringify(u));
+  localStorage.setItem('b2_user', JSON.stringify(u));
 } catch {}
 
 const role = getUserRole(u);
 if (role === 'admin' || role === 'administrator' || role === '관리자') {
 setIsAdmin(true);
 setAdminAuthed(true);
-try { sessionStorage.setItem('b2_is_admin','true'); sessionStorage.setItem('b2_admin_authed','true'); } catch {}
+try { localStorage.setItem('b2_is_admin','true'); localStorage.setItem('b2_admin_authed','true'); } catch {}
 navigate('admin');
 return;
 }
@@ -714,9 +766,10 @@ setUser(null);
 setIsAdmin(false);
 setAdminAuthed(false);
 try {
-  sessionStorage.removeItem('b2_user');
-  sessionStorage.removeItem('b2_is_admin');
-  sessionStorage.removeItem('b2_admin_authed');
+  localStorage.removeItem('b2_user');
+  localStorage.removeItem('b2_is_admin');
+  localStorage.removeItem('b2_admin_authed');
+  localStorage.removeItem('b2_hidden_at');
   sessionStorage.removeItem('b2_page');
 } catch {}
 // 소셜 로그인 세션도 함께 종료 (Supabase Auth)
@@ -752,9 +805,9 @@ setUser(adminUser);
 setIsAdmin(true);
 setAdminAuthed(true);
 try {
-  sessionStorage.setItem('b2_user', JSON.stringify(adminUser));
-  sessionStorage.setItem('b2_is_admin','true');
-  sessionStorage.setItem('b2_admin_authed','true');
+  localStorage.setItem('b2_user', JSON.stringify(adminUser));
+  localStorage.setItem('b2_is_admin','true');
+  localStorage.setItem('b2_admin_authed','true');
 } catch {}
 navigate('admin');
 },

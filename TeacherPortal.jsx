@@ -1345,9 +1345,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     }
     alert('탈퇴가 완료되었습니다.');
     try {
-      sessionStorage.removeItem('b2_user');
-      sessionStorage.removeItem('b2_is_admin');
-      sessionStorage.removeItem('b2_admin_authed');
+      localStorage.removeItem('b2_user');
+      localStorage.removeItem('b2_is_admin');
+      localStorage.removeItem('b2_admin_authed');
+      localStorage.removeItem('b2_hidden_at');
       sessionStorage.removeItem('b2_page');
     } catch (e) {}
     window.location.href = '/';
