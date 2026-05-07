@@ -214,6 +214,7 @@
     var [editingWord, setEditingWord] = React.useState(null);
     var [showTestCreate, setShowTestCreate] = React.useState(null); // unit_index 또는 null
     var [editingTest, setEditingTest] = React.useState(null);
+    var [resultsTest, setResultsTest] = React.useState(null);
     var [autoFilling, setAutoFilling] = React.useState(false);
     var [autoFillProgress, setAutoFillProgress] = React.useState({ current: 0, total: 0 });
     var isMobile = window.B2Utils.useIsMobile();
@@ -392,13 +393,14 @@
                           var statusBg = t.status === 'open' ? '#d4e9e2' : t.status === 'closed' ? '#f3f4f6' : '#fef3c7';
                           var statusColor = t.status === 'open' ? '#006241' : t.status === 'closed' ? '#6b7280' : '#92400e';
                           var statusLabel = t.status === 'open' ? '진행중' : t.status === 'closed' ? '마감' : '준비중';
-                          return React.createElement('div', { key:t.id, style:{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', background:'#f8fafc', borderRadius:'8px' } },
+                          return React.createElement('div', { key:t.id, style:{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', background:'#f8fafc', borderRadius:'8px', flexWrap:'wrap', gap:'4px' } },
                             React.createElement('div', { style:{ flex:1, minWidth:0 } },
                               React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, t.title),
                               React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, modes.join(' · ') || '문제 없음')
                             ),
-                            React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:statusBg, color:statusColor, borderRadius:'4px', padding:'2px 6px', fontFamily:'Manrope, sans-serif', flexShrink:0, marginLeft:'8px' } }, statusLabel),
-                            React.createElement('button', { onClick:function(){ setEditingTest(t); }, style:Object.assign({}, STYLES.btnGhost, { padding:'3px 8px', fontSize:'11px', marginLeft:'6px' }) }, '편집')
+                            React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:statusBg, color:statusColor, borderRadius:'4px', padding:'2px 6px', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, statusLabel),
+                            React.createElement('button', { onClick:function(){ setResultsTest(t); }, style:Object.assign({}, STYLES.btnGhost, { padding:'3px 8px', fontSize:'11px' }) }, '📊 결과'),
+                            React.createElement('button', { onClick:function(){ setEditingTest(t); }, style:Object.assign({}, STYLES.btnGhost, { padding:'3px 8px', fontSize:'11px' }) }, '편집')
                           );
                         })
                       )
@@ -434,6 +436,10 @@
         test: editingTest,
         onClose: function(){ setEditingTest(null); },
         onSaved: function(){ setEditingTest(null); load(); },
+      }),
+      resultsTest && React.createElement(VocabTestResultsModal, {
+        test: resultsTest,
+        onClose: function(){ setResultsTest(null); },
       })
     );
   }
@@ -1022,6 +1028,191 @@
             React.createElement('button', { onClick:save, disabled:saving, style:Object.assign({}, STYLES.btnPrimary, saving ? { background:'#9ca3af', cursor:'not-allowed' } : null) }, saving ? '저장 중...' : (isEdit ? '저장' : '시험 만들기'))
           )
         )
+      )
+    );
+  }
+
+  // ── 시험 응시 결과 모달 (선생님·관리자) ─────────────────
+  function VocabTestResultsModal(props) {
+    var sb = window.supabase;
+    var test = props.test;
+    var [attempts, setAttempts] = React.useState([]);
+    var [loading, setLoading] = React.useState(true);
+    var [selectedAttempt, setSelectedAttempt] = React.useState(null);
+
+    React.useEffect(function(){ load(); }, []);
+
+    async function load() {
+      setLoading(true);
+      try {
+        var aRes = await sb.from('vocab_test_attempts').select('*').eq('test_id', test.id).order('submitted_at', { ascending: false });
+        setAttempts((aRes && aRes.data) || []);
+      } catch (e) { console.error('응시 결과 로드 실패:', e); }
+      setLoading(false);
+    }
+
+    // 학생당 최고 점수만 추리기 (RANKING과 동일 정책)
+    var bestByStudent = {};
+    attempts.forEach(function(a){
+      var prev = bestByStudent[a.student_id];
+      if (!prev || (a.percentage || 0) > (prev.percentage || 0) || ((a.percentage || 0) === (prev.percentage || 0) && (a.time_taken_seconds || 0) < (prev.time_taken_seconds || 0))) {
+        bestByStudent[a.student_id] = a;
+      }
+    });
+    var bests = Object.values(bestByStudent).sort(function(a, b){
+      if ((b.percentage || 0) !== (a.percentage || 0)) return (b.percentage || 0) - (a.percentage || 0);
+      return (a.time_taken_seconds || 0) - (b.time_taken_seconds || 0);
+    });
+
+    // 통계
+    var n = bests.length;
+    var avg = n > 0 ? Math.round((bests.reduce(function(s, a){ return s + (a.percentage || 0); }, 0) / n) * 10) / 10 : 0;
+    var hi = n > 0 ? Math.round(bests[0].percentage || 0) : 0;
+    var lo = n > 0 ? Math.round(bests[bests.length-1].percentage || 0) : 0;
+    var dist = { '90+': 0, '80-89': 0, '70-79': 0, '60-69': 0, '0-59': 0 };
+    bests.forEach(function(a){
+      var p = a.percentage || 0;
+      if (p >= 90) dist['90+']++;
+      else if (p >= 80) dist['80-89']++;
+      else if (p >= 70) dist['70-79']++;
+      else if (p >= 60) dist['60-69']++;
+      else dist['0-59']++;
+    });
+
+    // 자주 틀린 단어 (모든 응시 기준 — 학생 최고 점수 응시만 사용)
+    var wordWrongCount = {}; // { word_id: { word, meaning, wrong, total } }
+    bests.forEach(function(a){
+      var qs = a.questions || [];
+      var ans = a.answers || {};
+      qs.forEach(function(q, i){
+        if (!q.word_id) return;
+        if (!wordWrongCount[q.word_id]) wordWrongCount[q.word_id] = { word: q.word, meaning: q.meaning, wrong: 0, total: 0 };
+        wordWrongCount[q.word_id].total++;
+        var ua = ans[i];
+        var ok = (q.mode === 'multiple_choice') ? (ua === q.correct) : (String(ua||'').trim().toLowerCase() === String(q.correct||'').trim().toLowerCase());
+        if (!ok) wordWrongCount[q.word_id].wrong++;
+      });
+    });
+    var topWrong = Object.values(wordWrongCount).filter(function(w){ return w.wrong > 0; }).sort(function(a,b){
+      var aR = a.wrong / Math.max(1, a.total);
+      var bR = b.wrong / Math.max(1, b.total);
+      return bR - aR || b.wrong - a.wrong;
+    }).slice(0, 10);
+
+    if (selectedAttempt) {
+      return React.createElement('div', { style:STYLES.modalBackdrop, onClick:props.onClose },
+        React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(640px, calc(100% - 32px))' }), onClick:function(e){ e.stopPropagation(); } },
+          React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
+          React.createElement('button', { onClick:function(){ setSelectedAttempt(null); }, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'800', fontFamily:'Manrope, sans-serif', padding:0, marginBottom:'12px' } }, '← 결과 목록'),
+          React.createElement('h2', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:'0 0 6px', fontFamily:'Manrope, sans-serif' } }, (selectedAttempt.student_name || '학생') + ' — ' + Math.round(selectedAttempt.percentage || 0) + '점'),
+          React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } },
+            selectedAttempt.score + '/' + selectedAttempt.total + ' 정답 · ' + (selectedAttempt.time_taken_seconds || 0) + '초 소요 · ' + selectedAttempt.attempt_number + '회차 · ' + String(selectedAttempt.submitted_at || '').slice(0,16).replace('T',' ')
+          ),
+          React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px', maxHeight:'60vh', overflowY:'auto' } },
+            (selectedAttempt.questions || []).map(function(q, i){
+              var ua = (selectedAttempt.answers || {})[i];
+              var ok = (q.mode === 'multiple_choice') ? (ua === q.correct) : (String(ua||'').trim().toLowerCase() === String(q.correct||'').trim().toLowerCase());
+              return React.createElement('div', { key:i, style:{ padding:'10px 14px', background: ok ? '#dcfce7' : '#fff5f5', borderRadius:'8px', borderLeft:'3px solid ' + (ok ? '#16a34a' : '#c82014') } },
+                React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
+                  React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color: ok ? '#16a34a' : '#c82014' } }, ok ? '✓' : '✗'),
+                  React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#1A1A1A' } }, q.word + ' — ' + q.meaning),
+                    !ok && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginTop:'2px' } }, '내 답: ' + (ua == null ? '(미응답)' : ua) + ' · 정답: ' + q.correct)
+                  )
+                )
+              );
+            })
+          )
+        )
+      );
+    }
+
+    return React.createElement('div', { style:STYLES.modalBackdrop, onClick:props.onClose },
+      React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(720px, calc(100% - 32px))' }), onClick:function(e){ e.stopPropagation(); } },
+        React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
+        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 4px', fontFamily:'Manrope, sans-serif' } }, test.title + ' — 응시 결과'),
+        React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '유닛 ' + test.unit_index),
+
+        loading
+          ? React.createElement('div', { style:{ padding:'40px', textAlign:'center', color:'#9ca3af' } }, '불러오는 중...')
+          : n === 0
+            ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 응시한 학생이 없습니다.')
+            : React.createElement('div', null,
+                // 통계
+                React.createElement('div', { style:Object.assign({}, STYLES.card, { marginBottom:'12px', padding:'14px' }) },
+                  React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'10px', textAlign:'center', marginBottom:'12px' } },
+                    React.createElement('div', null,
+                      React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.5)', fontWeight:'700', letterSpacing:'0.04em' } }, '응시'),
+                      React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#1A1A1A' } }, n + '명')
+                    ),
+                    React.createElement('div', null,
+                      React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.5)', fontWeight:'700', letterSpacing:'0.04em' } }, '평균'),
+                      React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color: avg >= 80 ? '#16a34a' : avg >= 60 ? '#c87000' : '#c82014' } }, avg + '점')
+                    ),
+                    React.createElement('div', null,
+                      React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.5)', fontWeight:'700', letterSpacing:'0.04em' } }, '최고'),
+                      React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#16a34a' } }, hi + '점')
+                    ),
+                    React.createElement('div', null,
+                      React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.5)', fontWeight:'700', letterSpacing:'0.04em' } }, '최저'),
+                      React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#c82014' } }, lo + '점')
+                    )
+                  ),
+                  React.createElement('div', { style:{ borderTop:'1px solid rgba(0,0,0,0.06)', paddingTop:'10px' } },
+                    React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', marginBottom:'6px' } }, '점수 분포'),
+                    [['90+', '#16a34a'], ['80-89', '#65a30d'], ['70-79', '#c87000'], ['60-69', '#dc6803'], ['0-59', '#c82014']].map(function(b){
+                      var cnt = dist[b[0]] || 0;
+                      var pct = n > 0 ? (cnt / n) * 100 : 0;
+                      return React.createElement('div', { key:b[0], style:{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px' } },
+                        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:b[1], minWidth:'48px' } }, b[0]),
+                        React.createElement('div', { style:{ flex:1, height:'10px', background:'#f3f4f6', borderRadius:'5px', overflow:'hidden' } },
+                          React.createElement('div', { style:{ width:pct+'%', height:'100%', background:b[1], transition:'width 0.3s' } })
+                        ),
+                        React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.7)', minWidth:'40px', textAlign:'right' } }, cnt + '명')
+                      );
+                    })
+                  )
+                ),
+
+                // 자주 틀린 단어
+                topWrong.length > 0 && React.createElement('div', { style:Object.assign({}, STYLES.card, { marginBottom:'12px', padding:'14px' }) },
+                  React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '🔍 자주 틀린 단어'),
+                  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px' } },
+                    topWrong.map(function(w, i){
+                      var rate = Math.round((w.wrong / Math.max(1, w.total)) * 100);
+                      return React.createElement('div', { key:i, style:{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 10px', background:'#fff5f5', borderRadius:'6px', fontSize:'13px', fontFamily:'Manrope, sans-serif' } },
+                        React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                          React.createElement('span', { style:{ fontWeight:'700', color:'#1A1A1A' } }, w.word),
+                          React.createElement('span', { style:{ color:'rgba(0,0,0,0.55)', marginLeft:'8px', fontSize:'12px' } }, w.meaning)
+                        ),
+                        React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#c82014', flexShrink:0 } }, w.wrong + '/' + w.total + ' 오답 (' + rate + '%)')
+                      );
+                    })
+                  )
+                ),
+
+                // 학생별 결과 (점수순)
+                React.createElement('div', { style:Object.assign({}, STYLES.card, { padding:'14px' }) },
+                  React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '📝 학생별 결과 (' + n + '명, 최고 점수 기준)'),
+                  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px', maxHeight:'40vh', overflowY:'auto' } },
+                    bests.map(function(a, i){
+                      var pct = Math.round(a.percentage || 0);
+                      var color = pct >= 80 ? '#16a34a' : pct >= 60 ? '#c87000' : '#c82014';
+                      var medalBg = i === 0 ? '#fef3c7' : i === 1 ? '#e5e7eb' : i === 2 ? '#fed7aa' : 'transparent';
+                      var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null;
+                      return React.createElement('div', { key:a.id, onClick:function(){ setSelectedAttempt(a); }, style:{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 10px', background:medalBg || '#f8fafc', borderRadius:'6px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
+                        React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.6)', minWidth:'30px', textAlign:'center' } }, medal || (i+1) + '위'),
+                        React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, a.student_name || '(이름 없음)'),
+                          React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)' } }, (a.time_taken_seconds || 0) + '초 · ' + a.attempt_number + '회차')
+                        ),
+                        React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:color, minWidth:'46px', textAlign:'right' } }, pct + '점'),
+                        React.createElement('div', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.3)' } }, '›')
+                      );
+                    })
+                  )
+                )
+              )
       )
     );
   }
