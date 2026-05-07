@@ -181,6 +181,29 @@
     return '#c82014';
   }
 
+  // ── site_content 테이블 헬퍼 ──────────────────────────────────
+  // key 한 개 로드/저장. select('value').eq('key',X).maybeSingle() + upsert 패턴 통합
+  // 새 site_content 키가 추가될 때 호출 측이 같은 형태로 한 줄씩만 쓰면 됨
+  async function loadSiteContent(key) {
+    var sb = window.supabase;
+    if (!sb || !key) return null;
+    try {
+      var { data } = await sb.from('site_content').select('value').eq('key', key).maybeSingle();
+      return (data && data.value != null) ? data.value : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  async function saveSiteContent(key, value) {
+    var sb = window.supabase;
+    if (!sb || !key) return { error: new Error('supabase 미초기화 또는 key 누락') };
+    return await sb.from('site_content').upsert({
+      key: key,
+      value: value,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
   // ── students row → 로그인 user 객체 ────────────────────────────
   // 이메일 로그인·OAuth 로그인 양쪽에서 동일한 enrollments + class_students 조회 후 user 객체 조립
   // 두 쿼리를 Promise.all로 병렬 실행
@@ -277,5 +300,5 @@
     return v;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent };
 })();

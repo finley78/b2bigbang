@@ -918,8 +918,8 @@ function SiteFooter({ setPage }) {
   React.useEffect(() => {
     (async () => {
       try {
-        const { data } = await sb.from('site_content').select('value').eq('key','footer').maybeSingle();
-        if (data && data.value) setF(data.value);
+        const v = await window.B2Utils.loadSiteContent('footer');
+        if (v) setF(v);
       } catch (e) {}
     })();
   }, []);

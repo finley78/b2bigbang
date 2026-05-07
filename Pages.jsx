@@ -142,9 +142,8 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
   React.useEffect(() => {
     (async () => {
       try {
-        const sb = window.supabase;
-        const { data } = await sb.from('site_content').select('value').eq('key', 'programs').maybeSingle();
-        if (data && data.value) setPgContent(data.value);
+        const v = await window.B2Utils.loadSiteContent('programs');
+        if (v) setPgContent(v);
       } catch (e) { console.error('프로그램 콘텐츠 로드 실패:', e); }
     })();
   }, []);
@@ -387,9 +386,8 @@ function AboutPage({ setPage }) {
   React.useEffect(() => {
     (async () => {
       try {
-        const sb = window.supabase;
-        const { data } = await sb.from('site_content').select('value').eq('key', 'about').maybeSingle();
-        if (data && data.value) setContent(data.value);
+        const v = await window.B2Utils.loadSiteContent('about');
+        if (v) setContent(v);
       } catch (e) { console.error('학원안내 콘텐츠 로드 실패:', e); }
     })();
   }, []);

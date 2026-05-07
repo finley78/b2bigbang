@@ -425,12 +425,12 @@ const eventClicked = eventClickedKey === eventButtonKey;
 React.useEffect(() => {
   (async () => {
     try {
-      const { data } = await window.supabase.from('site_content').select('value').eq('key','event_button').maybeSingle();
-      if (data && data.value) setEventButton(prev => Object.assign({}, prev, data.value));
+      const v = await window.B2Utils.loadSiteContent('event_button');
+      if (v) setEventButton(prev => Object.assign({}, prev, v));
     } catch (e) {}
     try {
-      const { data: fd } = await window.supabase.from('site_content').select('value').eq('key','feature').maybeSingle();
-      if (fd && fd.value) setState(s => Object.assign({}, s, { content: Object.assign({}, s.content || {}, fd.value) }));
+      const fv = await window.B2Utils.loadSiteContent('feature');
+      if (fv) setState(s => Object.assign({}, s, { content: Object.assign({}, s.content || {}, fv) }));
     } catch (e) {}
   })();
 }, []);

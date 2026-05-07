@@ -330,25 +330,22 @@ async function deleteAdminAttachment(att) {
 }
 
 async function loadAboutContent() {
-  var sb = window.supabase;
   try {
-    var { data } = await sb.from('site_content').select('value').eq('key', 'about').maybeSingle();
-    setAboutDraft(data && data.value ? data.value : {});
+    var v = await window.B2Utils.loadSiteContent('about');
+    setAboutDraft(v || {});
   } catch (e) { console.error('학원안내 로드 실패:', e); setAboutDraft({}); }
 }
 async function loadFooterContent() {
-  var sb = window.supabase;
   try {
-    var { data } = await sb.from('site_content').select('value').eq('key','footer').maybeSingle();
-    setFooterDraft(data && data.value ? data.value : { company_name:'', ceo:'', biz_no:'', address:'', phone:'', email:'', hours:'', copyright:'' });
+    var v = await window.B2Utils.loadSiteContent('footer');
+    setFooterDraft(v || { company_name:'', ceo:'', biz_no:'', address:'', phone:'', email:'', hours:'', copyright:'' });
   } catch (e) { setFooterDraft({}); }
 }
 async function saveFooterContent() {
   if (!footerDraft) return;
   setFooterSaving(true);
-  var sb = window.supabase;
   try {
-    var { error } = await sb.from('site_content').upsert({ key:'footer', value: footerDraft, updated_at: new Date().toISOString() });
+    var { error } = await window.B2Utils.saveSiteContent('footer', footerDraft);
     if (error) throw error;
     alert('푸터 정보가 저장되었습니다.');
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
@@ -357,12 +354,11 @@ async function saveFooterContent() {
 
 async function saveFeatureContent() {
   setFeatureSaving(true);
-  var sb = window.supabase;
   try {
     var fields = ['featureEyebrow','featureTitle','featureBody','featureCta1','featureCta2','heroTitle','featureBgColor','featureTextColor'];
     var payload = {};
     fields.forEach(function(f){ if (state.content && state.content[f] != null) payload[f] = state.content[f]; });
-    var { error } = await sb.from('site_content').upsert({ key:'feature', value: payload, updated_at: new Date().toISOString() });
+    var { error } = await window.B2Utils.saveSiteContent('feature', payload);
     if (error) throw error;
     alert('섹션 편집 변경사항이 저장되었습니다.');
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
@@ -370,18 +366,16 @@ async function saveFeatureContent() {
 }
 
 async function loadEventBtn() {
-  var sb = window.supabase;
   try {
-    var { data } = await sb.from('site_content').select('value').eq('key', 'event_button').maybeSingle();
-    setEventBtnDraft(data && data.value ? data.value : { enabled:true, badge:'EVENT', text:'무료 레벨테스트', target_page:'leveltest' });
+    var v = await window.B2Utils.loadSiteContent('event_button');
+    setEventBtnDraft(v || { enabled:true, badge:'EVENT', text:'무료 레벨테스트', target_page:'leveltest' });
   } catch (e) { console.error('이벤트 버튼 로드 실패:', e); setEventBtnDraft({ enabled:true, badge:'EVENT', text:'무료 레벨테스트', target_page:'leveltest' }); }
 }
 async function saveEventBtn() {
   if (!eventBtnDraft) return;
   setEventBtnSaving(true);
-  var sb = window.supabase;
   try {
-    var { error } = await sb.from('site_content').upsert({ key:'event_button', value: eventBtnDraft, updated_at: new Date().toISOString() });
+    var { error } = await window.B2Utils.saveSiteContent('event_button', eventBtnDraft);
     if (error) throw error;
     alert('이벤트 버튼이 저장되었습니다. (메인 페이지 새로고침 시 반영)');
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
@@ -389,18 +383,16 @@ async function saveEventBtn() {
 }
 
 async function loadProgramsContent() {
-  var sb = window.supabase;
   try {
-    var { data } = await sb.from('site_content').select('value').eq('key', 'programs').maybeSingle();
-    setProgramsDraft(data && data.value ? data.value : {});
+    var v = await window.B2Utils.loadSiteContent('programs');
+    setProgramsDraft(v || {});
   } catch (e) { console.error('프로그램 로드 실패:', e); setProgramsDraft({}); }
 }
 async function saveProgramsContent() {
   if (!programsDraft) return;
   setProgramsSaving(true);
-  var sb = window.supabase;
   try {
-    var { error } = await sb.from('site_content').upsert({ key:'programs', value: programsDraft, updated_at: new Date().toISOString() });
+    var { error } = await window.B2Utils.saveSiteContent('programs', programsDraft);
     if (error) throw error;
     alert('프로그램 콘텐츠가 저장되었습니다.');
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
@@ -430,9 +422,8 @@ async function uploadAboutImage(file, key) {
 async function saveAboutContent() {
   if (!aboutDraft) return;
   setAboutSaving(true);
-  var sb = window.supabase;
   try {
-    var { error } = await sb.from('site_content').upsert({ key:'about', value: aboutDraft, updated_at: new Date().toISOString() });
+    var { error } = await window.B2Utils.saveSiteContent('about', aboutDraft);
     if (error) throw error;
     alert('학원안내 콘텐츠가 저장되었습니다.');
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
