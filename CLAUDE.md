@@ -122,9 +122,102 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-07)
+## 현재 진행 (2026-05-10)
 
-### 최근 완료
+### 단어시험 시스템 (보카트레인 B안) — 2026-05-08~10
+**개요**: 단어장 만들기 → 시험 만들기 → 학생 응시 → 결과/순위. 학원 전체 공유 컨셉.
+
+**합의된 설계 (변경 시 사용자 확인 필수)**:
+- B안 = Flash Card + 4모드(객관식/스펠링/쓰기/듣기), Bingo 생략
+- 한 시험 = 한 유닛 (단어장의 N단어를 unit_size로 나눠 자동 분할)
+- 응시 결과 즉시 공개 (점수+정답)
+- 단어장 학원 전체 공유 (관리자/선생님 모두 read+write)
+- 발음: 브라우저 SpeechSynthesis API 무료, 학생 화면 자동 재생 / 선생님 관리 화면은 수동 버튼
+- 사진 X (텍스트만), 예문 컬럼은 있으나 학습/시험에서는 미사용
+- 연습은 기록 안 함 / 시험은 기록·순위
+- 품사: 한글 표시 (영어 약어 자동 변환), 자동 채우기 가능 (Free Dictionary API)
+
+**DB 스키마 (5개 테이블)**:
+- `vocab_lists` (id, name, subject, grade, unit_size DEFAULT 20, vocab_test_preset 없음)
+- `vocab_words` (list_id, word, meaning, part_of_speech, example, image_url, sort_order)
+- `vocab_tests` (list_id, unit_index, multiple_choice_count, spelling_count, writing_count, listening_count, choices_per_question, question_direction, spelling_blank_ratio, seconds_per_question, show_answer_seconds, attempts_allowed, status, due_at)
+- `vocab_test_assignments` (test_id, class_id, student_id) — 반/학생 다중
+- `vocab_test_attempts` (test_id, student_id, questions jsonb, answers jsonb, score, total, percentage, attempt_number)
+- + `classes.vocab_test_preset jsonb` (선생님이 미리 저장한 시험 형식)
+
+모두 RLS는 모든 작업 허용 (학원 자체 인증, 권한은 클라이언트).
+
+**파일 구조**:
+- `VocabManager.jsx/.js` — 선생님·관리자 단어장+시험 관리 (양쪽에 같은 컴포넌트 마운트)
+- `VocabPlayer.jsx/.js` — 학생 STUDY/TEST/REPORT/RANKING 4섹션
+- AdminPanel: '학원 관리' 그룹에 '단어장' 탭, TeacherPortal: '수업 관리' 그룹에 '단어장' 탭
+- StudentPortal: 강의실 홈에 '단어 시험' 카드 (studentMode='vocab')
+
+**기능별 위치**:
+- 단어 추가 (엑셀/붙여넣기/직접): VocabManager > VocabImportModal
+  - 붙여넣기는 단어 박스 / 뜻 박스 좌우 분리 (같은 줄 번호끼리 매칭)
+- 시험 만들기: VocabManager > VocabTestEditModal
+  - "시험 설정" 탭 상단의 클래스 카드 그리드 = 클릭 시 그 반의 vocab_test_preset 불러오기 + 저장 시 그 반에 저장
+  - "배포 대상" 탭에서 반/학생 다중 선택
+- 시험 응시 결과: VocabManager > VocabTestResultsModal (시험 카드 클릭 또는 📊 결과 버튼)
+- 학생 응시: VocabPlayer > QuizRunner (자동 진행, 모드별 UI 분기)
+- 학생 STUDY Flash Card: VocabPlayer > FlashCardPlayer (4초/카드, 발음 자동, 정지/이전/다음)
+
+**학생 상세 통합 뷰 (선생님)** — 2026-05-10:
+- TeacherPortal 담당 클래스 → 클래스 → 학생 카드 클릭
+- 5개 영역 한 화면: 수강 강좌 / 시험 점수 / 단어시험 / 특이사항 / 출결
+- 메모 등록 인라인 폼 (특이사항 탭은 메뉴에서 삭제됨)
+- 학생 카드 디자인: 동그라미 안 학년, 이름 옆 수강 과목 칩, 모바일 1열
+- 기본 정보: 학생 연락처 + 학부모 연락처 (둘 다 tel: 링크)
+
+**iOS PWA 안내 배너** (2026-05-09):
+- iOS Safari는 beforeinstallprompt 미지원 → 직접 배너 표시 + 가이드 모달 (3단계 안내)
+- index.html에 `#pwa-ios-guide` 모달
+
+**B2Utils 헬퍼 (2026-05-08~10 추가)**:
+- `useIsMobile()` (resize + display-mode 변화 모두 감지)
+- `levelFromGrade(g)` — 정규식 통일
+- `scoreGradeBucket/scoreDistBucket/scoreColor`
+- `clearAuthStorage()` — 로그아웃·탈퇴 통합
+- `callEdgeFn(name, body)` — Edge Function 호출 헤더 통합
+- `buildUserFromStudentRow(row)` — 이메일·OAuth 로그인 user 객체 조립 통합
+- `loadSiteContent/saveSiteContent`
+- `EXAM_DATE` 상수
+- `localizePartOfSpeech` (영어 품사 → 한글)
+- `isMobileViewport` — 정적 호출용
+
+**빌드 자동화**:
+- `build.js`의 `BUILD_VERSION` 한 곳만 갱신 → index.html `?v=...` 7곳 + service-worker `CACHE_VERSION` 자동 동기화
+- 마지막 버전: `20260510a` (다음에 b, c, ... z 후 다음 날짜)
+
+### 다음 할 일 (단어시험 후속)
+- **STUDY 4모드 학습** (Flash Card 외에 객관식/스펠링/쓰기/듣기 자유 연습) — QuizRunner 재사용으로 만들 수 있음
+- **Easy/Hard 난이도 분리** (보카트레인 9단계 식) — 미정, 일단 spelling_blank_ratio로만 구분
+- **Bingo 모드** — 보류 (B안에서 생략됨)
+- **사용자 직접 작업 (학원에서)**: Google Cloud Console OAuth 동의 화면 앱 이름 "서비스" → "B2빅뱅학원" 변경
+- **세부 정리 옵션**: 성적 탭의 개별 학생 점수 표시는 학생 상세에 통합되었으니 성적 탭은 등록·반별 분석만 좁혀도 됨
+
+### 운영 컨텍스트 (중요)
+- **학생은 PWA 우선** — 학생 화면 설계는 PWA(설치형 모바일 앱) 기준
+  - 한 화면=한 문제, 자동 진행, autocapitalize=off, started_at 기반 타이머, visibilitychange 감지
+- **선생님·관리자**: PC 비율 높지만 PWA에서도 동작해야 함
+- **학원 자체 인증** (Supabase Auth 외) — RLS는 모두 허용, 권한은 클라이언트에서 체크
+- **관리자는 무한 권한**, 선생님도 단어시험·단어장은 동일 권한 (학원 전체 공유)
+
+### 최근 완료 (2026-05-08~10)
+- **단어시험 시스템 전체** (위 큰 섹션 참고) — 5개 테이블, 보카트레인 B안, STUDY/TEST/REPORT/RANKING
+- **시험 카드 그리드** — 선생님이 시험 한눈에 보기 좋게, 상태별 테두리 색
+- **클래스별 시험 형식 preset** (`classes.vocab_test_preset` jsonb) — 버튼 카드로 불러오기/저장
+- **선생님 학생 상세 통합 뷰** — 5개 영역 한 화면 + 메모 등록 인라인
+- **품사 자동 채우기** — Free Dictionary API, 5개씩 병렬 조회, 한글 자동 변환
+- **iOS PWA 설치 가이드** — 자동 배너 + 3단계 안내 모달
+- **햄버거 메뉴 자동 닫기** — page/user 변경 시 무조건 setMenuOpen(false)
+- **관리자 페이지 로그아웃 수정** — `onLogout: null` → `handleLogout` (단순 prop 누락 버그)
+- **로그인 비밀번호 눈 아이콘** — '현재 상태 표시' 패턴(가려진 상태=대각선 있는 눈, 한국 앱 표준)
+- **PWA 세션 5분 그레이스** — sessionStorage → localStorage, hidden 시각 기반 자동 로그아웃
+- **B2Utils 정리 작업** (1·2 라운드) — useIsMobile/levelFromGrade/scoreColor/clearAuthStorage/callEdgeFn/buildUserFromStudentRow/loadSiteContent/EXAM_DATE 통합
+
+### 이전 작업 (참고용)
 - **개인정보처리방침/이용약관 페이지**: Naver OAuth 검수 통과를 위해 `Pages.jsx`에 `PrivacyPolicyPage` + `TermsPage` 컴포넌트 추가. 표준 학원 템플릿 기반(처리 목적/항목/보유기간/위탁/안전성 조치 등 12조 + 약관 10조). `index.html`에 `page === 'privacy'/'terms'` 라우트 + `?page=privacy|terms` URL 파라미터 진입(외부 검수 직링용). `HomePage.jsx`의 `SiteFooter`에 두 페이지 링크 추가(`setPage` prop 추가, `site_content` 미설정 시에도 푸터 표시되도록). 보호책임자 정보·시행일 등은 사용자가 검토 후 수정 필요. Naver 검수 신청 시 URL: `https://b2bigbang.com/?page=privacy`
 - **Naver OAuth 로그인 (커스텀 구현)**: Supabase가 네이버 미지원이라 직접 구현. Edge Function `naver-oauth-exchange`(code→token→user info, NAVER_CLIENT_ID/SECRET 시크릿). `StudentPortal.jsx` LoginModal에 네이버 버튼(#03C75A)·`handleProvider('naver')`가 state 생성 후 `nid.naver.com/oauth2.0/authorize`로 리다이렉트. Callback URL = `https://b2bigbang.com/auth/naver-callback` → `404.html`(=index.html 복사본, build.js에서 자동 sync)으로 SPA fallback 받아 앱 부팅 → `?code=&state=naver_*` 감지 → Edge Function 호출 → `matchByEmail()` 공통 로직으로 students 매칭. 기존 `processOAuth`도 같은 `matchByEmail`을 사용하도록 리팩토링. Naver는 Supabase 세션 없음 → b2_user/sessionStorage만 사용. 개발 중 상태 = 등록 멤버만 로그인 가능, 학생 일반 사용은 검수 통과 후
 - **Kakao OAuth 로그인**: Kakao Developers 앱 등록(`B2빅뱅학원`, 비즈 앱 전환 완료). REST API 키 + Client Secret + OpenID Connect ON, Redirect URI = Supabase 콜백, 동의항목 닉네임/이메일 필수. Supabase Auth Provider Kakao 활성화. `StudentPortal.jsx` LoginModal에 카카오 버튼 추가(#FEE500, 카카오 말풍선 SVG, `handleProvider('kakao')`). App OAuth 콜백 핸들러는 provider 무관하게 동일 로직(이메일 매칭) — Google과 동일 흐름
