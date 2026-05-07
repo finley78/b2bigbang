@@ -463,32 +463,30 @@
   function VocabImportModal(props) {
     var sb = window.supabase;
     var [mode, setMode] = React.useState('paste'); // 'paste' / 'excel' / 'single'
-    var [pasteText, setPasteText] = React.useState('');
+    var [pasteWords, setPasteWords] = React.useState('');     // 단어만
+    var [pasteMeanings, setPasteMeanings] = React.useState(''); // 뜻만
     var [parsed, setParsed] = React.useState([]); // [{word, meaning, part_of_speech, example}, ...]
     var [singleDraft, setSingleDraft] = React.useState({ word:'', meaning:'', part_of_speech:'', example:'' });
     var [saving, setSaving] = React.useState(false);
 
-    // 텍스트 파싱: 줄별 → 탭 또는 다중 공백으로 분리
-    function parsePasted(text) {
-      var lines = String(text || '').split(/\r?\n/);
+    // 두 박스 줄별 매칭 — 단어 줄 N개와 뜻 줄 N개를 같은 줄 번호끼리 매칭
+    function parsePasted(wordsText, meaningsText) {
+      var wLines = String(wordsText || '').split(/\r?\n/).map(function(s){ return s.trim(); });
+      var mLines = String(meaningsText || '').split(/\r?\n/).map(function(s){ return s.trim(); });
       var rows = [];
-      lines.forEach(function(line){
-        var trimmed = line.trim();
-        if (!trimmed) return;
-        // 탭이 있으면 탭 분리, 없으면 다중 공백 (2+) 분리
-        var parts = trimmed.indexOf('\t') >= 0 ? trimmed.split('\t') : trimmed.split(/\s{2,}|,\s*/);
-        var w = (parts[0] || '').trim();
-        var m = (parts[1] || '').trim();
-        var p = (parts[2] || '').trim();
-        var e = (parts[3] || '').trim();
-        if (w && m) rows.push({ word:w, meaning:m, part_of_speech:p || null, example:e || null });
-      });
+      var n = Math.max(wLines.length, mLines.length);
+      for (var i = 0; i < n; i++) {
+        var w = wLines[i] || '';
+        var m = mLines[i] || '';
+        if (!w && !m) continue; // 빈 줄 무시
+        if (w && m) rows.push({ word: w, meaning: m, part_of_speech: null, example: null });
+      }
       return rows;
     }
 
     React.useEffect(function(){
-      if (mode === 'paste') setParsed(parsePasted(pasteText));
-    }, [pasteText, mode]);
+      if (mode === 'paste') setParsed(parsePasted(pasteWords, pasteMeanings));
+    }, [pasteWords, pasteMeanings, mode]);
 
     async function handleExcel(file) {
       if (!file) return;
@@ -519,7 +517,8 @@
         }
         setParsed(out);
         setMode('paste'); // 미리보기 화면 공유
-        setPasteText(out.map(function(r){ return [r.word, r.meaning, r.part_of_speech||'', r.example||''].join('\t'); }).join('\n'));
+        setPasteWords(out.map(function(r){ return r.word; }).join('\n'));
+        setPasteMeanings(out.map(function(r){ return r.meaning; }).join('\n'));
       } catch (e) { alert('엑셀 파싱 실패: ' + (e.message || e)); }
     }
 
@@ -583,22 +582,37 @@
         ),
 
         mode === 'paste' && React.createElement('div', null,
-          React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'8px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } },
-            '엑셀에서 두 칸(단어/뜻) 또는 네 칸(+품사/예문)을 복사해서 아래에 붙여넣으세요. 줄바꿈으로 구분, 칸 사이는 탭으로 자동 인식됩니다. 품사는 \'명사\' \'동사\' 같이 한글로 적어 주세요 (영어 약어 noun/v 등도 자동으로 한글로 변환됩니다).'
+          React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } },
+            '왼쪽에 단어, 오른쪽에 뜻을 한 줄씩 붙여넣으세요. 같은 줄 번호끼리 짝이 됩니다. 엑셀의 단어 칸과 뜻 칸을 따로 복사하면 편해요.'
           ),
-          React.createElement('textarea', {
-            value: pasteText,
-            onChange: function(e){ setPasteText(e.target.value); },
-            placeholder: 'apple\t사과\nbanana\t바나나\ncat\t고양이',
-            rows: 10,
-            style: Object.assign({}, STYLES.input, { fontFamily:'Menlo, Consolas, monospace', resize:'vertical', minHeight:'160px' })
-          }),
+          React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' } },
+            React.createElement('div', null,
+              React.createElement('div', { style:Object.assign({}, STYLES.label, { marginBottom:'4px' }) }, '단어 (영문)'),
+              React.createElement('textarea', {
+                value: pasteWords,
+                onChange: function(e){ setPasteWords(e.target.value); },
+                placeholder: 'apple\nbanana\ncat\ndog',
+                rows: 10,
+                style: Object.assign({}, STYLES.input, { fontFamily:'Menlo, Consolas, monospace', resize:'vertical', minHeight:'200px', whiteSpace:'pre' })
+              })
+            ),
+            React.createElement('div', null,
+              React.createElement('div', { style:Object.assign({}, STYLES.label, { marginBottom:'4px' }) }, '뜻 (한글)'),
+              React.createElement('textarea', {
+                value: pasteMeanings,
+                onChange: function(e){ setPasteMeanings(e.target.value); },
+                placeholder: '사과\n바나나\n고양이\n개',
+                rows: 10,
+                style: Object.assign({}, STYLES.input, { fontFamily:'Menlo, Consolas, monospace', resize:'vertical', minHeight:'200px', whiteSpace:'pre' })
+              })
+            )
+          ),
           parsed.length > 0 && React.createElement('div', { style:{ marginTop:'10px', fontSize:'12px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif' } },
             React.createElement('strong', { style:{ color:'#1A1A1A' } }, parsed.length + '개 단어 인식됨'),
             ' — 첫 5개 미리보기:',
             React.createElement('ul', { style:{ marginTop:'6px', paddingLeft:'18px', fontSize:'12px', lineHeight:'1.7' } },
               parsed.slice(0,5).map(function(r, i){
-                return React.createElement('li', { key:i }, r.word + ' — ' + r.meaning + (r.part_of_speech ? ' (' + r.part_of_speech + ')' : '') + (r.example ? ' · ' + r.example : ''));
+                return React.createElement('li', { key:i }, r.word + ' — ' + r.meaning);
               })
             )
           )
