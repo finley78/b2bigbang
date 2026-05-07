@@ -144,5 +144,18 @@
     } catch (e) { console.warn('비밀번호 마이그레이션 실패:', e); }
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain };
+  // ── 모바일 뷰포트 판정 ─────────────────────────────────────────
+  // width < 768 OR PWA standalone 모드 → 모바일 디자인 사용
+  // PWA가 가로 회전돼도(가로 폭이 768+) standalone이면 모바일 레이아웃을 유지
+  function isMobileViewport() {
+    if (typeof window === 'undefined') return false;
+    try {
+      if (window.innerWidth < 768) return true;
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+      if (window.navigator && window.navigator.standalone === true) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport };
 })();

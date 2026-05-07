@@ -1,9 +1,9 @@
 // HomePage.jsx — 완전 반응형 버전
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = React.useState(window.B2Utils.isMobileViewport());
   React.useEffect(() => {
-    function onResize() { setIsMobile(window.innerWidth < 768); }
+    function onResize() { setIsMobile(window.B2Utils.isMobileViewport()); }
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);

@@ -29,11 +29,20 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
   const [forgotDone, setForgotDone] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [showPw, setShowPw] = React.useState(false);
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = React.useState(window.B2Utils.isMobileViewport());
   React.useEffect(() => {
-    function h() { setIsMobile(window.innerWidth < 768); }
+    function h() { setIsMobile(window.B2Utils.isMobileViewport()); }
     window.addEventListener('resize', h);
     return () => window.removeEventListener('resize', h);
+  }, []);
+  // OAuth 페이지 다녀오거나 뒤로가기로 돌아왔을 때 loading 잠금 자동 해제
+  // (signInWithOAuth가 redirect 안 하고 끝나면 다른 소셜 버튼이 disabled로 묶이는 문제 방지)
+  React.useEffect(() => {
+    function onVis() {
+      if (document.visibilityState === 'visible') setLoading(false);
+    }
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
   const sb = window.supabase;
 
@@ -1327,9 +1336,9 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   // 강의실 진입 모드 (학생 전용): 'home' | 'video' | 'test'
   var [studentMode, setStudentMode] = React.useState('home');
   // 반응형 (PC vs 모바일)
-  var [portalIsMobile, setPortalIsMobile] = React.useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  var [portalIsMobile, setPortalIsMobile] = React.useState(typeof window !== 'undefined' && window.B2Utils.isMobileViewport());
   React.useEffect(function(){
-    function h() { setPortalIsMobile(window.innerWidth < 768); }
+    function h() { setPortalIsMobile(window.B2Utils.isMobileViewport()); }
     window.addEventListener('resize', h);
     return function(){ window.removeEventListener('resize', h); };
   }, []);

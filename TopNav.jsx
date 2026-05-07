@@ -12,12 +12,12 @@ function dDay(targetDateStr) {
 
 function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick, onAdminClick, onLogout, examDate, onForgotClick }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = React.useState(window.B2Utils.isMobileViewport());
   const d = dDay(examDate || '2026-11-12');
 
   React.useEffect(() => {
     function handleResize() {
-      setIsMobile(window.innerWidth < 768);
+      setIsMobile(window.B2Utils.isMobileViewport());
       if (window.innerWidth >= 768) setMenuOpen(false);
     }
     window.addEventListener('resize', handleResize);

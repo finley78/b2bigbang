@@ -31,7 +31,7 @@ function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh
       setEnrolling(false);
     }
   }
-  const isMobile = window.innerWidth < 768;
+  const isMobile = window.B2Utils.isMobileViewport();
   const color = course.color || '#E60012';
 
   return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
@@ -133,7 +133,7 @@ function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh
 
 /* ── Service Page ───────────────────────────── */
 function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, refresh }) {
-  const isMobile = window.innerWidth < 768;
+  const isMobile = window.B2Utils.isMobileViewport();
   const [isMobileState, setIsMobileState] = React.useState(isMobile);
   const [filterLevel, setFilterLevel] = React.useState('전체');
   const [filterGrade, setFilterGrade] = React.useState('전체');
@@ -141,7 +141,7 @@ function ServicePage({ setPage, courses, onSelectCourse, user, onLoginClick, ref
   const [pgContent, setPgContent] = React.useState(null);
   const SERVICE_LEVELS = { '초등': ['1학년','2학년','3학년','4학년','5학년','6학년'], '중등': ['중1','중2','중3'], '고등': ['고1','고2','고3'] };
   React.useEffect(() => {
-    function onResize() { setIsMobileState(window.innerWidth < 768); }
+    function onResize() { setIsMobileState(window.B2Utils.isMobileViewport()); }
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -388,10 +388,10 @@ function ContactPage() {
 
 /* ── About Page (학원안내) ───────────────────── */
 function AboutPage({ setPage }) {
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = React.useState(window.B2Utils.isMobileViewport());
   const [content, setContent] = React.useState(null);
   React.useEffect(() => {
-    function onResize() { setIsMobile(window.innerWidth < 768); }
+    function onResize() { setIsMobile(window.B2Utils.isMobileViewport()); }
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -523,9 +523,9 @@ function AboutPage({ setPage }) {
 
 /* ── Recruit Page (모집안내) ─────────────────── */
 function RecruitPage({ setPage }) {
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = React.useState(window.B2Utils.isMobileViewport());
   React.useEffect(() => {
-    function onResize() { setIsMobile(window.innerWidth < 768); }
+    function onResize() { setIsMobile(window.B2Utils.isMobileViewport()); }
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -593,7 +593,7 @@ function RecruitPage({ setPage }) {
 
 /* ── 개인정보처리방침 ─────────── */
 function PrivacyPolicyPage() {
-  const isMobile = (typeof useIsMobile === 'function') ? useIsMobile() : (window.innerWidth < 768);
+  const isMobile = (typeof useIsMobile === 'function') ? useIsMobile() : (window.B2Utils.isMobileViewport());
   const wrap = { background:'#fff', minHeight:'80vh', padding: isMobile ? '32px 18px' : '60px 40px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.82)' };
   const inner = { maxWidth:'860px', margin:'0 auto', lineHeight:'1.85', fontSize:'14px' };
   const h1 = { fontSize: isMobile ? '24px' : '30px', fontWeight:'800', color:'#111', margin:'0 0 8px' };
@@ -733,7 +733,7 @@ function PrivacyPolicyPage() {
 
 /* ── 이용약관 ─────────── */
 function TermsPage() {
-  const isMobile = (typeof useIsMobile === 'function') ? useIsMobile() : (window.innerWidth < 768);
+  const isMobile = (typeof useIsMobile === 'function') ? useIsMobile() : (window.B2Utils.isMobileViewport());
   const wrap = { background:'#fff', minHeight:'80vh', padding: isMobile ? '32px 18px' : '60px 40px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.82)' };
   const inner = { maxWidth:'860px', margin:'0 auto', lineHeight:'1.85', fontSize:'14px' };
   const h1 = { fontSize: isMobile ? '24px' : '30px', fontWeight:'800', color:'#111', margin:'0 0 8px' };
