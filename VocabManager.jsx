@@ -48,9 +48,8 @@
     }
 
     async function deleteList(list) {
-      if (!confirm('"' + list.name + '" 단어장을 삭제할까요?\n포함된 단어와 연결된 시험·응시 결과가 모두 함께 삭제됩니다.')) return;
-      // soft delete: is_active=false (단어/시험은 cascade 안 함, 보관)
-      // 사용자가 영구 삭제를 원하면 별도 옵션. 기본은 안전한 soft delete
+      if (!confirm('"' + list.name + '" 단어장을 목록에서 숨길까요?\n\n안전 삭제: 단어·시험·응시 결과는 DB에 보관되며, 목록에서만 사라집니다. 필요 시 관리자에게 복구 요청 가능합니다.')) return;
+      // soft delete: is_active=false (실제 데이터는 보관)
       var { error } = await sb.from('vocab_lists').update({ is_active:false }).eq('id', list.id);
       if (error) { alert('삭제 실패: ' + error.message); return; }
       loadLists();
@@ -816,7 +815,7 @@
 
     async function deleteTest() {
       if (!isEdit) return;
-      if (!confirm('"' + props.test.title + '" 시험을 삭제할까요?\n응시 결과도 함께 삭제됩니다.')) return;
+      if (!confirm('"' + props.test.title + '" 시험을 목록에서 숨길까요?\n\n안전 삭제: 응시 결과는 DB에 보관됩니다. 학생들에게는 더 이상 보이지 않습니다.')) return;
       try {
         var u = await sb.from('vocab_tests').update({ is_active: false }).eq('id', props.test.id);
         if (u.error) throw u.error;
