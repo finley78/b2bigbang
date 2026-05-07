@@ -760,31 +760,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     await loadNotes();
   }
 
-  // ── 성적 분석 헬퍼 ──
-  function gradeBucketOf(score) {
-    var s = Number(score);
-    if (isNaN(s)) return null;
-    if (s >= 90) return 1; // 1등급
-    if (s >= 80) return 2;
-    if (s >= 70) return 3;
-    return 0; // 미달
-  }
-  function distributionBucketOf(score) {
-    var s = Number(score);
-    if (isNaN(s)) return null;
-    if (s >= 90) return '90-100';
-    if (s >= 80) return '80-89';
-    if (s >= 70) return '70-79';
-    if (s >= 60) return '60-69';
-    return '0-59';
-  }
-  function colorForScore(score) {
-    var s = Number(score);
-    if (isNaN(s)) return '#9ca3af';
-    if (s >= 90) return '#E60012';
-    if (s >= 70) return '#F8B500';
-    return '#c82014';
-  }
+  // ── 성적 분석 헬퍼는 B2Utils로 통합 ──
+  var gradeBucketOf = window.B2Utils.scoreGradeBucket;
+  var distributionBucketOf = window.B2Utils.scoreDistBucket;
+  var colorForScore = window.B2Utils.scoreColor;
   // 학생별 시간순 정렬된 점수 배열 반환 (오래된→최신)
   function studentScoresSorted(allScores, studentId, subject, testName) {
     return (allScores || [])

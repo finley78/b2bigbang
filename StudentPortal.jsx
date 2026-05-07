@@ -7,14 +7,8 @@ const SUBJECT_COLORS = {
   '과학': '#E60012',
 };
 
-// 학생 grade 문자열에서 level(초등/중등/고등) 추출
-function levelFromGrade(g) {
-  if (!g) return '';
-  if (/^\d+학년$/.test(g)) return '초등';
-  if (/^중\d$/.test(g)) return '중등';
-  if (/^고\d$/.test(g)) return '고등';
-  return '';
-}
+// 학년 → 학교급 추출은 B2Utils로 통합
+var levelFromGrade = window.B2Utils.levelFromGrade;
 
 /* ── Login Modal ──────────────────────────────── */
 function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot }) {

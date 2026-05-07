@@ -18,18 +18,11 @@ const SCHOOL_LEVELS = {
 '중등': { schools:['검암중','간재울중','백석중','서곶중'], grades:['중1','중2','중3'] },
 '고등': { schools:['대인고','서인천고','백석고'], grades:['고1','고2','고3'] },
 };
-function levelFromGrade(grade) {
-  if (!grade) return '';
-  if (/학년$/.test(grade)) return '초등';
-  if (/^중[1-3]$/.test(grade)) return '중등';
-  if (/^고[1-3]$/.test(grade)) return '고등';
-  return '';
-}
-
-// ── 성적 분석 헬퍼 (관리자/선생님 공유 로직과 동일 규칙) ──
-function adminGradeBucket(score) { var s = Number(score); if (isNaN(s)) return null; if (s>=90) return 1; if (s>=80) return 2; if (s>=70) return 3; return 0; }
-function adminDistBucket(score) { var s = Number(score); if (isNaN(s)) return null; if (s>=90) return '90-100'; if (s>=80) return '80-89'; if (s>=70) return '70-79'; if (s>=60) return '60-69'; return '0-59'; }
-function adminColorForScore(score) { var s = Number(score); if (isNaN(s)) return '#9ca3af'; if (s>=90) return '#E60012'; if (s>=70) return '#F8B500'; return '#c82014'; }
+// ── 학년/성적 헬퍼는 B2Utils로 통합 ──
+var levelFromGrade = window.B2Utils.levelFromGrade;
+var adminGradeBucket = window.B2Utils.scoreGradeBucket;
+var adminDistBucket = window.B2Utils.scoreDistBucket;
+var adminColorForScore = window.B2Utils.scoreColor;
 
 /* ── Admin Login ────────────────────────────── */
 function AdminLogin({ onLogin }) {

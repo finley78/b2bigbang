@@ -144,6 +144,43 @@
     } catch (e) { console.warn('비밀번호 마이그레이션 실패:', e); }
   }
 
+  // ── 학년 문자열 → 학교급 추출 ──────────────────────────────────
+  // '5학년' → '초등' / '중2' → '중등' / '고1' → '고등'
+  function levelFromGrade(g) {
+    if (!g) return '';
+    if (/^\d+학년$/.test(g)) return '초등';
+    if (/^중\d$/.test(g)) return '중등';
+    if (/^고\d$/.test(g)) return '고등';
+    return '';
+  }
+
+  // ── 성적 분석 헬퍼 ────────────────────────────────────────────
+  // 관리자/선생님이 동일한 색상·등급·구간 규칙을 사용
+  function scoreGradeBucket(score) {
+    var s = Number(score);
+    if (isNaN(s)) return null;
+    if (s >= 90) return 1; // 1등급
+    if (s >= 80) return 2;
+    if (s >= 70) return 3;
+    return 0; // 미달
+  }
+  function scoreDistBucket(score) {
+    var s = Number(score);
+    if (isNaN(s)) return null;
+    if (s >= 90) return '90-100';
+    if (s >= 80) return '80-89';
+    if (s >= 70) return '70-79';
+    if (s >= 60) return '60-69';
+    return '0-59';
+  }
+  function scoreColor(score) {
+    var s = Number(score);
+    if (isNaN(s)) return '#9ca3af';
+    if (s >= 90) return '#E60012';
+    if (s >= 70) return '#F8B500';
+    return '#c82014';
+  }
+
   // ── 모바일 뷰포트 판정 ─────────────────────────────────────────
   // width < 768 OR PWA standalone 모드 → 모바일 디자인 사용
   // PWA가 가로 회전돼도(가로 폭이 768+) standalone이면 모바일 레이아웃을 유지
@@ -182,5 +219,5 @@
     return v;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor };
 })();
