@@ -7,6 +7,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [selectedStudent, setSelectedStudent] = React.useState(null); // 클래스 학생 클릭 시 상세
   const [studentDetail, setStudentDetail] = React.useState(null); // { courses, exams, vocab, notes, attendance }
   const [studentDetailLoading, setStudentDetailLoading] = React.useState(false);
+  const [newNoteContent, setNewNoteContent] = React.useState('');
+  const [newNoteType, setNewNoteType] = React.useState('특이사항');
+  const [savingNote, setSavingNote] = React.useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [debug, setDebug] = React.useState("");
@@ -551,6 +554,30 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         ? { ...course, lectures: (course.lectures || []).filter((lecture) => String(lecture.id) !== String(lectureId)) }
         : course
     ));
+  }
+
+  // 학생 상세에서 메모 추가
+  async function addStudentNote() {
+    if (!selectedStudent || !newNoteContent.trim()) return;
+    if (!teacherInfo) { alert('선생님 정보를 먼저 불러와야 합니다.'); return; }
+    setSavingNote(true);
+    try {
+      var sb = window.supabase;
+      var today = new Date().toISOString().slice(0, 10);
+      var { error } = await sb.from('teacher_notes').insert({
+        student_id: selectedStudent.id,
+        teacher_id: teacherInfo.id,
+        content: newNoteContent.trim(),
+        note_type: newNoteType,
+        note_date: today,
+        class_id: selectedClass ? selectedClass.id : null,
+      });
+      if (error) throw error;
+      setNewNoteContent('');
+      // 학생 상세 다시 로드 (메모 새로고침)
+      await loadStudentDetail(selectedStudent);
+    } catch (e) { alert('메모 등록 실패: ' + (e.message || e)); }
+    setSavingNote(false);
   }
 
   // 학생 클릭 시 상세 정보 통합 로드 (수강 강좌·시험·단어시험·특이사항·출결)
@@ -1488,7 +1515,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     { id: "tests",    label: "시험" },
     { id: "vocab",    label: "단어장" },
     { id: "homework", label: "숙제" },
-    { id: "notes",    label: "특이사항" },
     { id: "scores",   label: "성적" },
     { id: "files",    label: "자료실" },
     { id: "schedule", label: "학원 일정" },
@@ -1497,7 +1523,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
   const TAB_GROUPS = [
     { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','homework','tests','vocab','scores','course','lecture'] },
-    { id: 'academy', label: '학원',      color:'#c87000', tabs:['schedule','files','notes'] },
+    { id: 'academy', label: '학원',      color:'#c87000', tabs:['schedule','files'] },
     { id: 'me',      label: '내 정보',   color:'#1A1A1A', tabs:['mypage'] },
   ];
 
@@ -1595,17 +1621,27 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 {selectedClass.name} · {students.length}명
               </h3>
               <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "12px", fontFamily: "Manrope, sans-serif" }}>학생을 클릭하면 수강 강좌, 시험 결과, 단어시험, 특이사항을 한 번에 볼 수 있어요.</p>
-              <div style={{ display: "grid", gridTemplateColumns: teacherIsMobile ? "repeat(2, 1fr)" : "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px" }}>
-                {students.map(s => (
-                  <button key={s.id} onClick={() => loadStudentDetail(s)} style={{ background: "#fff", border: "1.5px solid #e5e7eb", borderRadius: "10px", padding: "12px", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s", fontFamily: "Manrope, sans-serif" }} onMouseEnter={(e)=>{ e.currentTarget.style.borderColor='#E60012'; e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.06)'; }} onMouseLeave={(e)=>{ e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
-                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#FFEBED", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: "800", color: "#E60012", flexShrink: 0 }}>{s.name[0]}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
-                      <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[s.grade, s.school].filter(Boolean).join(" · ") || "—"}</div>
-                    </div>
-                    <div style={{ color: "#d1d5db", fontSize: "18px" }}>›</div>
-                  </button>
-                ))}
+              <div style={{ display: "grid", gridTemplateColumns: teacherIsMobile ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
+                {students.map(s => {
+                  var subjArr = Array.isArray(s.subjects) ? s.subjects.filter(Boolean) : [];
+                  var grade = s.grade || '';
+                  return (
+                    <button key={s.id} onClick={() => loadStudentDetail(s)} style={{ background: "#fff", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "16px", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: "14px", transition: "all 0.15s", fontFamily: "Manrope, sans-serif", minHeight: "72px" }} onMouseEnter={(e)=>{ e.currentTarget.style.borderColor='#E60012'; e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.06)'; }} onMouseLeave={(e)=>{ e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                      <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#FFEBED", display: "flex", alignItems: "center", justifyContent: "center", fontSize: grade.length > 2 ? "12px" : "14px", fontWeight: "800", color: "#E60012", flexShrink: 0, lineHeight: "1" }}>{grade || "—"}</div>
+                      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <div style={{ fontSize: "16px", fontWeight: "800", color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+                        {subjArr.length > 0 && (
+                          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                            {subjArr.map((sub, i) => (
+                              <span key={i} style={{ fontSize: "11px", fontWeight: "700", background: "#f3f4f6", color: "#1A1A1A", borderRadius: "4px", padding: "2px 6px" }}>{sub}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ color: "#d1d5db", fontSize: "20px", flexShrink: 0 }}>›</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1629,12 +1665,18 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px", marginTop: "14px", paddingTop: "14px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
                   <div>
-                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", fontWeight: "700", letterSpacing: "0.04em" }}>이메일</div>
-                    <div style={{ fontSize: "12px", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedStudent.email || "—"}</div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", fontWeight: "700", letterSpacing: "0.04em" }}>학생 연락처</div>
+                    {selectedStudent.phone
+                      ? <a href={"tel:" + selectedStudent.phone} style={{ fontSize: "13px", marginTop: "2px", color: "#fff", fontWeight: "700", textDecoration: "none", display: "block" }}>{selectedStudent.phone}</a>
+                      : <div style={{ fontSize: "12px", marginTop: "2px", color: "rgba(255,255,255,0.5)" }}>—</div>
+                    }
                   </div>
                   <div>
-                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", fontWeight: "700", letterSpacing: "0.04em" }}>연락처</div>
-                    <div style={{ fontSize: "12px", marginTop: "2px" }}>{selectedStudent.phone || selectedStudent.parent_phone || "—"}</div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", fontWeight: "700", letterSpacing: "0.04em" }}>학부모 연락처</div>
+                    {selectedStudent.parent_phone
+                      ? <a href={"tel:" + selectedStudent.parent_phone} style={{ fontSize: "13px", marginTop: "2px", color: "#fff", fontWeight: "700", textDecoration: "none", display: "block" }}>{selectedStudent.parent_phone}</a>
+                      : <div style={{ fontSize: "12px", marginTop: "2px", color: "rgba(255,255,255,0.5)" }}>—</div>
+                    }
                   </div>
                 </div>
               </div>
@@ -1709,9 +1751,20 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     )}
                   </div>
 
-                  {/* 특이사항 */}
+                  {/* 특이사항 + 메모 등록 */}
                   <div style={cardStyle}>
                     <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📌 특이사항 ({studentDetail.notes.length})</div>
+                    {/* 메모 등록 */}
+                    <div style={{ display: "flex", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
+                      <select value={newNoteType} onChange={e => setNewNoteType(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #d6dbde", borderRadius: "6px", fontSize: "12px", fontFamily: "Manrope, sans-serif", flexShrink: 0 }}>
+                        <option value="특이사항">특이사항</option>
+                        <option value="상담">상담</option>
+                        <option value="수업">수업</option>
+                        <option value="기타">기타</option>
+                      </select>
+                      <input type="text" value={newNoteContent} onChange={e => setNewNoteContent(e.target.value)} placeholder="새 메모 입력 (Enter로 등록)" onKeyDown={(e) => { if (e.key === 'Enter' && !savingNote && newNoteContent.trim()) addStudentNote(); }} style={{ flex: 1, padding: "8px 10px", border: "1px solid #d6dbde", borderRadius: "6px", fontSize: "13px", fontFamily: "Manrope, sans-serif", minWidth: "120px" }} />
+                      <button onClick={addStudentNote} disabled={savingNote || !newNoteContent.trim()} style={{ background: savingNote || !newNoteContent.trim() ? "#9ca3af" : "#E60012", color: "#fff", border: "none", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: "700", cursor: savingNote || !newNoteContent.trim() ? "not-allowed" : "pointer", fontFamily: "Manrope, sans-serif", flexShrink: 0 }}>{savingNote ? '저장 중...' : '+ 추가'}</button>
+                    </div>
                     {studentDetail.notes.length === 0 ? (
                       <div style={{ fontSize: "12px", color: "#9ca3af" }}>등록된 특이사항이 없습니다.</div>
                     ) : (
