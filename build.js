@@ -28,6 +28,18 @@ const baseOptions = {
   logLevel: 'info',
 };
 
+// SPA fallback: GitHub Pages가 /auth/naver-callback 같은 임의 경로 요청 시 404.html을 서빙하므로
+// 404.html을 index.html과 동일하게 유지해 앱이 부팅되도록 함
+function syncSpaFallback() {
+  try {
+    const src = path.join(__dirname, 'index.html');
+    const dst = path.join(__dirname, '404.html');
+    if (fs.existsSync(src)) fs.copyFileSync(src, dst);
+  } catch (e) {
+    console.warn('404.html sync skipped:', e.message);
+  }
+}
+
 async function buildOnce() {
   const start = Date.now();
   await Promise.all(
@@ -39,6 +51,7 @@ async function buildOnce() {
       })
     )
   );
+  syncSpaFallback();
   console.log(`OK Built ${FILES.length} files in ${Date.now() - start}ms`);
 }
 

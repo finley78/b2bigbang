@@ -79,6 +79,22 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
   async function handleProvider(provider) {
     setLoading(true); setMsg('');
     try {
+      if (provider === 'naver') {
+        // Naver는 Supabase 미지원 → 직접 OAuth flow. state는 sessionStorage 검증용
+        const NAVER_CLIENT_ID = 'iNR8oMfZKRrFvQxgWMvJ';
+        const NAVER_REDIRECT_URI = 'https://b2bigbang.com/auth/naver-callback';
+        const rand = (function(){
+          try { return crypto.randomUUID(); } catch { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+        })();
+        const state = 'naver_' + rand;
+        try { sessionStorage.setItem('b2_naver_state', state); } catch {}
+        const url = 'https://nid.naver.com/oauth2.0/authorize?response_type=code'
+          + '&client_id=' + encodeURIComponent(NAVER_CLIENT_ID)
+          + '&redirect_uri=' + encodeURIComponent(NAVER_REDIRECT_URI)
+          + '&state=' + encodeURIComponent(state);
+        window.location.href = url;
+        return;
+      }
       const { error } = await sb.auth.signInWithOAuth({
         provider,
         options: { redirectTo: window.location.origin },
@@ -228,6 +244,19 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
             React.createElement('path', { fill:'#000000', d:'M128 36C70.562 36 24 72.713 24 118c0 29.279 19.466 54.97 48.748 69.477-1.593 5.494-10.237 35.344-10.581 37.689 0 0-.207 1.762.934 2.434 1.143.673 2.487.154 2.487.154 3.272-.458 37.943-24.811 43.944-29.04 5.844.836 11.884 1.286 18.468 1.286 57.438 0 104-36.713 104-82S185.438 36 128 36' })
           ),
           '카카오로 로그인'
+        ),
+        // Naver 로그인 버튼
+        React.createElement('button', {
+          onClick: function(){ handleProvider('naver'); },
+          disabled: loading,
+          style:{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', background:'#03C75A', color:'#fff', border:'1px solid #03C75A', borderRadius:'8px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'12px', transition:'background 0.15s' },
+          onMouseEnter: function(e){ if(!loading) e.currentTarget.style.background = '#02b150'; },
+          onMouseLeave: function(e){ e.currentTarget.style.background = '#03C75A'; },
+        },
+          React.createElement('svg', { width:'18', height:'18', viewBox:'0 0 16 16', xmlns:'http://www.w3.org/2000/svg' },
+            React.createElement('path', { fill:'#ffffff', d:'M9.297 8.554L6.653 4.75H4v6.5h2.703V7.446l2.644 3.804H12v-6.5H9.297v3.804z' })
+          ),
+          '네이버로 로그인'
         ),
         React.createElement('div', { style:{ textAlign:'center', marginTop:'8px' } },
           React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '아직 회원이 아니신가요? '),
