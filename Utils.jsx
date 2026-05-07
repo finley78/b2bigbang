@@ -181,6 +181,24 @@
     return '#c82014';
   }
 
+  // ── Supabase Edge Function 호출 헬퍼 ──────────────────────────
+  // anonKey/Authorization 헤더 조립을 한 곳에 모음. POST + JSON body 고정.
+  // 반환: { ok: boolean, status: number, data: any }
+  async function callEdgeFn(name, body) {
+    var sb = window.supabase;
+    var anonKey = (sb && sb.supabaseKey) ? sb.supabaseKey : '';
+    var base = (sb && sb.supabaseUrl) ? sb.supabaseUrl : 'https://ldsjysjavwssadheeiog.supabase.co';
+    var url = base + '/functions/v1/' + name;
+    var res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + anonKey },
+      body: JSON.stringify(body || {}),
+    });
+    var data = null;
+    try { data = await res.json(); } catch (e) { data = {}; }
+    return { ok: res.ok, status: res.status, data: data || {} };
+  }
+
   // ── 인증 스토리지 정리 ─────────────────────────────────────────
   // 로그아웃·탈퇴·세션 만료 등에서 동일하게 호출. b2_page는 페이지 상태라 sessionStorage 유지
   // 새 인증 키가 추가되면 여기 한 곳만 갱신하면 됨 (stale 세션 방지)
@@ -232,5 +250,5 @@
     return v;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn };
 })();

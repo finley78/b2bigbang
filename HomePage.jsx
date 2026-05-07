@@ -974,16 +974,8 @@ function ResetPasswordPage({ token, onDone }) {
   React.useEffect(function(){
     (async function(){
       try {
-        const sb = window.supabase;
-        const anonKey = sb && sb.supabaseKey ? sb.supabaseKey : '';
-        const url = 'https://ldsjysjavwssadheeiog.supabase.co/functions/v1/verify-password-reset';
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + anonKey },
-          body: JSON.stringify({ action: 'check', token: token }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) { setTokenValid(true); }
+        const { ok, data } = await window.B2Utils.callEdgeFn('verify-password-reset', { action: 'check', token: token });
+        if (ok) { setTokenValid(true); }
         else { setTokenError(data.error || '유효하지 않은 링크입니다.'); }
       } catch (e) { setTokenError('네트워크 오류'); }
       finally { setTokenChecked(true); }
@@ -996,16 +988,8 @@ function ResetPasswordPage({ token, onDone }) {
     if (pw !== pw2) { setMsg('비밀번호 확인이 일치하지 않습니다.'); return; }
     setLoading(true);
     try {
-      const sb = window.supabase;
-      const anonKey = sb && sb.supabaseKey ? sb.supabaseKey : '';
-      const url = 'https://ldsjysjavwssadheeiog.supabase.co/functions/v1/verify-password-reset';
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + anonKey },
-        body: JSON.stringify({ action: 'reset', token: token, newPassword: pw }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setMsg(data.error || '재설정에 실패했습니다.'); setLoading(false); return; }
+      const { ok, data } = await window.B2Utils.callEdgeFn('verify-password-reset', { action: 'reset', token: token, newPassword: pw });
+      if (!ok) { setMsg(data.error || '재설정에 실패했습니다.'); setLoading(false); return; }
       setDone(true);
     } catch (e) { setMsg('네트워크 오류'); }
     finally { setLoading(false); }

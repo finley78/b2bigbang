@@ -122,16 +122,8 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
     }
     setForgotSending(true);
     try {
-      const url = 'https://ldsjysjavwssadheeiog.supabase.co/functions/v1/send-password-reset';
-      const sb = window.supabase;
-      const anonKey = sb && sb.supabaseKey ? sb.supabaseKey : '';
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + anonKey },
-        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      const { ok, data } = await window.B2Utils.callEdgeFn('send-password-reset', { email: forgotEmail.trim().toLowerCase() });
+      if (!ok) {
         setMsg(data.error || '요청 처리 중 오류가 발생했습니다.');
         setForgotSending(false); return;
       }
