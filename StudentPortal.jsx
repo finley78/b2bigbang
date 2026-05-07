@@ -216,6 +216,19 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
           ),
           'Google로 로그인'
         ),
+        // Kakao 로그인 버튼
+        React.createElement('button', {
+          onClick: function(){ handleProvider('kakao'); },
+          disabled: loading,
+          style:{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', background:'#FEE500', color:'rgba(0,0,0,0.85)', border:'1px solid #FEE500', borderRadius:'8px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'12px', transition:'background 0.15s' },
+          onMouseEnter: function(e){ if(!loading) e.currentTarget.style.background = '#fdd800'; },
+          onMouseLeave: function(e){ e.currentTarget.style.background = '#FEE500'; },
+        },
+          React.createElement('svg', { width:'18', height:'18', viewBox:'0 0 256 256', xmlns:'http://www.w3.org/2000/svg' },
+            React.createElement('path', { fill:'#000000', d:'M128 36C70.562 36 24 72.713 24 118c0 29.279 19.466 54.97 48.748 69.477-1.593 5.494-10.237 35.344-10.581 37.689 0 0-.207 1.762.934 2.434 1.143.673 2.487.154 2.487.154 3.272-.458 37.943-24.811 43.944-29.04 5.844.836 11.884 1.286 18.468 1.286 57.438 0 104-36.713 104-82S185.438 36 128 36' })
+          ),
+          '카카오로 로그인'
+        ),
         React.createElement('div', { style:{ textAlign:'center', marginTop:'8px' } },
           React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '아직 회원이 아니신가요? '),
           React.createElement('span', { onClick:()=>{ onClose(); onSignup&&onSignup(); }, style:{ fontSize:'13px', color:'#E60012', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '회원가입')
