@@ -28,6 +28,7 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
   const [forgotSending, setForgotSending] = React.useState(false);
   const [forgotDone, setForgotDone] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [showPw, setShowPw] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   React.useEffect(() => {
     function h() { setIsMobile(window.innerWidth < 768); }
@@ -184,7 +185,18 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
         // 비밀번호 입력
         React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'12px' } },
           React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
-          React.createElement('input', { type:'password', name:'password', autoComplete:'current-password', placeholder:'비밀번호 입력', value:password, onChange:e=>{ setPassword(e.target.value); setMsg(''); }, onKeyDown:e=>e.key==='Enter'&&handleLogin(), style:inputStyle })
+          React.createElement('input', { type: showPw ? 'text' : 'password', name:'password', autoComplete:'current-password', placeholder:'비밀번호 입력', value:password, onChange:e=>{ setPassword(e.target.value); setMsg(''); }, onKeyDown:e=>e.key==='Enter'&&handleLogin(), style:{ ...inputStyle, paddingRight:'28px' } }),
+          React.createElement('button', { type:'button', onClick:()=>setShowPw(v=>!v), 'aria-label': showPw ? '비밀번호 숨기기' : '비밀번호 표시', style:{ position:'absolute', right:'8px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', padding:'4px', cursor:'pointer', color:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center' } },
+            showPw
+              ? React.createElement('svg', { width:'18', height:'18', viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' },
+                  React.createElement('path', { d:'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24' }),
+                  React.createElement('line', { x1:'1', y1:'1', x2:'23', y2:'23' })
+                )
+              : React.createElement('svg', { width:'18', height:'18', viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' },
+                  React.createElement('path', { d:'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' }),
+                  React.createElement('circle', { cx:'12', cy:'12', r:'3' })
+                )
+          )
         ),
 
         // 관리자 체크박스
