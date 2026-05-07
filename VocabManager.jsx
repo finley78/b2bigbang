@@ -215,7 +215,59 @@
     var [editingWord, setEditingWord] = React.useState(null);
     var [showTestCreate, setShowTestCreate] = React.useState(null); // unit_index 또는 null
     var [editingTest, setEditingTest] = React.useState(null);
+    var [autoFilling, setAutoFilling] = React.useState(false);
+    var [autoFillProgress, setAutoFillProgress] = React.useState({ current: 0, total: 0 });
     var isMobile = window.B2Utils.useIsMobile();
+
+    // 무료 사전 API로 단어 1개 품사 조회
+    async function fetchPartOfSpeech(word) {
+      try {
+        var res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
+        if (!res.ok) return null;
+        var data = await res.json();
+        if (Array.isArray(data) && data[0] && data[0].meanings && data[0].meanings[0]) {
+          return data[0].meanings[0].partOfSpeech || null;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    // 빈 품사를 자동 채우기 (5개씩 병렬, Free Dictionary API)
+    async function autoFillPartOfSpeech() {
+      var emptyWords = words.filter(function(w){ return !w.part_of_speech || !String(w.part_of_speech).trim(); });
+      if (emptyWords.length === 0) { alert('이미 모든 단어에 품사가 있습니다.'); return; }
+      var msg = emptyWords.length + '개 단어에 품사를 자동으로 채울까요?\n무료 사전 API(영어 단어만)로 조회합니다. 단어 수에 따라 몇 초~몇 분 걸릴 수 있어요.';
+      if (!confirm(msg)) return;
+
+      setAutoFilling(true);
+      setAutoFillProgress({ current: 0, total: emptyWords.length });
+      var success = 0;
+      var failed = 0;
+      var chunkSize = 5;
+      try {
+        for (var i = 0; i < emptyWords.length; i += chunkSize) {
+          var chunk = emptyWords.slice(i, i + chunkSize);
+          var results = await Promise.all(chunk.map(function(w){
+            return fetchPartOfSpeech(w.word).then(function(pos){ return { word: w, pos: pos }; });
+          }));
+          for (var k = 0; k < results.length; k++) {
+            var r = results[k];
+            if (r.pos) {
+              try {
+                await sb.from('vocab_words').update({ part_of_speech: r.pos }).eq('id', r.word.id);
+                success++;
+              } catch (e) { failed++; }
+            } else {
+              failed++;
+            }
+          }
+          setAutoFillProgress({ current: Math.min(i + chunkSize, emptyWords.length), total: emptyWords.length });
+        }
+        alert(success + '개 채움, ' + failed + '개 실패 (영단어 아니거나 사전에 없는 경우).');
+      } catch (e) { alert('자동 채우기 실패: ' + (e.message || e)); }
+      setAutoFilling(false);
+      load();
+    }
 
     React.useEffect(function(){ load(); }, [props.listId]);
 
@@ -263,7 +315,12 @@
               [list.subject, list.grade, words.length + '단어', words.length > 0 ? '유닛 ' + unitCount + '개 (' + unitSize + '/유닛)' : null].filter(Boolean).join(' · ')
             )
           ),
-          activeTab === 'words' && React.createElement('button', { onClick:function(){ setShowImport(true); }, style:STYLES.btnPrimary }, '+ 단어 추가')
+          activeTab === 'words' && React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
+            words.length > 0 && React.createElement('button', { onClick: autoFillPartOfSpeech, disabled: autoFilling, title:'영어 사전에서 빈 품사를 자동 조회', style: Object.assign({}, STYLES.btnGhost, autoFilling ? { background:'#f3f4f6', cursor:'not-allowed' } : null) },
+              autoFilling ? ('처리 중 ' + autoFillProgress.current + '/' + autoFillProgress.total) : '🔄 품사 자동 채우기'
+            ),
+            React.createElement('button', { onClick:function(){ setShowImport(true); }, style:STYLES.btnPrimary }, '+ 단어 추가')
+          )
         )
       ),
 
