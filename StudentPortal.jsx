@@ -23,6 +23,7 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [msg, setMsg] = React.useState('');
   const [forgotMode, setForgotMode] = React.useState(!!initialForgot);
+  const [emailMode, setEmailMode] = React.useState(false);
   const [forgotEmail, setForgotEmail] = React.useState('');
   const [forgotSending, setForgotSending] = React.useState(false);
   const [forgotDone, setForgotDone] = React.useState(false);
@@ -166,6 +167,51 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
     );
   }
 
+  // 이메일 로그인 모드 (이메일/비번 입력 화면)
+  if (emailMode) {
+    return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }, onClick:onClose },
+      React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', width:'400px', padding:'36px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', position:'relative', maxHeight:'90vh', overflowY:'auto' }, onClick:e=>e.stopPropagation() },
+        React.createElement('button', { onClick:onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
+        React.createElement('button', { onClick: function(){ setEmailMode(false); setMsg(''); setIsAdmin(false); setEmail(''); setPassword(''); }, style:{ background:'none', border:'none', fontSize:'13px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', cursor:'pointer', padding:0, marginBottom:'16px' } }, '← 돌아가기'),
+        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 18px', fontFamily:'Manrope, sans-serif' } }, isAdmin ? '관리자 로그인' : '이메일로 로그인'),
+
+        // 이메일/아이디 입력
+        React.createElement('div', { style:inputFieldStyle },
+          React.createElement('div', { style:floatLabelStyle }, isAdmin ? '관리자 아이디' : '이메일'),
+          React.createElement('input', { type: isAdmin ? 'text' : 'email', name: isAdmin ? 'username' : 'email', autoComplete: isAdmin ? 'username' : 'email', placeholder: isAdmin ? '관리자 아이디 입력' : 'example@email.com', value:email, onChange:e=>{ setEmail(e.target.value); setMsg(''); }, style:inputStyle })
+        ),
+
+        // 비밀번호 입력
+        React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'12px' } },
+          React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
+          React.createElement('input', { type:'password', name:'password', autoComplete:'current-password', placeholder:'비밀번호 입력', value:password, onChange:e=>{ setPassword(e.target.value); setMsg(''); }, onKeyDown:e=>e.key==='Enter'&&handleLogin(), style:inputStyle })
+        ),
+
+        // 관리자 체크박스
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px', cursor:'pointer' }, onClick:()=>{ setIsAdmin(v=>!v); setMsg(''); setEmail(''); setPassword(''); } },
+          React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'4px', border: isAdmin ? 'none' : '1.5px solid rgba(0,0,0,0.3)', background: isAdmin ? '#1A1A1A' : '#fff', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.15s' } },
+            isAdmin && React.createElement('svg', { width:'11', height:'11', viewBox:'0 0 12 12', fill:'none' },
+              React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' })
+            )
+          ),
+          React.createElement('span', { style:{ fontSize:'13px', fontWeight:'600', color: isAdmin ? '#1A1A1A' : 'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', userSelect:'none' } }, '관리자로 로그인')
+        ),
+
+        msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', background:'#fff5f5', borderRadius:'6px', padding:'8px 12px' } }, msg),
+
+        // 로그인 버튼
+        React.createElement('button', { onClick:handleLogin, disabled:loading, style:{ width:'100%', background: loading?'#aaa': isAdmin ? '#1A1A1A' : (isMobile ? '#E60012' : '#1E3932'), color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'14px', transition:'background 0.2s' } },
+          loading ? '로그인 중...' : (isAdmin ? '관리자 로그인' : '로그인')
+        ),
+
+        // 비밀번호 찾기 (관리자가 아닐 때만)
+        !isAdmin && React.createElement('div', { style:{ textAlign:'center' } },
+          React.createElement('span', { onClick: function(){ setForgotMode(true); setForgotEmail(email); setMsg(''); }, style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '비밀번호 잊으셨나요?')
+        )
+      )
+    );
+  }
+
   return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }, onClick:onClose },
     React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', width:'400px', padding:'36px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', position:'relative', maxHeight:'90vh', overflowY:'auto' }, onClick:e=>e.stopPropagation() },
 
@@ -179,37 +225,16 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
       ),
       React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'24px' } }, '학생·학부모·선생님 모두 같은 로그인 화면을 사용합니다.'),
 
-      // 이메일/아이디 입력
-      React.createElement('div', { style:inputFieldStyle },
-        React.createElement('div', { style:floatLabelStyle }, isAdmin ? '관리자 아이디' : '이메일'),
-        React.createElement('input', { type: isAdmin ? 'text' : 'email', name: isAdmin ? 'username' : 'email', autoComplete: isAdmin ? 'username' : 'email', placeholder: isAdmin ? '관리자 아이디 입력' : 'example@email.com', value:email, onChange:e=>{ setEmail(e.target.value); setMsg(''); }, style:inputStyle })
-      ),
-
-      // 비밀번호 입력
-      React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'12px' } },
-        React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
-        React.createElement('input', { type:'password', name:'password', autoComplete:'current-password', placeholder:'비밀번호 입력', value:password, onChange:e=>{ setPassword(e.target.value); setMsg(''); }, onKeyDown:e=>e.key==='Enter'&&handleLogin(), style:inputStyle })
-      ),
-
-      // 관리자 체크박스
-      React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px', cursor:'pointer' }, onClick:()=>{ setIsAdmin(v=>!v); setMsg(''); setEmail(''); setPassword(''); } },
-        React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'4px', border: isAdmin ? 'none' : '1.5px solid rgba(0,0,0,0.3)', background: isAdmin ? '#1A1A1A' : '#fff', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.15s' } },
-          isAdmin && React.createElement('svg', { width:'11', height:'11', viewBox:'0 0 12 12', fill:'none' },
-            React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' })
-          )
-        ),
-        React.createElement('span', { style:{ fontSize:'13px', fontWeight:'600', color: isAdmin ? '#1A1A1A' : 'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', userSelect:'none' } }, '관리자로 로그인')
-      ),
+      // 메인 "로그인" 버튼 (이메일 모드 진입)
+      React.createElement('button', {
+        onClick: function(){ setEmailMode(true); setMsg(''); },
+        style:{ width:'100%', background: isMobile ? '#E60012' : '#1E3932', color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'16px', transition:'background 0.2s' }
+      }, '로그인'),
 
       msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', background:'#fff5f5', borderRadius:'6px', padding:'8px 12px' } }, msg),
 
-      // 로그인 버튼
-      React.createElement('button', { onClick:handleLogin, disabled:loading, style:{ width:'100%', background: loading?'#aaa': isAdmin ? '#1A1A1A' : (isMobile ? '#E60012' : '#1E3932'), color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'16px', transition:'background 0.2s' } },
-        loading ? '로그인 중...' : (isAdmin ? '관리자 로그인' : '로그인')
-      ),
-
-      // 회원가입 / 비밀번호 찾기 링크 + 소셜 로그인 (관리자가 아닐 때만)
-      !isAdmin && React.createElement('div', null,
+      // 회원가입 링크 + 소셜 로그인
+      React.createElement('div', null,
         // 구분선 + 소셜 로그인 라벨
         React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', margin:'4px 0 14px' } },
           React.createElement('div', { style:{ flex:1, height:'1px', background:'rgba(0,0,0,0.08)' } }),
@@ -261,9 +286,6 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
         React.createElement('div', { style:{ textAlign:'center', marginTop:'8px' } },
           React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '아직 회원이 아니신가요? '),
           React.createElement('span', { onClick:()=>{ onClose(); onSignup&&onSignup(); }, style:{ fontSize:'13px', color:'#E60012', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '회원가입')
-        ),
-        React.createElement('div', { style:{ textAlign:'center', marginTop:'10px' } },
-          React.createElement('span', { onClick: function(){ setForgotMode(true); setForgotEmail(email); setMsg(''); }, style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '비밀번호 잊으셨나요?')
         ),
         React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', textAlign:'center', marginTop:'12px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } }, '로그인 시 이용약관 및 개인정보처리방침에 동의하는 것으로 간주합니다.')
       )
