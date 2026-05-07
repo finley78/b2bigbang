@@ -708,6 +708,7 @@
     var [students, setStudents] = React.useState([]);
     var [selectedClassIds, setSelectedClassIds] = React.useState([]);
     var [selectedStudentIds, setSelectedStudentIds] = React.useState([]);
+    var [presetTargetClassIds, setPresetTargetClassIds] = React.useState([]);
     var [studentSearch, setStudentSearch] = React.useState('');
     var [saving, setSaving] = React.useState(false);
     var [section, setSection] = React.useState('settings'); // 'settings' | 'deploy'
@@ -720,12 +721,29 @@
     async function loadClassesStudents() {
       try {
         var both = await Promise.all([
-          sb.from('classes').select('id, name, class_name, grade').order('name', { ascending: true }),
+          sb.from('classes').select('id, name, class_name, grade, vocab_test_preset').order('name', { ascending: true }),
           sb.from('students').select('id, name, grade').eq('is_active', true).in('role', ['student','학생']).order('name', { ascending: true }),
         ]);
         setClasses((both[0] && both[0].data) || []);
         setStudents((both[1] && both[1].data) || []);
       } catch (e) {}
+    }
+
+    // 클래스 카드 클릭 — 토글 + preset 있으면 불러오기 제안
+    function togglePresetClass(c) {
+      var idx = presetTargetClassIds.indexOf(c.id);
+      if (idx >= 0) {
+        // 비선택
+        setPresetTargetClassIds(presetTargetClassIds.filter(function(x){ return x !== c.id; }));
+        return;
+      }
+      // 선택 — preset이 있으면 불러오기 확인
+      if (c.vocab_test_preset && Object.keys(c.vocab_test_preset).length > 0) {
+        if (confirm('"' + (c.class_name || c.name) + '"의 저장된 시험 형식을 폼에 불러올까요?\n(취소해도 저장 대상으로는 선택됩니다)')) {
+          setDraft(function(d){ return Object.assign({}, d, c.vocab_test_preset); });
+        }
+      }
+      setPresetTargetClassIds(presetTargetClassIds.concat([c.id]));
     }
     async function loadAssignments() {
       try {
@@ -808,6 +826,27 @@
           if (ai.error) throw ai.error;
         }
 
+        // 클래스 기본 설정으로 저장 (선택된 클래스들의 vocab_test_preset 업데이트)
+        if (presetTargetClassIds.length > 0) {
+          var presetPayload = {
+            multiple_choice_count: mc,
+            spelling_count: sp,
+            writing_count: wr,
+            listening_count: li,
+            choices_per_question: parseInt(draft.choices_per_question, 10) || 4,
+            question_direction: draft.question_direction || 'mixed',
+            spelling_blank_ratio: parseFloat(draft.spelling_blank_ratio) || 0.5,
+            seconds_per_question: parseInt(draft.seconds_per_question, 10) || 30,
+            show_answer_seconds: parseInt(draft.show_answer_seconds, 10) || 2,
+            attempts_allowed: parseInt(draft.attempts_allowed, 10),
+          };
+          for (var pi = 0; pi < presetTargetClassIds.length; pi++) {
+            try {
+              await sb.from('classes').update({ vocab_test_preset: presetPayload }).eq('id', presetTargetClassIds[pi]);
+            } catch (e) { /* 일부 실패해도 시험 자체는 저장됨 */ }
+          }
+        }
+
         props.onSaved();
       } catch (e) { alert('저장 실패: ' + (e.message || e)); }
       setSaving(false);
@@ -842,6 +881,25 @@
 
         // 시험 설정
         section === 'settings' && React.createElement('div', null,
+          // 클래스 기본 설정 (선택) — 카드 클릭 시 불러오기 + 저장 대상 표시
+          classes.length > 0 && React.createElement('div', { style:{ marginBottom:'14px', padding:'12px', background:'#f8fafc', borderRadius:'10px', border:'1px dashed #d6dbde' } },
+            React.createElement('div', { style:Object.assign({}, STYLES.label, { marginBottom:'6px' }) }, '📋 클래스 기본 설정'),
+            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'8px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } },
+              '클래스를 클릭하면 ① 그 반의 저장된 형식을 폼에 불러오고 ② 시험 저장 시 현재 형식을 그 반의 기본으로 저장합니다. ', React.createElement('span', { style:{ color:'#E60012', fontWeight:'700' } }, '●'), ' = 저장된 형식 있음'
+            ),
+            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(130px, 1fr))', gap:'6px' } },
+              classes.map(function(c){
+                var on = presetTargetClassIds.indexOf(c.id) >= 0;
+                var hasPreset = !!(c.vocab_test_preset && Object.keys(c.vocab_test_preset).length > 0);
+                return React.createElement('button', { key:c.id, onClick: function(){ togglePresetClass(c); }, style:{ position:'relative', background: on ? '#FFEBED' : '#fff', color: '#1A1A1A', border: '1.5px solid ' + (on ? '#E60012' : '#d6dbde'), borderRadius:'8px', padding:'8px 22px 8px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer', textAlign:'left', fontFamily:'Manrope, sans-serif' } },
+                  React.createElement('div', null, c.class_name || c.name),
+                  c.grade && React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.5)', marginTop:'2px', fontWeight:'600' } }, c.grade),
+                  hasPreset && React.createElement('span', { style:{ position:'absolute', top:'6px', right:'8px', color:'#E60012', fontSize:'10px', fontWeight:'800' } }, '●')
+                );
+              })
+            )
+          ),
+
           React.createElement('div', { style:{ marginBottom:'12px' } },
             React.createElement('div', { style:STYLES.label }, '시험 이름 *'),
             React.createElement('input', { type:'text', value:draft.title || '', onChange:function(e){ set('title', e.target.value); }, style:STYLES.input })
