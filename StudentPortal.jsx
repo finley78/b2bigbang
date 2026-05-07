@@ -225,11 +225,11 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
       ),
       React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'24px' } }, '학생·학부모·선생님 모두 같은 로그인 화면을 사용합니다.'),
 
-      // 메인 "로그인" 버튼 (이메일 모드 진입)
+      // 메인 "이메일 로그인" 버튼 (이메일 모드 진입)
       React.createElement('button', {
         onClick: function(){ setEmailMode(true); setMsg(''); },
         style:{ width:'100%', background: isMobile ? '#E60012' : '#1E3932', color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'16px', transition:'background 0.2s' }
-      }, '로그인'),
+      }, '이메일 로그인'),
 
       msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', background:'#fff5f5', borderRadius:'6px', padding:'8px 12px' } }, msg),
 
