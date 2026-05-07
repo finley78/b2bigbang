@@ -2138,16 +2138,18 @@ React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap',
 SUBJECTS.map(function(sub) {
 return React.createElement('button', { key:sub, onClick:function(){ toggleSubject(st.id, sub); },
 style:{ background:(st.subjects||[]).includes(sub)?'#E60012':'#f2f0eb', color:(st.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.7)', border:(st.subjects||[]).includes(sub)?'2px solid #E60012':'2px solid transparent', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub);
-}),
-React.createElement('button', {
-  onClick: function(){ setAddCourseStudentId(addCourseStudentId===st.id ? null : st.id); setAcSubject('전체'); setAcLevel('전체'); setAcGrade('전체'); setAcTeacher('전체'); setAcName(''); },
-  style:{ background: addCourseStudentId===st.id?'#1A1A1A':'#f2f0eb', color: addCourseStudentId===st.id?'#fff':'rgba(0,0,0,0.6)', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' }
-}, addCourseStudentId===st.id ? '강좌 닫기' : '+ 추가 강좌')
+})
 )
 ),
 React.createElement('div', null,
 // 현재 수강 중인 강좌 (칩 형태)
-React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '수강 강좌'),
+React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px', gap:'10px', flexWrap:'wrap' } },
+  React.createElement('label', { style:{ ...labelS, marginBottom:0 } }, '수강 강좌'),
+  React.createElement('button', {
+    onClick: function(){ setAddCourseStudentId(addCourseStudentId===st.id ? null : st.id); setAcSubject('전체'); setAcLevel('전체'); setAcGrade('전체'); setAcTeacher('전체'); setAcName(''); },
+    style:{ background: addCourseStudentId===st.id?'#1A1A1A':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' }
+  }, addCourseStudentId===st.id ? '강좌 닫기' : '+ 강좌 추가')
+),
 st.enrolledCourses.length === 0
 ? React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '배정된 강좌 없음')
 : React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'10px' } },
