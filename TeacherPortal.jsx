@@ -4,6 +4,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [selectedClass, setSelectedClass] = React.useState(null);
   const [selectedClassId, setSelectedClassId] = React.useState("");
   const [students, setStudents] = React.useState([]);
+  const [selectedStudent, setSelectedStudent] = React.useState(null); // 클래스 학생 클릭 시 상세
+  const [studentDetail, setStudentDetail] = React.useState(null); // { courses, exams, vocab, notes, attendance }
+  const [studentDetailLoading, setStudentDetailLoading] = React.useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [debug, setDebug] = React.useState("");
@@ -550,12 +553,52 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     ));
   }
 
+  // 학생 클릭 시 상세 정보 통합 로드 (수강 강좌·시험·단어시험·특이사항·출결)
+  async function loadStudentDetail(student) {
+    setSelectedStudent(student);
+    setStudentDetail(null);
+    setStudentDetailLoading(true);
+    try {
+      var sb = window.supabase;
+      var thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      var results = await Promise.all([
+        // 수강 강좌
+        sb.from('enrollments').select('course_id, courses(id, title, subjects(name))').eq('student_id', student.id).eq('is_active', true),
+        // 시험 점수 (test_scores)
+        sb.from('test_scores').select('*').eq('student_id', student.id).order('test_date', { ascending: false }),
+        // 단어시험 응시 결과
+        sb.from('vocab_test_attempts').select('*, vocab_tests(title, unit_index)').eq('student_id', student.id).order('submitted_at', { ascending: false }),
+        // 특이사항 (메모)
+        sb.from('teacher_notes').select('*').eq('student_id', student.id).order('note_date', { ascending: false }),
+        // 출결 (최근 30일)
+        sb.from('attendance').select('status').eq('student_id', student.id).gte('date', thirtyDaysAgo),
+      ]);
+      var courses = ((results[0] && results[0].data) || []).map(function(r){ return { id: r.course_id, title: (r.courses && r.courses.title) || '강좌', subject_name: r.courses && r.courses.subjects && r.courses.subjects.name }; });
+      var attendanceRows = (results[4] && results[4].data) || [];
+      var att = { present: 0, late: 0, absent: 0, excused: 0, total: attendanceRows.length };
+      attendanceRows.forEach(function(a){ if (att[a.status] != null) att[a.status]++; });
+      setStudentDetail({
+        courses: courses,
+        scores: (results[1] && results[1].data) || [],
+        vocabAttempts: (results[2] && results[2].data) || [],
+        notes: (results[3] && results[3].data) || [],
+        attendance: att,
+      });
+    } catch (e) {
+      console.error('학생 상세 로드 실패:', e);
+      setStudentDetail({ courses: [], scores: [], vocabAttempts: [], notes: [], attendance: { present: 0, late: 0, absent: 0, excused: 0, total: 0 } });
+    }
+    setStudentDetailLoading(false);
+  }
+
   async function selectClass(cls) {
     if (!cls) {
       setSelectedClass(null);
       setSelectedClassId("");
       setStudents([]);
       setSelectedStudentIds([]);
+      setSelectedStudent(null);
+      setStudentDetail(null);
       setScores({});
       setExamList([]);
       setExamSubmissionsByExam({});
@@ -1545,27 +1588,163 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             </div>
           )}
 
-          {/* 선택된 클래스의 학생 목록 */}
-          {selectedClass && students.length > 0 && (
+          {/* 선택된 클래스의 학생 목록 — 카드 클릭 시 상세 */}
+          {selectedClass && students.length > 0 && !selectedStudent && (
             <div>
-              <h3 style={{ fontSize: "15px", fontWeight: "800", marginBottom: "12px", color: "#1A1A1A", fontFamily: "Manrope, sans-serif" }}>
+              <h3 style={{ fontSize: "15px", fontWeight: "800", marginBottom: "6px", color: "#1A1A1A", fontFamily: "Manrope, sans-serif" }}>
                 {selectedClass.name} · {students.length}명
               </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "12px", fontFamily: "Manrope, sans-serif" }}>학생을 클릭하면 수강 강좌, 시험 결과, 단어시험, 특이사항을 한 번에 볼 수 있어요.</p>
+              <div style={{ display: "grid", gridTemplateColumns: teacherIsMobile ? "repeat(2, 1fr)" : "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px" }}>
                 {students.map(s => (
-                  <div key={s.id} style={{ background: "#f9fafb", borderRadius: "8px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#FFEBED", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "800", color: "#E60012", fontFamily: "Manrope, sans-serif", flexShrink: 0 }}>{s.name[0]}</div>
-                    <div>
-                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#111827", fontFamily: "Manrope, sans-serif" }}>{s.name}</div>
-                      <div style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{[s.grade, s.school].filter(Boolean).join(" · ") || "—"}</div>
+                  <button key={s.id} onClick={() => loadStudentDetail(s)} style={{ background: "#fff", border: "1.5px solid #e5e7eb", borderRadius: "10px", padding: "12px", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s", fontFamily: "Manrope, sans-serif" }} onMouseEnter={(e)=>{ e.currentTarget.style.borderColor='#E60012'; e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.06)'; }} onMouseLeave={(e)=>{ e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#FFEBED", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: "800", color: "#E60012", flexShrink: 0 }}>{s.name[0]}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+                      <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[s.grade, s.school].filter(Boolean).join(" · ") || "—"}</div>
                     </div>
-                  </div>
+                    <div style={{ color: "#d1d5db", fontSize: "18px" }}>›</div>
+                  </button>
                 ))}
               </div>
             </div>
           )}
           {selectedClass && students.length === 0 && (
             <div style={{ color: "#6b7280", fontSize: "14px", marginTop: "12px" }}>이 클래스에 등록된 학생이 없습니다.</div>
+          )}
+
+          {/* 학생 상세 — 수강·시험·단어시험·특이사항 통합 뷰 */}
+          {selectedStudent && (
+            <div>
+              <button onClick={() => { setSelectedStudent(null); setStudentDetail(null); }} style={{ background: "none", border: "none", color: "#E60012", cursor: "pointer", fontSize: "13px", fontWeight: "800", fontFamily: "Manrope, sans-serif", padding: 0, marginBottom: "14px" }}>← {selectedClass.name} 학생 목록</button>
+
+              {/* 학생 기본 정보 카드 */}
+              <div style={{ background: "linear-gradient(135deg, #1A1A1A 0%, #3a0007 100%)", borderRadius: "14px", padding: "20px", color: "#fff", marginBottom: "14px", fontFamily: "Manrope, sans-serif" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                  <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", fontWeight: "800" }}>{selectedStudent.name[0]}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "20px", fontWeight: "800" }}>{selectedStudent.name}</div>
+                    <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", marginTop: "2px" }}>{[selectedStudent.grade, selectedStudent.school].filter(Boolean).join(" · ") || "—"}</div>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px", marginTop: "14px", paddingTop: "14px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+                  <div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", fontWeight: "700", letterSpacing: "0.04em" }}>이메일</div>
+                    <div style={{ fontSize: "12px", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedStudent.email || "—"}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", fontWeight: "700", letterSpacing: "0.04em" }}>연락처</div>
+                    <div style={{ fontSize: "12px", marginTop: "2px" }}>{selectedStudent.phone || selectedStudent.parent_phone || "—"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {studentDetailLoading ? (
+                <div style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>불러오는 중...</div>
+              ) : studentDetail ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {/* 수강 강좌 */}
+                  <div style={cardStyle}>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📚 수강 강좌 ({studentDetail.courses.length})</div>
+                    {studentDetail.courses.length === 0 ? (
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>수강 중인 강좌가 없습니다.</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {studentDetail.courses.map(c => (
+                          <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f8fafc", borderRadius: "6px", fontFamily: "Manrope, sans-serif" }}>
+                            <span style={{ fontSize: "13px", fontWeight: "700", color: "#1A1A1A" }}>{c.title}</span>
+                            <span style={{ fontSize: "11px", color: "#6b7280" }}>{c.subject_name || ""}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 시험 점수 */}
+                  <div style={cardStyle}>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📊 시험 점수 (최근 {Math.min(10, studentDetail.scores.length)}건 / 총 {studentDetail.scores.length}건)</div>
+                    {studentDetail.scores.length === 0 ? (
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>등록된 시험 점수가 없습니다.</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {studentDetail.scores.slice(0, 10).map(s => {
+                          var pct = s.total ? Math.round((Number(s.score) / Number(s.total)) * 100) : Number(s.score);
+                          var color = pct >= 80 ? '#16a34a' : pct >= 60 ? '#c87000' : '#c82014';
+                          return (
+                            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f8fafc", borderRadius: "6px", fontFamily: "Manrope, sans-serif" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: "13px", fontWeight: "700", color: "#1A1A1A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.test_name || s.test_type || "시험"}</div>
+                                <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>{[s.subject, s.test_date].filter(Boolean).join(" · ")}</div>
+                              </div>
+                              <div style={{ fontSize: "16px", fontWeight: "800", color: color, marginLeft: "8px", flexShrink: 0 }}>{s.score}{s.total ? `/${s.total}` : ""}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 단어시험 결과 */}
+                  <div style={cardStyle}>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📝 단어시험 (최근 {Math.min(10, studentDetail.vocabAttempts.length)}건 / 총 {studentDetail.vocabAttempts.length}건)</div>
+                    {studentDetail.vocabAttempts.length === 0 ? (
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>응시한 단어시험이 없습니다.</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {studentDetail.vocabAttempts.slice(0, 10).map(a => {
+                          var pct = Math.round(a.percentage || 0);
+                          var color = pct >= 80 ? '#16a34a' : pct >= 60 ? '#c87000' : '#c82014';
+                          var t = a.vocab_tests || {};
+                          return (
+                            <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f8fafc", borderRadius: "6px", fontFamily: "Manrope, sans-serif" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: "13px", fontWeight: "700", color: "#1A1A1A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title || "시험"}</div>
+                                <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>{a.score}/{a.total} · {a.attempt_number}회차 · {String(a.submitted_at || "").slice(0,10)}</div>
+                              </div>
+                              <div style={{ fontSize: "16px", fontWeight: "800", color: color, marginLeft: "8px", flexShrink: 0 }}>{pct}점</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 특이사항 */}
+                  <div style={cardStyle}>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📌 특이사항 ({studentDetail.notes.length})</div>
+                    {studentDetail.notes.length === 0 ? (
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>등록된 특이사항이 없습니다.</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {studentDetail.notes.slice(0, 10).map(n => (
+                          <div key={n.id} style={{ padding: "10px", background: "#fffbeb", borderLeft: "3px solid #f59e0b", borderRadius: "6px", fontFamily: "Manrope, sans-serif" }}>
+                            <div style={{ fontSize: "11px", color: "#92400e", fontWeight: "700", marginBottom: "4px" }}>{n.note_type || '특이사항'} · {n.note_date}</div>
+                            <div style={{ fontSize: "13px", color: "#1A1A1A", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>{n.content}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 출결 통계 */}
+                  <div style={cardStyle}>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📅 출결 (최근 30일)</div>
+                    {studentDetail.attendance.total === 0 ? (
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>최근 출결 기록이 없습니다.</div>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", textAlign: "center" }}>
+                        {[['present','출석','#16a34a'], ['late','지각','#c87000'], ['absent','결석','#c82014'], ['excused','사유','#6b7280']].map(([k, label, color]) => (
+                          <div key={k} style={{ padding: "8px", background: "#f8fafc", borderRadius: "6px" }}>
+                            <div style={{ fontSize: "10px", color: "#6b7280", fontWeight: "700" }}>{label}</div>
+                            <div style={{ fontSize: "16px", fontWeight: "800", color: color, marginTop: "2px" }}>{studentDetail.attendance[k] || 0}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
       )}
