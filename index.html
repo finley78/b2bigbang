@@ -613,19 +613,8 @@ React.useEffect(() => {
           alert('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); return 'pending';
         }
         try { await window.supabase.from('students').update({ login_provider: provider }).eq('id', existing.id); } catch {}
-        const [enrollRes, classRes] = await Promise.all([
-          window.supabase.from('enrollments').select('course_id').eq('student_id', existing.id).eq('is_active', true),
-          window.supabase.from('class_students').select('class_id').eq('student_id', existing.id),
-        ]);
+        const u = await window.B2Utils.buildUserFromStudentRow(existing);
         if (cancelled) return 'error';
-        const grade = existing.grade || '';
-        const level = window.B2Utils.levelFromGrade(grade);
-        const u = {
-          id: existing.id, name: existing.name, email: existing.email, role: existing.role,
-          grade, level, subjects: existing.subjects || [],
-          enrolledCourses: ((enrollRes && enrollRes.data) || []).map(e => e.course_id),
-          classIds: ((classRes && classRes.data) || []).map(r => r.class_id),
-        };
         setUser(u);
         try { localStorage.setItem('b2_user', JSON.stringify(u)); } catch {}
         const role = String(u.role || '').toLowerCase();

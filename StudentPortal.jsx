@@ -61,15 +61,7 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
       if (!pwOk) { setMsg('비밀번호가 틀렸습니다.'); setLoading(false); return; }
       // 평문이면 이번 기회에 해시로 자동 변환 (사용자 영향 없음)
       await window.B2Utils.migrateIfPlain(user.password_hash, password, user.id);
-      const { data: enrollments } = await sb.from('enrollments').select('course_id').eq('student_id', user.id).eq('is_active', true);
-      const { data: classRows } = await sb.from('class_students').select('class_id').eq('student_id', user.id);
-      onLogin({
-        id: user.id, name: user.name, email: user.email, role: user.role,
-        grade: user.grade || '', level: levelFromGrade(user.grade),
-        subjects: user.subjects || [],
-        enrolledCourses: (enrollments||[]).map(e=>e.course_id),
-        classIds: (classRows||[]).map(r=>r.class_id),
-      });
+      onLogin(await window.B2Utils.buildUserFromStudentRow(user));
       onClose();
     } catch(e) { setMsg('오류가 발생했습니다.'); }
     setLoading(false);

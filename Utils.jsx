@@ -181,6 +181,33 @@
     return '#c82014';
   }
 
+  // ── students row → 로그인 user 객체 ────────────────────────────
+  // 이메일 로그인·OAuth 로그인 양쪽에서 동일한 enrollments + class_students 조회 후 user 객체 조립
+  // 두 쿼리를 Promise.all로 병렬 실행
+  async function buildUserFromStudentRow(row) {
+    if (!row) return null;
+    var sb = window.supabase;
+    var enrollRes, classRes;
+    try {
+      var both = await Promise.all([
+        sb.from('enrollments').select('course_id').eq('student_id', row.id).eq('is_active', true),
+        sb.from('class_students').select('class_id').eq('student_id', row.id),
+      ]);
+      enrollRes = both[0]; classRes = both[1];
+    } catch (e) { enrollRes = null; classRes = null; }
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      grade: row.grade || '',
+      level: levelFromGrade(row.grade),
+      subjects: row.subjects || [],
+      enrolledCourses: ((enrollRes && enrollRes.data) || []).map(function(e){ return e.course_id; }),
+      classIds: ((classRes && classRes.data) || []).map(function(r){ return r.class_id; }),
+    };
+  }
+
   // ── Supabase Edge Function 호출 헬퍼 ──────────────────────────
   // anonKey/Authorization 헤더 조립을 한 곳에 모음. POST + JSON body 고정.
   // 반환: { ok: boolean, status: number, data: any }
@@ -250,5 +277,5 @@
     return v;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow };
 })();
