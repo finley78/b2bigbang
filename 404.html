@@ -129,10 +129,111 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
   .pwa-install-btn { background: #1E3932; }
   .pwa-install-btn:hover { background: #0d2520; }
 }
+
+/* iOS PWA 설치 가이드 (수동 안내) */
+#pwa-ios-guide {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10001;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  font-family: 'Manrope', sans-serif;
+}
+#pwa-ios-guide.show { display: flex; }
+.pwa-ios-card {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+.pwa-ios-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #1A1A1A;
+  margin: 0 0 6px;
+  text-align: center;
+}
+.pwa-ios-desc {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 18px;
+  text-align: center;
+  line-height: 1.5;
+}
+.pwa-ios-step {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.pwa-ios-step-num {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #E60012;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800;
+}
+.pwa-ios-step-text {
+  font-size: 14px;
+  color: #1A1A1A;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.pwa-ios-step-text strong { color: #E60012; }
+.pwa-ios-step-icon {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pwa-ios-confirm {
+  width: 100%;
+  margin-top: 14px;
+  background: #E60012;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 13px;
+  font-size: 14px; font-weight: 800;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+}
 </style>
 </head>
 <body>
 <div id="root"></div>
+
+<!-- iOS 전용: PWA 설치 안내 모달 (Apple은 자동 설치 미지원이라 수동 안내) -->
+<div id="pwa-ios-guide" role="dialog" aria-labelledby="pwa-ios-title">
+  <div class="pwa-ios-card">
+    <div class="pwa-ios-title" id="pwa-ios-title">홈 화면에 추가하는 방법</div>
+    <div class="pwa-ios-desc">아이폰에서는 아래 단계를 직접 따라하셔야 앱이 설치됩니다.</div>
+    <div class="pwa-ios-step">
+      <div class="pwa-ios-step-num">1</div>
+      <div class="pwa-ios-step-text" style="flex:1">Safari 하단의 <strong>공유 버튼</strong>을 누르세요</div>
+      <div class="pwa-ios-step-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E60012" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
+    </div>
+    <div class="pwa-ios-step">
+      <div class="pwa-ios-step-num">2</div>
+      <div class="pwa-ios-step-text" style="flex:1"><strong>홈 화면에 추가</strong>를 선택하세요</div>
+      <div class="pwa-ios-step-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E60012" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+    </div>
+    <div class="pwa-ios-step">
+      <div class="pwa-ios-step-num">3</div>
+      <div class="pwa-ios-step-text" style="flex:1">우측 상단의 <strong>추가</strong> 버튼을 누르세요</div>
+      <div class="pwa-ios-step-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E60012" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+    </div>
+    <button class="pwa-ios-confirm" id="pwa-ios-confirm" type="button">알겠어요</button>
+  </div>
+</div>
 
 <!-- 커스텀 PWA 설치 배너 (브라우저 기본 팝업 대신 표시) -->
 <div id="pwa-install-banner" role="dialog" aria-labelledby="pwa-install-title" aria-describedby="pwa-install-desc">
@@ -170,6 +271,22 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
   function isStandalone() {
     return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
       || window.navigator.standalone === true;
+  }
+
+  // iOS 감지 (iPadOS 13+ Safari는 macOS user agent로 표시되므로 touch도 함께 체크)
+  function isIOS() {
+    var ua = navigator.userAgent || '';
+    if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return true;
+    // iPadOS 13+: macOS Safari로 보이지만 터치 지원
+    if (ua.indexOf('Mac') >= 0 && navigator.maxTouchPoints > 1) return true;
+    return false;
+  }
+
+  // iOS Safari에서만 (Chrome/Firefox iOS는 PWA 설치 자체가 안 됨)
+  function isIOSSafari() {
+    if (!isIOS()) return false;
+    var ua = navigator.userAgent || '';
+    return /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
   }
 
   // 설치 완료 여부
@@ -234,14 +351,37 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
     deferredPrompt = null;
   });
 
+  function showIOSGuide() {
+    var guide = document.getElementById('pwa-ios-guide');
+    if (guide) guide.classList.add('show');
+  }
+  function hideIOSGuide() {
+    var guide = document.getElementById('pwa-ios-guide');
+    if (guide) guide.classList.remove('show');
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     if (isStandalone()) { log('현재 standalone(설치된 PWA) 모드'); }
     var installBtn = document.getElementById('pwa-install-btn');
     var laterBtn = document.getElementById('pwa-install-later');
     var closeBtn = document.getElementById('pwa-install-close');
+    var iosConfirm = document.getElementById('pwa-ios-confirm');
+
+    // iOS Safari: beforeinstallprompt가 발생 안 하므로 페이지 로드 시 직접 배너 표시
+    if (isIOSSafari() && !isStandalone()) {
+      log('iOS Safari 감지 → 수동 안내 배너 표시');
+      // 다른 콘텐츠가 먼저 보이도록 약간 지연
+      setTimeout(function(){ showBanner(); }, 1500);
+    }
 
     if (installBtn) {
       installBtn.addEventListener('click', function() {
+        // iOS는 자동 설치 불가 → 가이드 모달 표시
+        if (isIOSSafari()) {
+          log('iOS 설치 가이드 표시');
+          showIOSGuide();
+          return;
+        }
         if (!deferredPrompt) {
           log('아직 설치 가능 상태가 아님. 잠시 후 다시 시도해주세요.');
           return;
@@ -252,7 +392,6 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
         promptEvent.userChoice.then(function(choice) {
           if (choice && choice.outcome === 'accepted') {
             log('사용자 설치 수락');
-            // appinstalled 이벤트가 곧 fire되어 markInstalled() 호출
           } else {
             log('사용자 설치 취소 → ' + DISMISS_HOURS + '시간 쿨다운');
             markDismissed();
@@ -273,6 +412,9 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
     }
     if (laterBtn) laterBtn.addEventListener('click', dismiss);
     if (closeBtn) closeBtn.addEventListener('click', dismiss);
+    if (iosConfirm) iosConfirm.addEventListener('click', hideIOSGuide);
+    var iosGuide = document.getElementById('pwa-ios-guide');
+    if (iosGuide) iosGuide.addEventListener('click', function(e){ if (e.target === iosGuide) hideIOSGuide(); });
   });
 })();
 </script>
@@ -313,15 +455,15 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260509m"></script>
-<script src="TopNav.js?v=20260509m"></script>
-<script src="HomePage.js?v=20260509m"></script>
-<script src="Pages.js?v=20260509m"></script>
-<script src="VocabManager.js?v=20260509m"></script>
-<script src="VocabPlayer.js?v=20260509m"></script>
-<script src="StudentPortal.js?v=20260509m"></script>
-<script src="TeacherPortal.js?v=20260509m"></script>
-<script src="AdminPanel.js?v=20260509m"></script>
+<script src="Utils.js?v=20260509n"></script>
+<script src="TopNav.js?v=20260509n"></script>
+<script src="HomePage.js?v=20260509n"></script>
+<script src="Pages.js?v=20260509n"></script>
+<script src="VocabManager.js?v=20260509n"></script>
+<script src="VocabPlayer.js?v=20260509n"></script>
+<script src="StudentPortal.js?v=20260509n"></script>
+<script src="TeacherPortal.js?v=20260509n"></script>
+<script src="AdminPanel.js?v=20260509n"></script>
 
 <script>
 // Supabase 클라이언트 초기화
