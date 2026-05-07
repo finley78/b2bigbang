@@ -1443,6 +1443,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     { id: "course",   label: "강좌 개설" },
     { id: "lecture",  label: "강의 추가" },
     { id: "tests",    label: "시험" },
+    { id: "vocab",    label: "단어장" },
     { id: "homework", label: "숙제" },
     { id: "notes",    label: "특이사항" },
     { id: "scores",   label: "성적" },
@@ -1452,7 +1453,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   ];
 
   const TAB_GROUPS = [
-    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','homework','tests','scores','course','lecture'] },
+    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','homework','tests','vocab','scores','course','lecture'] },
     { id: 'academy', label: '학원',      color:'#c87000', tabs:['schedule','files','notes'] },
     { id: 'me',      label: '내 정보',   color:'#1A1A1A', tabs:['mypage'] },
   ];
@@ -1844,6 +1845,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         </div>
       );
       })()}
+
+      {/* ── 단어장 관리 ── */}
+      {teacherView === "vocab" && window.VocabManager && (
+        <div style={{ ...cardStyle, marginBottom:'24px' }}>
+          {React.createElement(window.VocabManager, { user: user, isAdmin: false })}
+        </div>
+      )}
 
       {/* ── 탭1.5: 강좌 개설 ── */}
       {teacherView === "course" && (() => {

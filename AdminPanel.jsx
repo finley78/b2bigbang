@@ -51,7 +51,7 @@ React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.35)', te
 }
 
 /* ── Admin Panel ────────────────────────────── */
-function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed }) {
+function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed, user }) {
 const authed = adminAuthed;
 const setAuthed = setAdminAuthed;
 const [tab, setTab] = React.useState('home');
@@ -1151,6 +1151,7 @@ const tabs = [
 { id:'files',   label:'자료실' },
 { id:'schedule',label:'학원 일정' },
 { id:'leveltest',label:'시험 관리' },
+{ id:'vocab',   label:'단어장' },
 { id:'feature', label:'섹션 편집' },
 { id:'about',   label:'학원안내 편집' },
 { id:'programs',label:'프로그램 편집' },
@@ -1162,7 +1163,7 @@ const tabGroups = [
 { id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about','programs','eventbtn','footer'] },
 { id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
 { id:'students', label:'수강생',    tabs:['enrollee','views','analysis'] },
-{ id:'academy',  label:'학원 관리', tabs:['leveltest','member','schedule','files'] },
+{ id:'academy',  label:'학원 관리', tabs:['leveltest','vocab','member','schedule','files'] },
 ];
 
 const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'8px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box' };
@@ -3810,6 +3811,9 @@ tab==='leveltest' && (function(){
   )
 );
 })(),
+
+/* ── 단어장 관리 TAB ── */
+tab==='vocab' && window.VocabManager && React.createElement(window.VocabManager, { user: user || { id: null, name: '관리자', role: 'admin' }, isAdmin: true }),
 
 /* ── 학원안내 편집 TAB ── */
 tab==='about' && React.createElement('div', null,
