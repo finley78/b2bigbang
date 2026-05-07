@@ -296,7 +296,7 @@
                     !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.4)', fontSize:'12px' } }, (i+1)),
                     React.createElement('div', { style:{ fontWeight:'700', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis' } }, w.word),
                     React.createElement('div', { style:{ color:'rgba(0,0,0,0.75)', overflow:'hidden', textOverflow:'ellipsis' } }, w.meaning),
-                    !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.45)', fontSize:'12px' } }, w.part_of_speech || '-'),
+                    !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.45)', fontSize:'12px' } }, window.B2Utils.localizePartOfSpeech(w.part_of_speech) || '-'),
                     !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.55)', fontSize:'12px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, w.example || '-'),
                     React.createElement('div', { style:{ display:'flex', gap:'4px', justifyContent:'flex-end' } },
                       React.createElement('button', { onClick:function(){ setEditingWord(w); }, style:Object.assign({}, STYLES.btnGhost, { padding:'3px 8px', fontSize:'11px' }) }, '편집'),
@@ -507,7 +507,7 @@
 
         mode === 'paste' && React.createElement('div', null,
           React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'8px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } },
-            '엑셀에서 두 칸(단어/뜻) 또는 네 칸(+품사/예문)을 복사해서 아래에 붙여넣으세요. 줄바꿈으로 구분, 칸 사이는 탭으로 자동 인식됩니다.'
+            '엑셀에서 두 칸(단어/뜻) 또는 네 칸(+품사/예문)을 복사해서 아래에 붙여넣으세요. 줄바꿈으로 구분, 칸 사이는 탭으로 자동 인식됩니다. 품사는 \'명사\' \'동사\' 같이 한글로 적어 주세요 (영어 약어 noun/v 등도 자동으로 한글로 변환됩니다).'
           ),
           React.createElement('textarea', {
             value: pasteText,
@@ -529,7 +529,7 @@
 
         mode === 'excel' && React.createElement('div', null,
           React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } },
-            '엑셀 파일(.xlsx, .xls)을 업로드하세요. 1열=단어, 2열=뜻 (3열=품사, 4열=예문은 선택). 첫 줄에 헤더("단어"/"뜻")가 있으면 자동으로 건너뜁니다.'
+            '엑셀 파일(.xlsx, .xls)을 업로드하세요. 1열=단어, 2열=뜻 (3열=품사, 4열=예문은 선택). 품사는 한글(\'명사\'/\'동사\'/\'형용사\' 등)로 적으시는 게 좋아요. 첫 줄에 헤더("단어"/"뜻")가 있으면 자동으로 건너뜁니다.'
           ),
           React.createElement('input', {
             type:'file',
@@ -553,7 +553,7 @@
           React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:'10px', marginBottom:'10px' } },
             React.createElement('div', null,
               React.createElement('div', { style:STYLES.label }, '품사 (선택)'),
-              React.createElement('input', { type:'text', value:singleDraft.part_of_speech, onChange:function(e){ setSingleDraft(Object.assign({}, singleDraft, { part_of_speech:e.target.value })); }, placeholder:'noun', style:STYLES.input })
+              React.createElement('input', { type:'text', value:singleDraft.part_of_speech, onChange:function(e){ setSingleDraft(Object.assign({}, singleDraft, { part_of_speech:e.target.value })); }, placeholder:'명사 / 동사 / 형용사 등', style:STYLES.input })
             ),
             React.createElement('div', null,
               React.createElement('div', { style:STYLES.label }, '예문 (선택)'),
@@ -613,7 +613,7 @@
         ),
         React.createElement('div', { style:{ marginBottom:'10px' } },
           React.createElement('div', { style:STYLES.label }, '품사 (선택)'),
-          React.createElement('input', { type:'text', value:draft.part_of_speech||'', onChange:function(e){ set('part_of_speech', e.target.value); }, placeholder:'noun', style:STYLES.input })
+          React.createElement('input', { type:'text', value:draft.part_of_speech||'', onChange:function(e){ set('part_of_speech', e.target.value); }, placeholder:'명사 / 동사 / 형용사 등', style:STYLES.input })
         ),
         React.createElement('div', { style:{ marginBottom:'18px' } },
           React.createElement('div', { style:STYLES.label }, '예문 (선택)'),

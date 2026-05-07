@@ -301,7 +301,7 @@
           React.createElement('div', { style: { fontSize: '36px', fontWeight: '800', color: THEME.dark, marginBottom: '14px', wordBreak: 'break-word' } }, word.word),
           React.createElement('button', { onClick: function(){ speak(word.word); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '8px 14px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font, marginBottom: '24px', alignSelf: 'center' } }, '🔊 다시 듣기'),
           React.createElement('div', { style: { fontSize: '20px', fontWeight: '700', color: THEME.text, marginBottom: '8px' } }, word.meaning),
-          word.part_of_speech && React.createElement('div', { style: { fontSize: '13px', color: THEME.textLight, fontStyle: 'italic' } }, word.part_of_speech)
+          word.part_of_speech && React.createElement('div', { style: { fontSize: '13px', color: THEME.textLight } }, window.B2Utils.localizePartOfSpeech(word.part_of_speech))
         ),
 
         // 컨트롤
