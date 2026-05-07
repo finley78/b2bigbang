@@ -578,7 +578,10 @@
 
     function handleAnswer(userAns, fromTimeout) {
       if (phase !== 'answering') return;
-      setAnswers(function(a){ var n = Object.assign({}, a); n[idx] = userAns; return n; });
+      // 마지막 답안을 state 업데이트와 별개로 직접 보관 → submitFinal에 정확히 전달
+      var nextAnswers = Object.assign({}, answers);
+      nextAnswers[idx] = userAns;
+      setAnswers(nextAnswers);
       setPhase('showing');
       // 정답 표시 시간 후 다음 문제
       var ms = (test.show_answer_seconds || 2) * 1000;
@@ -588,25 +591,21 @@
           setPhase('answering');
         } else {
           setPhase('done');
-          submitFinal();
+          submitFinal(nextAnswers);  // 마지막 답안 포함된 객체 직접 전달
         }
       }, ms);
     }
 
-    async function submitFinal() {
+    async function submitFinal(answersOverride) {
       if (submitted) return;
       setSubmitted(true);
       try {
+        var finalAnswers = answersOverride || answers;
         // 채점
         var score = 0;
         questions.forEach(function(q, i){
-          if (isAnswerCorrect(q, answers[i])) score++;
+          if (isAnswerCorrect(q, finalAnswers[i])) score++;
         });
-        // (idx === total-1 시점의 답이 setAnswers 비동기라 아직 반영 안 될 수 있음 — 마지막 답 직접 포함)
-        var lastAns = answers[total - 1];
-        if (lastAns === undefined && answers[idx] !== undefined) {
-          // 위 setAnswers 직후 호출이라 안전을 위해 한 번 더 확인
-        }
         var attemptNumber = (props.existingAttempts || []).length + 1;
         var timeTaken = Math.floor((Date.now() - (startedAt || Date.now())) / 1000);
         var payload = {
@@ -615,7 +614,7 @@
           student_name: user.name || null,
           unit_index: test.unit_index,
           questions: questions.map(function(q){ return { word_id: q.word_id, word: q.word, meaning: q.meaning, mode: q.mode, direction: q.direction, prompt: q.prompt, correct: q.correct, choices: q.choices || null, blank_indices: q.blank_indices || null }; }),
-          answers: answers,
+          answers: finalAnswers,
           score: score,
           total: total,
           percentage: total > 0 ? Math.round((score / total) * 100 * 10) / 10 : 0,
