@@ -181,6 +181,10 @@
     return '#c82014';
   }
 
+  // ── 수능 날짜 (D-day 계산용) ───────────────────────────────────
+  // 입시 날짜 변경 시 이 한 곳만 갱신하면 index.html과 TopNav가 함께 따라옴
+  var EXAM_DATE = '2026-11-12';
+
   // ── site_content 테이블 헬퍼 ──────────────────────────────────
   // key 한 개 로드/저장. select('value').eq('key',X).maybeSingle() + upsert 패턴 통합
   // 새 site_content 키가 추가될 때 호출 측이 같은 형태로 한 줄씩만 쓰면 됨
@@ -300,5 +304,5 @@
     return v;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE };
 })();

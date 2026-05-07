@@ -13,7 +13,7 @@ function dDay(targetDateStr) {
 function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick, onAdminClick, onLogout, examDate, onForgotClick }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const isMobile = window.B2Utils.useIsMobile();
-  const d = dDay(examDate || '2026-11-12');
+  const d = dDay(examDate || window.B2Utils.EXAM_DATE);
 
   // 데스크탑 폭으로 넘어가면 모바일 메뉴 자동 닫기
   React.useEffect(() => { if (!isMobile) setMenuOpen(false); }, [isMobile]);
