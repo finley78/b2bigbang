@@ -5,6 +5,9 @@ const esbuild = require('esbuild');
 const path = require('path');
 const fs = require('fs');
 
+// ⬇⬇ 배포할 때 여기만 갱신하세요. index.html ?v=... 와 service-worker.js CACHE_VERSION이 자동 동기화됩니다.
+const BUILD_VERSION = '20260509g';
+
 const FILES = [
   'Utils.jsx',
   'TopNav.jsx',
@@ -27,6 +30,33 @@ const baseOptions = {
   target: 'es2020',
   logLevel: 'info',
 };
+
+// 빌드 버전 동기화: index.html의 ?v=... 와 service-worker.js CACHE_VERSION을 BUILD_VERSION으로 일괄 갱신
+// 한 곳만 갱신하고 다른 곳을 빠뜨려서 PWA가 옛 캐시를 받는 문제를 차단
+function syncBuildVersion() {
+  try {
+    const indexPath = path.join(__dirname, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      let html = fs.readFileSync(indexPath, 'utf8');
+      const next = html.replace(/\?v=[A-Za-z0-9_-]+/g, '?v=' + BUILD_VERSION);
+      if (next !== html) {
+        fs.writeFileSync(indexPath, next);
+        console.log('  index.html → ?v=' + BUILD_VERSION);
+      }
+    }
+    const swPath = path.join(__dirname, 'service-worker.js');
+    if (fs.existsSync(swPath)) {
+      let sw = fs.readFileSync(swPath, 'utf8');
+      const next = sw.replace(/CACHE_VERSION\s*=\s*['"][^'"]+['"]/, "CACHE_VERSION = 'b2-bigbang-" + BUILD_VERSION + "'");
+      if (next !== sw) {
+        fs.writeFileSync(swPath, next);
+        console.log('  service-worker.js → CACHE_VERSION=b2-bigbang-' + BUILD_VERSION);
+      }
+    }
+  } catch (e) {
+    console.warn('버전 동기화 실패:', e.message);
+  }
+}
 
 // SPA fallback: GitHub Pages가 /auth/naver-callback 같은 임의 경로 요청 시 404.html을 서빙하므로
 // 404.html을 index.html과 동일하게 유지해 앱이 부팅되도록 함
@@ -51,6 +81,7 @@ async function buildOnce() {
       })
     )
   );
+  syncBuildVersion();
   syncSpaFallback();
   console.log(`OK Built ${FILES.length} files in ${Date.now() - start}ms`);
 }
