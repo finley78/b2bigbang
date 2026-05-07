@@ -75,50 +75,23 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
     setLoading(false);
   }
 
-  // 소셜 로그인 — 데모용: 실제 DB 학생 계정을 이메일로 찾아 연결
-  function handleProvider(provider) {
-    const mockUser = provider === 'google'
-      ? { name: '김학생', email: 'student@gmail.com' }
-      : { name: '이수강', email: 'student@kakao.com' };
-    async function loginWithDB() {
-      try {
-        // 1. 이미 존재하는 학생 계정 검색 (이메일 또는 소셜 provider 기준)
-        let student = null;
-        const { data: existing } = await sb.from('students')
-          .select('*').eq('email', mockUser.email).single();
-        if (existing) {
-          student = existing;
-        } else {
-          // 2. 없으면 새로 생성
-          const { data: created, error: createErr } = await sb.from('students')
-            .insert({ email: mockUser.email, name: mockUser.name, login_provider: provider, role: 'student', is_active: true })
-            .select().single();
-          if (createErr) throw createErr;
-          student = created;
-        }
-        // 3. 수강 배정 + 클래스 소속 조회
-        const { data: enrollments } = await sb.from('enrollments').select('course_id').eq('student_id', student.id).eq('is_active', true);
-        const { data: classRows } = await sb.from('class_students').select('class_id').eq('student_id', student.id);
-        onLogin({
-          id: student.id,
-          name: student.name,
-          email: student.email,
-          role: student.role || 'student',
-          grade: student.grade || '',
-          level: levelFromGrade(student.grade),
-          subjects: student.subjects || [],
-          enrolledCourses: (enrollments||[]).map(e=>e.course_id),
-          classIds: (classRows||[]).map(r=>r.class_id),
-        });
-        onClose();
-      } catch(e) {
-        console.error('소셜 로그인 오류:', e);
-        // fallback: 임시 로그인 (강좌 없음 상태)
-        onLogin({ id: provider+'_demo', name: mockUser.name, email: mockUser.email, role: 'student', grade:'', subjects:[], enrolledCourses: [] });
-        onClose();
+  // 소셜 로그인 — supabase.auth.signInWithOAuth 트리거 (실제 매칭은 App의 OAuth 콜백 핸들러가 처리)
+  async function handleProvider(provider) {
+    setLoading(true); setMsg('');
+    try {
+      const { error } = await sb.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) {
+        setMsg('소셜 로그인을 시작하지 못했습니다: ' + (error.message || ''));
+        setLoading(false);
       }
+      // 성공 시 브라우저가 OAuth 페이지로 이동 — 이 함수는 더 이상 진행 안 함
+    } catch (e) {
+      setMsg('네트워크 오류가 발생했습니다.');
+      setLoading(false);
     }
-    loginWithDB();
   }
 
   function handleLogin() {
@@ -219,9 +192,30 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
         loading ? '로그인 중...' : (isAdmin ? '관리자 로그인' : '로그인')
       ),
 
-      // 회원가입 / 비밀번호 찾기 링크 (관리자가 아닐 때만)
-      // 소셜 로그인(카카오/구글)은 OAuth 연동 후 복원 예정 — 현재는 데모라 숨김
+      // 회원가입 / 비밀번호 찾기 링크 + 소셜 로그인 (관리자가 아닐 때만)
       !isAdmin && React.createElement('div', null,
+        // 구분선 + 소셜 로그인 라벨
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', margin:'4px 0 14px' } },
+          React.createElement('div', { style:{ flex:1, height:'1px', background:'rgba(0,0,0,0.08)' } }),
+          React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontWeight:'600' } }, '간편 로그인'),
+          React.createElement('div', { style:{ flex:1, height:'1px', background:'rgba(0,0,0,0.08)' } })
+        ),
+        // Google 로그인 버튼
+        React.createElement('button', {
+          onClick: function(){ handleProvider('google'); },
+          disabled: loading,
+          style:{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', background:'#fff', color:'rgba(0,0,0,0.75)', border:'1px solid #d6dbde', borderRadius:'8px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'12px', transition:'background 0.15s' },
+          onMouseEnter: function(e){ if(!loading) e.currentTarget.style.background = '#f9fafb'; },
+          onMouseLeave: function(e){ e.currentTarget.style.background = '#fff'; },
+        },
+          React.createElement('svg', { width:'18', height:'18', viewBox:'0 0 18 18', xmlns:'http://www.w3.org/2000/svg' },
+            React.createElement('path', { fill:'#4285F4', d:'M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z' }),
+            React.createElement('path', { fill:'#34A853', d:'M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z' }),
+            React.createElement('path', { fill:'#FBBC05', d:'M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z' }),
+            React.createElement('path', { fill:'#EA4335', d:'M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z' })
+          ),
+          'Google로 로그인'
+        ),
         React.createElement('div', { style:{ textAlign:'center', marginTop:'8px' } },
           React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '아직 회원이 아니신가요? '),
           React.createElement('span', { onClick:()=>{ onClose(); onSignup&&onSignup(); }, style:{ fontSize:'13px', color:'#E60012', fontWeight:'700', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '회원가입')
@@ -236,10 +230,15 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
 }
 
 /* ── Signup Page (회원가입 전체 페이지) ─────────── */
-function SignupPage({ onBack, onComplete }) {
+function SignupPage({ onBack, onComplete, prefill }) {
   const [step, setStep] = React.useState(1); // 1: 역할선택, 2: 양식작성, 3: 완료
   const [roleType, setRoleType] = React.useState(''); // 'student' | 'parent' | 'teacher'
-  const [form, setForm] = React.useState({ name:'', email:'', password:'', passwordConfirm:'', school:'', grade:'', phone:'', address:'', agree:false, parentPhone:'', studentPhone:'' });
+  const [form, setForm] = React.useState({
+    name: (prefill && prefill.name) || '',
+    email: (prefill && prefill.email) || '',
+    password:'', passwordConfirm:'', school:'', grade:'', phone:'', address:'',
+    agree:false, parentPhone:'', studentPhone:'',
+  });
   const [msg, setMsg] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const sb = window.supabase;
@@ -390,6 +389,12 @@ function SignupPage({ onBack, onComplete }) {
         React.createElement('div', { style:{ marginBottom:'20px', paddingBottom:'16px', borderBottom:'1px solid rgba(0,0,0,0.07)' } },
           React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, ROLE_OPTIONS.find(r=>r.key===roleType)?.label + ' 회원가입'),
           roleType === 'teacher' && React.createElement('div', { style:{ fontSize:'12px', color:'#c87000', fontFamily:'Manrope, sans-serif', marginTop:'4px', fontWeight:'600' } }, '관리자 승인 후 이용 가능합니다')
+        ),
+
+        // 소셜 로그인에서 prefill된 경우 안내
+        prefill && prefill.email && React.createElement('div', { style:{ background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:'8px', padding:'12px 14px', marginBottom:'16px', fontSize:'12px', color:'#0c4a6e', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } },
+          React.createElement('div', { style:{ fontWeight:'700', marginBottom:'4px' } }, 'Google 계정 (' + prefill.email + ')'),
+          '학원에 등록되지 않은 계정이라 회원가입이 필요해요. 추가 정보를 입력해 주세요.'
         ),
 
         // 이름 (공통)

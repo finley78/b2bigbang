@@ -122,9 +122,10 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-06)
+## 현재 진행 (2026-05-07)
 
 ### 최근 완료
+- **Google OAuth 로그인 (1차)**: `StudentPortal.jsx` LoginModal의 mock `handleProvider` → 실제 `supabase.auth.signInWithOAuth({ provider:'google' })` 호출로 교체. 로그인 모달 UI에 Google 버튼 노출. `index.html` App에 OAuth 콜백 처리 useEffect 추가 — `supabase.auth.getSession()`으로 세션 확인 후 `students.email` 매칭. 매칭 성공이면 `b2_user`/세션 저장 후 portal/teacher로, 실패면 회원가입 페이지로 이메일/이름 prefill 후 이동. `handleLogout`에 `supabase.auth.signOut()` 추가. **Kakao/Naver는 미등록 — 후속 작업** (사용자가 각 사이트에서 앱 등록 필요). Supabase Auth Provider 설정: Google Client ID `661603675180-1b85jfo7p5h9hfvdv6jk1vjmbava0fie.apps.googleusercontent.com`. 등록 정보는 메모리 `reference_b2bigbang_oauth.md` 참고
 - 비밀번호 찾기 기능 (Brevo 이메일 발송): Edge Function `send-password-reset` + `verify-password-reset` 배포. `password_reset_tokens` 테이블(1회용·1시간 유효, RLS 모두 차단). 로그인 모달에 forgotMode + `ResetPasswordPage` 컴포넌트(URL `?reset=<token>`로 진입). 회원가입에 이메일·비밀번호 추가. Supabase Edge Function Secrets: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`
 - 비밀번호 SHA-256 해시 처리 도입: `B2Utils.hashPassword/verifyPassword/migrateIfPlain` 헬퍼. DB의 password_hash가 평문이면 다음 로그인 시 자동 마이그레이션('sha256:' prefix로 식별). 로그인·비밀번호 변경 모두 적용. 기존 사용자 무중단 전환
 - 학부모 자녀 학습 현황 view: `user.role==='parent'`일 때 자녀 목록 → 자녀 선택 → 시험·숙제·영상 시청 read-only 탭. parent_id 매칭으로 자녀 조회. 자녀의 녹음 답안도 `<audio>`로 재생 가능
@@ -148,6 +149,8 @@ DDL은 `apply_migration` 사용.
 - PC 강의실 홈 카드 큰 스타일로 통일
 
 ### 다음에 할 일 (후보)
+- **Kakao OAuth**: 카카오 개발자 사이트에서 앱 등록 → Supabase Auth Provider에 Kakao 활성화 → LoginModal에 카카오 버튼 추가 (handleProvider('kakao') — App의 콜백 핸들러는 그대로 동작)
+- **Naver OAuth (커스텀)**: Supabase가 네이버 미지원 → 네이버 개발자 등록 후 Edge Function `naver-oauth-exchange` + 우리 도메인 `/auth/naver-callback` 페이지 직접 구현 필요. flow: 1) 네이버 OAuth → Callback에 code 도착 → Edge Function이 code → token → 사용자 정보 가져와서 `students` 매칭 → JWT/세션 발급
 - **음성 90일 자동 정리 Cron**: 채점 완료 + 90일 경과한 audio_path 일괄 삭제 (Edge Function + cron). 현재 무료 1GB 한도 보존용
 - 시험지 분석표 구현 (사용자가 양식 줄 예정) — 자동 채점 결과 기반 문항별 정답률·학생별 약점·점수 분포 등. AdminPanel "성적 분석" 탭 안 "📋 시험지 분석" 자리(현재 "준비 중")가 들어갈 곳
 - 시험 카드 종류 뱃지: TeacherPortal 시험 카드에도 kind 뱃지 추가 (현재는 AdminPanel만)

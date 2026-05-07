@@ -311,13 +311,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260508u"></script>
-<script src="TopNav.js?v=20260508u"></script>
-<script src="HomePage.js?v=20260508u"></script>
-<script src="Pages.js?v=20260508u"></script>
-<script src="StudentPortal.js?v=20260508u"></script>
-<script src="TeacherPortal.js?v=20260508u"></script>
-<script src="AdminPanel.js?v=20260508u"></script>
+<script src="Utils.js?v=20260508v"></script>
+<script src="TopNav.js?v=20260508v"></script>
+<script src="HomePage.js?v=20260508v"></script>
+<script src="Pages.js?v=20260508v"></script>
+<script src="StudentPortal.js?v=20260508v"></script>
+<script src="TeacherPortal.js?v=20260508v"></script>
+<script src="AdminPanel.js?v=20260508v"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -371,6 +371,7 @@ const [user, setUser] = React.useState(() => {
 const [showLogin, setShowLogin] = React.useState(false);
 const [resetToken, setResetToken] = React.useState(null);
 const [loginInitialForgot, setLoginInitialForgot] = React.useState(false);
+const [oauthPrefill, setOauthPrefill] = React.useState(null); // { email, name } — 소셜 로그인 후 학원 미등록 시 회원가입 prefill
 const [isAdmin, setIsAdmin] = React.useState(() => {
   try { return sessionStorage.getItem('b2_is_admin') === 'true'; } catch { return false; }
 });
@@ -527,6 +528,107 @@ window.scrollTo({ top: 0, behavior: 'smooth' });
 // 다른 컴포넌트에서 navigate를 호출할 수 있도록 노출
 try { window.b2Navigate = navigate; } catch {}
 
+// 소셜 로그인 OAuth 콜백 처리
+//   1) URL hash에 access_token이 있으면 Supabase가 세션을 자동 생성
+//   2) 세션의 이메일을 students 테이블과 매칭
+//   3) 매칭 성공 → b2_user 저장 후 portal/teacher 페이지로
+//   4) 매칭 실패 → 회원가입 페이지로 (이메일/이름 prefill)
+React.useEffect(() => {
+  let cancelled = false;
+
+  async function processOAuth(session) {
+    if (cancelled || !session || !session.user) return;
+    // 이미 사이트에 로그인된 사용자면 OAuth 매칭 안 함 (이중 처리 방지)
+    try { if (sessionStorage.getItem('b2_user')) return; } catch {}
+
+    const sUser = session.user;
+    const email = String(sUser.email || '').toLowerCase();
+    if (!email) {
+      try { await window.supabase.auth.signOut(); } catch {}
+      return;
+    }
+    try {
+      const { data: existing } = await window.supabase.from('students')
+        .select('*').eq('email', email).maybeSingle();
+      if (cancelled) return;
+
+      if (existing) {
+        if (existing.withdrawn_at || existing.is_active === false) {
+          alert('탈퇴 처리된 계정입니다.');
+          try { await window.supabase.auth.signOut(); } catch {}
+          return;
+        }
+        if (existing.role === 'pending_teacher') {
+          alert('관리자 승인 대기 중입니다.');
+          try { await window.supabase.auth.signOut(); } catch {}
+          return;
+        }
+        if (existing.role === 'pending_student' || existing.role === 'pending_parent') {
+          alert('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.');
+          try { await window.supabase.auth.signOut(); } catch {}
+          return;
+        }
+        const provider = (sUser.app_metadata && sUser.app_metadata.provider) || 'google';
+        try { await window.supabase.from('students').update({ login_provider: provider }).eq('id', existing.id); } catch {}
+        const [enrollRes, classRes] = await Promise.all([
+          window.supabase.from('enrollments').select('course_id').eq('student_id', existing.id).eq('is_active', true),
+          window.supabase.from('class_students').select('class_id').eq('student_id', existing.id),
+        ]);
+        if (cancelled) return;
+        const grade = existing.grade || '';
+        const level = (function(g){ if(!g) return ''; if(/^\d+학년$/.test(g)) return '초등'; if(/^중\d$/.test(g)) return '중등'; if(/^고\d$/.test(g)) return '고등'; return ''; })(grade);
+        const u = {
+          id: existing.id, name: existing.name, email: existing.email, role: existing.role,
+          grade, level, subjects: existing.subjects || [],
+          enrolledCourses: ((enrollRes && enrollRes.data) || []).map(e => e.course_id),
+          classIds: ((classRes && classRes.data) || []).map(r => r.class_id),
+        };
+        setUser(u);
+        try { sessionStorage.setItem('b2_user', JSON.stringify(u)); } catch {}
+        const role = String(u.role || '').toLowerCase();
+        let nextPage = 'home';
+        if (role === 'teacher' || role === '선생님' || role === '강사') nextPage = 'teacher';
+        else if (role === 'student' || role === '학생' || role === 'parent' || role === '학부모') nextPage = 'portal';
+        setPage(nextPage);
+        try { sessionStorage.setItem('b2_page', nextPage); } catch {}
+        try { window.history.pushState({ page: nextPage }, '', ''); } catch {}
+      } else {
+        // 학원 미등록 이메일 → 회원가입 페이지로 (이메일/이름 prefill)
+        const meta = sUser.user_metadata || {};
+        const prefName = meta.full_name || meta.name || meta.given_name || '';
+        try { await window.supabase.auth.signOut(); } catch {}
+        if (cancelled) return;
+        setOauthPrefill({ email, name: prefName });
+        alert('학원에 등록되지 않은 이메일입니다.\n회원가입을 먼저 진행해 주세요.');
+        setPage('signup');
+        try { sessionStorage.setItem('b2_page', 'signup'); } catch {}
+        try { window.history.pushState({ page: 'signup' }, '', ''); } catch {}
+      }
+    } catch (e) { console.error('OAuth 매칭 오류:', e); }
+  }
+
+  (async () => {
+    try {
+      const res = await window.supabase.auth.getSession();
+      await processOAuth(res && res.data && res.data.session);
+    } catch (e) { console.error('getSession 오류:', e); }
+    try {
+      if (window.location.hash && window.location.hash.indexOf('access_token') >= 0) {
+        window.history.replaceState({}, '', window.location.pathname + window.location.search);
+      }
+    } catch {}
+  })();
+
+  const subRes = window.supabase.auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_IN') processOAuth(session);
+  });
+
+  return function() {
+    cancelled = true;
+    try { subRes.data.subscription.unsubscribe(); } catch {}
+  };
+}, []);
+
 function getUserRole(u) {
 return String(u?.role || u?.user_role || u?.type || u?.user_type || '').trim().toLowerCase();
 }
@@ -572,6 +674,8 @@ try {
   sessionStorage.removeItem('b2_admin_authed');
   sessionStorage.removeItem('b2_page');
 } catch {}
+// 소셜 로그인 세션도 함께 종료 (Supabase Auth)
+try { window.supabase.auth.signOut(); } catch {}
 navigate('home');
 }
 
@@ -669,8 +773,9 @@ page === 'leveltest' && React.createElement(LevelTestPage, { user: effectiveUser
 page === 'reset' && resetToken && React.createElement(ResetPasswordPage, { token: resetToken, onDone: ()=>{ setResetToken(null); navigate('home'); setShowLogin(true); } }),
 
 page === 'signup' && React.createElement(SignupPage, {
-onBack: ()=>{ navigate('home'); },
-onComplete: ()=>{ navigate('home'); },
+prefill: oauthPrefill,
+onBack: ()=>{ setOauthPrefill(null); navigate('home'); },
+onComplete: ()=>{ setOauthPrefill(null); navigate('home'); },
 }),
 
 page === 'portal' && React.createElement(StudentPortal, {
