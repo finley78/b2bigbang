@@ -181,6 +181,19 @@
     return '#c82014';
   }
 
+  // ── 인증 스토리지 정리 ─────────────────────────────────────────
+  // 로그아웃·탈퇴·세션 만료 등에서 동일하게 호출. b2_page는 페이지 상태라 sessionStorage 유지
+  // 새 인증 키가 추가되면 여기 한 곳만 갱신하면 됨 (stale 세션 방지)
+  function clearAuthStorage() {
+    try {
+      localStorage.removeItem('b2_user');
+      localStorage.removeItem('b2_is_admin');
+      localStorage.removeItem('b2_admin_authed');
+      localStorage.removeItem('b2_hidden_at');
+      sessionStorage.removeItem('b2_page');
+    } catch (e) {}
+  }
+
   // ── 모바일 뷰포트 판정 ─────────────────────────────────────────
   // width < 768 OR PWA standalone 모드 → 모바일 디자인 사용
   // PWA가 가로 회전돼도(가로 폭이 768+) standalone이면 모바일 레이아웃을 유지
@@ -219,5 +232,5 @@
     return v;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage };
 })();

@@ -765,13 +765,7 @@ function handleLogout() {
 setUser(null);
 setIsAdmin(false);
 setAdminAuthed(false);
-try {
-  localStorage.removeItem('b2_user');
-  localStorage.removeItem('b2_is_admin');
-  localStorage.removeItem('b2_admin_authed');
-  localStorage.removeItem('b2_hidden_at');
-  sessionStorage.removeItem('b2_page');
-} catch {}
+window.B2Utils.clearAuthStorage();
 // 소셜 로그인 세션도 함께 종료 (Supabase Auth)
 try { window.supabase.auth.signOut(); } catch {}
 navigate('home');

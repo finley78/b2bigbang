@@ -1318,13 +1318,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       try { await sb.from('teachers').update({ is_active:false }).eq('id', teacherInfo.id); } catch(e) {}
     }
     alert('탈퇴가 완료되었습니다.');
-    try {
-      localStorage.removeItem('b2_user');
-      localStorage.removeItem('b2_is_admin');
-      localStorage.removeItem('b2_admin_authed');
-      localStorage.removeItem('b2_hidden_at');
-      sessionStorage.removeItem('b2_page');
-    } catch (e) {}
+    window.B2Utils.clearAuthStorage();
     window.location.href = '/';
   }
   async function changeMyPassword() {
