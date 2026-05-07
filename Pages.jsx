@@ -591,4 +591,219 @@ function RecruitPage({ setPage }) {
   );
 }
 
+/* ── 개인정보처리방침 ─────────── */
+function PrivacyPolicyPage() {
+  const isMobile = (typeof useIsMobile === 'function') ? useIsMobile() : (window.innerWidth < 768);
+  const wrap = { background:'#fff', minHeight:'80vh', padding: isMobile ? '32px 18px' : '60px 40px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.82)' };
+  const inner = { maxWidth:'860px', margin:'0 auto', lineHeight:'1.85', fontSize:'14px' };
+  const h1 = { fontSize: isMobile ? '24px' : '30px', fontWeight:'800', color:'#111', margin:'0 0 8px' };
+  const intro = { fontSize:'13px', color:'rgba(0,0,0,0.55)', marginBottom:'28px' };
+  const h2 = { fontSize: isMobile ? '17px' : '19px', fontWeight:'800', color:'#111', margin:'28px 0 10px', borderTop:'1px solid rgba(0,0,0,0.08)', paddingTop:'22px' };
+  const h3 = { fontSize:'14px', fontWeight:'700', color:'#1A1A1A', margin:'14px 0 6px' };
+  const p = { margin:'6px 0 10px' };
+  const ul = { margin:'4px 0 10px', paddingLeft:'22px' };
+  const li = { margin:'3px 0' };
+  const tableBox = { borderTop:'1px solid #e5e7eb', borderLeft:'1px solid #e5e7eb', display:'grid', gridTemplateColumns: isMobile ? '110px 1fr' : '160px 1fr', fontSize:'13px', margin:'8px 0 14px' };
+  const cellH = { background:'#f9fafb', padding:'8px 10px', borderRight:'1px solid #e5e7eb', borderBottom:'1px solid #e5e7eb', fontWeight:'700' };
+  const cellV = { padding:'8px 10px', borderRight:'1px solid #e5e7eb', borderBottom:'1px solid #e5e7eb' };
+
+  return React.createElement('div', { style:wrap },
+    React.createElement('div', { style:inner },
+      React.createElement('h1', { style:h1 }, '개인정보처리방침'),
+      React.createElement('div', { style:intro }, 'B2빅뱅학원(이하 "학원")은 「개인정보 보호법」 제30조에 따라 정보주체의 개인정보를 보호하고 이와 관련한 고충을 신속하고 원활하게 처리할 수 있도록 다음과 같은 개인정보 처리방침을 수립·공개합니다.'),
+
+      React.createElement('h2', { style:h2 }, '제1조 (개인정보의 처리 목적)'),
+      React.createElement('p', { style:p }, '학원은 다음의 목적을 위하여 개인정보를 처리합니다. 처리한 개인정보는 다음의 목적 이외의 용도로는 이용되지 않으며, 이용 목적이 변경되는 경우에는 「개인정보 보호법」 제18조에 따라 별도의 동의를 받는 등 필요한 조치를 이행합니다.'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '회원 가입·관리 및 본인 식별·인증'),
+        React.createElement('li', { style:li }, '학습 서비스 제공: 강의 수강, 과제 제출, 시험 응시, 학습 이력 관리'),
+        React.createElement('li', { style:li }, '학부모-자녀 연결 및 학습 현황 공유'),
+        React.createElement('li', { style:li }, '학원 공지·상담·민원 처리 및 안내'),
+        React.createElement('li', { style:li }, '서비스 운영·개선을 위한 통계 분석')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제2조 (처리하는 개인정보의 항목)'),
+      React.createElement('h3', { style:h3 }, '필수 항목'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '회원가입: 이름, 이메일, 비밀번호, 역할(학생/학부모/선생님)'),
+        React.createElement('li', { style:li }, '학생: 학교, 학년, 연락처, 학부모 연락처'),
+        React.createElement('li', { style:li }, '학부모: 자녀와의 연결 정보(전화번호 매칭)'),
+        React.createElement('li', { style:li }, '서비스 이용 기록: 학습 진도, 시험 결과, 숙제 제출 내역, 영상 시청 기록')
+      ),
+      React.createElement('h3', { style:h3 }, '선택 항목'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '주소, 추가 연락처'),
+        React.createElement('li', { style:li }, '음성 답안(과제 제출 시 학생이 직접 녹음)')
+      ),
+      React.createElement('h3', { style:h3 }, '소셜 로그인(Google·Kakao·Naver) 이용 시'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '제공받는 항목: 이메일, 이름(또는 닉네임)'),
+        React.createElement('li', { style:li }, '제공 목적: 본인 식별 및 학원에 등록된 회원 매칭')
+      ),
+      React.createElement('h3', { style:h3 }, '자동 수집 항목'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '서비스 이용 시각·접속 IP·브라우저 종류, 쿠키 및 sessionStorage 식별자')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제3조 (개인정보의 처리 및 보유 기간)'),
+      React.createElement('p', { style:p }, '학원은 법령에 따른 보유·이용 기간 또는 정보주체로부터 동의받은 보유·이용 기간 내에서 개인정보를 처리·보유합니다.'),
+      React.createElement('div', { style:tableBox },
+        React.createElement('div', { style:{ ...cellH, fontWeight:'800', background:'#f3f4f6' } }, '구분'),
+        React.createElement('div', { style:{ ...cellV, fontWeight:'800', background:'#f3f4f6' } }, '보유 기간'),
+        React.createElement('div', { style:cellH }, '회원 정보'),
+        React.createElement('div', { style:cellV }, '회원 탈퇴 시까지 (탈퇴 후 즉시 파기, 단 분쟁 대응을 위해 30일 보관)'),
+        React.createElement('div', { style:cellH }, '학습 이력'),
+        React.createElement('div', { style:cellV }, '서비스 제공 종료 후 1년'),
+        React.createElement('div', { style:cellH }, '음성 답안'),
+        React.createElement('div', { style:cellV }, '채점 완료 후 90일 이내 자동 삭제'),
+        React.createElement('div', { style:cellH }, '비밀번호 재설정 토큰'),
+        React.createElement('div', { style:cellV }, '발급 후 1시간 (사용 시 즉시 무효화)')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제4조 (개인정보의 제3자 제공)'),
+      React.createElement('p', { style:p }, '학원은 정보주체의 개인정보를 제1조(개인정보의 처리 목적)에서 명시한 범위 내에서만 처리하며, 정보주체의 동의·법률의 특별한 규정 등 「개인정보 보호법」 제17조 및 제18조에 해당하는 경우에만 개인정보를 제3자에게 제공합니다.'),
+      React.createElement('p', { style:p }, '현재 학원은 정보주체의 개인정보를 제3자에게 제공하지 않습니다.'),
+
+      React.createElement('h2', { style:h2 }, '제5조 (개인정보 처리의 위탁)'),
+      React.createElement('p', { style:p }, '학원은 원활한 서비스 제공을 위해 다음과 같이 개인정보 처리 업무를 위탁하고 있습니다. 위탁계약 시 「개인정보 보호법」 제26조에 따라 위탁업무 수행 목적 외 개인정보 처리 금지, 기술적·관리적 보호조치, 재위탁 제한, 손해배상 등 책임에 관한 사항을 계약서에 명시하고 있습니다.'),
+      React.createElement('div', { style:tableBox },
+        React.createElement('div', { style:{ ...cellH, fontWeight:'800', background:'#f3f4f6' } }, '수탁자'),
+        React.createElement('div', { style:{ ...cellV, fontWeight:'800', background:'#f3f4f6' } }, '위탁 업무'),
+        React.createElement('div', { style:cellH }, 'Supabase Inc.'),
+        React.createElement('div', { style:cellV }, '데이터베이스·인증·파일 저장 등 인프라 운영'),
+        React.createElement('div', { style:cellH }, 'Sendinblue (Brevo)'),
+        React.createElement('div', { style:cellV }, '비밀번호 재설정 등 거래 이메일 발송'),
+        React.createElement('div', { style:cellH }, 'Google·Kakao·Naver'),
+        React.createElement('div', { style:cellV }, '소셜 로그인(OAuth) 본인 인증')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제6조 (정보주체와 법정대리인의 권리·의무 및 행사방법)'),
+      React.createElement('p', { style:p }, '정보주체는 학원에 대해 언제든지 다음 각 호의 권리를 행사할 수 있습니다.'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '개인정보 열람 요구'),
+        React.createElement('li', { style:li }, '오류 등이 있을 경우 정정 요구'),
+        React.createElement('li', { style:li }, '삭제 요구'),
+        React.createElement('li', { style:li }, '처리 정지 요구')
+      ),
+      React.createElement('p', { style:p }, '권리 행사는 학원에 대해 「개인정보 보호법」 시행령 제41조 제1항에 따라 서면, 전자우편 등을 통하여 하실 수 있으며 학원은 이에 대해 지체 없이 조치하겠습니다. 만 14세 미만 아동의 개인정보에 관해서는 법정대리인이 권리를 행사할 수 있습니다.'),
+
+      React.createElement('h2', { style:h2 }, '제7조 (개인정보의 파기)'),
+      React.createElement('p', { style:p }, '학원은 개인정보 보유기간의 경과, 처리목적 달성 등 개인정보가 불필요하게 되었을 때에는 지체 없이 해당 개인정보를 파기합니다.'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '파기 절차: 파기 사유가 발생한 개인정보를 선정하고, 학원의 개인정보 보호책임자 승인을 받아 파기합니다.'),
+        React.createElement('li', { style:li }, '파기 방법: 전자적 파일 형태는 복구 불가능한 방식으로 영구 삭제하며, 종이 문서는 분쇄기로 분쇄하거나 소각합니다.')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제8조 (개인정보의 안전성 확보 조치)'),
+      React.createElement('p', { style:p }, '학원은 개인정보의 안전성 확보를 위해 다음과 같은 조치를 취하고 있습니다.'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '관리적 조치: 개인정보 취급자 최소화 및 교육'),
+        React.createElement('li', { style:li }, '기술적 조치: 비밀번호 SHA-256 해시 저장, 데이터 전송 시 HTTPS 암호화, 접근 권한 제한'),
+        React.createElement('li', { style:li }, '물리적 조치: 자료 보관실 접근 통제')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제9조 (쿠키 및 자동 수집 장치)'),
+      React.createElement('p', { style:p }, '학원은 이용자에게 개별적인 맞춤서비스를 제공하기 위해 이용 정보를 저장하고 수시로 불러오는 sessionStorage 및 쿠키(cookie)를 사용합니다. 이용자는 브라우저 설정을 통해 쿠키 저장을 거부할 수 있으나, 거부 시 일부 서비스 이용에 어려움이 발생할 수 있습니다.'),
+
+      React.createElement('h2', { style:h2 }, '제10조 (개인정보 보호책임자)'),
+      React.createElement('p', { style:p }, '학원은 개인정보 처리에 관한 업무를 총괄해서 책임지고, 개인정보 처리와 관련한 정보주체의 불만 처리 및 피해 구제 등을 위하여 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.'),
+      React.createElement('div', { style:tableBox },
+        React.createElement('div', { style:cellH }, '책임자'),
+        React.createElement('div', { style:cellV }, '김도영 (원장)'),
+        React.createElement('div', { style:cellH }, '연락처'),
+        React.createElement('div', { style:cellV }, 'kimdoyoung868@gmail.com')
+      ),
+      React.createElement('p', { style:p }, '※ 위 내용은 학원의 실제 정보로 갱신해 주세요.'),
+
+      React.createElement('h2', { style:h2 }, '제11조 (권익 침해 구제 방법)'),
+      React.createElement('p', { style:p }, '정보주체는 개인정보 침해로 인한 구제를 받기 위하여 다음 기관에 분쟁 해결이나 상담 등을 신청할 수 있습니다.'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '개인정보분쟁조정위원회: 1833-6972 (privacy.go.kr)'),
+        React.createElement('li', { style:li }, '개인정보침해신고센터: 118 (privacy.kisa.or.kr)'),
+        React.createElement('li', { style:li }, '대검찰청: 1301 (spo.go.kr)'),
+        React.createElement('li', { style:li }, '경찰청: 182 (ecrm.cyber.go.kr)')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제12조 (개인정보 처리방침 변경)'),
+      React.createElement('p', { style:p }, '이 개인정보 처리방침은 2026년 5월 7일부터 적용됩니다. 법령 또는 서비스 변경에 따라 내용의 추가·삭제 및 수정이 있을 시에는 변경 사항을 시행 7일 전부터 본 페이지를 통해 공지하겠습니다.'),
+      React.createElement('div', { style:{ marginTop:'30px', fontSize:'12px', color:'rgba(0,0,0,0.5)' } }, '시행일: 2026년 5월 7일')
+    )
+  );
+}
+
+/* ── 이용약관 ─────────── */
+function TermsPage() {
+  const isMobile = (typeof useIsMobile === 'function') ? useIsMobile() : (window.innerWidth < 768);
+  const wrap = { background:'#fff', minHeight:'80vh', padding: isMobile ? '32px 18px' : '60px 40px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.82)' };
+  const inner = { maxWidth:'860px', margin:'0 auto', lineHeight:'1.85', fontSize:'14px' };
+  const h1 = { fontSize: isMobile ? '24px' : '30px', fontWeight:'800', color:'#111', margin:'0 0 8px' };
+  const intro = { fontSize:'13px', color:'rgba(0,0,0,0.55)', marginBottom:'28px' };
+  const h2 = { fontSize: isMobile ? '17px' : '19px', fontWeight:'800', color:'#111', margin:'28px 0 10px', borderTop:'1px solid rgba(0,0,0,0.08)', paddingTop:'22px' };
+  const p = { margin:'6px 0 10px' };
+  const ul = { margin:'4px 0 10px', paddingLeft:'22px' };
+  const li = { margin:'3px 0' };
+
+  return React.createElement('div', { style:wrap },
+    React.createElement('div', { style:inner },
+      React.createElement('h1', { style:h1 }, '이용약관'),
+      React.createElement('div', { style:intro }, '본 약관은 B2빅뱅학원(이하 "학원")이 제공하는 온라인 학습 플랫폼(이하 "서비스")의 이용 조건과 절차, 이용자와 학원의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.'),
+
+      React.createElement('h2', { style:h2 }, '제1조 (목적)'),
+      React.createElement('p', { style:p }, '본 약관은 학원이 제공하는 학습 플랫폼 서비스 이용과 관련하여 학원과 회원 간의 권리, 의무, 책임 사항 및 기타 필요한 사항을 규정함을 목적으로 합니다.'),
+
+      React.createElement('h2', { style:h2 }, '제2조 (정의)'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '"서비스": 학원이 운영하는 b2bigbang.com 웹사이트와 그 부속 기능을 의미합니다.'),
+        React.createElement('li', { style:li }, '"회원": 학원에 등록되어 본 약관에 동의하고 서비스를 이용하는 학생, 학부모, 선생님을 말합니다.'),
+        React.createElement('li', { style:li }, '"계정": 회원이 서비스 이용을 위해 부여받은 식별 정보(이메일·비밀번호 또는 소셜 로그인 정보)를 말합니다.')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제3조 (약관의 효력 및 변경)'),
+      React.createElement('p', { style:p }, '본 약관은 서비스 화면에 게시함으로써 효력을 발생합니다. 학원은 필요시 본 약관을 변경할 수 있으며, 변경된 약관은 시행 7일 전부터 공지합니다. 회원이 변경된 약관에 동의하지 않을 경우 서비스 이용을 중단하고 탈퇴할 수 있습니다.'),
+
+      React.createElement('h2', { style:h2 }, '제4조 (회원가입)'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '회원가입은 학원에 등록된 학생·학부모·선생님에 한해 본 약관 및 개인정보처리방침 동의 후 가입할 수 있습니다.'),
+        React.createElement('li', { style:li }, '소셜 로그인(Google·Kakao·Naver)을 통해 가입한 경우, 학원에 사전에 등록된 이메일과 일치할 때 자동으로 매칭됩니다.'),
+        React.createElement('li', { style:li }, '허위 정보로 가입한 경우 학원은 가입을 거절하거나 사후 회원 자격을 취소할 수 있습니다.')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제5조 (회원의 의무)'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '회원은 본인의 계정 정보를 안전하게 관리할 책임이 있으며, 제3자가 무단 사용하지 않도록 해야 합니다.'),
+        React.createElement('li', { style:li }, '회원은 서비스를 이용함에 있어 관계 법령, 본 약관, 학원이 통지한 사항을 준수해야 합니다.'),
+        React.createElement('li', { style:li }, '회원은 다른 회원의 학습을 방해하거나 서비스 운영을 저해하는 행위를 해서는 안 됩니다.')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제6조 (학원의 의무)'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '학원은 안정적인 서비스 운영을 위해 최선을 다합니다.'),
+        React.createElement('li', { style:li }, '학원은 회원의 개인정보를 본 서비스의 개인정보처리방침에 따라 안전하게 보호합니다.'),
+        React.createElement('li', { style:li }, '학원은 회원의 의견·불만이 정당하다고 인정될 경우 신속히 처리합니다.')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제7조 (서비스 이용)'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '서비스는 연중무휴 제공함을 원칙으로 하나, 시스템 점검·천재지변 등 부득이한 경우 일시 중단될 수 있습니다.'),
+        React.createElement('li', { style:li }, '학원은 서비스 운영상 필요에 따라 일부 또는 전체 기능을 추가·변경·중단할 수 있습니다.')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제8조 (서비스 이용 제한)'),
+      React.createElement('p', { style:p }, '학원은 회원이 본 약관을 위반하거나 서비스의 정상적 운영을 방해한 경우 사전 통지 없이 서비스 이용을 일시 정지하거나 회원 자격을 박탈할 수 있습니다.'),
+
+      React.createElement('h2', { style:h2 }, '제9조 (면책 조항)'),
+      React.createElement('ul', { style:ul },
+        React.createElement('li', { style:li }, '천재지변, 전쟁, 통신서비스 장애 등 불가항력으로 인해 서비스를 제공할 수 없는 경우 학원은 책임을 지지 않습니다.'),
+        React.createElement('li', { style:li }, '회원의 귀책사유로 인한 서비스 이용 장애에 대해 학원은 책임을 지지 않습니다.'),
+        React.createElement('li', { style:li }, '회원이 서비스에 게재한 정보·자료의 신뢰도, 정확성에 대한 책임은 회원 본인에게 있습니다.')
+      ),
+
+      React.createElement('h2', { style:h2 }, '제10조 (분쟁 해결)'),
+      React.createElement('p', { style:p }, '본 약관은 대한민국 법률에 따라 규정되고 이행되며, 서비스 이용과 관련하여 발생한 분쟁에 대해 학원과 회원 간 협의로 해결하되, 협의가 이루어지지 않을 경우 「민사소송법」상의 관할법원에 소를 제기할 수 있습니다.'),
+
+      React.createElement('div', { style:{ marginTop:'30px', fontSize:'12px', color:'rgba(0,0,0,0.5)' } }, '시행일: 2026년 5월 7일')
+    )
+  );
+}
+
 Object.assign(window, { ServicePage, ContactPage, AboutPage, RecruitPage });

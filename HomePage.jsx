@@ -918,7 +918,7 @@ function LevelTestPage({ user, onLoginClick, setPage }) {
 }
 
 /* ── 사이트 푸터 (모든 페이지 하단) ─────────── */
-function SiteFooter() {
+function SiteFooter({ setPage }) {
   const isMobile = useIsMobile();
   const sb = window.supabase;
   const [f, setF] = React.useState(null);
@@ -930,7 +930,17 @@ function SiteFooter() {
       } catch (e) {}
     })();
   }, []);
-  if (!f) return null;
+  function go(p) { try { (setPage || window.b2Navigate)(p); } catch {} }
+  const linkS = { color:'rgba(255,255,255,0.85)', fontWeight:'700', cursor:'pointer', textDecoration:'none', background:'none', border:'none', padding:0, fontFamily:'inherit', fontSize:'12px' };
+  const sepS = { color:'rgba(255,255,255,0.25)', margin:'0 10px' };
+  const links = React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid rgba(255,255,255,0.1)', display:'flex', flexWrap:'wrap', alignItems:'center', gap: isMobile ? '4px 0' : '0' } },
+    React.createElement('button', { onClick: function(){ go('privacy'); }, style:linkS }, '개인정보처리방침'),
+    React.createElement('span', { style:sepS }, '|'),
+    React.createElement('button', { onClick: function(){ go('terms'); }, style:linkS }, '이용약관')
+  );
+  if (!f) return React.createElement('footer', { style:{ background:'#1A1A1A', padding: isMobile ? '24px 16px' : '32px 40px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif' } },
+    React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } }, links)
+  );
   const items = [
     f.company_name && { l:'학원명', v:f.company_name },
     f.ceo && { l:'대표자', v:f.ceo },
@@ -950,7 +960,8 @@ function SiteFooter() {
           );
         })
       ),
-      f.copyright && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.35)', borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:'14px' } }, f.copyright)
+      links,
+      f.copyright && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.35)', marginTop:'14px' } }, f.copyright)
     )
   );
 }

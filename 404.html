@@ -311,13 +311,13 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260508x"></script>
-<script src="TopNav.js?v=20260508x"></script>
-<script src="HomePage.js?v=20260508x"></script>
-<script src="Pages.js?v=20260508x"></script>
-<script src="StudentPortal.js?v=20260508x"></script>
-<script src="TeacherPortal.js?v=20260508x"></script>
-<script src="AdminPanel.js?v=20260508x"></script>
+<script src="Utils.js?v=20260508y"></script>
+<script src="TopNav.js?v=20260508y"></script>
+<script src="HomePage.js?v=20260508y"></script>
+<script src="Pages.js?v=20260508y"></script>
+<script src="StudentPortal.js?v=20260508y"></script>
+<script src="TeacherPortal.js?v=20260508y"></script>
+<script src="AdminPanel.js?v=20260508y"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -499,6 +499,7 @@ try { sessionStorage.setItem('b2_page', p); } catch {}
 }
 window.addEventListener('popstate', handlePopState);
 // URL의 ?reset=<token> 감지 → 비밀번호 재설정 페이지
+// URL의 ?page=privacy|terms 감지 → 정적 페이지 직접 진입 (외부 검수/링크 공유용)
 let initialPage = (()=>{ try { return sessionStorage.getItem('b2_page')||'home'; } catch { return 'home'; } })();
 try {
   const params = new URLSearchParams(window.location.search);
@@ -506,10 +507,14 @@ try {
   if (rt) {
     setResetToken(rt);
     initialPage = 'reset';
-    // URL에서 토큰 제거 (히스토리 깨끗하게)
     const u = new URL(window.location.href);
     u.searchParams.delete('reset');
     window.history.replaceState({ page: 'reset' }, '', u.pathname + (u.search || '') + u.hash);
+  } else {
+    const pageParam = params.get('page');
+    if (pageParam === 'privacy' || pageParam === 'terms') {
+      initialPage = pageParam;
+    }
   }
 } catch {}
 // 초기 스택: home을 두 번 쌓아서 첫 뒤로가기가 앱 내에서 처리되게
@@ -806,6 +811,8 @@ page === 'service' && React.createElement(ServicePage, { setPage: navigate, cour
 page === 'contact' && React.createElement(ContactPage),
 page === 'about' && React.createElement(AboutPage, { setPage: navigate }),
 page === 'recruit' && React.createElement(RecruitPage, { setPage: navigate }),
+page === 'privacy' && React.createElement(PrivacyPolicyPage),
+page === 'terms' && React.createElement(TermsPage),
 page === 'leveltest' && React.createElement(LevelTestPage, { user: effectiveUser, onLoginClick: ()=>setShowLogin(true), setPage: navigate }),
 
 page === 'reset' && resetToken && React.createElement(ResetPasswordPage, { token: resetToken, onDone: ()=>{ setResetToken(null); navigate('home'); setShowLogin(true); } }),
@@ -842,7 +849,7 @@ onLogout: null,
 ),
 
 /* 사이트 푸터 (관리자/선생님/응시 화면 제외) */
-page !== 'admin' && page !== 'teacher' && React.createElement(SiteFooter),
+page !== 'admin' && page !== 'teacher' && React.createElement(SiteFooter, { setPage: navigate }),
 
 /* 이벤트 floating 버튼 (관리자가 enabled로 토글 / 페이지별 제외 / 한 번 누르면 영구 숨김) */
 eventButton.enabled && !eventClicked && page !== (eventButton.target_page || 'leveltest') && page !== 'admin' && page !== 'teacher' && React.createElement('button', {
