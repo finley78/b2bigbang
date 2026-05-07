@@ -1,14 +1,7 @@
 // HomePage.jsx — 완전 반응형 버전
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState(window.B2Utils.isMobileViewport());
-  React.useEffect(() => {
-    function onResize() { setIsMobile(window.B2Utils.isMobileViewport()); }
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  return isMobile;
-}
+// B2Utils.useIsMobile에 통합됨 (resize + display-mode 변화 모두 감지)
+const useIsMobile = window.B2Utils.useIsMobile;
 
 function getBannerYoutubeId(url) {
   if (!url) return null;

@@ -19,12 +19,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [lectureCourseName, setLectureCourseName] = React.useState("");
   const [savingOnline, setSavingOnline] = React.useState(false);
   const [teacherView, setTeacherView] = React.useState("dashboard");
-  const [teacherIsMobile, setTeacherIsMobile] = React.useState(typeof window !== 'undefined' && window.B2Utils.isMobileViewport());
-  React.useEffect(() => {
-    function h() { setTeacherIsMobile(window.B2Utils.isMobileViewport()); }
-    window.addEventListener('resize', h);
-    return () => window.removeEventListener('resize', h);
-  }, []);
+  const teacherIsMobile = window.B2Utils.useIsMobile();
   // 업무일지
   const [teacherNotes, setTeacherNotes] = React.useState([]);
   const [noteDraft, setNoteDraft] = React.useState({ date: new Date().toISOString().slice(0,10), content: '' });

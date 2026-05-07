@@ -157,5 +157,30 @@
     return false;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport };
+  // React 훅 — 모든 컴포넌트가 동일한 isMobile 상태/리스너 boilerplate 대신 useIsMobile()을 호출
+  // resize + display-mode 변화(PWA 설치/해제) 양쪽 모두 감지
+  function useIsMobile() {
+    var R = window.React;
+    var s = R.useState(isMobileViewport());
+    var v = s[0], setV = s[1];
+    R.useEffect(function() {
+      function on() { setV(isMobileViewport()); }
+      window.addEventListener('resize', on);
+      var mq = (window.matchMedia && window.matchMedia('(display-mode: standalone)')) || null;
+      if (mq) {
+        if (mq.addEventListener) mq.addEventListener('change', on);
+        else if (mq.addListener) mq.addListener(on);
+      }
+      return function() {
+        window.removeEventListener('resize', on);
+        if (mq) {
+          if (mq.removeEventListener) mq.removeEventListener('change', on);
+          else if (mq.removeListener) mq.removeListener(on);
+        }
+      };
+    }, []);
+    return v;
+  }
+
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile };
 })();

@@ -12,17 +12,11 @@ function dDay(targetDateStr) {
 
 function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick, onAdminClick, onLogout, examDate, onForgotClick }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [isMobile, setIsMobile] = React.useState(window.B2Utils.isMobileViewport());
+  const isMobile = window.B2Utils.useIsMobile();
   const d = dDay(examDate || '2026-11-12');
 
-  React.useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.B2Utils.isMobileViewport());
-      if (window.innerWidth >= 768) setMenuOpen(false);
-    }
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // 데스크탑 폭으로 넘어가면 모바일 메뉴 자동 닫기
+  React.useEffect(() => { if (!isMobile) setMenuOpen(false); }, [isMobile]);
 
   return React.createElement('nav', { style: { ...mnStyles.nav, position: 'sticky', top: 0, zIndex: 100 } },
 
