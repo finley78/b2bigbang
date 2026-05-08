@@ -2046,7 +2046,7 @@ if (filtered.length === 0) return React.createElement('div', { style:{ ...cardS,
 
 var allSelected = filtered.length > 0 && filtered.every(function(s){ return selectedIds.includes(s.id); });
 
-return React.createElement('div', null,
+return React.createElement('div', { style:{ maxWidth:'760px' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 18px', marginBottom:'4px' } },
 React.createElement('div', {
 onClick: function() {
