@@ -2737,8 +2737,7 @@ React.createElement('div', { key:t.id, style:{ background:'#fff', borderRadius:'
 React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: expandedTeacher===t.id ? '14px' : '0', cursor:'pointer' }, onClick:()=>setExpandedTeacher(expandedTeacher===t.id ? null : t.id) },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', flex:1, flexWrap:'wrap', minWidth:0 } },
 React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, t.name),
-(t.subjects || []).map(function(sub){ return React.createElement('span', { key:sub, style:{ background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, sub); }),
-React.createElement('span', { style:{ background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '승인됨')
+(t.subjects || []).map(function(sub){ return React.createElement('span', { key:sub, style:{ background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, sub); })
 ),
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexShrink:0 } },
 expandedTeacher!==t.id && React.createElement('button', { onClick:(e)=>{ e.stopPropagation(); rejectTeacher(t.id); }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '계정 삭제'),
