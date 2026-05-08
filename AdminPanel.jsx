@@ -1092,6 +1092,11 @@ return String(cls.teacher_id) === String(teacherClassId);
 
 function isCourseAssignedToTeacher(teacher, course) {
 var assigned = getAssignedClassesForTeacher(teacher);
+// 1차: 강좌가 class_id로 직접 묶인 경우 (정상 케이스)
+if (course && course.class_id) {
+  if (assigned.some(function(cls){ return String(cls.id) === String(course.class_id); })) return true;
+}
+// 2차: class_id가 없는 구버전 강좌는 이름·과목 매칭으로 폴백
 return assigned.some(function(cls) {
 var sameName = cleanAdminValue(cls.name) === cleanAdminValue(course.name);
 var sameSubject = !cls.subject || !course.subject || cleanAdminValue(cls.subject) === cleanAdminValue(course.subject);
