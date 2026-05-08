@@ -1162,7 +1162,7 @@ const tabs = [
 { id:'enrollee',label:'수강생 관리' },
 { id:'member',  label:'회원 정보' },
 { id:'teacher', label:'선생님 관리' },
-{ id:'records', label:'선생님 기록' },
+{ id:'records', label:'업무일지 및 특이사항' },
 { id:'analysis',label:'성적 분석' },
 { id:'views',   label:'학습 현황' },
 { id:'files',   label:'자료실' },
@@ -2969,7 +2969,7 @@ React.createElement('div', { style:{ marginTop:'12px', paddingTop:'12px', border
 
 /* ── 선생님 기록 TAB ── */
 tab==='records' && React.createElement('div', null,
-React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '선생님 기록'),
+React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '업무일지 및 특이사항'),
 React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '선생님이 등록한 학생 특이사항·상담 기록을 확인합니다.'),
 
 React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px' } },
