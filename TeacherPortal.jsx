@@ -29,7 +29,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   // 업무일지
   const [teacherNotes, setTeacherNotes] = React.useState([]);
   const [noteDraft, setNoteDraft] = React.useState({ date: new Date().toISOString().slice(0,10), content: '' });
-  const [savingNote, setSavingNote] = React.useState(false);
   const [noteTargetMode, setNoteTargetMode] = React.useState('all'); // 'all' | 'student'
   const [noteClassId, setNoteClassId] = React.useState('');
   const [noteStudents, setNoteStudents] = React.useState([]);

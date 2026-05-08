@@ -220,35 +220,70 @@
     var isMobile = window.B2Utils.useIsMobile();
 
     // 무료 사전 API로 단어 1개 품사 조회
-    async function fetchPartOfSpeech(word) {
+    // 한 단어에 여러 품사가 있으면 가장 자주 등장한 품사를 선택 (예: "at"의 동사 의미보다 전치사가 압도적으로 많음)
+    async function fetchPartOfSpeech(word, retries) {
+      retries = retries == null ? 2 : retries;
       try {
         var res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
-        if (!res.ok) return null;
-        var data = await res.json();
-        if (Array.isArray(data) && data[0] && data[0].meanings && data[0].meanings[0]) {
-          return data[0].meanings[0].partOfSpeech || null;
+        if (res.status === 429 || res.status >= 500) {
+          if (retries > 0) {
+            await new Promise(function(r){ setTimeout(r, 1500); });
+            return fetchPartOfSpeech(word, retries - 1);
+          }
+          return { pos: null, reason: 'ratelimit' };
         }
-      } catch (e) {}
-      return null;
+        if (res.status === 404) return { pos: null, reason: 'notfound' };
+        if (!res.ok) return { pos: null, reason: 'http' + res.status };
+        var data = await res.json();
+        if (!Array.isArray(data) || !data[0]) return { pos: null, reason: 'empty' };
+        // 모든 entry의 모든 meaning에서 partOfSpeech 빈도 집계
+        var counts = {};
+        for (var ei = 0; ei < data.length; ei++) {
+          var entry = data[ei];
+          if (!entry || !entry.meanings) continue;
+          for (var mi = 0; mi < entry.meanings.length; mi++) {
+            var p = entry.meanings[mi] && entry.meanings[mi].partOfSpeech;
+            if (!p) continue;
+            // 의미(definitions) 갯수가 많을수록 그 품사가 더 우세하다고 본다
+            var weight = (entry.meanings[mi].definitions && entry.meanings[mi].definitions.length) || 1;
+            counts[p] = (counts[p] || 0) + weight;
+          }
+        }
+        var bestPos = null, bestCount = -1;
+        for (var k in counts) {
+          if (counts[k] > bestCount) { bestCount = counts[k]; bestPos = k; }
+        }
+        if (bestPos) return { pos: bestPos, reason: 'ok' };
+        return { pos: null, reason: 'empty' };
+      } catch (e) {
+        if (retries > 0) {
+          await new Promise(function(r){ setTimeout(r, 1500); });
+          return fetchPartOfSpeech(word, retries - 1);
+        }
+        return { pos: null, reason: 'network' };
+      }
     }
 
-    // 빈 품사를 자동 채우기 (5개씩 병렬, Free Dictionary API)
+    // 빈 품사를 자동 채우기 (3개씩 병렬 + 배치 간 400ms 대기, Free Dictionary API)
     async function autoFillPartOfSpeech() {
       var emptyWords = words.filter(function(w){ return !w.part_of_speech || !String(w.part_of_speech).trim(); });
       if (emptyWords.length === 0) { alert('이미 모든 단어에 품사가 있습니다.'); return; }
-      var msg = emptyWords.length + '개 단어에 품사를 자동으로 채울까요?\n무료 사전 API(영어 단어만)로 조회합니다. 단어 수에 따라 몇 초~몇 분 걸릴 수 있어요.';
+      var msg = emptyWords.length + '개 단어에 품사를 자동으로 채울까요?\n무료 사전 API(영어 단어만)로 조회합니다. 단어 수에 따라 몇 분 걸릴 수 있어요.';
       if (!confirm(msg)) return;
 
       setAutoFilling(true);
       setAutoFillProgress({ current: 0, total: emptyWords.length });
       var success = 0;
-      var failed = 0;
-      var chunkSize = 5;
+      var notfound = 0;
+      var ratelimited = 0;
+      var other = 0;
+      var failedWords = [];
+      var chunkSize = 3;
       try {
         for (var i = 0; i < emptyWords.length; i += chunkSize) {
           var chunk = emptyWords.slice(i, i + chunkSize);
           var results = await Promise.all(chunk.map(function(w){
-            return fetchPartOfSpeech(w.word).then(function(pos){ return { word: w, pos: pos }; });
+            return fetchPartOfSpeech(w.word).then(function(r){ return { word: w, pos: r.pos, reason: r.reason }; });
           }));
           for (var k = 0; k < results.length; k++) {
             var r = results[k];
@@ -256,14 +291,31 @@
               try {
                 await sb.from('vocab_words').update({ part_of_speech: r.pos }).eq('id', r.word.id);
                 success++;
-              } catch (e) { failed++; }
+              } catch (e) { other++; failedWords.push(r.word.word); }
+            } else if (r.reason === 'notfound') {
+              notfound++;
+            } else if (r.reason === 'ratelimit') {
+              ratelimited++; failedWords.push(r.word.word);
             } else {
-              failed++;
+              other++; failedWords.push(r.word.word);
             }
           }
           setAutoFillProgress({ current: Math.min(i + chunkSize, emptyWords.length), total: emptyWords.length });
+          // 배치 간 짧은 대기 (서버 부담 줄이기)
+          if (i + chunkSize < emptyWords.length) {
+            await new Promise(function(r){ setTimeout(r, 400); });
+          }
         }
-        alert(success + '개 채움, ' + failed + '개 실패 (영단어 아니거나 사전에 없는 경우).');
+        var reportLines = [
+          '✓ ' + success + '개 채움',
+          '· 사전에 없음: ' + notfound + '개',
+          '· 차단/네트워크 오류: ' + (ratelimited + other) + '개',
+        ];
+        if (failedWords.length > 0) {
+          console.log('[품사 자동채우기] 실패한 단어들:', failedWords);
+          reportLines.push('실패한 단어 목록은 브라우저 콘솔(F12)에 출력되었어요. 그 단어들만 다시 한 번 실행해도 됩니다.');
+        }
+        alert(reportLines.join('\n'));
       } catch (e) { alert('자동 채우기 실패: ' + (e.message || e)); }
       setAutoFilling(false);
       load();
