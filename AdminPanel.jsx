@@ -2570,7 +2570,8 @@ if (memberSearchMode === 'filter') {
 return true;
 });
 if (filtered.length === 0) return [React.createElement('div', { key:'empty', style:{ ...cardS, textAlign:'center', padding:'48px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px' } }, '해당 회원이 없습니다')];
-return filtered.map(function(m) {
+return React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:'10px', maxWidth:'1170px' } },
+filtered.map(function(m) {
 var linkedParent = m.role==='student' && m.parentId ? dbMembers.find(function(x){ return x.id===m.parentId; }) : null;
 var linkedChildren = m.role==='parent' ? dbMembers.filter(function(x){ return x.role==='student' && (x.parentId===m.id); }) : [];
 var roleBg    = m.role==='teacher'?'#FFEBED': m.role==='parent'?'#fff3cd': m.isEnrollee?'#e8f4fd':'#f2f0eb';
@@ -2578,7 +2579,8 @@ var roleColor = m.role==='teacher'?'#E60012': m.role==='parent'?'#856404': m.isE
 var isEnrolleeParent = m.role==='parent' && dbMembers.some(function(s){ return s.role==='student'&&s.isEnrollee&&s.parentId===m.id; });
 var roleLabel = m.role==='teacher'?'선생님': m.role==='parent'?(isEnrolleeParent?'수강생 학부모':'학부모'): m.isEnrollee?'수강생':'일반회원';
 var isEditing = editingMember === m.id;
-return React.createElement('div', { key:m.id, style:{ ...cardS, padding:'12px 16px', border: isEditing?'2px solid #E60012':'2px solid transparent', transition:'border 0.15s' } },
+var isOpen = expandedMember === m.id || isEditing;
+return React.createElement('div', { key:m.id, style:{ ...cardS, padding:'12px 14px', marginBottom:0, alignSelf:'start', border: isEditing?'2px solid #E60012':'2px solid transparent', transition:'border 0.15s', gridColumn: isOpen ? '1 / -1' : 'auto', order: isOpen ? -1 : 0 } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', flex:1, minWidth:0, cursor:'pointer' }, onClick:function(){ setExpandedMember(expandedMember===m.id?null:m.id); setEditingMember(null); } },
 React.createElement('div', { style:{ width:'32px', height:'32px', borderRadius:'50%', background:roleBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', color:roleColor, fontFamily:'Manrope, sans-serif', flexShrink:0 } }, m.name[0]),
@@ -2735,7 +2737,7 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
 )
 )
 );
-});
+}));
 })()
 ),
 
@@ -3509,6 +3511,7 @@ React.createElement('input', {
 
   return React.createElement('div', null,
     React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', padding:'8px 18px', marginBottom:'4px' } }, filtered.length + '명'),
+    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:'10px', maxWidth:'1170px' } },
     filtered.map(function(st) {
       var isOpen = viewsExpandedId === st.id;
       var data = (viewsDataMap[st.id] || []).filter(function(v) {
@@ -3516,7 +3519,7 @@ React.createElement('input', {
         return true;
       });
 
-      return React.createElement('div', { key:st.id, style:{ ...cardS, border: isOpen?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s' } },
+      return React.createElement('div', { key:st.id, style:{ ...cardS, marginBottom:0, alignSelf:'start', border: isOpen?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s', gridColumn: isOpen ? '1 / -1' : 'auto', order: isOpen ? -1 : 0 } },
         React.createElement('div', {
           style:{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer' },
           onClick: function(){
@@ -3596,6 +3599,7 @@ React.createElement('input', {
         )
       );
     })
+  )
   );
 })()
 ),
@@ -3730,12 +3734,12 @@ tab==='leveltest' && (function(){
 
   adminLevelTestLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '불러오는 중...') :
   visibleTests.length === 0 ? React.createElement('div', { style:{ background:'#fff', borderRadius:'10px', padding:'40px', textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px' } }, '발행된 시험이 없습니다.') :
-  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
+  React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'10px', maxWidth:'1660px' } },
     visibleTests.map(function(t){
       var reqs = adminLevelTestRequests[t.id] || [];
       var subs = adminLevelTestSubs[t.id] || [];
       var imgs = Array.isArray(t.image_paths) ? t.image_paths : [];
-      return React.createElement('div', { key:t.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'14px 16px' } },
+      return React.createElement('div', { key:t.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'14px 16px', alignSelf:'start' } },
         React.createElement('div', { style:{ display:'flex', alignItems:'flex-start', gap:'12px' } },
           React.createElement('div', { style:{ flex:1, minWidth:0 } },
             React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
