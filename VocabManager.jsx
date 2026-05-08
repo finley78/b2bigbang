@@ -153,7 +153,7 @@
             subject: draft.subject || null,
             grade: draft.grade || null,
             unit_size: unitSize,
-            created_by: creator.id || null,
+            created_by: window.B2Utils.safeUserId(creator),
             creator_name: creator.name || null,
           });
           if (e2) throw e2;
@@ -216,111 +216,7 @@
     var [showTestCreate, setShowTestCreate] = React.useState(null); // unit_index 또는 null
     var [editingTest, setEditingTest] = React.useState(null);
     var [resultsTest, setResultsTest] = React.useState(null);
-    var [autoFilling, setAutoFilling] = React.useState(false);
-    var [autoFillProgress, setAutoFillProgress] = React.useState({ current: 0, total: 0 });
     var isMobile = window.B2Utils.useIsMobile();
-
-    // 무료 사전 API로 단어 1개 품사 조회
-    // 한 단어에 여러 품사가 있으면 가장 자주 등장한 품사를 선택 (예: "at"의 동사 의미보다 전치사가 압도적으로 많음)
-    async function fetchPartOfSpeech(word, retries) {
-      retries = retries == null ? 2 : retries;
-      try {
-        var res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
-        if (res.status === 429 || res.status >= 500) {
-          if (retries > 0) {
-            await new Promise(function(r){ setTimeout(r, 1500); });
-            return fetchPartOfSpeech(word, retries - 1);
-          }
-          return { pos: null, reason: 'ratelimit' };
-        }
-        if (res.status === 404) return { pos: null, reason: 'notfound' };
-        if (!res.ok) return { pos: null, reason: 'http' + res.status };
-        var data = await res.json();
-        if (!Array.isArray(data) || !data[0]) return { pos: null, reason: 'empty' };
-        // 모든 entry의 모든 meaning에서 partOfSpeech 빈도 집계
-        var counts = {};
-        for (var ei = 0; ei < data.length; ei++) {
-          var entry = data[ei];
-          if (!entry || !entry.meanings) continue;
-          for (var mi = 0; mi < entry.meanings.length; mi++) {
-            var p = entry.meanings[mi] && entry.meanings[mi].partOfSpeech;
-            if (!p) continue;
-            // 의미(definitions) 갯수가 많을수록 그 품사가 더 우세하다고 본다
-            var weight = (entry.meanings[mi].definitions && entry.meanings[mi].definitions.length) || 1;
-            counts[p] = (counts[p] || 0) + weight;
-          }
-        }
-        var bestPos = null, bestCount = -1;
-        for (var k in counts) {
-          if (counts[k] > bestCount) { bestCount = counts[k]; bestPos = k; }
-        }
-        if (bestPos) return { pos: bestPos, reason: 'ok' };
-        return { pos: null, reason: 'empty' };
-      } catch (e) {
-        if (retries > 0) {
-          await new Promise(function(r){ setTimeout(r, 1500); });
-          return fetchPartOfSpeech(word, retries - 1);
-        }
-        return { pos: null, reason: 'network' };
-      }
-    }
-
-    // 빈 품사를 자동 채우기 (3개씩 병렬 + 배치 간 400ms 대기, Free Dictionary API)
-    async function autoFillPartOfSpeech() {
-      var emptyWords = words.filter(function(w){ return !w.part_of_speech || !String(w.part_of_speech).trim(); });
-      if (emptyWords.length === 0) { alert('이미 모든 단어에 품사가 있습니다.'); return; }
-      var msg = emptyWords.length + '개 단어에 품사를 자동으로 채울까요?\n무료 사전 API(영어 단어만)로 조회합니다. 단어 수에 따라 몇 분 걸릴 수 있어요.';
-      if (!confirm(msg)) return;
-
-      setAutoFilling(true);
-      setAutoFillProgress({ current: 0, total: emptyWords.length });
-      var success = 0;
-      var notfound = 0;
-      var ratelimited = 0;
-      var other = 0;
-      var failedWords = [];
-      var chunkSize = 3;
-      try {
-        for (var i = 0; i < emptyWords.length; i += chunkSize) {
-          var chunk = emptyWords.slice(i, i + chunkSize);
-          var results = await Promise.all(chunk.map(function(w){
-            return fetchPartOfSpeech(w.word).then(function(r){ return { word: w, pos: r.pos, reason: r.reason }; });
-          }));
-          for (var k = 0; k < results.length; k++) {
-            var r = results[k];
-            if (r.pos) {
-              try {
-                await sb.from('vocab_words').update({ part_of_speech: r.pos }).eq('id', r.word.id);
-                success++;
-              } catch (e) { other++; failedWords.push(r.word.word); }
-            } else if (r.reason === 'notfound') {
-              notfound++;
-            } else if (r.reason === 'ratelimit') {
-              ratelimited++; failedWords.push(r.word.word);
-            } else {
-              other++; failedWords.push(r.word.word);
-            }
-          }
-          setAutoFillProgress({ current: Math.min(i + chunkSize, emptyWords.length), total: emptyWords.length });
-          // 배치 간 짧은 대기 (서버 부담 줄이기)
-          if (i + chunkSize < emptyWords.length) {
-            await new Promise(function(r){ setTimeout(r, 400); });
-          }
-        }
-        var reportLines = [
-          '✓ ' + success + '개 채움',
-          '· 사전에 없음: ' + notfound + '개',
-          '· 차단/네트워크 오류: ' + (ratelimited + other) + '개',
-        ];
-        if (failedWords.length > 0) {
-          console.log('[품사 자동채우기] 실패한 단어들:', failedWords);
-          reportLines.push('실패한 단어 목록은 브라우저 콘솔(F12)에 출력되었어요. 그 단어들만 다시 한 번 실행해도 됩니다.');
-        }
-        alert(reportLines.join('\n'));
-      } catch (e) { alert('자동 채우기 실패: ' + (e.message || e)); }
-      setAutoFilling(false);
-      load();
-    }
 
     React.useEffect(function(){ load(); }, [props.listId]);
 
@@ -369,9 +265,6 @@
             )
           ),
           activeTab === 'words' && React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
-            words.length > 0 && React.createElement('button', { onClick: autoFillPartOfSpeech, disabled: autoFilling, title:'영어 사전에서 빈 품사를 자동 조회', style: Object.assign({}, STYLES.btnGhost, autoFilling ? { background:'#f3f4f6', cursor:'not-allowed' } : null) },
-              autoFilling ? ('처리 중 ' + autoFillProgress.current + '/' + autoFillProgress.total) : '🔄 품사 자동 채우기'
-            ),
             React.createElement('button', { onClick:function(){ setShowImport(true); }, style:STYLES.btnPrimary }, '+ 단어 추가')
           )
         )
@@ -389,11 +282,10 @@
         !words.length
           ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 단어가 없습니다. "+ 단어 추가" 버튼으로 엑셀 업로드 또는 붙여넣기로 한 번에 등록할 수 있어요.')
           : React.createElement('div', { style:STYLES.card },
-              React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 100px 1.5fr 100px', gap:'8px', padding:'8px 4px', borderBottom:'2px solid #1A1A1A', fontSize:'11px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } },
+              React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 1.5fr 100px', gap:'8px', padding:'8px 4px', borderBottom:'2px solid #1A1A1A', fontSize:'11px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } },
                 !isMobile && React.createElement('div', null, '#'),
                 React.createElement('div', null, '단어'),
                 React.createElement('div', null, '뜻'),
-                !isMobile && React.createElement('div', null, '품사'),
                 !isMobile && React.createElement('div', null, '예문'),
                 React.createElement('div', { style:{ textAlign:'right' } }, '관리')
               ),
@@ -402,11 +294,10 @@
                 var isUnitStart = i % unitSize === 0;
                 return React.createElement(React.Fragment, { key:w.id },
                   isUnitStart && React.createElement('div', { style:{ gridColumn:'1 / -1', padding:'10px 4px 4px', fontSize:'11px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em', borderTop: i > 0 ? '1px dashed rgba(0,0,0,0.1)' : 'none', marginTop: i > 0 ? '6px' : 0 } }, '── 유닛 ' + thisUnit + ' ──'),
-                  React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 100px 1.5fr 100px', gap:'8px', padding:'10px 4px', borderBottom:'1px solid rgba(0,0,0,0.06)', fontSize:'13px', fontFamily:'Manrope, sans-serif', alignItems:'center' } },
+                  React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 1.5fr 100px', gap:'8px', padding:'10px 4px', borderBottom:'1px solid rgba(0,0,0,0.06)', fontSize:'13px', fontFamily:'Manrope, sans-serif', alignItems:'center' } },
                     !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.4)', fontSize:'12px' } }, (i+1)),
                     React.createElement('div', { style:{ fontWeight:'700', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis' } }, w.word),
                     React.createElement('div', { style:{ color:'rgba(0,0,0,0.75)', overflow:'hidden', textOverflow:'ellipsis' } }, w.meaning),
-                    !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.45)', fontSize:'12px' } }, window.B2Utils.localizePartOfSpeech(w.part_of_speech) || '-'),
                     !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.55)', fontSize:'12px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, w.example || '-'),
                     React.createElement('div', { style:{ display:'flex', gap:'4px', justifyContent:'flex-end' } },
                       React.createElement('button', { onClick:function(){ setEditingWord(w); }, style:Object.assign({}, STYLES.btnGhost, { padding:'3px 8px', fontSize:'11px' }) }, '편집'),
@@ -518,8 +409,8 @@
     var [mode, setMode] = React.useState('paste'); // 'paste' / 'excel' / 'single'
     var [pasteWords, setPasteWords] = React.useState('');     // 단어만
     var [pasteMeanings, setPasteMeanings] = React.useState(''); // 뜻만
-    var [parsed, setParsed] = React.useState([]); // [{word, meaning, part_of_speech, example}, ...]
-    var [singleDraft, setSingleDraft] = React.useState({ word:'', meaning:'', part_of_speech:'', example:'' });
+    var [parsed, setParsed] = React.useState([]); // [{word, meaning, example}, ...]
+    var [singleDraft, setSingleDraft] = React.useState({ word:'', meaning:'', example:'' });
     var [saving, setSaving] = React.useState(false);
 
     // 두 박스 줄별 매칭 — 단어 줄 N개와 뜻 줄 N개를 같은 줄 번호끼리 매칭
@@ -532,7 +423,7 @@
         var w = wLines[i] || '';
         var m = mLines[i] || '';
         if (!w && !m) continue; // 빈 줄 무시
-        if (w && m) rows.push({ word: w, meaning: m, part_of_speech: null, example: null });
+        if (w && m) rows.push({ word: w, meaning: m, example: null });
       }
       return rows;
     }
@@ -564,8 +455,7 @@
           if (!w || !m) continue;
           out.push({
             word: w, meaning: m,
-            part_of_speech: String(r[2] || '').trim() || null,
-            example: String(r[3] || '').trim() || null,
+            example: String(r[2] || '').trim() || null,
           });
         }
         setParsed(out);
@@ -587,7 +477,6 @@
         var rows = parsed.map(function(r, i){ return {
           list_id: props.listId,
           word: r.word, meaning: r.meaning,
-          part_of_speech: r.part_of_speech || null,
           example: r.example || null,
           sort_order: i,
         }; });
@@ -612,7 +501,6 @@
           list_id: props.listId,
           word: singleDraft.word.trim(),
           meaning: singleDraft.meaning.trim(),
-          part_of_speech: singleDraft.part_of_speech || null,
           example: singleDraft.example || null,
           sort_order: (props.existingWords || []).length,
         });
@@ -674,7 +562,7 @@
 
         mode === 'excel' && React.createElement('div', null,
           React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } },
-            '엑셀 파일(.xlsx, .xls)을 업로드하세요. 1열=단어, 2열=뜻 (3열=품사, 4열=예문은 선택). 품사는 한글(\'명사\'/\'동사\'/\'형용사\' 등)로 적으시는 게 좋아요. 첫 줄에 헤더("단어"/"뜻")가 있으면 자동으로 건너뜁니다.'
+            '엑셀 파일(.xlsx, .xls)을 업로드하세요. 1열=단어, 2열=뜻 (3열=예문은 선택). 첫 줄에 헤더("단어"/"뜻")가 있으면 자동으로 건너뜁니다.'
           ),
           React.createElement('input', {
             type:'file',
@@ -695,15 +583,9 @@
               React.createElement('input', { type:'text', value:singleDraft.meaning, onChange:function(e){ setSingleDraft(Object.assign({}, singleDraft, { meaning:e.target.value })); }, placeholder:'사과', style:STYLES.input })
             )
           ),
-          React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:'10px', marginBottom:'10px' } },
-            React.createElement('div', null,
-              React.createElement('div', { style:STYLES.label }, '품사 (선택)'),
-              React.createElement('input', { type:'text', value:singleDraft.part_of_speech, onChange:function(e){ setSingleDraft(Object.assign({}, singleDraft, { part_of_speech:e.target.value })); }, placeholder:'명사 / 동사 / 형용사 등', style:STYLES.input })
-            ),
-            React.createElement('div', null,
-              React.createElement('div', { style:STYLES.label }, '예문 (선택)'),
-              React.createElement('input', { type:'text', value:singleDraft.example, onChange:function(e){ setSingleDraft(Object.assign({}, singleDraft, { example:e.target.value })); }, placeholder:'I ate an apple.', style:STYLES.input })
-            )
+          React.createElement('div', { style:{ marginBottom:'10px' } },
+            React.createElement('div', { style:STYLES.label }, '예문 (선택)'),
+            React.createElement('input', { type:'text', value:singleDraft.example, onChange:function(e){ setSingleDraft(Object.assign({}, singleDraft, { example:e.target.value })); }, placeholder:'I ate an apple.', style:STYLES.input })
           )
         ),
 
@@ -732,7 +614,6 @@
         var { error } = await sb.from('vocab_words').update({
           word: draft.word.trim(),
           meaning: draft.meaning.trim(),
-          part_of_speech: draft.part_of_speech || null,
           example: draft.example || null,
         }).eq('id', props.word.id);
         if (error) throw error;
@@ -756,10 +637,6 @@
             React.createElement('div', { style:STYLES.label }, '뜻 *'),
             React.createElement('input', { type:'text', value:draft.meaning||'', onChange:function(e){ set('meaning', e.target.value); }, style:STYLES.input })
           )
-        ),
-        React.createElement('div', { style:{ marginBottom:'10px' } },
-          React.createElement('div', { style:STYLES.label }, '품사 (선택)'),
-          React.createElement('input', { type:'text', value:draft.part_of_speech||'', onChange:function(e){ set('part_of_speech', e.target.value); }, placeholder:'명사 / 동사 / 형용사 등', style:STYLES.input })
         ),
         React.createElement('div', { style:{ marginBottom:'18px' } },
           React.createElement('div', { style:STYLES.label }, '예문 (선택)'),
@@ -878,7 +755,7 @@
           list_id: props.listId,
           title: draft.title.trim(),
           unit_index: props.unitIndex,
-          teacher_id: (props.user && props.user.id) || null,
+          teacher_id: window.B2Utils.safeUserId(props.user),
           teacher_name: (props.user && props.user.name) || null,
           multiple_choice_count: mc,
           spelling_count: sp,

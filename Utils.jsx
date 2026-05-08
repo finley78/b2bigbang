@@ -335,5 +335,11 @@
     return s.replace(/^0+(\d)/, '$1');
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, localizePartOfSpeech, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero };
+  // user.id가 UUID 형식이면 그대로, 아니면 null (관리자 로그인은 id='admin' 문자열이라 UUID 컬럼에 못 들어감)
+  function safeUserId(u) {
+    if (!u || !u.id) return null;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(u.id)) ? u.id : null;
+  }
+
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId };
 })();
