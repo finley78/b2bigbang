@@ -1597,8 +1597,9 @@ React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rg
 React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', margin:0 } }, '강좌 생성은 선생님 페이지에서 담당 학년과 영상 링크를 입력해 등록합니다. 관리자는 전체 강좌 수정·삭제와 학생별 수강 권한 조정만 관리합니다.')
 )
 ),
+React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'12px' } },
 state.courses.map(c =>
-React.createElement('div', { key:c.id, style:cardS },
+React.createElement('div', { key:c.id, style:{ ...cardS, marginBottom:0, alignSelf:'start', gridColumn: editingCourse===c.id ? '1 / -1' : 'auto', order: editingCourse===c.id ? -1 : 0 } },
 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:editingCourse===c.id?'12px':0 } },
 React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center' } },
 React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'2px 8px', fontFamily:'Manrope, sans-serif' } }, c.subject),
@@ -1692,6 +1693,7 @@ React.createElement('button', { onClick:async function(){ await window.supabase.
 React.createElement('input', { value:lec.youtubeId||'', onChange:function(e){ var val=e.target.value; setState(function(s){ return {...s,courses:s.courses.map(function(x){ return x.id===c.id?{...x,lectures:x.lectures.map(function(l){ return l.id===lec.id?{...l,youtubeId:val,videoUrl:B2Utils.lectureVideoUrl({ youtube_id: val })}:l; })}:x; })}; }); }, onBlur:async function(e){ await window.supabase.from('videos').update({youtube_id:B2Utils.extractYoutubeId(e.target.value)}).eq('id',lec.id); }, placeholder:'YouTube 링크/ID 또는 시놀로지 영상 URL', style:{...inputS,marginBottom:0,fontSize:'12px'} })
 );
 })
+)
 )
 )
 )
