@@ -2090,13 +2090,13 @@ onClick: function() { setExpandedStudent(expandedStudent===st.id?null:st.id); },
 style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', cursor:'pointer', transition:'transform 0.2s', transform: expandedStudent===st.id?'rotate(180deg)':'none', flexShrink:0 }
 }, '▾')
 ),
-expandedStudent===st.id && React.createElement('div', { style:{ marginTop:'16px', paddingTop:'16px', borderTop:'1px solid rgba(0,0,0,0.08)' } },
-React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'14px' } },
+expandedStudent===st.id && React.createElement('div', { style:{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid rgba(0,0,0,0.08)' } },
+React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px' } },
 React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '학년'),
 React.createElement('select', {
 value: st.grade || '',
 onChange: function(e) { updateStudentGrade(st.id, e.target.value || null); },
-style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
 },
 React.createElement('option', { value:'' }, '선택'),
 ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'].map(function(g){ return React.createElement('option',{key:g,value:g},g); })
@@ -2109,35 +2109,39 @@ var school = e.target.value;
 await sb.from('students').update({ school }).eq('id', st.id);
 setDbStudents(function(prev){ return prev.map(function(s){ return s.id===st.id?Object.assign({},s,{school}):s; }); });
 },
-style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
 },
 React.createElement('option', { value:'' }, '선택'),
 SCHOOLS.filter(function(s){ return s!=='전체'; }).map(function(s){ return React.createElement('option',{key:s,value:s},s); })
 )
 ),
-React.createElement('div', { style:{ display:'flex', gap:'24px', flexWrap:'wrap', marginBottom:'14px', padding:'12px 14px', background:'#f9f9f9', borderRadius:'8px' } },
-React.createElement('div', null,
-React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'4px', letterSpacing:'0.04em', textTransform:'uppercase' } }, '학생 전화번호'),
-React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.phone || '미입력')
+React.createElement('div', { style:{ display:'flex', gap:'18px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px', padding:'6px 10px', background:'#f9f9f9', borderRadius:'6px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } },
+React.createElement('span', null,
+React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.45)', marginRight:'6px' } }, '학생'),
+React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, st.phone || '미입력')
 ),
-React.createElement('div', null,
-React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'4px', letterSpacing:'0.04em', textTransform:'uppercase' } }, '학부모 전화번호'),
-React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.parent_phone || '미입력')
+React.createElement('span', null,
+React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.45)', marginRight:'6px' } }, '학부모'),
+React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, st.parent_phone || '미입력')
 )
 ),
-React.createElement('div', { style:{ marginBottom:'14px' } },
-React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '수강 과목'),
-React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' } },
+React.createElement('div', { style:{ marginBottom:'8px' } },
+React.createElement('label', { style:{ ...labelS, marginBottom:'4px' } }, '수강 과목'),
+React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', alignItems:'center' } },
 SUBJECTS.map(function(sub) {
 return React.createElement('button', { key:sub, onClick:function(){ toggleSubject(st.id, sub); },
-style:{ background:(st.subjects||[]).includes(sub)?'#E60012':'#f2f0eb', color:(st.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.7)', border:(st.subjects||[]).includes(sub)?'2px solid #E60012':'2px solid transparent', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub);
-})
+style:{ background:(st.subjects||[]).includes(sub)?'#E60012':'#f2f0eb', color:(st.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.7)', border:(st.subjects||[]).includes(sub)?'2px solid #E60012':'2px solid transparent', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub);
+}),
+React.createElement('button', {
+onClick: function(){ setAddCourseStudentId(addCourseStudentId===st.id ? null : st.id); setAcSubject('전체'); setAcLevel('전체'); setAcGrade('전체'); setAcTeacher('전체'); setAcName(''); },
+style:{ background: addCourseStudentId===st.id?'#1A1A1A':'#E60012', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' }
+}, addCourseStudentId===st.id ? '강좌 닫기' : '+ 개별 강좌 추가')
 )
 ),
 // 담당 선생님 — 과목별로 현재 배정 표시 + 클릭 시 선생님 팝업
-(st.subjects || []).length > 0 && React.createElement('div', { style:{ marginBottom:'14px' } },
-React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '담당 선생님 (과목 클릭 시 변경)'),
-React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px' } },
+(st.subjects || []).length > 0 && React.createElement('div', { style:{ marginBottom:'8px' } },
+React.createElement('label', { style:{ ...labelS, marginBottom:'4px' } }, '담당 선생님 (과목 클릭 시 변경)'),
+React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px' } },
 (st.subjects || []).map(function(sub) {
 var myClass = (teacherClasses || []).find(function(c){ return c.subject === sub && (classStudents[c.id] || []).includes(st.id); });
 var profileForClass = myClass ? (dbTeacherProfiles || []).find(function(p){ return String(p.id) === String(myClass.teacher_id); }) : null;
@@ -2147,26 +2151,19 @@ var label = myClass
 return React.createElement('button', {
   key: sub,
   onClick: function(){ setTeacherPicker({ studentId: st.id, subject: sub }); },
-  style:{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.85)', cursor:'pointer', fontFamily:'Manrope, sans-serif', textAlign:'left' }
+  style:{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 10px', fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.85)', cursor:'pointer', fontFamily:'Manrope, sans-serif', textAlign:'left' }
 },
-  React.createElement('span', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
-    React.createElement('span', { style:{ background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'800' } }, sub),
+  React.createElement('span', { style:{ display:'flex', alignItems:'center', gap:'6px' } },
+    React.createElement('span', { style:{ background:'#FFEBED', color:'#E60012', borderRadius:'5px', padding:'1px 6px', fontSize:'11px', fontWeight:'800' } }, sub),
     React.createElement('span', { style:{ color: myClass ? '#1A1A1A' : 'rgba(0,0,0,0.4)', fontWeight: myClass ? '700' : '500' } }, label)
   ),
-  React.createElement('span', { style:{ color:'rgba(0,0,0,0.35)', fontSize:'12px' } }, myClass ? '변경 ›' : '배정 ›')
+  React.createElement('span', { style:{ color:'rgba(0,0,0,0.35)', fontSize:'11px' } }, myClass ? '변경 ›' : '배정 ›')
 );
 })
 )
 ),
 React.createElement('div', null,
-// 현재 수강 중인 강좌 (칩 형태)
-React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px', gap:'10px', flexWrap:'wrap' } },
-  React.createElement('label', { style:{ ...labelS, marginBottom:0 } }, '수강 강좌'),
-  React.createElement('button', {
-    onClick: function(){ setAddCourseStudentId(addCourseStudentId===st.id ? null : st.id); setAcSubject('전체'); setAcLevel('전체'); setAcGrade('전체'); setAcTeacher('전체'); setAcName(''); },
-    style:{ background: addCourseStudentId===st.id?'#1A1A1A':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' }
-  }, addCourseStudentId===st.id ? '강좌 닫기' : '+ 강좌 추가')
-),
+React.createElement('label', { style:{ ...labelS, marginBottom:'4px' } }, '수강 강좌'),
 st.enrolledCourses.length === 0
 ? React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '배정된 강좌 없음')
 : React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'10px' } },
