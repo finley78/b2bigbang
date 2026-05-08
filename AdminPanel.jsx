@@ -2077,8 +2077,7 @@ React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', 
 ),
 React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background: isWithdrawn?'#e8e8e8':'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color: isWithdrawn?'#7a7a7a':'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name[0]),
 React.createElement('div', { style:{ flex:1, minWidth:0, cursor:'pointer' }, onClick:function(){ setExpandedStudent(expandedStudent===st.id?null:st.id); } },
-React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', textDecoration: isWithdrawn?'line-through':'none' } }, st.name),
-React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [st.school, st.grade, st.phone].filter(Boolean).join(' · ') || '정보 없음')
+React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', textDecoration: isWithdrawn?'line-through':'none' } }, st.name)
 ),
 React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap', alignItems:'center' } },
 isWithdrawn && st.withdrawn_at && React.createElement('span', { style:{ background:'#f0f0f0', color:'#5a5a5a', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '퇴원 ' + String(st.withdrawn_at).slice(0,10)),
