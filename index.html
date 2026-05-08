@@ -462,15 +462,15 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260510ag"></script>
-<script src="TopNav.js?v=20260510ag"></script>
-<script src="HomePage.js?v=20260510ag"></script>
-<script src="Pages.js?v=20260510ag"></script>
-<script src="VocabManager.js?v=20260510ag"></script>
-<script src="VocabPlayer.js?v=20260510ag"></script>
-<script src="StudentPortal.js?v=20260510ag"></script>
-<script src="TeacherPortal.js?v=20260510ag"></script>
-<script src="AdminPanel.js?v=20260510ag"></script>
+<script src="Utils.js?v=20260509d-cleanup"></script>
+<script src="TopNav.js?v=20260509d-cleanup"></script>
+<script src="HomePage.js?v=20260509d-cleanup"></script>
+<script src="Pages.js?v=20260509d-cleanup"></script>
+<script src="VocabManager.js?v=20260509d-cleanup"></script>
+<script src="VocabPlayer.js?v=20260509d-cleanup"></script>
+<script src="StudentPortal.js?v=20260509d-cleanup"></script>
+<script src="TeacherPortal.js?v=20260509d-cleanup"></script>
+<script src="AdminPanel.js?v=20260509d-cleanup"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -542,9 +542,154 @@ function App() {
 const [page, setPage] = React.useState(() => {
   try { return sessionStorage.getItem('b2_page') || 'home'; } catch { return 'home'; }
 });
+// 초기 hydrate: localStorage에 있으면 즉시 표시 (로딩 플래시 방지),
+// 직후 Supabase 세션과 동기화하여 실제 권한·정보로 갱신.
 const [user, setUser] = React.useState(() => {
   try { const s = localStorage.getItem('b2_user'); return s ? JSON.parse(s) : null; } catch { return null; }
 });
+
+// Supabase 세션과 동기화 — Email/OAuth 모두 동일 흐름 (Phase 4)
+//   1. auth.users.id로 students 행 조회
+//   2. 없으면 email로 폴백 (Phase 1 이전 OAuth 사용자 대비)
+//   3. 매칭되면 auth_user_id 자동 링크
+//   4. 끝까지 미매칭이면 OAuth signup prefill 후 signup 페이지로 redirect
+//   5. pending/withdrawn 상태 처리
+React.useEffect(() => {
+  let cancelled = false;
+  // shouldNavigate=true 는 OAuth fresh sign-in (SIGNED_IN 이벤트)에서만.
+  // 페이지 새로고침으로 세션 복원 시는 false (사용자가 보던 페이지 유지).
+  async function syncSession(session, shouldNavigate) {
+    if (cancelled) return;
+    if (!session?.user?.id) {
+      try {
+        if (localStorage.getItem('b2_user')) {
+          window.B2Utils.clearAuthStorage();
+          setUser(null);
+          setIsAdmin(false);
+          setAdminAuthed(false);
+        }
+      } catch {}
+      return;
+    }
+    const sUser = session.user;
+    const email = String(sUser.email || '').toLowerCase();
+    const meta = sUser.user_metadata || {};
+    const provider = (sUser.app_metadata && sUser.app_metadata.provider) || 'email';
+    const oauthName = meta.full_name || meta.name || meta.given_name || '';
+
+    try {
+      // 1차: auth_user_id로 조회
+      let row = null;
+      try {
+        const r1 = await window.supabase.from('students')
+          .select('*').eq('auth_user_id', sUser.id).maybeSingle();
+        row = r1?.data || null;
+      } catch {}
+      if (cancelled) return;
+
+      // 2차: email로 폴백 + retroactive link
+      if (!row && email) {
+        const r2 = await window.supabase.from('students')
+          .select('*').eq('email', email).maybeSingle();
+        if (cancelled) return;
+        if (r2?.data) {
+          row = r2.data;
+          // auth_user_id가 비어있다면 자동 링크
+          if (!row.auth_user_id) {
+            try {
+              await window.supabase.from('students')
+                .update({ auth_user_id: sUser.id })
+                .eq('id', row.id);
+              row.auth_user_id = sUser.id;
+            } catch (e) { console.warn('auth_user_id 링크 실패:', e); }
+          }
+        }
+      }
+
+      // 3차: 매칭되는 students 행 없음 → signup 유도
+      if (!row) {
+        if (email) {
+          setOauthPrefill({ email, name: oauthName });
+          try { alert('학원에 등록되지 않은 계정입니다. 회원가입을 먼저 진행해 주세요.'); } catch {}
+          setPage('signup');
+          try { sessionStorage.setItem('b2_page', 'signup'); } catch {}
+          try { window.history.pushState({ page: 'signup' }, '', ''); } catch {}
+        }
+        try { await window.supabase.auth.signOut(); } catch {}
+        return;
+      }
+
+      // 상태 검사
+      if (row.withdrawn_at || row.is_active === false) {
+        try { alert('탈퇴 처리된 계정입니다.'); } catch {}
+        try { await window.supabase.auth.signOut(); } catch {}
+        return;
+      }
+      if (row.role === 'pending_teacher') {
+        try { alert('관리자 승인 대기 중입니다.'); } catch {}
+        try { await window.supabase.auth.signOut(); } catch {}
+        return;
+      }
+      if (row.role === 'pending_student' || row.role === 'pending_parent') {
+        try { alert('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); } catch {}
+        try { await window.supabase.auth.signOut(); } catch {}
+        return;
+      }
+
+      // login_provider 갱신 (정보성)
+      if (provider && row.login_provider !== provider) {
+        try { await window.supabase.from('students').update({ login_provider: provider }).eq('id', row.id); } catch {}
+      }
+
+      const u = await window.B2Utils.buildUserFromStudentRow(row);
+      if (cancelled) return;
+      setUser(u);
+      try { localStorage.setItem('b2_user', JSON.stringify(u)); } catch {}
+
+      const role = String(u.role || '').toLowerCase();
+      const isAdminRole = role === 'admin' || role === 'administrator' || role === '관리자';
+      if (isAdminRole) {
+        setIsAdmin(true); setAdminAuthed(true);
+        try { localStorage.setItem('b2_is_admin','true'); localStorage.setItem('b2_admin_authed','true'); } catch {}
+      }
+      // 신규 sign-in 시에만 역할별 페이지로 자동 이동
+      if (shouldNavigate) {
+        let nextPage = null;
+        if (isAdminRole) nextPage = 'admin';
+        else if (role === 'teacher' || role === 'teachers' || role === '선생님' || role === '강사') nextPage = 'teacher';
+        else if (role === 'student' || role === 'students' || role === '학생' || role === 'parent' || role === 'parents' || role === '학부모') nextPage = 'portal';
+        if (nextPage) {
+          setPage(nextPage);
+          try { sessionStorage.setItem('b2_page', nextPage); } catch {}
+          try { window.history.pushState({ page: nextPage }, '', ''); } catch {}
+        }
+      }
+    } catch (e) { console.error('syncSession 오류:', e); }
+  }
+  (async () => {
+    try {
+      const { data } = await window.supabase.auth.getSession();
+      await syncSession(data?.session || null, false);
+    } catch (e) { console.error('getSession 오류:', e); }
+    // OAuth hash가 URL에 남아있으면 정리
+    try {
+      if (window.location.hash && window.location.hash.indexOf('access_token') >= 0) {
+        window.history.replaceState({}, '', window.location.pathname + window.location.search);
+      }
+    } catch {}
+  })();
+  const subRes = window.supabase.auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_IN') {
+      syncSession(session, true);
+    } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+      syncSession(session, false);
+    } else if (event === 'SIGNED_OUT') {
+      setUser(null); setIsAdmin(false); setAdminAuthed(false);
+      try { window.B2Utils.clearAuthStorage(); } catch {}
+    }
+  });
+  return () => { cancelled = true; try { subRes.data.subscription.unsubscribe(); } catch {} };
+}, []);
 const [showLogin, setShowLogin] = React.useState(false);
 const [resetToken, setResetToken] = React.useState(null);
 const [loginInitialForgot, setLoginInitialForgot] = React.useState(false);
@@ -738,132 +883,18 @@ React.useEffect(() => {
   return () => document.removeEventListener('visibilitychange', onVisibilityChange);
 }, []);
 
-// 소셜 로그인 OAuth 콜백 처리
-//   Google/Kakao: Supabase가 hash의 access_token으로 세션 생성 → onAuthStateChange로 매칭
-//   Naver       : Supabase 미지원 → ?code&state=naver_* 감지 → naver-oauth-exchange Edge Function 호출 → 매칭
+// Naver OAuth 콜백 — Supabase가 미지원이라 Edge Function으로 교환
+// Google/Kakao는 위 syncSession이 onAuthStateChange로 자동 처리.
+// Naver Edge Function이 Supabase 세션을 mint하지 못하므로, 임시로 비활성화 상태.
+// (naver-oauth-exchange가 Supabase JWT를 발급하도록 Phase 6 이후 별도 작업 필요)
 React.useEffect(() => {
-  let cancelled = false;
-
-  // 공통 매칭: email로 students 조회 → 로그인 처리 또는 회원가입 redirect
-  // returns: 'success' | 'pending' | 'rejected' | 'no_match' | 'error'
-  async function matchByEmail(email, name, provider) {
-    if (cancelled) return 'error';
-    try {
-      const { data: existing } = await window.supabase.from('students')
-        .select('*').eq('email', email).maybeSingle();
-      if (cancelled) return 'error';
-
-      if (existing) {
-        if (existing.withdrawn_at || existing.is_active === false) {
-          alert('탈퇴 처리된 계정입니다.'); return 'rejected';
-        }
-        if (existing.role === 'pending_teacher') {
-          alert('관리자 승인 대기 중입니다.'); return 'pending';
-        }
-        if (existing.role === 'pending_student' || existing.role === 'pending_parent') {
-          alert('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); return 'pending';
-        }
-        try { await window.supabase.from('students').update({ login_provider: provider }).eq('id', existing.id); } catch {}
-        const u = await window.B2Utils.buildUserFromStudentRow(existing);
-        if (cancelled) return 'error';
-        setUser(u);
-        try { localStorage.setItem('b2_user', JSON.stringify(u)); } catch {}
-        const role = String(u.role || '').toLowerCase();
-        let nextPage = 'home';
-        if (role === 'teacher' || role === '선생님' || role === '강사') nextPage = 'teacher';
-        else if (role === 'student' || role === '학생' || role === 'parent' || role === '학부모') nextPage = 'portal';
-        setPage(nextPage);
-        try { sessionStorage.setItem('b2_page', nextPage); } catch {}
-        try { window.history.pushState({ page: nextPage }, '', ''); } catch {}
-        return 'success';
-      } else {
-        setOauthPrefill({ email, name: name || '' });
-        alert('학원에 등록되지 않은 이메일입니다.\n회원가입을 먼저 진행해 주세요.');
-        setPage('signup');
-        try { sessionStorage.setItem('b2_page', 'signup'); } catch {}
-        try { window.history.pushState({ page: 'signup' }, '', ''); } catch {}
-        return 'no_match';
-      }
-    } catch (e) { console.error('OAuth 매칭 오류:', e); return 'error'; }
-  }
-
-  // Google/Kakao: Supabase 세션에서 이메일/이름 추출
-  async function processOAuth(session) {
-    if (cancelled || !session || !session.user) return;
-    try { if (localStorage.getItem('b2_user')) return; } catch {}
-
-    const sUser = session.user;
-    const email = String(sUser.email || '').toLowerCase();
-    if (!email) {
-      try { await window.supabase.auth.signOut(); } catch {}
-      return;
-    }
-    const meta = sUser.user_metadata || {};
-    const name = meta.full_name || meta.name || meta.given_name || '';
-    const provider = (sUser.app_metadata && sUser.app_metadata.provider) || 'google';
-    const result = await matchByEmail(email, name, provider);
-    if (result !== 'success') {
-      try { await window.supabase.auth.signOut(); } catch {}
-    }
-  }
-
-  // Naver: ?code=...&state=naver_* → Edge Function으로 token + user info 교환
-  async function processNaverCallback() {
-    if (cancelled) return;
-    try { if (localStorage.getItem('b2_user')) return; } catch {}
-
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const state = params.get('state');
-    if (!code || !state || state.indexOf('naver_') !== 0) return;
-
-    let expectedState = '';
-    try { expectedState = sessionStorage.getItem('b2_naver_state') || ''; } catch {}
-    // URL에서 path/code/state 즉시 제거 → 루트로 이동 (한 번만 처리)
-    try { window.history.replaceState({}, '', '/'); } catch {}
-
-    if (!expectedState || state !== expectedState) {
-      alert('네이버 로그인 인증 오류 (state 불일치). 다시 시도해 주세요.');
-      return;
-    }
-    try { sessionStorage.removeItem('b2_naver_state'); } catch {}
-
-    let data = null, error = null;
-    try {
-      const r = await window.supabase.functions.invoke('naver-oauth-exchange', { body: { code, state } });
-      data = r && r.data; error = r && r.error;
-    } catch (e) { error = e; }
-
-    if (cancelled) return;
-    if (error || !data || !data.email) {
-      const msg = (data && data.error) || (error && error.message) || '알 수 없는 오류';
-      alert('네이버 로그인을 완료하지 못했습니다: ' + msg);
-      return;
-    }
-    await matchByEmail(String(data.email).toLowerCase(), data.name || '', 'naver');
-  }
-
-  (async () => {
-    try { await processNaverCallback(); } catch (e) { console.error('Naver 콜백 오류:', e); }
-    try {
-      const res = await window.supabase.auth.getSession();
-      await processOAuth(res && res.data && res.data.session);
-    } catch (e) { console.error('getSession 오류:', e); }
-    try {
-      if (window.location.hash && window.location.hash.indexOf('access_token') >= 0) {
-        window.history.replaceState({}, '', window.location.pathname + window.location.search);
-      }
-    } catch {}
-  })();
-
-  const subRes = window.supabase.auth.onAuthStateChange(function(event, session) {
-    if (event === 'SIGNED_IN') processOAuth(session);
-  });
-
-  return function() {
-    cancelled = true;
-    try { subRes.data.subscription.unsubscribe(); } catch {}
-  };
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const state = params.get('state');
+  if (!code || !state || state.indexOf('naver_') !== 0) return;
+  try { window.history.replaceState({}, '', '/'); } catch {}
+  try { sessionStorage.removeItem('b2_naver_state'); } catch {}
+  alert('네이버 로그인은 현재 점검 중입니다. 다른 로그인 방법을 이용해 주세요.');
 }, []);
 
 function getUserRole(u) {
@@ -921,30 +952,19 @@ setShowLogin(false);
 navigate('signup');
 }
 
-const effectiveUser = adminAuthed
-? (user || { id:'admin', name:'관리자', role:'admin', isAdmin:true })
-: user;
+// Supabase Auth 이전 후: admin 권한은 students.role='admin'에서 결정됨.
+// effectiveUser는 단순히 user를 그대로 노출. (예전의 'admin' 가짜 객체 제거)
+const effectiveUser = user;
 
 return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
 
-// 로그인 모달
+// 로그인 모달 — admin/student/teacher/parent 모두 동일 흐름.
+// admin 권한은 로그인 후 students.role='admin'을 보고 handleLogin이 자동 라우팅.
 showLogin && React.createElement(LoginModal, {
 key: loginInitialForgot ? 'login-forgot' : 'login-normal',
 initialForgot: loginInitialForgot,
 onLogin: handleLogin,
 onClose: ()=>{ setShowLogin(false); setLoginInitialForgot(false); },
-onAdminLogin: ()=>{
-const adminUser = { id:'admin', name:'관리자', role:'admin', isAdmin:true };
-setUser(adminUser);
-setIsAdmin(true);
-setAdminAuthed(true);
-try {
-  localStorage.setItem('b2_user', JSON.stringify(adminUser));
-  localStorage.setItem('b2_is_admin','true');
-  localStorage.setItem('b2_admin_authed','true');
-} catch {}
-navigate('admin');
-},
 onSignup: handleSignup,
 }),
 
@@ -1035,6 +1055,7 @@ adminAuthed,
 setAdminAuthed,
 onLogout: handleLogout,
 user,
+onLoginClick: ()=>setShowLogin(true),
 }),
 ),
 

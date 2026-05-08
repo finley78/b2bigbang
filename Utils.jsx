@@ -111,39 +111,6 @@
     return !!(navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof MediaRecorder !== 'undefined');
   }
 
-  // ── 비밀번호 해시 (브라우저 native crypto SHA-256) ─────────────────
-  // 'sha256:' prefix로 새 형식과 옛 평문 형식을 구분 → 자동 마이그레이션 가능
-  async function hashPassword(plain) {
-    if (!plain) return '';
-    var enc = new TextEncoder();
-    var data = enc.encode(String(plain));
-    var hashBuf = await crypto.subtle.digest('SHA-256', data);
-    var hashArr = Array.from(new Uint8Array(hashBuf));
-    var hex = hashArr.map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
-    return 'sha256:' + hex;
-  }
-  // 입력값(plain) ↔ DB의 stored 값 비교. 새/옛 형식 모두 처리.
-  async function verifyPassword(plain, stored) {
-    if (!stored) return false;
-    var s = String(stored);
-    if (s.indexOf('sha256:') === 0) {
-      var h = await hashPassword(plain);
-      return h === s;
-    }
-    // 옛 평문 — 직접 비교 (이번 로그인이 마이그레이션 트리거가 됨)
-    return s === String(plain);
-  }
-  // 평문이면 해시로 마이그레이션. 이미 해시면 noop.
-  async function migrateIfPlain(stored, plain, studentId) {
-    if (!stored || !plain || !studentId) return;
-    if (String(stored).indexOf('sha256:') === 0) return;
-    try {
-      var sb = window.supabase;
-      var h = await hashPassword(plain);
-      await sb.from('students').update({ password_hash: h }).eq('id', studentId);
-    } catch (e) { console.warn('비밀번호 마이그레이션 실패:', e); }
-  }
-
   // ── 품사 표시: 영어/약어 → 한글 자동 변환 ──────────────────────
   // 학생이 한국어 품사명을 더 잘 이해하므로, 'noun'/'n.'/'명사' 모두 '명사'로 통일 표시
   // DB에 저장된 값은 그대로 두고, 화면 표시할 때만 변환 (입력 유연성 유지)
@@ -341,5 +308,5 @@
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(u.id)) ? u.id : null;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId };
 })();
