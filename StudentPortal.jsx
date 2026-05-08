@@ -392,21 +392,25 @@ function SignupPage({ onBack, onComplete, prefill }) {
       const insertedId = updatedRows?.id;
 
       // 3. 학생-학부모 자동 연결 (전화번호 매칭)
+      // RLS 환경에서 본인이 다른 사용자 행을 직접 조회/수정할 수 없으므로
+      // SECURITY DEFINER RPC 함수를 사용해 안전하게 매칭 + 링크.
       if (insertedId) {
         if (roleType === 'student') {
-          const targetPhone = normalizePhone(form.parentPhone);
-          const { data: parents } = await sb.from('students').select('id, phone').eq('role', 'parent');
-          const matchedParent = (parents || []).find(p => normalizePhone(p.phone) === targetPhone);
-          if (matchedParent) {
-            await sb.from('students').update({ parent_id: matchedParent.id }).eq('id', insertedId);
-          }
+          try {
+            await sb.rpc('link_family_by_phone', {
+              my_id: insertedId,
+              target_phone: form.parentPhone.trim(),
+              my_role: 'student',
+            });
+          } catch (e) { console.warn('학부모 자동 연결 실패:', e); }
         } else if (roleType === 'parent') {
-          const targetPhone = normalizePhone(form.studentPhone);
-          const { data: studentsList } = await sb.from('students').select('id, phone').eq('role', 'student');
-          const matchedStudent = (studentsList || []).find(s => normalizePhone(s.phone) === targetPhone);
-          if (matchedStudent) {
-            await sb.from('students').update({ parent_id: insertedId, parent_phone: form.phone.trim() }).eq('id', matchedStudent.id);
-          }
+          try {
+            await sb.rpc('link_family_by_phone', {
+              my_id: insertedId,
+              target_phone: form.studentPhone.trim(),
+              my_role: 'parent',
+            });
+          } catch (e) { console.warn('학생 자동 연결 실패:', e); }
         }
       }
 
