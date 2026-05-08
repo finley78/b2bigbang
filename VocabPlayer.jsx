@@ -56,10 +56,10 @@
 
     // 홈: 4섹션 카드
     var sections = [
-      { id: 'study', label: 'STUDY', desc: '단어 자유 학습', emoji: '📚', color: '#1d4ed8' },
-      { id: 'test', label: 'TEST', desc: '시험 응시', emoji: '✏️', color: THEME.primary },
-      { id: 'report', label: 'REPORT', desc: '내 시험 결과', emoji: '📊', color: '#c87000' },
-      { id: 'ranking', label: 'RANKING', desc: '반별 순위', emoji: '🏆', color: '#006241' },
+      { id: 'study', label: 'STUDY', desc: '단어 자유 학습', emoji: '', color: '#1d4ed8' },
+      { id: 'test', label: 'TEST', desc: '시험 응시', emoji: '', color: THEME.primary },
+      { id: 'report', label: 'REPORT', desc: '내 시험 결과', emoji: '', color: '#c87000' },
+      { id: 'ranking', label: 'RANKING', desc: '반별 순위', emoji: '', color: '#006241' },
     ];
 
     return React.createElement('div', { style: S.page },
@@ -190,11 +190,11 @@
               ),
               React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr', gap: '10px' } },
                 [
-                  { id: 'flashcard', label: 'Flash Card', desc: '단어를 보고 외우기 (자동 진행, 발음 자동)', emoji: '🎴' },
-                  { id: 'multiple_choice', label: '객관식', desc: '4지선다로 뜻 맞추기', emoji: '☑️' },
-                  { id: 'spelling', label: '스펠링 채우기', desc: '일부 빈칸을 채우기', emoji: '_a_' },
-                  { id: 'writing', label: '뜻 보고 쓰기', desc: '뜻을 보고 단어 쓰기', emoji: '✍️' },
-                  { id: 'listening', label: '듣고 쓰기', desc: '발음을 듣고 단어 쓰기', emoji: '🔊' },
+                  { id: 'flashcard', label: 'Flash Card', desc: '단어를 보고 외우기 (자동 진행, 발음 자동)', emoji: '' },
+                  { id: 'multiple_choice', label: '객관식', desc: '4지선다로 뜻 맞추기', emoji: '' },
+                  { id: 'spelling', label: '스펠링 채우기', desc: '일부 빈칸을 채우기', emoji: '' },
+                  { id: 'writing', label: '뜻 보고 쓰기', desc: '뜻을 보고 단어 쓰기', emoji: '' },
+                  { id: 'listening', label: '듣고 쓰기', desc: '발음을 듣고 단어 쓰기', emoji: '' },
                 ].map(function(m){
                   return React.createElement('button', { key: m.id, onClick: function(){ pickMode(m.id); }, style: { background: '#fff', border: '1.5px solid ' + THEME.border, borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', fontFamily: THEME.font, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' } },
                     React.createElement('div', { style: { fontSize: '24px', width: '40px', textAlign: 'center' } }, m.emoji),
@@ -219,7 +219,6 @@
       React.createElement(StudentHeader, { title: '학습', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
       React.createElement('div', { style: { padding: '40px 16px', textAlign: 'center', maxWidth: '720px', margin: '0 auto' } },
         React.createElement('div', { style: Object.assign({}, S.card, { padding: '40px 20px', color: THEME.textMid }) },
-          React.createElement('div', { style: { fontSize: '40px', marginBottom: '12px' } }, '🚧'),
           React.createElement('div', { style: { fontSize: '15px', fontWeight: '700', marginBottom: '6px', color: THEME.dark } }, '곧 만나요'),
           React.createElement('div', { style: { fontSize: '13px' } }, '이 모드는 다음 업데이트에서 추가됩니다.'),
           React.createElement('button', { onClick: props.onBack, style: Object.assign({}, S.btnGhost, { marginTop: '20px' }) }, '돌아가기')
@@ -278,7 +277,6 @@
         React.createElement(StudentHeader, { title: 'Flash Card', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
         React.createElement('div', { style: { padding: '40px 16px', textAlign: 'center', maxWidth: '500px', margin: '0 auto' } },
           React.createElement('div', { style: Object.assign({}, S.card, { padding: '40px 20px' }) },
-            React.createElement('div', { style: { fontSize: '48px', marginBottom: '14px' } }, '🎴'),
             React.createElement('div', { style: { fontSize: '17px', fontWeight: '800', color: THEME.dark, marginBottom: '8px' } }, '카드 ' + total + '장 학습 시작'),
             React.createElement('div', { style: { fontSize: '13px', color: THEME.textMid, marginBottom: '20px', lineHeight: '1.7' } }, '단어가 ' + SECONDS + '초씩 자동으로 넘어가며 발음이 자동 재생됩니다.\n중간에 멈추거나 이전/다음 카드로 이동할 수 있어요.'),
             React.createElement('button', { onClick: function(){ setStarted(true); }, style: S.btnPrimary }, '시작')
@@ -302,14 +300,14 @@
         // 카드 본체
         React.createElement('div', { style: Object.assign({}, S.card, { padding: '40px 20px', textAlign: 'center', minHeight: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative' }) },
           React.createElement('div', { style: { fontSize: '36px', fontWeight: '800', color: THEME.dark, marginBottom: '14px', wordBreak: 'break-word' } }, word.word),
-          React.createElement('button', { onClick: function(){ speak(word.word); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '8px 14px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font, marginBottom: '24px', alignSelf: 'center' } }, '🔊 다시 듣기'),
+          React.createElement('button', { onClick: function(){ speak(word.word); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '8px 14px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font, marginBottom: '24px', alignSelf: 'center' } }, '다시 듣기'),
           React.createElement('div', { style: { fontSize: '20px', fontWeight: '700', color: THEME.text, marginBottom: '8px' } }, word.meaning)
         ),
 
         // 컨트롤
         React.createElement('div', { style: { display: 'flex', gap: '8px', marginTop: '16px', alignItems: 'center' } },
           React.createElement('button', { onClick: prev, disabled: idx === 0, style: Object.assign({}, S.btnGhost, { flex: 1, opacity: idx === 0 ? 0.4 : 1, cursor: idx === 0 ? 'not-allowed' : 'pointer' }) }, '← 이전'),
-          React.createElement('button', { onClick: function(){ setAutoPlay(!autoPlay); }, style: Object.assign({}, S.btnGhost, { padding: '10px 14px', background: autoPlay ? THEME.primaryBg : '#fff', color: autoPlay ? THEME.primary : THEME.textMid, borderColor: autoPlay ? THEME.primary : THEME.border }) }, autoPlay ? '⏸ 정지' : '▶ 재생'),
+          React.createElement('button', { onClick: function(){ setAutoPlay(!autoPlay); }, style: Object.assign({}, S.btnGhost, { padding: '10px 14px', background: autoPlay ? THEME.primaryBg : '#fff', color: autoPlay ? THEME.primary : THEME.textMid, borderColor: autoPlay ? THEME.primary : THEME.border }) }, autoPlay ? '정지' : '재생'),
           idx < total - 1
             ? React.createElement('button', { onClick: next, style: Object.assign({}, S.btnPrimary, { flex: 1, padding: '10px 16px', fontSize: '14px' }) }, '다음 →')
             : React.createElement('button', { onClick: props.onDone, style: Object.assign({}, S.btnPrimary, { flex: 1, padding: '10px 16px', fontSize: '14px' }) }, '완료')
@@ -382,7 +380,6 @@
           ? React.createElement('div', { style: { padding: '40px', textAlign: 'center', color: THEME.textLight } }, '불러오는 중...')
           : tests.length === 0
             ? React.createElement('div', { style: Object.assign({}, S.card, { textAlign: 'center', padding: '40px', color: THEME.textMid }) },
-                React.createElement('div', { style: { fontSize: '34px', marginBottom: '10px' } }, '📭'),
                 React.createElement('div', null, '받은 시험이 없습니다.')
               )
             : React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } },
@@ -648,7 +645,6 @@
         React.createElement(StudentHeader, { title: test.title, onBack: props.onBack }),
         React.createElement('div', { style: { padding: '20px 16px', maxWidth: '500px', margin: '0 auto' } },
           React.createElement('div', { style: Object.assign({}, S.card, { padding: '28px 20px', textAlign: 'center' }) },
-            React.createElement('div', { style: { fontSize: '40px', marginBottom: '12px' } }, '✏️'),
             React.createElement('div', { style: { fontSize: '17px', fontWeight: '800', color: THEME.dark, marginBottom: '14px' } }, '응시 안내'),
             React.createElement('div', { style: { fontSize: '13px', color: THEME.textMid, lineHeight: '1.8', marginBottom: '20px', textAlign: 'left' } },
               React.createElement('div', null, '• 총 ' + total + '문제 (단어당 ' + (test.seconds_per_question || 30) + '초)'),
@@ -743,7 +739,7 @@
       React.createElement('div', { style: { fontSize: '12px', fontWeight: '700', color: THEME.textLight, marginBottom: '8px', fontFamily: THEME.font, letterSpacing: '0.04em' } }, label),
       React.createElement('div', { style: Object.assign({}, S.card, { padding: '28px 18px', textAlign: 'center', marginBottom: '14px' }) },
         React.createElement('div', { style: { fontSize: q.direction === 'word_to_meaning' ? '32px' : '24px', fontWeight: '800', color: THEME.dark, wordBreak: 'break-word' } }, q.prompt),
-        q.direction === 'word_to_meaning' && React.createElement('button', { onClick: function(){ speak(q.prompt); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '6px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', marginTop: '12px', fontFamily: THEME.font } }, '🔊 듣기')
+        q.direction === 'word_to_meaning' && React.createElement('button', { onClick: function(){ speak(q.prompt); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '6px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', marginTop: '12px', fontFamily: THEME.font } }, '듣기')
       ),
       React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
         q.choices.map(function(c, i){
@@ -783,7 +779,7 @@
       React.createElement('div', { style: Object.assign({}, S.card, { padding: '24px 18px', textAlign: 'center', marginBottom: '14px' }) },
         React.createElement('div', { style: { fontSize: '20px', color: THEME.text, marginBottom: '8px' } }, q.meaning),
         React.createElement('div', { style: { fontSize: '34px', fontWeight: '800', color: THEME.dark, fontFamily: 'Menlo, Consolas, monospace', letterSpacing: '0.1em' } }, displayed),
-        React.createElement('button', { onClick: function(){ speak(q.correct); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '6px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', marginTop: '10px', fontFamily: THEME.font } }, '🔊 듣기')
+        React.createElement('button', { onClick: function(){ speak(q.correct); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '6px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', marginTop: '10px', fontFamily: THEME.font } }, '듣기')
       ),
       React.createElement('input', { type: 'text', value: phase === 'showing' ? (ua || '') : val, onChange: function(e){ setVal(e.target.value); }, onKeyDown: function(e){ if (e.key === 'Enter') submit(); }, autoCapitalize: 'off', autoCorrect: 'off', spellCheck: false, autoFocus: true, placeholder: '전체 단어를 입력하세요',
         style: { width: '100%', border: '2px solid ' + (phase === 'showing' ? (props.isCorrect ? THEME.success : THEME.fail) : THEME.border), borderRadius: '10px', padding: '14px 16px', fontSize: '17px', fontWeight: '700', textAlign: 'center', fontFamily: 'Menlo, Consolas, monospace', boxSizing: 'border-box', marginBottom: '10px', background: phase === 'showing' ? (props.isCorrect ? THEME.successBg : THEME.failBg) : '#fff', color: phase === 'showing' ? (props.isCorrect ? THEME.success : THEME.fail) : THEME.dark }, disabled: phase !== 'answering'
@@ -830,7 +826,7 @@
     return React.createElement('div', null,
       React.createElement('div', { style: { fontSize: '12px', fontWeight: '700', color: THEME.textLight, marginBottom: '8px', fontFamily: THEME.font } }, '발음을 듣고 단어를 입력하세요'),
       React.createElement('div', { style: Object.assign({}, S.card, { padding: '40px 18px', textAlign: 'center', marginBottom: '14px' }) },
-        React.createElement('button', { onClick: function(){ speak(q.correct); }, style: { background: THEME.primary, color: '#fff', border: 'none', borderRadius: '50%', width: '80px', height: '80px', fontSize: '32px', cursor: 'pointer' } }, '🔊'),
+        React.createElement('button', { onClick: function(){ speak(q.correct); }, style: { background: THEME.primary, color: '#fff', border: 'none', borderRadius: '50%', width: '80px', height: '80px', fontSize: '15px', fontWeight: '800', cursor: 'pointer' } }, '듣기'),
         React.createElement('div', { style: { fontSize: '13px', color: THEME.textLight, marginTop: '10px' } }, '버튼을 눌러 다시 들을 수 있어요')
       ),
       React.createElement('input', { type: 'text', value: phase === 'showing' ? (ua || '') : val, onChange: function(e){ setVal(e.target.value); }, onKeyDown: function(e){ if (e.key === 'Enter') submit(); }, autoCapitalize: 'off', autoCorrect: 'off', spellCheck: false, autoFocus: true, placeholder: '들은 단어를 입력',
@@ -994,9 +990,8 @@
                     var rank = i + 1;
                     var isMe = r.student_id === user.id;
                     var medalBg = rank === 1 ? '#fef3c7' : rank === 2 ? '#e5e7eb' : rank === 3 ? '#fed7aa' : THEME.cardBg;
-                    var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
                     return React.createElement('div', { key: r.student_id, style: Object.assign({}, S.card, { padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: isMe ? THEME.primaryBg : medalBg, border: isMe ? '2px solid ' + THEME.primary : '1px solid ' + THEME.border }) },
-                      React.createElement('div', { style: { fontSize: medal ? '22px' : '15px', fontWeight: '800', color: isMe ? THEME.primary : THEME.dark, minWidth: '40px', textAlign: 'center' } }, medal || (rank + '위')),
+                      React.createElement('div', { style: { fontSize: '15px', fontWeight: '800', color: isMe ? THEME.primary : THEME.dark, minWidth: '40px', textAlign: 'center' } }, rank + '위'),
                       React.createElement('div', { style: { flex: 1, minWidth: 0 } },
                         React.createElement('div', { style: { fontSize: '14px', fontWeight: '800', color: THEME.dark, fontFamily: THEME.font } }, r.student_name + (isMe ? ' (나)' : '')),
                         React.createElement('div', { style: { fontSize: '11px', color: THEME.textMid, marginTop: '2px' } }, (r.time_taken_seconds || 0) + '초 · ' + r.attempt_number + '회차')

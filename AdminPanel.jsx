@@ -1318,7 +1318,7 @@ React.createElement('button', { onClick:addBanner, style:btnS() }, '+ 배너 추
 ),
 // 이미지/영상 권장 사이즈 안내
 React.createElement('div', { style:{ background:'#eef6f1', border:'1px solid #FFEBED', borderRadius:'10px', padding:'12px 14px', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } },
-React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#E60012', marginBottom:'6px' } }, '📐 배너 이미지/영상 권장 사이즈'),
+React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#E60012', marginBottom:'6px' } }, '배너 이미지/영상 권장 사이즈'),
 React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.7)', lineHeight:'1.7' } },
 React.createElement('div', null, '• 비율: 가로 : 세로 = 2 : 3 (세로가 가로보다 1.5배 길게)'),
 React.createElement('div', null, '• 권장 크기: 1080 × 1620 px (또는 720 × 1080 px)'),
@@ -1540,7 +1540,7 @@ editingNotice.image
       setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,image:''}:x)}));
       await sb.from('announcements').update({ image: null }).eq('id', editingNotice.id);
     }, style: btnOutS }, '이미지 제거'),
-    React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', background:'#FFEBED', padding:'5px 10px', borderRadius:'6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '📐 권장 1000×1200 px (10:12)')
+    React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', background:'#FFEBED', padding:'5px 10px', borderRadius:'6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '권장 1000×1200 px (10:12)')
   )
 : React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' } },
     React.createElement('input', { type:'file', accept:'image/*', onChange: async (e)=>{
@@ -1555,7 +1555,7 @@ editingNotice.image
       setState(s=>({...s, announcements:s.announcements.map(x=>x.id===editingNotice.id?{...x,image:url}:x)}));
       await sb.from('announcements').update({ image: url }).eq('id', editingNotice.id);
     }, style:{ fontSize:'12px', fontFamily:'Manrope, sans-serif' } }),
-    React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', background:'#FFEBED', padding:'5px 10px', borderRadius:'6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '📐 권장 1000×1200 px (10:12)')
+    React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#E60012', background:'#FFEBED', padding:'5px 10px', borderRadius:'6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '권장 1000×1200 px (10:12)')
   )
 ),
 React.createElement('button', { onClick: async ()=>{
@@ -1768,7 +1768,7 @@ React.createElement('input', {
 type:'text',
 value: studentNameSearch,
 onChange: function(e){ setStudentNameSearch(e.target.value); setSelectedIds([]); },
-placeholder:'🔍 이름 검색',
+placeholder:'이름 검색',
 style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'160px' }
 }),
 
@@ -1792,7 +1792,7 @@ React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap',
 React.createElement('button', {
 onClick: function(){ downloadStudentTemplate(); },
 style:{ background:'#fff', color:'#374151', border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-}, '📋 엑셀 템플릿'),
+}, '엑셀 템플릿'),
 React.createElement('button', {
 onClick: function(){ exportStudentsExcel(studentSource, studentViewMode); },
 style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
@@ -3249,19 +3249,19 @@ React.createElement('input', {
       React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '누적 분석 (전체 시험 기록 기반)'),
       React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' } },
         React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'10px', padding:'12px' } },
-          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '📈 가장 많이 오른 학생 TOP 3'),
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '가장 많이 오른 학생 TOP 3'),
           topUp.length === 0 ? React.createElement('div',{style:{ fontSize:'12px', color:'#9ca3af' }}, '해당 없음') : topUp.map(function(s){ return React.createElement('div', { key:s.id, style:{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' } }, s.name + ' ', React.createElement('span',{style:{color:'#E60012',fontWeight:'700'}}, '+'+s.change.toFixed(1)+'점')); })
         ),
         React.createElement('div', { style:{ background:'#fef2f2', borderRadius:'10px', padding:'12px' } },
-          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#c82014', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '📉 가장 많이 떨어진 학생 TOP 3'),
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#c82014', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '가장 많이 떨어진 학생 TOP 3'),
           topDown.length === 0 ? React.createElement('div',{style:{ fontSize:'12px', color:'#9ca3af' }}, '해당 없음') : topDown.map(function(s){ return React.createElement('div', { key:s.id, style:{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' } }, s.name + ' ', React.createElement('span',{style:{color:'#c82014',fontWeight:'700'}}, s.change.toFixed(1)+'점')); })
         ),
         React.createElement('div', { style:{ background:'#f9fafb', borderRadius:'10px', padding:'12px' } },
-          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '⭐ 꾸준히 상위권'),
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '꾸준히 상위권'),
           stars.length === 0 ? React.createElement('div',{style:{ fontSize:'12px', color:'#9ca3af' }}, '해당 없음') : stars.map(function(s){ return React.createElement('div', { key:s.id, style:{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' } }, s.name + ' ', React.createElement('span',{style:{color:'#E60012',fontWeight:'700'}}, '평균 '+s.avg.toFixed(1)+'점')); })
         ),
         React.createElement('div', { style:{ background:'#fff7ed', borderRadius:'10px', padding:'12px' } },
-          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#c2410c', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '⚠️ 최근 3회 연속 하락'),
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#c2410c', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '최근 3회 연속 하락'),
           watch.length === 0 ? React.createElement('div',{style:{ fontSize:'12px', color:'#9ca3af' }}, '해당 없음') : watch.map(function(s){ return React.createElement('div', { key:s.id, style:{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' } }, s.name); })
         )
       ),
@@ -3326,8 +3326,8 @@ React.createElement('input', {
             React.createElement('span', { style:{ color:'rgba(255,255,255,0.85)', fontSize:'12px', marginLeft:'12px', fontFamily:'Manrope, sans-serif' } }, r.scores.length + '회 · 평균 ' + (r.avg != null ? r.avg.toFixed(1)+'점' : '-'))
           ),
           React.createElement('div', { style:{ display:'flex', gap:'6px' } },
-            React.createElement('button', { onClick:function(){ setReportStudentId(r.id); }, style:{ background:'#fff', color:'#1A1A1A', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📄 학부모 리포트'),
-            React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }] }); }, style:{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📨 알림톡')
+            React.createElement('button', { onClick:function(){ setReportStudentId(r.id); }, style:{ background:'#fff', color:'#1A1A1A', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '학부모 리포트'),
+            React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }] }); }, style:{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '알림톡')
           )
         ),
         React.createElement('div', { style:{ padding:'12px 16px' } },
@@ -3346,7 +3346,7 @@ React.createElement('input', {
                 );
               }),
               React.createElement('div', { key:'aic', style:{ marginTop:'10px', padding:'10px 12px', background:'#fef9ec', border:'1px solid #f0e1ad', borderRadius:'8px' } },
-                React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#7a5c0e', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '🤖 AI 자동 코멘트 (학부모 전달용)'),
+                React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#7a5c0e', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, 'AI 자동 코멘트 (학부모 전달용)'),
                 React.createElement('div', { style:{ fontSize:'13px', color:'#374151', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } }, aiComment)
               )
             ]
@@ -3356,7 +3356,7 @@ React.createElement('input', {
   }
   function paperPlaceholder() {
     return React.createElement('div', { style:{ marginTop:'24px', padding:'18px', background:'#f9fafb', border:'1px dashed #d6dbde', borderRadius:'12px', textAlign:'center' } },
-      React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '📋 시험지 분석'),
+      React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '시험지 분석'),
       React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '문제별 정답률 · 유형별 취약점 · 학생별 약점 개념 · 학습 우선순위 제안'),
       React.createElement('button', { disabled:true, style:{ background:'#e5e7eb', color:'#9ca3af', border:'none', borderRadius:'6px', padding:'8px 16px', fontSize:'12px', fontWeight:'700', cursor:'not-allowed', fontFamily:'Manrope, sans-serif' } }, '시험지 PDF 업로드 (준비 중)'),
       React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'8px', fontFamily:'Manrope, sans-serif' } }, '시험지 분석 기능은 준비 중입니다.')
@@ -3364,7 +3364,7 @@ React.createElement('input', {
   }
   function bulkButton() {
     return React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', gap:'8px', marginBottom:'12px' } },
-      React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }; }) }); }, style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, '📨 전체 학부모 일괄 발송')
+      React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }; }) }); }, style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, '전체 학부모 일괄 발송')
     );
   }
 
@@ -3845,7 +3845,7 @@ tab==='leveltest' && (function(){
           return React.createElement('div', { style:{ marginBottom:'10px' } },
             React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
               React.createElement('input', { type:'checkbox', checked:on, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { question_count: e.target.checked ? '5' : '0', answer_key: e.target.checked ? (adminLtDraft.answer_key || {}) : {} })); }, style:{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' } }),
-              React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, '📝 객관식')
+              React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, '객관식')
             ),
             on && React.createElement('div', { style:{ display:'flex', gap:'10px', marginTop:'8px', paddingLeft:'26px' } },
               React.createElement('div', { style:{ flex:1 } },
@@ -3868,7 +3868,7 @@ tab==='leveltest' && (function(){
           return React.createElement('div', { style:{ marginBottom:'10px' } },
             React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
               React.createElement('input', { type:'checkbox', checked:on, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { text_question_count: e.target.checked ? '1' : '0' })); }, style:{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' } }),
-              React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, '✏️ 서술형')
+              React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, '서술형')
             ),
             on && React.createElement('div', { style:{ marginTop:'8px', paddingLeft:'26px' } },
               React.createElement('label', { style:{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' } }, '문항 수'),
@@ -3881,7 +3881,7 @@ tab==='leveltest' && (function(){
         React.createElement('div', null,
           React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
             React.createElement('input', { type:'checkbox', checked: !!adminLtDraft.allow_audio_answer, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { allow_audio_answer:e.target.checked })); }, style:{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' } }),
-            React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, '🎤 녹음 (학생 마이크 답안)')
+            React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, '녹음 (학생 마이크 답안)')
           ),
           !!adminLtDraft.allow_audio_answer && React.createElement('div', { style:{ marginTop:'4px', paddingLeft:'26px', fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '학생이 마이크로 녹음하여 제출 (최대 5분).')
         )
@@ -4334,7 +4334,7 @@ kakaoTarget && (function(){
           if (error) { alert('발송 이력 저장 실패: ' + error.message); return; }
           alert('알림톡 연동 준비 중입니다.\n발송 이력은 저장되었습니다 (상태: 미발송).');
           setKakaoTarget(null);
-        }, style:{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📨 발송 이력 저장')
+        }, style:{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '발송 이력 저장')
       )
     )
   );
@@ -4445,7 +4445,7 @@ function GradingForm({ exam, submission, onSave }) {
     React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#1d4ed8', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '채점' + (objAuto != null ? ' (자동 객관식 ' + objAuto + '/' + qc + ')' : '')),
 
     audioUrl && React.createElement('div', { style:{ marginBottom:'10px', padding:'8px 10px', background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:'6px' } },
-      React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#92400e', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '🎤 학생 녹음 답안'),
+      React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#92400e', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '학생 녹음 답안'),
       React.createElement('audio', { controls:true, src: audioUrl, style:{ width:'100%' } })
     ),
 

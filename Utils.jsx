@@ -59,14 +59,14 @@
     var lines = [];
     lines.push('[B2빅뱅학원] 성적 안내'); lines.push('');
     lines.push((args.studentName || '학생') + ' 학생 성적 안내드립니다.'); lines.push('');
-    lines.push('▶ 시험명: ' + (args.testName || '-'));
-    lines.push('▶ 응시일: ' + (args.testDate || '-'));
-    lines.push('▶ 점수: ' + (args.score != null ? args.score + '점' : '-'));
+    lines.push('- 시험명: ' + (args.testName || '-'));
+    lines.push('- 응시일: ' + (args.testDate || '-'));
+    lines.push('- 점수: ' + (args.score != null ? args.score + '점' : '-'));
     if (args.prevScore != null) {
       var diff = Number(args.score) - Number(args.prevScore);
-      lines.push('▶ 전회 대비: ' + (diff >= 0 ? '+' : '') + diff + '점');
+      lines.push('- 전회 대비: ' + (diff >= 0 ? '+' : '') + diff + '점');
     } else {
-      lines.push('▶ 전회 대비: -');
+      lines.push('- 전회 대비: -');
     }
     lines.push('');
     var summary = String(args.comment || '').split('. ').slice(0,2).join('. ');

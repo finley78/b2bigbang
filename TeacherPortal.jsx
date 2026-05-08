@@ -1689,7 +1689,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   {/* 수강 강좌 */}
                   <div style={cardStyle}>
-                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📚 수강 강좌 ({studentDetail.courses.length})</div>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>수강 강좌 ({studentDetail.courses.length})</div>
                     {studentDetail.courses.length === 0 ? (
                       <div style={{ fontSize: "12px", color: "#9ca3af" }}>수강 중인 강좌가 없습니다.</div>
                     ) : (
@@ -1706,7 +1706,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                   {/* 시험 점수 */}
                   <div style={cardStyle}>
-                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📊 시험 점수 (최근 {Math.min(10, studentDetail.scores.length)}건 / 총 {studentDetail.scores.length}건)</div>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>시험 점수 (최근 {Math.min(10, studentDetail.scores.length)}건 / 총 {studentDetail.scores.length}건)</div>
                     {studentDetail.scores.length === 0 ? (
                       <div style={{ fontSize: "12px", color: "#9ca3af" }}>등록된 시험 점수가 없습니다.</div>
                     ) : (
@@ -1730,7 +1730,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                   {/* 단어시험 결과 */}
                   <div style={cardStyle}>
-                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📝 단어시험 (최근 {Math.min(10, studentDetail.vocabAttempts.length)}건 / 총 {studentDetail.vocabAttempts.length}건)</div>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>단어시험 (최근 {Math.min(10, studentDetail.vocabAttempts.length)}건 / 총 {studentDetail.vocabAttempts.length}건)</div>
                     {studentDetail.vocabAttempts.length === 0 ? (
                       <div style={{ fontSize: "12px", color: "#9ca3af" }}>응시한 단어시험이 없습니다.</div>
                     ) : (
@@ -1755,7 +1755,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                   {/* 특이사항 + 메모 등록 */}
                   <div style={cardStyle}>
-                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📌 특이사항 ({studentDetail.notes.length})</div>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>특이사항 ({studentDetail.notes.length})</div>
                     {/* 메모 등록 */}
                     <div style={{ display: "flex", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
                       <select value={newNoteType} onChange={e => setNewNoteType(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #d6dbde", borderRadius: "6px", fontSize: "12px", fontFamily: "Manrope, sans-serif", flexShrink: 0 }}>
@@ -2000,7 +2000,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       <div style={{ marginBottom:'10px' }}>
                         <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
                           <input type="checkbox" checked={objOn} onChange={e => setExamDraft({ ...examDraft, question_count: e.target.checked ? '5' : '0', answer_key: e.target.checked ? (examDraft.answer_key || {}) : {} })} style={{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' }} />
-                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>📝 객관식</span>
+                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>객관식</span>
                         </label>
                         {objOn && (
                           <div style={{ display:'flex', gap:'10px', marginTop:'8px', paddingLeft:'26px' }}>
@@ -2021,7 +2021,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       <div style={{ marginBottom:'10px' }}>
                         <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
                           <input type="checkbox" checked={txtOn} onChange={e => setExamDraft({ ...examDraft, text_question_count: e.target.checked ? '1' : '0' })} style={{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' }} />
-                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>✏️ 서술형</span>
+                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>서술형</span>
                         </label>
                         {txtOn && (
                           <div style={{ marginTop:'8px', paddingLeft:'26px' }}>
@@ -2034,7 +2034,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       <div>
                         <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
                           <input type="checkbox" checked={!!examDraft.allow_audio_answer} onChange={e => setExamDraft({ ...examDraft, allow_audio_answer: e.target.checked })} style={{ width:'18px', height:'18px', cursor:'pointer', accentColor:'#E60012' }} />
-                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>🎤 녹음 (학생 마이크 답안)</span>
+                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>녹음 (학생 마이크 답안)</span>
                         </label>
                         {!!examDraft.allow_audio_answer && (
                           <div style={{ marginTop:'4px', paddingLeft:'26px', fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>학생이 마이크로 녹음하여 제출 (최대 5분).</div>
@@ -2946,25 +2946,25 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <div style={{ fontSize:'13px', fontWeight:'800', color:'#374151', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>누적 분석 (전체 시험 기록 기반)</div>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
                     <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'12px' }}>
-                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>📈 가장 많이 오른 학생 TOP 3</div>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>가장 많이 오른 학생 TOP 3</div>
                       {topUp.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
                         topUp.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#E60012', fontWeight:'700'}}>+{s.change.toFixed(1)}점</span></div>; })
                       }
                     </div>
                     <div style={{ background:'#fef2f2', borderRadius:'10px', padding:'12px' }}>
-                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#c82014', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>📉 가장 많이 떨어진 학생 TOP 3</div>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#c82014', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>가장 많이 떨어진 학생 TOP 3</div>
                       {topDown.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
                         topDown.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#c82014', fontWeight:'700'}}>{s.change.toFixed(1)}점</span></div>; })
                       }
                     </div>
                     <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'12px' }}>
-                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>⭐ 꾸준히 상위권 유지</div>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#E60012', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>꾸준히 상위권 유지</div>
                       {stars.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
                         stars.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name} <span style={{color:'#E60012', fontWeight:'700'}}>평균 {s.avg.toFixed(1)}점</span></div>; })
                       }
                     </div>
                     <div style={{ background:'#fff7ed', borderRadius:'10px', padding:'12px' }}>
-                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#c2410c', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>⚠️ 최근 3회 연속 하락 (관리 필요)</div>
+                      <div style={{ fontSize:'12px', fontWeight:'800', color:'#c2410c', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>최근 3회 연속 하락 (관리 필요)</div>
                       {watch.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af' }}>해당 없음</div> :
                         watch.map(function(s){ return <div key={s.id} style={{ fontSize:'12px', color:'#374151', marginBottom:'2px', fontFamily:'Manrope, sans-serif' }}>{s.name}</div>; })
                       }
@@ -3031,7 +3031,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                 {/* 학부모 일괄 발송 버튼 */}
                 <div style={{ display:'flex', justifyContent:'flex-end', gap:'8px', marginBottom:'12px' }}>
-                  <button style={{ ...lightButtonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev }; }) }); }}>📨 전체 학부모 일괄 발송</button>
+                  <button style={{ ...lightButtonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev }; }) }); }}>전체 학부모 일괄 발송</button>
                 </div>
 
                 {/* 학생별 카드 (점수목록 + AI코멘트 + 발송/리포트 버튼) */}
@@ -3057,8 +3057,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                           <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px', marginLeft: '12px', fontFamily: 'Manrope, sans-serif' }}>{r.scores.length}회 · 평균 {r.avg != null ? r.avg.toFixed(1)+'점' : '-'}</span>
                         </div>
                         <div style={{ display:'flex', gap:'6px' }}>
-                          <button style={{ background:'#fff', color:'#1A1A1A', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setReportStudentId(r.id); }}>📄 학부모 리포트</button>
-                          <button style={{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev }] }); }}>📨 알림톡</button>
+                          <button style={{ background:'#fff', color:'#1A1A1A', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setReportStudentId(r.id); }}>학부모 리포트</button>
+                          <button style={{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev }] }); }}>알림톡</button>
                         </div>
                       </div>
                       <div style={{ padding: '12px 16px' }}>
@@ -3083,7 +3083,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                               );
                             })}
                             <div style={{ marginTop:'10px', padding:'10px 12px', background:'#fef9ec', border:'1px solid #f0e1ad', borderRadius:'8px' }}>
-                              <div style={{ fontSize:'11px', fontWeight:'800', color:'#7a5c0e', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>🤖 AI 자동 코멘트 (학부모 전달용)</div>
+                              <div style={{ fontSize:'11px', fontWeight:'800', color:'#7a5c0e', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>AI 자동 코멘트 (학부모 전달용)</div>
                               <div style={{ fontSize:'13px', color:'#374151', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' }}>{aiComment}</div>
                             </div>
                           </>
@@ -3095,7 +3095,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                 {/* 5) 시험지 분석 자리 (PDF 업로드 준비) */}
                 <div style={{ marginTop:'24px', padding:'18px', background:'#f9fafb', border:'1px dashed #d6dbde', borderRadius:'12px', textAlign:'center' }}>
-                  <div style={{ fontSize:'14px', fontWeight:'800', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>📋 시험지 분석</div>
+                  <div style={{ fontSize:'14px', fontWeight:'800', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>시험지 분석</div>
                   <div style={{ fontSize:'12px', color:'#6b7280', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }}>문제별 정답률 · 유형별 취약점 · 학생별 약점 개념 · 학습 우선순위 제안</div>
                   <button disabled style={{ background:'#e5e7eb', color:'#9ca3af', border:'none', borderRadius:'6px', padding:'8px 16px', fontSize:'12px', fontWeight:'700', cursor:'not-allowed', fontFamily:'Manrope, sans-serif' }}>시험지 PDF 업로드 (준비 중)</button>
                   <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'8px', fontFamily:'Manrope, sans-serif' }}>시험지 분석 기능은 준비 중입니다.</div>
@@ -3637,7 +3637,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               })}
               <div style={{ display:'flex', justifyContent:'flex-end', gap:'8px', marginTop:'10px' }}>
                 <button style={{ ...lightButtonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={function(){ setKakaoTarget(null); }}>취소</button>
-                <button style={{ ...buttonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={async function(){ await sendKakaoNotifications(items); setKakaoTarget(null); }}>📨 발송 이력 저장</button>
+                <button style={{ ...buttonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={async function(){ await sendKakaoNotifications(items); setKakaoTarget(null); }}>발송 이력 저장</button>
               </div>
             </div>
           </div>

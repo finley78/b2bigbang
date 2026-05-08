@@ -346,8 +346,8 @@
                         React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.55)', fontWeight:'600', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, modes.join(' · ') || '문제 없음'),
                         // 액션 버튼
                         React.createElement('div', { style:{ display:'flex', gap:'4px', marginTop:'2px', borderTop:'1px solid rgba(0,0,0,0.06)', paddingTop:'4px' } },
-                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setResultsTest(t); }, style:{ flex:1, background:'#FFEBED', color:'#E60012', border:'none', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📊 결과'),
-                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
+                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setResultsTest(t); }, style:{ flex:1, background:'#FFEBED', color:'#E60012', border:'none', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '결과'),
+                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '편집')
                         )
                       );
                     }).concat([
@@ -831,7 +831,7 @@
         React.createElement('div', null,
           // 배포 대상 — 클래스 카드 (클릭 시 preset 불러오기 + 배포 대상 등록) + 개별 학생
           React.createElement('div', { style:{ marginBottom:'14px', padding:'12px', background:'#f8fafc', borderRadius:'10px', border:'1px dashed #d6dbde' } },
-            React.createElement('div', { style:Object.assign({}, STYLES.label, { marginBottom:'6px' }) }, '🎯 배포 대상 — 반 (' + selectedClassIds.length + '개)'),
+            React.createElement('div', { style:Object.assign({}, STYLES.label, { marginBottom:'6px' }) }, '배포 대상 — 반 (' + selectedClassIds.length + '개)'),
             React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'8px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } },
               '반을 클릭하면 ① 그 반에 저장된 시험 형식을 폼에 불러오고 ② 이 반에 시험을 배포합니다. 저장 시 현재 형식이 그 반의 기본 양식으로도 저장돼요. ', React.createElement('span', { style:{ color:'#E60012', fontWeight:'700' } }, '●'), ' = 저장된 형식 있음'
             ),
@@ -1104,7 +1104,7 @@
 
                 // 자주 틀린 단어
                 topWrong.length > 0 && React.createElement('div', { style:Object.assign({}, STYLES.card, { marginBottom:'12px', padding:'14px' }) },
-                  React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '🔍 자주 틀린 단어'),
+                  React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '자주 틀린 단어'),
                   React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px' } },
                     topWrong.map(function(w, i){
                       var rate = Math.round((w.wrong / Math.max(1, w.total)) * 100);
@@ -1121,13 +1121,13 @@
 
                 // 학생별 결과 (점수순)
                 React.createElement('div', { style:Object.assign({}, STYLES.card, { padding:'14px' }) },
-                  React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '📝 학생별 결과 (' + n + '명, 최고 점수 기준)'),
+                  React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, '학생별 결과 (' + n + '명, 최고 점수 기준)'),
                   React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px', maxHeight:'40vh', overflowY:'auto' } },
                     bests.map(function(a, i){
                       var pct = Math.round(a.percentage || 0);
                       var color = pct >= 80 ? '#16a34a' : pct >= 60 ? '#c87000' : '#c82014';
                       var medalBg = i === 0 ? '#fef3c7' : i === 1 ? '#e5e7eb' : i === 2 ? '#fed7aa' : 'transparent';
-                      var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null;
+                      var medal = i < 3 ? (i + 1) + '위' : null;
                       return React.createElement('div', { key:a.id, onClick:function(){ setSelectedAttempt(a); }, style:{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 10px', background:medalBg || '#f8fafc', borderRadius:'6px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
                         React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.6)', minWidth:'30px', textAlign:'center' } }, medal || (i+1) + '위'),
                         React.createElement('div', { style:{ flex:1, minWidth:0 } },

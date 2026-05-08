@@ -671,22 +671,22 @@ function StudentAudioRecorder({ examId, studentId, existingPath, isLocked, onPat
   var timeColor = remainingSec <= 10 ? '#dc2626' : (remainingSec <= 30 ? '#f59e0b' : '#1A1A1A');
 
   return React.createElement('div', { style:{ background:'#fffbeb', border:'2px solid #f59e0b', borderRadius:'12px', padding:'18px', marginTop:'16px' } },
-    React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#92400e', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, '🎤 녹음 답안 (최대 5분)'),
+    React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#92400e', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, '녹음 답안 (최대 5분)'),
 
     error && React.createElement('div', { style:{ background:'#fee2e2', color:'#991b1b', padding:'10px 12px', borderRadius:'8px', fontSize:'13px', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, error),
 
     !isLocked && !recording && !previewBlob && !path && React.createElement('button', {
       onClick: startRecord,
       style:{ width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'12px', padding:'18px', fontSize:'17px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minHeight:'56px' }
-    }, '⚫  녹음 시작'),
+    }, '녹음 시작'),
 
     !isLocked && recording && React.createElement('div', { style:{ textAlign:'center' } },
       React.createElement('div', { style:{ fontSize:'42px', fontWeight:'800', color: timeColor, fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, fmtSec(elapsedSec) + ' / 05:00'),
-      React.createElement('div', { style:{ fontSize:'13px', color:'#dc2626', marginBottom:'14px', fontFamily:'Manrope, sans-serif', fontWeight:'700' } }, '🔴 녹음 중...'),
+      React.createElement('div', { style:{ fontSize:'13px', color:'#dc2626', marginBottom:'14px', fontFamily:'Manrope, sans-serif', fontWeight:'700' } }, '녹음 중...'),
       React.createElement('button', {
         onClick: stopRecord,
         style:{ width:'100%', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'12px', padding:'16px', fontSize:'16px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minHeight:'56px' }
-      }, '⏹  정지')
+      }, '정지')
     ),
 
     !isLocked && previewBlob && React.createElement('div', null,
@@ -2256,7 +2256,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
         sub.objective_score != null && sub.objective_total != null && React.createElement('div', { style:{ fontSize:'12px', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '객관식: ' + sub.objective_score + ' / ' + sub.objective_total),
         sub.feedback && React.createElement('div', { style:{ fontSize:'12px', color:'#374151', background:'#f9fafb', borderRadius:'8px', padding:'10px', marginBottom:'8px', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line' } }, '코멘트: ' + sub.feedback),
         audioUrl && React.createElement('div', { style:{ background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:'8px', padding:'10px', marginBottom:'8px' } },
-          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#92400e', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '🎤 자녀 녹음 답안'),
+          React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#92400e', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '자녀 녹음 답안'),
           React.createElement('audio', { controls:true, src: audioUrl, style:{ width:'100%' } })
         ),
         sub.text_answers && Object.keys(sub.text_answers).length > 0 && React.createElement('div', { style:{ marginTop:'8px' } },
