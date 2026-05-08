@@ -3148,9 +3148,6 @@ React.createElement('input', {
 ),
 
 (function(){
-  if (!analysisClassId) {
-    return React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '반을 선택해 주세요');
-  }
   var q = analysisSearch.trim().toLowerCase();
   var scoresFiltered = (adminAnalysis || []).filter(function(s){
     if (analysisTeacherId !== '전체' && String(s.teacher_id) !== String(analysisTeacherId)) return false;
@@ -3158,7 +3155,15 @@ React.createElement('input', {
     if (analysisTestName !== '전체' && s.test_name !== analysisTestName) return false;
     return true;
   });
-  var targetIds = (classStudents[analysisClassId] || []).map(String);
+  // 반 선택 시 → 그 반 학생만. 미선택 시 → 필터링된 점수 데이터에서 학생 ID 추출.
+  var targetIds;
+  if (analysisClassId) {
+    targetIds = (classStudents[analysisClassId] || []).map(String);
+  } else {
+    var idSet = {};
+    scoresFiltered.forEach(function(s){ if (s.student_id) idSet[String(s.student_id)] = true; });
+    targetIds = Object.keys(idSet);
+  }
   var subjectActive = analysisSubject !== '전체';
   var testNameActive = analysisTestName !== '전체';
   var teacherActive = analysisTeacherId !== '전체';

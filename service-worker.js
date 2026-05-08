@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260509f-grids';
+const CACHE_VERSION = 'b2-bigbang-20260509g-analysis';
 const OFFLINE_URLS = [
   './',
   './index.html',
