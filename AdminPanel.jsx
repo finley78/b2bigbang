@@ -2217,6 +2217,11 @@ addCourseStudentId===st.id && React.createElement('div', { style:{ background:'#
   // 검색 결과
   React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px', maxHeight:'220px', overflowY:'auto' } },
     (function(){
+      // 필터를 하나도 안 골랐을 때는 강좌를 노출하지 않음 (학원 내 강좌가 많아질 때 긴 목록 방지)
+      var anyFilter = acSubject!=='전체' || acLevel!=='전체' || acGrade!=='전체' || acTeacher!=='전체' || acName.trim() !== '';
+      if (!anyFilter) {
+        return React.createElement('div',{style:{fontSize:'12px',color:'rgba(0,0,0,0.45)',fontFamily:'Manrope, sans-serif', padding:'12px', textAlign:'center', background:'#f9fafb', borderRadius:'8px'}}, '과목·초중고·학년·담당 선생님 중 하나 이상 선택하거나 강좌명을 입력하면 결과가 표시됩니다.');
+      }
       var results = state.courses.filter(function(c){
         if (acSubject!=='전체' && c.subject!==acSubject) return false;
         if (acLevel!=='전체' && !(SCHOOL_LEVELS[acLevel]?.grades||[]).includes(c.grade)) return false;
