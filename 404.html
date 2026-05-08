@@ -462,15 +462,15 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260509g-analysis"></script>
-<script src="TopNav.js?v=20260509g-analysis"></script>
-<script src="HomePage.js?v=20260509g-analysis"></script>
-<script src="Pages.js?v=20260509g-analysis"></script>
-<script src="VocabManager.js?v=20260509g-analysis"></script>
-<script src="VocabPlayer.js?v=20260509g-analysis"></script>
-<script src="StudentPortal.js?v=20260509g-analysis"></script>
-<script src="TeacherPortal.js?v=20260509g-analysis"></script>
-<script src="AdminPanel.js?v=20260509g-analysis"></script>
+<script src="Utils.js?v=20260509h-audit-fixes"></script>
+<script src="TopNav.js?v=20260509h-audit-fixes"></script>
+<script src="HomePage.js?v=20260509h-audit-fixes"></script>
+<script src="Pages.js?v=20260509h-audit-fixes"></script>
+<script src="VocabManager.js?v=20260509h-audit-fixes"></script>
+<script src="VocabPlayer.js?v=20260509h-audit-fixes"></script>
+<script src="StudentPortal.js?v=20260509h-audit-fixes"></script>
+<script src="TeacherPortal.js?v=20260509h-audit-fixes"></script>
+<script src="AdminPanel.js?v=20260509h-audit-fixes"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -548,16 +548,17 @@ const [user, setUser] = React.useState(() => {
   try { const s = localStorage.getItem('b2_user'); return s ? JSON.parse(s) : null; } catch { return null; }
 });
 
-// Supabase 세션과 동기화 — Email/OAuth 모두 동일 흐름 (Phase 4)
-//   1. auth.users.id로 students 행 조회
-//   2. 없으면 email로 폴백 (Phase 1 이전 OAuth 사용자 대비)
-//   3. 매칭되면 auth_user_id 자동 링크
-//   4. 끝까지 미매칭이면 OAuth signup prefill 후 signup 페이지로 redirect
-//   5. pending/withdrawn 상태 처리
+// Supabase 세션과 동기화 — Email/OAuth 모두 동일 단일 진입점
+// 비밀번호 복구 흐름은 따로 처리 (URL의 ?reset=... 또는 hash에 type=recovery 검출 시 skip)
 React.useEffect(() => {
   let cancelled = false;
-  // shouldNavigate=true 는 OAuth fresh sign-in (SIGNED_IN 이벤트)에서만.
-  // 페이지 새로고침으로 세션 복원 시는 false (사용자가 보던 페이지 유지).
+  function isRecoveryContext() {
+    try {
+      var s = window.location.search || '';
+      var h = window.location.hash || '';
+      return s.indexOf('reset=') >= 0 || h.indexOf('type=recovery') >= 0;
+    } catch { return false; }
+  }
   async function syncSession(session, shouldNavigate) {
     if (cancelled) return;
     if (!session?.user?.id) {
@@ -571,6 +572,9 @@ React.useEffect(() => {
       } catch {}
       return;
     }
+    // 비밀번호 복구 세션이면 user 상태 갱신·이동 모두 skip — ResetPasswordPage가 처리
+    if (isRecoveryContext()) return;
+
     const sUser = session.user;
     const email = String(sUser.email || '').toLowerCase();
     const meta = sUser.user_metadata || {};
@@ -587,23 +591,18 @@ React.useEffect(() => {
       } catch {}
       if (cancelled) return;
 
-      // 2차: email로 폴백 + retroactive link
-      if (!row && email) {
-        const r2 = await window.supabase.from('students')
-          .select('*').eq('email', email).maybeSingle();
-        if (cancelled) return;
-        if (r2?.data) {
-          row = r2.data;
-          // auth_user_id가 비어있다면 자동 링크
-          if (!row.auth_user_id) {
-            try {
-              await window.supabase.from('students')
-                .update({ auth_user_id: sUser.id })
-                .eq('id', row.id);
-              row.auth_user_id = sUser.id;
-            } catch (e) { console.warn('auth_user_id 링크 실패:', e); }
+      // 2차: 미연결 상태면 SECURITY DEFINER RPC로 retroactive link (RLS 우회)
+      //   → email 일치하는 students 행이 있으면 자동 link, 그 행 id 반환
+      if (!row) {
+        try {
+          const linkRes = await window.supabase.rpc('link_my_auth_account');
+          if (linkRes?.data) {
+            const r2 = await window.supabase.from('students')
+              .select('*').eq('id', linkRes.data).maybeSingle();
+            if (cancelled) return;
+            row = r2?.data || null;
           }
-        }
+        } catch (e) { console.warn('link_my_auth_account RPC 실패:', e); }
       }
 
       // 3차: 매칭되는 students 행 없음 → signup 유도
@@ -658,11 +657,15 @@ React.useEffect(() => {
         if (isAdminRole) nextPage = 'admin';
         else if (role === 'teacher' || role === 'teachers' || role === '선생님' || role === '강사') nextPage = 'teacher';
         else if (role === 'student' || role === 'students' || role === '학생' || role === 'parent' || role === 'parents' || role === '학부모') nextPage = 'portal';
-        if (nextPage) {
-          setPage(nextPage);
-          try { sessionStorage.setItem('b2_page', nextPage); } catch {}
-          try { window.history.pushState({ page: nextPage }, '', ''); } catch {}
-        }
+        // 이미 동일 페이지에 있으면 history push 생략 (뒤로가기 중복 방지)
+        try {
+          var curPage = sessionStorage.getItem('b2_page') || 'home';
+          if (nextPage && curPage !== nextPage) {
+            setPage(nextPage);
+            sessionStorage.setItem('b2_page', nextPage);
+            window.history.pushState({ page: nextPage }, '', '');
+          }
+        } catch {}
       }
     } catch (e) { console.error('syncSession 오류:', e); }
   }
@@ -671,14 +674,20 @@ React.useEffect(() => {
       const { data } = await window.supabase.auth.getSession();
       await syncSession(data?.session || null, false);
     } catch (e) { console.error('getSession 오류:', e); }
-    // OAuth hash가 URL에 남아있으면 정리
+    // OAuth hash가 URL에 남아있으면 정리 (단, 복구 흐름이면 hash를 ResetPasswordPage가 쓰니 보존)
     try {
-      if (window.location.hash && window.location.hash.indexOf('access_token') >= 0) {
+      if (!isRecoveryContext()
+          && window.location.hash
+          && window.location.hash.indexOf('access_token') >= 0) {
         window.history.replaceState({}, '', window.location.pathname + window.location.search);
       }
     } catch {}
   })();
   const subRes = window.supabase.auth.onAuthStateChange(function(event, session) {
+    if (event === 'PASSWORD_RECOVERY') {
+      // 복구 세션 — ResetPasswordPage가 처리. 추가 동기화 불필요.
+      return;
+    }
     if (event === 'SIGNED_IN') {
       syncSession(session, true);
     } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
@@ -906,32 +915,6 @@ const role = getUserRole(u);
 return role === 'teacher' || role === 'teachers' || role === '선생님' || role === '강사';
 }
 
-function handleLogin(u) {
-setUser(u);
-setShowLogin(false);
-try {
-  localStorage.setItem('b2_user', JSON.stringify(u));
-} catch {}
-
-const role = getUserRole(u);
-if (role === 'admin' || role === 'administrator' || role === '관리자') {
-setIsAdmin(true);
-setAdminAuthed(true);
-try { localStorage.setItem('b2_is_admin','true'); localStorage.setItem('b2_admin_authed','true'); } catch {}
-navigate('admin');
-return;
-}
-
-if (isTeacherUser(u)) {
-navigate('teacher');
-return;
-}
-
-if (role === 'student' || role === 'students' || role === '학생') {
-navigate('portal');
-}
-}
-
 function handleLogout() {
 setUser(null);
 setIsAdmin(false);
@@ -959,11 +942,10 @@ const effectiveUser = user;
 return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
 
 // 로그인 모달 — admin/student/teacher/parent 모두 동일 흐름.
-// admin 권한은 로그인 후 students.role='admin'을 보고 handleLogin이 자동 라우팅.
+// 로그인 성공 후 user 상태 갱신·역할별 라우팅은 위쪽 syncSession이 단일 처리.
 showLogin && React.createElement(LoginModal, {
 key: loginInitialForgot ? 'login-forgot' : 'login-normal',
 initialForgot: loginInitialForgot,
-onLogin: handleLogin,
 onClose: ()=>{ setShowLogin(false); setLoginInitialForgot(false); },
 onSignup: handleSignup,
 }),

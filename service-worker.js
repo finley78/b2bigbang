@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260509g-analysis';
+const CACHE_VERSION = 'b2-bigbang-20260509h-audit-fixes';
 const OFFLINE_URLS = [
   './',
   './index.html',

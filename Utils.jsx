@@ -111,30 +111,6 @@
     return !!(navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof MediaRecorder !== 'undefined');
   }
 
-  // ── 품사 표시: 영어/약어 → 한글 자동 변환 ──────────────────────
-  // 학생이 한국어 품사명을 더 잘 이해하므로, 'noun'/'n.'/'명사' 모두 '명사'로 통일 표시
-  // DB에 저장된 값은 그대로 두고, 화면 표시할 때만 변환 (입력 유연성 유지)
-  function localizePartOfSpeech(pos) {
-    if (!pos) return '';
-    var s = String(pos).trim().toLowerCase().replace(/\.+$/, '');
-    var map = {
-      'noun': '명사', 'n': '명사',
-      'verb': '동사', 'v': '동사',
-      'adjective': '형용사', 'adj': '형용사', 'a': '형용사',
-      'adverb': '부사', 'adv': '부사', 'ad': '부사',
-      'pronoun': '대명사', 'pron': '대명사',
-      'preposition': '전치사', 'prep': '전치사', 'pre': '전치사',
-      'conjunction': '접속사', 'conj': '접속사', 'con': '접속사',
-      'interjection': '감탄사', 'int': '감탄사', 'interj': '감탄사',
-      'article': '관사', 'art': '관사',
-      'determiner': '한정사', 'det': '한정사',
-      'auxiliary': '조동사', 'aux': '조동사',
-      'modal': '조동사',
-      'phrase': '구', 'idiom': '관용구',
-    };
-    return map[s] || pos;
-  }
-
   // ── 학년 문자열 → 학교급 추출 ──────────────────────────────────
   // '5학년' → '초등' / '중2' → '중등' / '고1' → '고등'
   function levelFromGrade(g) {

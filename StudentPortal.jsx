@@ -11,7 +11,7 @@ const SUBJECT_COLORS = {
 var levelFromGrade = window.B2Utils.levelFromGrade;
 
 /* ── Login Modal ──────────────────────────────── */
-function LoginModal({ onLogin, onClose, onSignup, initialForgot }) {
+function LoginModal({ onClose, onSignup, initialForgot }) {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [msg, setMsg] = React.useState('');
@@ -40,6 +40,7 @@ function LoginModal({ onLogin, onClose, onSignup, initialForgot }) {
 
   // 이메일/비밀번호 로그인 (Supabase Auth)
   // 학생·학부모·선생님·관리자 모두 동일한 흐름. role은 students 행에서 결정됨.
+  // 상태 검사(pending/withdrawn) 및 user 상태 갱신·페이지 이동은 App.syncSession이 SIGNED_IN 이벤트에서 단일 처리.
   async function handleEmailLogin() {
     if (!email || !password) { setMsg('이메일과 비밀번호를 입력해 주세요.'); return; }
     setLoading(true); setMsg('');
@@ -60,27 +61,7 @@ function LoginModal({ onLogin, onClose, onSignup, initialForgot }) {
       if (!authData?.user?.id) {
         setMsg('로그인 응답을 받지 못했습니다.'); setLoading(false); return;
       }
-      // students 행 조회 (auth_user_id로 매칭)
-      const { data: studentRow, error: rowError } = await sb.from('students')
-        .select('*').eq('auth_user_id', authData.user.id).maybeSingle();
-      if (rowError || !studentRow) {
-        await sb.auth.signOut();
-        setMsg('계정 정보가 연결되지 않았습니다. 관리자에게 문의해 주세요.');
-        setLoading(false); return;
-      }
-      if (studentRow.withdrawn_at || studentRow.is_active === false) {
-        await sb.auth.signOut();
-        setMsg('탈퇴 처리된 계정입니다.'); setLoading(false); return;
-      }
-      if (studentRow.role === 'pending_teacher') {
-        await sb.auth.signOut();
-        setMsg('관리자 승인 대기 중입니다.'); setLoading(false); return;
-      }
-      if (studentRow.role === 'pending_student' || studentRow.role === 'pending_parent') {
-        await sb.auth.signOut();
-        setMsg('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); setLoading(false); return;
-      }
-      onLogin(await window.B2Utils.buildUserFromStudentRow(studentRow));
+      // 인증 성공. SIGNED_IN 이벤트로 syncSession이 students 조회·상태 검증·라우팅 처리.
       onClose();
     } catch(e) {
       setMsg('오류가 발생했습니다: ' + (e?.message || e));
@@ -343,16 +324,33 @@ function SignupPage({ onBack, onComplete, prefill }) {
     setLoading(true); setMsg('');
     const dbRole = roleType === 'teacher' ? 'pending_teacher' : roleType;
     const emailNorm = form.email.trim().toLowerCase();
+    const nowIso = new Date().toISOString();
 
     try {
       if (!sb) { setMsg('네트워크 연결 오류'); setLoading(false); return; }
 
-      // 1. Supabase Auth 회원가입 — handle_new_user 트리거가 students 행을 자동 생성
+      // 모든 프로필 필드를 metadata로 전달 → handle_new_user 트리거가
+      // SECURITY DEFINER로 students 행 생성 시 한 번에 채움.
+      // 이메일 확인 옵션 ON일 때도 RLS 막힘 없이 가입 완성.
+      const metadata = {
+        name: form.name.trim(),
+        role: dbRole,
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        privacy_agreed: true,
+        agreed_at: nowIso,
+      };
+      if (roleType === 'student') {
+        metadata.school = form.school.trim();
+        metadata.grade = form.grade.trim();
+        metadata.parent_phone = form.parentPhone.trim();
+      }
+
       const { data: signupData, error: signupError } = await sb.auth.signUp({
         email: emailNorm,
         password: form.password,
         options: {
-          data: { name: form.name.trim(), role: dbRole },
+          data: metadata,
           emailRedirectTo: window.location.origin,
         },
       });
@@ -371,50 +369,30 @@ function SignupPage({ onBack, onComplete, prefill }) {
         setMsg('가입 응답을 받지 못했습니다.'); setLoading(false); return;
       }
 
-      // 2. 트리거가 만든 students 행에 추가 필드 UPDATE
-      const additionalFields = {
-        phone: form.phone.trim(),
-        address: form.address.trim(),
-        privacy_agreed: true,
-        agreed_at: new Date().toISOString(),
-        is_active: roleType !== 'teacher',
-      };
-      if (roleType === 'student') {
-        additionalFields.school = form.school.trim();
-        additionalFields.grade = form.grade.trim();
-        additionalFields.parent_phone = form.parentPhone.trim();
-      }
-      const { data: updatedRows } = await sb.from('students')
-        .update(additionalFields)
-        .eq('auth_user_id', signupData.user.id)
-        .select('id')
-        .maybeSingle();
-      const insertedId = updatedRows?.id;
-
-      // 3. 학생-학부모 자동 연결 (전화번호 매칭)
-      // RLS 환경에서 본인이 다른 사용자 행을 직접 조회/수정할 수 없으므로
-      // SECURITY DEFINER RPC 함수를 사용해 안전하게 매칭 + 링크.
-      if (insertedId) {
-        if (roleType === 'student') {
-          try {
+      // 학생-학부모 자동 연결: 트리거가 만든 students 행 id를 가져와 RPC 호출.
+      // 세션이 있을 때만 가능 (이메일 확인 ON이면 RPC가 안전하게 NULL 반환).
+      try {
+        const { data: myRow } = await sb.from('students')
+          .select('id').eq('auth_user_id', signupData.user.id).maybeSingle();
+        const insertedId = myRow?.id;
+        if (insertedId) {
+          if (roleType === 'student') {
             await sb.rpc('link_family_by_phone', {
               my_id: insertedId,
               target_phone: form.parentPhone.trim(),
               my_role: 'student',
             });
-          } catch (e) { console.warn('학부모 자동 연결 실패:', e); }
-        } else if (roleType === 'parent') {
-          try {
+          } else if (roleType === 'parent') {
             await sb.rpc('link_family_by_phone', {
               my_id: insertedId,
               target_phone: form.studentPhone.trim(),
               my_role: 'parent',
             });
-          } catch (e) { console.warn('학생 자동 연결 실패:', e); }
+          }
         }
-      }
+      } catch (e) { console.warn('가족 자동 연결 실패(무시):', e); }
 
-      // 4. 선생님은 대기 상태이므로 즉시 로그아웃 (관리자 승인 후 로그인)
+      // 선생님은 트리거가 is_active=false로 만들어 둠. 즉시 로그아웃.
       if (roleType === 'teacher') {
         try { await sb.auth.signOut(); } catch (e) {}
       }
