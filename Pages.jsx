@@ -788,4 +788,4 @@ function TermsPage() {
   );
 }
 
-Object.assign(window, { ServicePage, ContactPage, AboutPage, RecruitPage });
+Object.assign(window, { ServicePage, ContactPage, AboutPage, RecruitPage, PrivacyPolicyPage, TermsPage });
