@@ -2098,7 +2098,7 @@ React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat
 filtered.map(function(st) {
 var isSelected = selectedIds.includes(st.id);
 var isWithdrawn = studentViewMode === 'withdrawn';
-return React.createElement('div', { key:st.id, style:{ ...cardS, marginBottom:0, border: isSelected?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s', opacity: isWithdrawn ? 0.78 : 1 } },
+return React.createElement('div', { key:st.id, style:{ ...cardS, marginBottom:0, border: isSelected?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s', opacity: isWithdrawn ? 0.78 : 1, alignSelf:'start', gridColumn: expandedStudent===st.id ? '1 / -1' : 'auto' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
 React.createElement('div', {
 onClick: function() { setSelectedIds(function(prev){ return isSelected?prev.filter(function(i){ return i!==st.id; }):[...prev,st.id]; }); },
