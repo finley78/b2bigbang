@@ -2732,8 +2732,9 @@ React.createElement('div', null,
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, `승인된 선생님 (${dbTeachers.filter(t=>t.role==='teacher').length}명)`),
 dbTeachers.filter(t => t.role==='teacher').length === 0
 ? React.createElement('div', { style:{ background:'#fff', borderRadius:'10px', padding:'24px', textAlign:'center', fontSize:'14px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '승인된 선생님이 없습니다')
-: dbTeachers.filter(t => t.role==='teacher').map(t =>
-React.createElement('div', { key:t.id, style:{ background:'#fff', borderRadius:'12px', padding:'16px 18px', marginBottom:'10px', boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)' } },
+: React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'12px' } },
+dbTeachers.filter(t => t.role==='teacher').map(t =>
+React.createElement('div', { key:t.id, style:{ background:'#fff', borderRadius:'12px', padding:'16px 18px', marginBottom:0, boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)', alignSelf:'start', gridColumn: expandedTeacher===t.id ? '1 / -1' : 'auto', order: expandedTeacher===t.id ? -1 : 0 } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: expandedTeacher===t.id ? '14px' : '0', cursor:'pointer' }, onClick:()=>setExpandedTeacher(expandedTeacher===t.id ? null : t.id) },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', flex:1, flexWrap:'wrap', minWidth:0 } },
 React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, t.name),
@@ -2956,6 +2957,7 @@ React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', border
 // 전체 배정 현황
 React.createElement('div', { style:{ marginTop:'12px', paddingTop:'12px', borderTop:'1px solid #edf0f2', fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
   '온라인 강좌는 관리자가 강좌 관리에서 선생님에게 강좌를 배정한 후, 선생님이 직접 영상을 등록합니다.'
+)
 )
 )
 )
