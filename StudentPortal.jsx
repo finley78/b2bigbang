@@ -2283,10 +2283,9 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       renderHeader(false),
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'24px 16px' } },
         React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'18px 20px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'14px' } },
-          React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (selectedChild.name || '?')[0]),
+          React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize: selectedChild.grade ? '14px' : '18px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, selectedChild.grade || (selectedChild.name || '?')[0]),
           React.createElement('div', { style:{ flex:1, minWidth:0 } },
-            React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, selectedChild.name || '자녀'),
-            React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, [selectedChild.school, selectedChild.grade].filter(Boolean).join(' · ') || '-')
+            React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, selectedChild.name || '자녀')
           ),
           parentChildren.length > 1 && React.createElement('button', { onClick:function(){ setParentSelectedChildId(null); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '다른 자녀')
         ),
