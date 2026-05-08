@@ -65,6 +65,10 @@ React.useEffect(function(){
 const [editingBanner, setEditingBanner] = React.useState(null);
 const [editingNotice, setEditingNotice] = React.useState(null);
 const [editingCourse, setEditingCourse] = React.useState(null);
+const [courseFilterSubject, setCourseFilterSubject] = React.useState('전체');
+const [courseFilterLevel, setCourseFilterLevel] = React.useState('전체');
+const [courseFilterGrade, setCourseFilterGrade] = React.useState('전체');
+const [courseFilterSearch, setCourseFilterSearch] = React.useState('');
 const [expandedStudent, setExpandedStudent] = React.useState(null);
 const [saveToast, setSaveToast] = React.useState(false);
 const saveToastTimer = React.useRef(null);
@@ -1597,8 +1601,62 @@ React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rg
 React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', margin:0 } }, '강좌 생성은 선생님 페이지에서 담당 학년과 영상 링크를 입력해 등록합니다. 관리자는 전체 강좌 수정·삭제와 학생별 수강 권한 조정만 관리합니다.')
 )
 ),
+React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'14px' } },
+React.createElement('input', {
+  value: courseFilterSearch,
+  onChange: function(e){ setCourseFilterSearch(e.target.value); },
+  placeholder: '강좌명·선생님 검색',
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'180px', flex:1 }
+}),
+React.createElement('select', {
+  value: courseFilterSubject,
+  onChange: function(e){ setCourseFilterSubject(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '과목 전체'),
+  SUBJECTS.map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+),
+React.createElement('select', {
+  value: courseFilterLevel,
+  onChange: function(e){ setCourseFilterLevel(e.target.value); setCourseFilterGrade('전체'); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '학교급 전체'),
+  COURSE_LEVELS.map(function(l){ return React.createElement('option', { key:l, value:l }, l); })
+),
+React.createElement('select', {
+  value: courseFilterGrade,
+  onChange: function(e){ setCourseFilterGrade(e.target.value); },
+  disabled: courseFilterLevel==='전체',
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', background: courseFilterLevel==='전체'?'#f5f5f5':'#fff', outline:'none', cursor: courseFilterLevel==='전체'?'not-allowed':'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '학년 전체'),
+  (courseFilterLevel!=='전체' ? (SCHOOL_LEVELS[courseFilterLevel]||{grades:[]}).grades : []).map(function(g){ return React.createElement('option', { key:g, value:g }, g); })
+),
+(courseFilterSubject!=='전체' || courseFilterLevel!=='전체' || courseFilterGrade!=='전체' || courseFilterSearch.trim()) && React.createElement('button', {
+  onClick: function(){ setCourseFilterSubject('전체'); setCourseFilterLevel('전체'); setCourseFilterGrade('전체'); setCourseFilterSearch(''); },
+  style:{ background:'transparent', color:'rgba(0,0,0,0.55)', border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+}, '초기화')
+),
+(function(){
+var q = courseFilterSearch.trim().toLowerCase();
+var filtered = state.courses.filter(function(c){
+  if (courseFilterSubject !== '전체' && c.subject !== courseFilterSubject) return false;
+  if (courseFilterLevel !== '전체' && c.level !== courseFilterLevel) return false;
+  if (courseFilterGrade !== '전체' && c.grade !== courseFilterGrade) return false;
+  if (q) {
+    var hay = [c.name, c.teacher, c.subject, c.grade].filter(Boolean).join(' ').toLowerCase();
+    if (hay.indexOf(q) < 0) return false;
+  }
+  return true;
+});
+if (filtered.length === 0) {
+  return React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, state.courses.length===0?'등록된 강좌가 없습니다':'필터 조건에 맞는 강좌가 없습니다');
+}
+return React.createElement('div', null,
+React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, filtered.length + '개 강좌'),
 React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'12px' } },
-state.courses.map(c =>
+filtered.map(c =>
 React.createElement('div', { key:c.id, style:{ ...cardS, marginBottom:0, alignSelf:'start', gridColumn: editingCourse===c.id ? '1 / -1' : 'auto', order: editingCourse===c.id ? -1 : 0 } },
 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:editingCourse===c.id?'12px':0 } },
 React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center' } },
@@ -1699,6 +1757,8 @@ React.createElement('input', { value:lec.youtubeId||'', onChange:function(e){ va
 )
 )
 )
+);
+})()
 ),
 
 /* ── 수강생 관리 TAB ── */
