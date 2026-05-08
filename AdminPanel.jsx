@@ -226,7 +226,7 @@ if (courses && courses.length > 0) {
 const mapped = courses.map(c => ({
 id: c.id, subject: c.subjects?.name || '', color: c.subjects?.color || '#E60012',
 name: c.title, description: c.description, grade: c.grade || '', level: c.level || '', class_id: c.class_id || '',
-days: c.days || 0, duration: c.duration || 0, teacher: c.teacher || '',
+days: c.days || 0, duration: c.duration || 0, teacher: c.teacher || '', teacher_id: c.teacher_id || null,
 price: c.price || '', badge: c.badge || null, intro: c.intro || '',
 target: c.target || '', curriculum: c.curriculum || '', teacherDesc: c.teacher_desc || '',
 youtube: c.youtube || '',
@@ -1640,7 +1640,7 @@ React.createElement('select', {
   style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
 },
   React.createElement('option', { value:'전체' }, '선생님 전체'),
-  dbTeachers.filter(function(t){ return t.role==='teacher'; }).map(function(t){ return React.createElement('option', { key:t.id, value:t.name }, t.name); })
+  dbTeachers.filter(function(t){ return t.role==='teacher'; }).map(function(t){ return React.createElement('option', { key:t.id, value:String(t.id) }, t.name); })
 ),
 (courseFilterSubject!=='전체' || courseFilterLevel!=='전체' || courseFilterGrade!=='전체' || courseFilterTeacher!=='전체' || courseFilterSearch.trim()) && React.createElement('button', {
   onClick: function(){ setCourseFilterSubject('전체'); setCourseFilterLevel('전체'); setCourseFilterGrade('전체'); setCourseFilterTeacher('전체'); setCourseFilterSearch(''); },
@@ -1649,11 +1649,17 @@ React.createElement('select', {
 ),
 (function(){
 var q = courseFilterSearch.trim().toLowerCase();
+// class_id로 연결된 강좌는 grade/level/teacher_id를 클래스에서 fallback으로 가져옴
+var classMap = {};
+(teacherClasses || []).forEach(function(cls){ classMap[String(cls.id)] = cls; });
+function effectiveGrade(c){ return c.grade || (c.class_id ? (classMap[String(c.class_id)]||{}).grade : '') || ''; }
+function effectiveLevel(c){ return c.level || (c.class_id ? (classMap[String(c.class_id)]||{}).level : '') || ''; }
+function effectiveTeacherId(c){ return String(c.teacher_id || (c.class_id ? (classMap[String(c.class_id)]||{}).teacher_id : '') || ''); }
 var filtered = state.courses.filter(function(c){
   if (courseFilterSubject !== '전체' && c.subject !== courseFilterSubject) return false;
-  if (courseFilterLevel !== '전체' && c.level !== courseFilterLevel) return false;
-  if (courseFilterGrade !== '전체' && c.grade !== courseFilterGrade) return false;
-  if (courseFilterTeacher !== '전체' && c.teacher !== courseFilterTeacher) return false;
+  if (courseFilterLevel !== '전체' && effectiveLevel(c) !== courseFilterLevel) return false;
+  if (courseFilterGrade !== '전체' && effectiveGrade(c) !== courseFilterGrade) return false;
+  if (courseFilterTeacher !== '전체' && effectiveTeacherId(c) !== courseFilterTeacher) return false;
   if (q) {
     var hay = [c.name, c.teacher, c.subject, c.grade].filter(Boolean).join(' ').toLowerCase();
     if (hay.indexOf(q) < 0) return false;

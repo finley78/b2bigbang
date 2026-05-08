@@ -887,6 +887,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         level: d.scope === 'level' ? d.level : null,
         grade: d.scope === 'level' ? d.grade : null,
         class_id: d.scope === 'class' ? d.class_id : null,
+        teacher_id: teacherInfo?.id || null,
       };
       var { data: created, error } = await sb.from('courses').insert(payload).select('*, subjects(name,color), videos(*)').single();
       if (error) throw error;
