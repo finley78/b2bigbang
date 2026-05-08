@@ -1571,17 +1571,18 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 {g.tabs.map(tid => {
                   const t = TABS.find(x => x.id === tid);
                   if (!t) return null;
-                  const pcStyle = { padding:'8px 14px', fontSize:'13px', display:'inline-flex', alignItems:'center', textAlign:'left' };
+                  const pcStyle = { padding:'16px 18px', fontSize:'15px', display:'inline-flex', alignItems:'center', textAlign:'left', minHeight:'52px' };
                   const mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
                   return (
                     <button key={tid} onClick={() => { setTeacherView(tid); loadOnTabClick(tid); }}
                       onMouseEnter={(e) => { e.currentTarget.style.borderColor = g.color; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = '0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)'; }}
                       style={Object.assign({
-                        background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px',
+                        background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
                         cursor:'pointer', fontFamily:'Manrope, sans-serif',
                         fontWeight:'700', color:'#111827',
-                        letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s'
+                        letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s',
+                        boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)'
                       }, teacherIsMobile ? mobileStyle : pcStyle)}>
                       {t.label}
                     </button>
