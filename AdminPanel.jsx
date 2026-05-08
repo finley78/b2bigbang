@@ -2046,7 +2046,7 @@ if (filtered.length === 0) return React.createElement('div', { style:{ ...cardS,
 
 var allSelected = filtered.length > 0 && filtered.every(function(s){ return selectedIds.includes(s.id); });
 
-return React.createElement('div', { style:{ maxWidth:'760px' } },
+return React.createElement('div', null,
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 18px', marginBottom:'4px' } },
 React.createElement('div', {
 onClick: function() {
@@ -2062,10 +2062,11 @@ React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', 
 ),
 React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, `전체 선택 (${filtered.length}명)`)
 ),
+React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'12px' } },
 filtered.map(function(st) {
 var isSelected = selectedIds.includes(st.id);
 var isWithdrawn = studentViewMode === 'withdrawn';
-return React.createElement('div', { key:st.id, style:{ ...cardS, border: isSelected?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s', opacity: isWithdrawn ? 0.78 : 1 } },
+return React.createElement('div', { key:st.id, style:{ ...cardS, marginBottom:0, border: isSelected?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s', opacity: isWithdrawn ? 0.78 : 1 } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
 React.createElement('div', {
 onClick: function() { setSelectedIds(function(prev){ return isSelected?prev.filter(function(i){ return i!==st.id; }):[...prev,st.id]; }); },
@@ -2287,6 +2288,7 @@ expandedStudent===st.id && React.createElement('div', {
 )
 );
 })
+)
 );
 })()
 );
