@@ -233,17 +233,20 @@
     var [idx, setIdx] = React.useState(0);
     var [autoPlay, setAutoPlay] = React.useState(true); // 자동 진행 on/off
     var [started, setStarted] = React.useState(false); // iOS TTS 활성화용
-    var SECONDS = 4; // Flash Card 카드당 시간
+    var SECONDS = 7; // Flash Card 카드당 시간 (3회 발음 + 학생 따라 읽기 시간 포함)
 
     var word = props.words[idx];
     var total = props.words.length;
     var progress = total > 0 ? ((idx + 1) / total) * 100 : 0;
 
-    // 시작 / 카드 변경 시 발음 자동 재생
+    // 시작 / 카드 변경 시 발음 자동 재생 (한 카드당 3회)
     React.useEffect(function(){
       if (!started || !word) return;
-      var t = setTimeout(function(){ speak(word.word); }, 100);
-      return function(){ clearTimeout(t); };
+      var schedule = [100, 2000, 4000]; // ms 시점에 각각 발음
+      var timers = schedule.map(function(ms){
+        return setTimeout(function(){ speak(word.word); }, ms);
+      });
+      return function(){ timers.forEach(clearTimeout); };
     }, [idx, started]);
 
     // 자동 진행
