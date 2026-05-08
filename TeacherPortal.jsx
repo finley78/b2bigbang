@@ -1662,24 +1662,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               {/* 학생 기본 정보 카드 */}
               <div style={{ background: "linear-gradient(135deg, #1A1A1A 0%, #3a0007 100%)", borderRadius: "14px", padding: "20px", color: "#fff", marginBottom: "14px", fontFamily: "Manrope, sans-serif" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                  <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", fontWeight: "800" }}>{selectedStudent.name[0]}</div>
+                  <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: selectedStudent.grade ? "16px" : "22px", fontWeight: "800" }}>{selectedStudent.grade || selectedStudent.name[0]}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: "20px", fontWeight: "800" }}>{selectedStudent.name}</div>
-                    <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", marginTop: "2px" }}>{[selectedStudent.grade, selectedStudent.school].filter(Boolean).join(" · ") || "—"}</div>
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px", marginTop: "14px", paddingTop: "14px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
                   <div>
                     <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", fontWeight: "700", letterSpacing: "0.04em" }}>학생 연락처</div>
                     {selectedStudent.phone
-                      ? <a href={"tel:" + selectedStudent.phone} style={{ fontSize: "13px", marginTop: "2px", color: "#fff", fontWeight: "700", textDecoration: "none", display: "block" }}>{selectedStudent.phone}</a>
+                      ? <a href={"tel:" + selectedStudent.phone} style={{ fontSize: "13px", marginTop: "2px", color: "#fff", fontWeight: "700", textDecoration: "none", display: "block" }}>{B2Utils.formatPhone(selectedStudent.phone)}</a>
                       : <div style={{ fontSize: "12px", marginTop: "2px", color: "rgba(255,255,255,0.5)" }}>—</div>
                     }
                   </div>
                   <div>
                     <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", fontWeight: "700", letterSpacing: "0.04em" }}>학부모 연락처</div>
                     {selectedStudent.parent_phone
-                      ? <a href={"tel:" + selectedStudent.parent_phone} style={{ fontSize: "13px", marginTop: "2px", color: "#fff", fontWeight: "700", textDecoration: "none", display: "block" }}>{selectedStudent.parent_phone}</a>
+                      ? <a href={"tel:" + selectedStudent.parent_phone} style={{ fontSize: "13px", marginTop: "2px", color: "#fff", fontWeight: "700", textDecoration: "none", display: "block" }}>{B2Utils.formatPhone(selectedStudent.parent_phone)}</a>
                       : <div style={{ fontSize: "12px", marginTop: "2px", color: "rgba(255,255,255,0.5)" }}>—</div>
                     }
                   </div>
@@ -3633,7 +3632,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 var st = analysisAllStudents[it.student_id] || {};
                 return (
                   <div key={i} style={{ marginBottom:'10px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' }}>
-                    <div style={{ fontSize:'12px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>{st.name || '학생'} · {it.parent_phone || '연락처 없음'}</div>
+                    <div style={{ fontSize:'12px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>{st.name || '학생'} · {B2Utils.formatPhone(it.parent_phone) || '연락처 없음'}</div>
                     <pre style={{ margin:0, fontSize:'12px', color:'#374151', whiteSpace:'pre-wrap', fontFamily:'Manrope, sans-serif', lineHeight:'1.6', background:'#fef7e0', padding:'10px', borderRadius:'6px' }}>{it.message_content}</pre>
                   </div>
                 );

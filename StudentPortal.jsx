@@ -2230,10 +2230,9 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
                     onClick: function(){ setParentSelectedChildId(c.id); setParentTab('test'); },
                     style:{ background:'#fff', borderRadius:'12px', boxShadow:'0 1px 4px rgba(0,0,0,0.08)', padding:'18px 20px', display:'flex', alignItems:'center', gap:'14px', cursor:'pointer' }
                   },
-                    React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, (c.name || '?')[0]),
+                    React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize: c.grade ? '14px' : '18px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, c.grade || (c.name || '?')[0]),
                     React.createElement('div', { style:{ flex:1, minWidth:0 } },
-                      React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, c.name),
-                      React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, [c.school, c.grade].filter(Boolean).join(' · ') || '-')
+                      React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, c.name)
                     ),
                     React.createElement('div', { style:{ fontSize:'22px', color:'rgba(0,0,0,0.2)' } }, '›')
                   );

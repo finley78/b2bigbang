@@ -2230,11 +2230,11 @@ SCHOOLS.filter(function(s){ return s!=='전체'; }).map(function(s){ return Reac
 React.createElement('div', { style:{ display:'flex', gap:'18px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px', padding:'6px 10px', background:'#f9f9f9', borderRadius:'6px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } },
 React.createElement('span', null,
 React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.45)', marginRight:'6px' } }, '학생'),
-React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, st.phone || '미입력')
+React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, B2Utils.formatPhone(st.phone) || '미입력')
 ),
 React.createElement('span', null,
 React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.45)', marginRight:'6px' } }, '학부모'),
-React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, st.parent_phone || '미입력')
+React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, B2Utils.formatPhone(st.parent_phone) || '미입력')
 )
 ),
 React.createElement('div', { style:{ marginBottom:'8px' } },
@@ -2583,7 +2583,7 @@ var isOpen = expandedMember === m.id || isEditing;
 return React.createElement('div', { key:m.id, style:{ ...cardS, padding:'12px 14px', marginBottom:0, alignSelf:'start', border: isEditing?'2px solid #E60012':'2px solid transparent', transition:'border 0.15s', gridColumn: isOpen ? '1 / -1' : 'auto', order: isOpen ? -1 : 0 } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', flex:1, minWidth:0, cursor:'pointer' }, onClick:function(){ setExpandedMember(expandedMember===m.id?null:m.id); setEditingMember(null); } },
-React.createElement('div', { style:{ width:'32px', height:'32px', borderRadius:'50%', background:roleBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', color:roleColor, fontFamily:'Manrope, sans-serif', flexShrink:0 } }, m.name[0]),
+React.createElement('div', { style:{ width:'32px', height:'32px', borderRadius:'50%', background:roleBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize: m.role==='student' && m.grade ? '11px' : '13px', fontWeight:'800', color:roleColor, fontFamily:'Manrope, sans-serif', flexShrink:0 } }, m.role==='student' && m.grade ? m.grade : m.name[0]),
 React.createElement('div', { style:{ minWidth:0, flex:1 } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' } },
 React.createElement('span', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, m.name),
@@ -2591,8 +2591,8 @@ React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', backgro
 linkedParent && React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '학부모: ' + linkedParent.name),
 linkedChildren.length > 0 && React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '자녀: ' + linkedChildren.map(function(c){ return c.name; }).join(', '))
 ),
-React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', marginTop:'1px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } },
-[m.phone, m.grade, m.school].filter(Boolean).join(' · ') || m.email || '—'
+m.role !== 'student' && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', marginTop:'1px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } },
+[B2Utils.formatPhone(m.phone), m.school].filter(Boolean).join(' · ') || m.email || '—'
 )
 )
 ),
@@ -2673,7 +2673,7 @@ React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1f
 [
 { label:'이름', value:m.name },
 { label:'구분', value:roleLabel },
-{ label:'전화번호', value:m.phone||'—' },
+{ label:'전화번호', value:B2Utils.formatPhone(m.phone)||'—' },
 { label:'이메일', value:m.email||'—' },
 { label:'주소', value:m.address||'—' },
 { label:'학교', value:m.school||'—' },
@@ -2694,7 +2694,7 @@ React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'1
 React.createElement('div', { style:{ width:'32px', height:'32px', borderRadius:'50%', background:'#fff3cd', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', color:'#856404', fontFamily:'Manrope, sans-serif' } }, linkedParent.name[0]),
 React.createElement('div', null,
 React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, linkedParent.name),
-React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, linkedParent.phone || linkedParent.email || '—')
+React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, B2Utils.formatPhone(linkedParent.phone) || linkedParent.email || '—')
 )
 ),
 React.createElement('button', {
@@ -2717,7 +2717,7 @@ style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', font
 },
 React.createElement('option', { value:'' }, '학부모를 선택하세요'),
 dbMembers.filter(function(x){ return x.role==='parent'; }).map(function(p){
-return React.createElement('option', { key:p.id, value:p.id }, p.name + (p.phone?' ('+p.phone+')':''));
+return React.createElement('option', { key:p.id, value:p.id }, p.name + (p.phone?' ('+B2Utils.formatPhone(p.phone)+')':''));
 })
 )
 ),
@@ -2727,10 +2727,9 @@ linkedChildren.length === 0
 ? React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '연결된 자녀가 없습니다')
 : linkedChildren.map(function(child) {
 return React.createElement('div', { key:child.id, style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px' } },
-React.createElement('div', { style:{ width:'32px', height:'32px', borderRadius:'50%', background:'#e8f4fd', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', color:'#0066cc', fontFamily:'Manrope, sans-serif' } }, child.name[0]),
+React.createElement('div', { style:{ width:'32px', height:'32px', borderRadius:'50%', background:'#e8f4fd', display:'flex', alignItems:'center', justifyContent:'center', fontSize: child.grade ? '11px' : '13px', fontWeight:'800', color:'#0066cc', fontFamily:'Manrope, sans-serif' } }, child.grade || child.name[0]),
 React.createElement('div', null,
-React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, child.name),
-React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [child.grade, child.school].filter(Boolean).join(' · ') || '—')
+React.createElement('div', { style:{ fontSize:'14px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, child.name)
 )
 );
 })
@@ -3013,7 +3012,7 @@ React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', border
                 candidates.map(function(stu){
                   return React.createElement('button', { key:stu.id, onClick: function(){ addStudentToClass(cls.id, stu.id); }, style:{ background:'#f9f9f9', border:'1px solid #e5e7eb', borderRadius:'7px', padding:'6px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', textAlign:'left', cursor:'pointer', display:'flex', alignItems:'center', gap:'8px' } },
                     React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, stu.name),
-                    React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', fontSize:'11px' } }, [stu.school, stu.grade, stu.phone].filter(Boolean).join(' · ')),
+                    React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', fontSize:'11px' } }, [stu.school, stu.grade, B2Utils.formatPhone(stu.phone)].filter(Boolean).join(' · ')),
                     React.createElement('span', { style:{ marginLeft:'auto', color:'#E60012', fontWeight:'800' } }, '+ 추가')
                   );
                 })
@@ -3532,12 +3531,10 @@ React.createElement('input', {
             else { setViewsExpandedId(st.id); loadStudentViews(st.id); }
           }
         },
-          React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name[0]),
+          React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.grade || st.name[0]),
           React.createElement('div', { style:{ flex:1, minWidth:0 } },
-            React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.name),
-            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, [st.school, st.grade, st.phone].filter(Boolean).join(' · ') || '정보 없음')
+            React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.name)
           ),
-          st.grade && React.createElement('span', { style:{ background:'#1A1A1A', color:'#fff', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, st.grade),
           React.createElement('span', { style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', transition:'transform 0.2s', transform: isOpen?'rotate(180deg)':'none', flexShrink:0 } }, '▾')
         ),
 
@@ -4399,7 +4396,7 @@ kakaoTarget && (function(){
       items.map(function(it, i){
         var stu = dbStudents.find(function(x){ return String(x.id) === it.student_id; }) || {};
         return React.createElement('div', { key:i, style:{ marginBottom:'10px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' } },
-          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, (stu.name || '학생') + ' · ' + (it.parent_phone || '연락처 없음')),
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, (stu.name || '학생') + ' · ' + (B2Utils.formatPhone(it.parent_phone) || '연락처 없음')),
           React.createElement('pre', { style:{ margin:0, fontSize:'12px', color:'#374151', whiteSpace:'pre-wrap', fontFamily:'Manrope, sans-serif', lineHeight:'1.6', background:'#fef7e0', padding:'10px', borderRadius:'6px' } }, it.message_content)
         );
       }),

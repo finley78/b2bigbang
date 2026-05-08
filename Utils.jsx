@@ -284,5 +284,20 @@
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(u.id)) ? u.id : null;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId };
+  // 전화번호 표시 형식 통일 (000-0000-0000)
+  // 휴대폰 11자리는 3-4-4, 10자리는 3-3-4 또는 02-XXXX-XXXX, 그 외는 원본 그대로
+  function formatPhone(v) {
+    if (v == null || v === '') return '';
+    var d = String(v).replace(/\D/g, '');
+    if (d.length === 11) return d.slice(0,3) + '-' + d.slice(3,7) + '-' + d.slice(7);
+    if (d.length === 10) {
+      if (d.slice(0,2) === '02') return d.slice(0,2) + '-' + d.slice(2,6) + '-' + d.slice(6);
+      return d.slice(0,3) + '-' + d.slice(3,6) + '-' + d.slice(6);
+    }
+    if (d.length === 9 && d.slice(0,2) === '02') return d.slice(0,2) + '-' + d.slice(2,5) + '-' + d.slice(5);
+    if (d.length === 8) return d.slice(0,4) + '-' + d.slice(4);
+    return String(v);
+  }
+
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
 })();
