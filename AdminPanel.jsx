@@ -1874,7 +1874,8 @@ return React.createElement('div', { style:{ background:'#1A1A1A', borderRadius:'
     },
       React.createElement('option', { value:'' }, '선택 안 함'),
       (dbTeachers || []).filter(function(t){ return t.role === 'teacher'; }).map(function(t){
-        return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님');
+        // 반(classes.teacher_id)은 teachers 테이블 ID로 묶이므로 students.id가 아닌 teachers.id를 dropdown value로 사용
+        return React.createElement('option', { key:t.id, value:String(getTeacherClassId(t)) }, t.name || t.email || '선생님');
       })
     ),
     React.createElement('span', { style: Object.assign({}, bulkLabelS, { minWidth:'40px' }) }, '반'),
