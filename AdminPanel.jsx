@@ -3689,9 +3689,9 @@ tab==='leveltest' && (function(){
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '내신 점수 범위 (대상)'),
           React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
-            React.createElement('input', { type:'number', min:'0', max:'100', value:adminLtDraft.min_score, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { min_score:e.target.value })); }, style:Object.assign({}, inputS, { width:'80px' }) }),
+            React.createElement('input', { type:'number', min:'0', max:'100', value:adminLtDraft.min_score, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { min_score:window.B2Utils.stripLeadingZero(e.target.value) })); }, style:Object.assign({}, inputS, { width:'80px' }) }),
             React.createElement('span', { style:{ color:'#6b7280', fontSize:'13px' } }, '점 ~'),
-            React.createElement('input', { type:'number', min:'0', max:'100', value:adminLtDraft.max_score, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { max_score:e.target.value })); }, style:Object.assign({}, inputS, { width:'80px' }) }),
+            React.createElement('input', { type:'number', min:'0', max:'100', value:adminLtDraft.max_score, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { max_score:window.B2Utils.stripLeadingZero(e.target.value) })); }, style:Object.assign({}, inputS, { width:'80px' }) }),
             React.createElement('span', { style:{ color:'#6b7280', fontSize:'13px' } }, '점')
           ),
           React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' } }, '학생이 입력한 내신 점수가 이 범위에 들면 매칭됩니다.')
@@ -3707,7 +3707,7 @@ tab==='leveltest' && (function(){
       adminLtDraft.kind !== 'homework' && React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'10px' } },
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 문제 수'),
-          React.createElement('input', { type:'number', min:'0', value:adminLtDraft.question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { question_count:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+          React.createElement('input', { type:'number', min:'0', value:adminLtDraft.question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { question_count:window.B2Utils.stripLeadingZero(e.target.value) })); }, style:Object.assign({}, inputS, { width:'100%' }) })
         ),
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '보기 수'),
@@ -3719,11 +3719,11 @@ tab==='leveltest' && (function(){
       adminLtDraft.kind !== 'homework' && React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px' } },
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '서술형 문제 수'),
-          React.createElement('input', { type:'number', min:'0', value:adminLtDraft.text_question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { text_question_count:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+          React.createElement('input', { type:'number', min:'0', value:adminLtDraft.text_question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { text_question_count:window.B2Utils.stripLeadingZero(e.target.value) })); }, style:Object.assign({}, inputS, { width:'100%' }) })
         ),
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시간 제한 (분, 0=무제한)'),
-          React.createElement('input', { type:'number', min:'0', value:adminLtDraft.time_limit_minutes, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { time_limit_minutes:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+          React.createElement('input', { type:'number', min:'0', value:adminLtDraft.time_limit_minutes, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { time_limit_minutes:window.B2Utils.stripLeadingZero(e.target.value) })); }, style:Object.assign({}, inputS, { width:'100%' }) })
         )
       ),
 
@@ -3742,7 +3742,7 @@ tab==='leveltest' && (function(){
             on && React.createElement('div', { style:{ display:'flex', gap:'10px', marginTop:'8px', paddingLeft:'26px' } },
               React.createElement('div', { style:{ flex:1 } },
                 React.createElement('label', { style:{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' } }, '문항 수'),
-                React.createElement('input', { type:'number', min:'1', value: adminLtDraft.question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { question_count: e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+                React.createElement('input', { type:'number', min:'1', value: adminLtDraft.question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { question_count: window.B2Utils.stripLeadingZero(e.target.value) })); }, style:Object.assign({}, inputS, { width:'100%' }) })
               ),
               React.createElement('div', { style:{ flex:1 } },
                 React.createElement('label', { style:{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' } }, '보기 수'),
@@ -3764,7 +3764,7 @@ tab==='leveltest' && (function(){
             ),
             on && React.createElement('div', { style:{ marginTop:'8px', paddingLeft:'26px' } },
               React.createElement('label', { style:{ fontSize:'11px', color:'#6b7280', display:'block', marginBottom:'2px' } }, '문항 수'),
-              React.createElement('input', { type:'number', min:'1', value: adminLtDraft.text_question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { text_question_count: e.target.value })); }, style:Object.assign({}, inputS, { width:'120px' }) })
+              React.createElement('input', { type:'number', min:'1', value: adminLtDraft.text_question_count, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { text_question_count: window.B2Utils.stripLeadingZero(e.target.value) })); }, style:Object.assign({}, inputS, { width:'120px' }) })
             )
           );
         })(),
@@ -4299,7 +4299,7 @@ function GradingForm({ exam, submission, onSave }) {
     React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'8px' } },
       React.createElement('div', { style:{ flex:1 } },
         React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'4px' } }, '총점'),
-        React.createElement('input', { type:'number', min:'0', value:totalScore, onChange:function(e){ setTotalScore(e.target.value); }, placeholder:'예: 85', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'5px 8px', fontSize:'12px', boxSizing:'border-box' } })
+        React.createElement('input', { type:'number', min:'0', value:totalScore, onChange:function(e){ setTotalScore(window.B2Utils.stripLeadingZero(e.target.value)); }, placeholder:'예: 85', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'5px 8px', fontSize:'12px', boxSizing:'border-box' } })
       ),
       React.createElement('div', { style:{ flex:2 } },
         React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'4px' } }, '학생에게 보일 코멘트'),

@@ -328,5 +328,12 @@
     return v;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, localizePartOfSpeech, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE };
+  // 숫자 입력칸에서 "0이 있던 자리에 10 입력" → "010" 되는 문제 방지: 뒤에 다른 숫자가 오는 앞 0들을 제거
+  // 빈 문자열, "0" 단독은 그대로 둠. type="number" 입력의 onChange에 사용
+  function stripLeadingZero(v) {
+    var s = String(v == null ? '' : v);
+    return s.replace(/^0+(\d)/, '$1');
+  }
+
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, hashPassword, verifyPassword, migrateIfPlain, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, localizePartOfSpeech, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero };
 })();

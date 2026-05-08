@@ -2485,7 +2485,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
                 React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'12px' } }, '※ 선행 학습 중이라면 더 높은 학년/학기를 선택할 수 있습니다.'),
                 React.createElement('div', { style:{ marginBottom:'14px' } },
                   React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '내신 성적 (0~100점) *'),
-                  React.createElement('input', { type:'number', min:'0', max:'100', value:ltApplyDraft.score, onChange:function(e){ setLtApplyDraft(Object.assign({}, ltApplyDraft, { score:e.target.value })); }, placeholder:'예: 85', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })
+                  React.createElement('input', { type:'number', min:'0', max:'100', value:ltApplyDraft.score, onChange:function(e){ setLtApplyDraft(Object.assign({}, ltApplyDraft, { score:window.B2Utils.stripLeadingZero(e.target.value) })); }, placeholder:'예: 85', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } })
                 ),
 
                 React.createElement('div', { style:{ display:'flex', gap:'8px' } },

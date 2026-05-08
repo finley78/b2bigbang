@@ -742,7 +742,7 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
         ),
         React.createElement('div', { style:{ marginBottom:'14px' } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '내신 성적 (0~100점) *'),
-          React.createElement('input', { type:'number', min:'0', max:'100', value:draft.score, onChange:function(e){ setDraft(Object.assign({}, draft, { score:e.target.value })); }, placeholder:'예: 85', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } }),
+          React.createElement('input', { type:'number', min:'0', max:'100', value:draft.score, onChange:function(e){ setDraft(Object.assign({}, draft, { score:window.B2Utils.stripLeadingZero(e.target.value) })); }, placeholder:'예: 85', style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'14px', fontFamily:'Manrope, sans-serif', boxSizing:'border-box' } }),
           React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginTop:'4px' } }, '※ 입력하신 점수 범위에 맞는 시험지가 자동으로 선별됩니다.')
         ),
         React.createElement('div', { style:{ display:'flex', gap:'8px' } },

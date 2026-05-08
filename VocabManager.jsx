@@ -163,8 +163,9 @@
       setSaving(false);
     }
 
-    return React.createElement('div', { style:STYLES.modalBackdrop, onClick:props.onClose },
-      React.createElement('div', { style:STYLES.modalCard, onClick:function(e){ e.stopPropagation(); } },
+    // 입력 도중 실수로 배경 클릭 시 작성 내용이 사라지지 않도록 backdrop 클릭 닫기 비활성화 (X/취소 버튼으로만 닫기)
+    return React.createElement('div', { style:STYLES.modalBackdrop },
+      React.createElement('div', { style:STYLES.modalCard },
         React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
         React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 18px', fontFamily:'Manrope, sans-serif' } }, props.list ? '단어장 편집' : '새 단어장 만들기'),
 
@@ -183,7 +184,7 @@
           ),
           React.createElement('div', null,
             React.createElement('div', { style:STYLES.label }, '유닛 단위'),
-            React.createElement('input', { type:'number', min:1, max:200, value:draft.unit_size, onChange:function(e){ set('unit_size', e.target.value); }, placeholder:'20', style:STYLES.input })
+            React.createElement('input', { type:'number', min:1, max:200, value:draft.unit_size, onChange:function(e){ set('unit_size', window.B2Utils.stripLeadingZero(e.target.value)); }, placeholder:'20', style:STYLES.input })
           )
         ),
         React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', marginBottom:'12px', fontFamily:'Manrope, sans-serif', lineHeight:'1.5' } },
@@ -621,8 +622,9 @@
       setSaving(false);
     }
 
-    return React.createElement('div', { style:STYLES.modalBackdrop, onClick:props.onClose },
-      React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(720px, calc(100% - 32px))' }), onClick:function(e){ e.stopPropagation(); } },
+    // 입력 도중 실수로 배경 클릭 시 작성 내용이 사라지지 않도록 backdrop 클릭 닫기 비활성화 (X/취소 버튼으로만 닫기)
+    return React.createElement('div', { style:STYLES.modalBackdrop },
+      React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(720px, calc(100% - 32px))' }) },
         React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
         React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 14px', fontFamily:'Manrope, sans-serif' } }, '단어 추가'),
 
@@ -739,8 +741,9 @@
       setSaving(false);
     }
 
-    return React.createElement('div', { style:STYLES.modalBackdrop, onClick:props.onClose },
-      React.createElement('div', { style:STYLES.modalCard, onClick:function(e){ e.stopPropagation(); } },
+    // 입력 도중 실수로 배경 클릭 시 작성 내용이 사라지지 않도록 backdrop 클릭 닫기 비활성화 (X/취소 버튼으로만 닫기)
+    return React.createElement('div', { style:STYLES.modalBackdrop },
+      React.createElement('div', { style:STYLES.modalCard },
         React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
         React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 18px', fontFamily:'Manrope, sans-serif' } }, '단어 편집'),
 
@@ -953,8 +956,9 @@
       ? students.filter(function(s){ return (s.name || '').toLowerCase().indexOf(studentSearch.toLowerCase()) >= 0; })
       : students;
 
-    return React.createElement('div', { style:STYLES.modalBackdrop, onClick:props.onClose },
-      React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(640px, calc(100% - 32px))' }), onClick:function(e){ e.stopPropagation(); } },
+    // 입력 도중 실수로 배경 클릭 시 작성 내용이 사라지지 않도록 backdrop 클릭 닫기 비활성화 (X/취소 버튼으로만 닫기)
+    return React.createElement('div', { style:STYLES.modalBackdrop },
+      React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(640px, calc(100% - 32px))' }) },
         React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
         React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 14px', fontFamily:'Manrope, sans-serif' } }, isEdit ? '시험 편집' : '시험 만들기'),
         React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '유닛 ' + props.unitIndex + ' · 단어 ' + props.unitWordCount + '개'),
@@ -997,7 +1001,7 @@
             [['multiple_choice_count','객관식'], ['spelling_count','스펠링 채우기'], ['writing_count','뜻 보고 쓰기'], ['listening_count','듣고 쓰기']].map(function(m){
               return React.createElement('div', { key:m[0], style:{ display:'flex', alignItems:'center', gap:'8px' } },
                 React.createElement('label', { style:{ flex:1, fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.7)', fontFamily:'Manrope, sans-serif' } }, m[1]),
-                React.createElement('input', { type:'number', min:0, max:props.unitWordCount, value:draft[m[0]] || 0, onChange:function(e){ set(m[0], e.target.value); }, style:Object.assign({}, STYLES.input, { width:'70px' }) })
+                React.createElement('input', { type:'number', min:0, max:props.unitWordCount, value:draft[m[0]] || 0, onChange:function(e){ set(m[0], window.B2Utils.stripLeadingZero(e.target.value)); }, style:Object.assign({}, STYLES.input, { width:'70px' }) })
               );
             })
           ),
@@ -1044,11 +1048,11 @@
           React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'14px' } },
             React.createElement('div', null,
               React.createElement('div', { style:STYLES.label }, '단어당 시간 (초)'),
-              React.createElement('input', { type:'number', min:5, max:120, value:draft.seconds_per_question || 30, onChange:function(e){ set('seconds_per_question', e.target.value); }, style:STYLES.input })
+              React.createElement('input', { type:'number', min:5, max:120, value:draft.seconds_per_question || 30, onChange:function(e){ set('seconds_per_question', window.B2Utils.stripLeadingZero(e.target.value)); }, style:STYLES.input })
             ),
             React.createElement('div', null,
               React.createElement('div', { style:STYLES.label }, '정답 표시 시간 (초)'),
-              React.createElement('input', { type:'number', min:0, max:10, value:draft.show_answer_seconds || 2, onChange:function(e){ set('show_answer_seconds', e.target.value); }, style:STYLES.input })
+              React.createElement('input', { type:'number', min:0, max:10, value:draft.show_answer_seconds || 2, onChange:function(e){ set('show_answer_seconds', window.B2Utils.stripLeadingZero(e.target.value)); }, style:STYLES.input })
             )
           ),
           totalQ > 0 && React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginBottom:'14px', padding:'8px 10px', background:'#f8fafc', borderRadius:'6px' } },
