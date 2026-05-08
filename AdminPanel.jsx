@@ -87,6 +87,7 @@ const [filterSchool, setFilterSchool] = React.useState('전체');
 const [filterLevel, setFilterLevel] = React.useState('전체');
 const [filterGrade, setFilterGrade] = React.useState('전체');
 const [filterTeacher, setFilterTeacher] = React.useState('전체');
+const [studentNameSearch, setStudentNameSearch] = React.useState('');
 const [sortStudentBy, setSortStudentBy] = React.useState('created_desc');
 const [selectedIds, setSelectedIds] = React.useState([]);
 const [bulkLevel, setBulkLevel] = React.useState('');
@@ -1763,6 +1764,14 @@ return React.createElement('option', { key:t.id, value:String(t.id) }, t.name ||
 })
 ),
 
+React.createElement('input', {
+type:'text',
+value: studentNameSearch,
+onChange: function(e){ setStudentNameSearch(e.target.value); setSelectedIds([]); },
+placeholder:'🔍 이름 검색',
+style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'160px' }
+}),
+
 React.createElement('select', {
 value: sortStudentBy,
 onChange: function(e) { setSortStudentBy(e.target.value); },
@@ -2027,7 +2036,9 @@ return React.createElement('div', { style:{ background:'#1A1A1A', borderRadius:'
 })(),
 
 (function() {
+var nameQ = (studentNameSearch || '').trim().toLowerCase();
 var filtered = studentSource.filter(function(st) {
+if (nameQ && !(st.name || '').toLowerCase().includes(nameQ)) return false;
 if (filterLevel !== '전체') {
 var lvGrades = SCHOOL_LEVELS[filterLevel].grades;
 if (!lvGrades.includes(st.grade)) return false;
@@ -2095,11 +2106,11 @@ React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', 
 ),
 React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, `전체 선택 (${filtered.length}명)`)
 ),
-React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'12px' } },
+React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'12px' } },
 filtered.map(function(st) {
 var isSelected = selectedIds.includes(st.id);
 var isWithdrawn = studentViewMode === 'withdrawn';
-return React.createElement('div', { key:st.id, style:{ ...cardS, marginBottom:0, border: isSelected?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s', opacity: isWithdrawn ? 0.78 : 1, alignSelf:'start', gridColumn: expandedStudent===st.id ? '1 / -1' : 'auto' } },
+return React.createElement('div', { key:st.id, style:{ ...cardS, marginBottom:0, border: isSelected?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s', opacity: isWithdrawn ? 0.78 : 1, alignSelf:'start', gridColumn: expandedStudent===st.id ? '1 / -1' : 'auto', order: expandedStudent===st.id ? -1 : 0 } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
 React.createElement('div', {
 onClick: function() { setSelectedIds(function(prev){ return isSelected?prev.filter(function(i){ return i!==st.id; }):[...prev,st.id]; }); },
@@ -2120,7 +2131,8 @@ onClick: function() { setExpandedStudent(expandedStudent===st.id?null:st.id); },
 style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', cursor:'pointer', transition:'transform 0.2s', transform: expandedStudent===st.id?'rotate(180deg)':'none', flexShrink:0 }
 }, '▾')
 ),
-expandedStudent===st.id && React.createElement('div', { style:{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid rgba(0,0,0,0.08)' } },
+expandedStudent===st.id && React.createElement('div', { style:{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid rgba(0,0,0,0.08)', display:'grid', gridTemplateColumns:'minmax(0,1fr) minmax(0,1fr)', gap:'18px' } },
+React.createElement('div', { style:{ minWidth:0 } },
 React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px' } },
 React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '학년'),
 React.createElement('select', {
@@ -2169,26 +2181,27 @@ style:{ background: addCourseStudentId===st.id?'#1A1A1A':'#E60012', color:'#fff'
 }, addCourseStudentId===st.id ? '강좌 닫기' : '+ 개별 강좌 추가')
 )
 ),
-// 담당 선생님 — 과목별로 현재 배정 표시 + 클릭 시 선생님 팝업
+// 담당 선생님 — 과목별 모든 배정 표시 (여러 선생님 동시 가능) + 클릭 시 추가/변경 팝업
 (st.subjects || []).length > 0 && React.createElement('div', { style:{ marginBottom:'8px' } },
-React.createElement('label', { style:{ ...labelS, marginBottom:'4px' } }, '담당 선생님 (과목 클릭 시 변경)'),
+React.createElement('label', { style:{ ...labelS, marginBottom:'4px' } }, '담당 선생님 (과목 클릭 시 추가)'),
 React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px' } },
 (st.subjects || []).map(function(sub) {
-var myClass = (teacherClasses || []).find(function(c){ return c.subject === sub && (classStudents[c.id] || []).includes(st.id); });
-var profileForClass = myClass ? (dbTeacherProfiles || []).find(function(p){ return String(p.id) === String(myClass.teacher_id); }) : null;
-var label = myClass
-  ? (profileForClass ? profileForClass.name : '선생님') + ' · ' + (myClass.name || '반')
-  : '미배정';
+var myClasses = (teacherClasses || []).filter(function(c){ return c.subject === sub && (classStudents[c.id] || []).includes(st.id); });
 return React.createElement('button', {
   key: sub,
   onClick: function(){ setTeacherPicker({ studentId: st.id, subject: sub }); },
-  style:{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 10px', fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.85)', cursor:'pointer', fontFamily:'Manrope, sans-serif', textAlign:'left' }
+  style:{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px 10px', fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.85)', cursor:'pointer', fontFamily:'Manrope, sans-serif', textAlign:'left', gap:'8px' }
 },
-  React.createElement('span', { style:{ display:'flex', alignItems:'center', gap:'6px' } },
-    React.createElement('span', { style:{ background:'#FFEBED', color:'#E60012', borderRadius:'5px', padding:'1px 6px', fontSize:'11px', fontWeight:'800' } }, sub),
-    React.createElement('span', { style:{ color: myClass ? '#1A1A1A' : 'rgba(0,0,0,0.4)', fontWeight: myClass ? '700' : '500' } }, label)
+  React.createElement('span', { style:{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap', flex:1, minWidth:0 } },
+    React.createElement('span', { style:{ background:'#FFEBED', color:'#E60012', borderRadius:'5px', padding:'1px 6px', fontSize:'11px', fontWeight:'800', flexShrink:0 } }, sub),
+    myClasses.length === 0
+      ? React.createElement('span', { style:{ color:'rgba(0,0,0,0.4)', fontWeight:500 } }, '미배정')
+      : myClasses.map(function(c){
+          var prof = (dbTeacherProfiles || []).find(function(p){ return String(p.id) === String(c.teacher_id); });
+          return React.createElement('span', { key:c.id, style:{ background:'#f3f4f6', color:'#1A1A1A', borderRadius:'5px', padding:'1px 6px', fontSize:'11px', fontWeight:700 } }, (prof ? prof.name : '선생님') + ' · ' + (c.name || '반'));
+        })
   ),
-  React.createElement('span', { style:{ color:'rgba(0,0,0,0.35)', fontSize:'11px' } }, myClass ? '변경 ›' : '배정 ›')
+  React.createElement('span', { style:{ color:'rgba(0,0,0,0.35)', fontSize:'11px', flexShrink:0 } }, '+ 추가/변경 ›')
 );
 })
 )
@@ -2283,6 +2296,35 @@ addCourseStudentId===st.id && React.createElement('div', { style:{ background:'#
       });
     })()
   )
+)
+)
+),
+React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'14px', minWidth:0 } },
+React.createElement('div', null,
+React.createElement('label', { style:labelS }, '특이사항·메모'),
+(function(){
+  var notes = (adminRecords || []).filter(function(n){ return String(n.student_id) === String(st.id); });
+  if (notes.length === 0) return React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', padding:'10px 12px', background:'#f9f9f9', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } }, '등록된 메모 없음');
+  return React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px', maxHeight:'200px', overflowY:'auto' } },
+    notes.slice(0, 10).map(function(n){
+      return React.createElement('div', { key:n.id, style:{ background:'#f9f9f9', borderRadius:'8px', padding:'8px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'6px', marginBottom:'3px' } },
+          React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', color:'#1A1A1A' } }, n.kind || '메모'),
+          React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)' } }, (n.note_date || '').slice(0,10))
+        ),
+        React.createElement('div', { style:{ color:'rgba(0,0,0,0.78)', whiteSpace:'pre-wrap', lineHeight:1.45 } }, n.content || '')
+      );
+    })
+  );
+})()
+),
+React.createElement('div', null,
+React.createElement('label', { style:labelS }, '최근 시험 성적'),
+React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', padding:'10px 12px', background:'#f9f9f9', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } }, '시험 성적은 곧 표시됩니다')
+),
+React.createElement('div', null,
+React.createElement('label', { style:labelS }, '출결'),
+React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', padding:'10px 12px', background:'#f9f9f9', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } }, '출결은 곧 표시됩니다')
 )
 )
 ),
@@ -4313,13 +4355,13 @@ teacherPicker && (function(){
   var teacherKeys = Object.keys(byTeacher);
 
   async function assignToClass(cls) {
-    // 같은 과목의 다른 반에서는 제거 (중복 방지)
-    var otherSameSubject = (teacherClasses || []).filter(function(c){ return c.subject === teacherPicker.subject && c.id !== cls.id && (classStudents[c.id] || []).includes(stForPicker.id); });
-    for (var i = 0; i < otherSameSubject.length; i++) {
-      try { await removeStudentFromClass(otherSameSubject[i].id, stForPicker.id); } catch(e) {}
+    var on = (classStudents[cls.id] || []).includes(stForPicker.id);
+    if (on) {
+      try { await removeStudentFromClass(cls.id, stForPicker.id); } catch(e) {}
+    } else {
+      await addStudentToClass(cls.id, stForPicker.id);
     }
-    await addStudentToClass(cls.id, stForPicker.id);
-    setTeacherPicker(null);
+    showSaved();
   }
 
   return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }, onClick: function(){ setTeacherPicker(null); } },
@@ -4328,7 +4370,7 @@ teacherPicker && (function(){
         React.createElement('h3', { style:{ margin:0, fontSize:'15px', fontFamily:'Manrope, sans-serif', fontWeight:'800', color:'#1A1A1A' } }, stForPicker.name + ' · ' + teacherPicker.subject + ' 담당 선생님'),
         React.createElement('button', { onClick:function(){ setTeacherPicker(null); }, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.5)' } }, '×')
       ),
-      React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', margin:'0 0 14px' } }, '반을 선택하면 ' + teacherPicker.subject + '의 다른 반에서는 자동으로 빠집니다.'),
+      React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', margin:'0 0 14px' } }, '여러 반에 동시 배정할 수 있어요. 클릭해서 추가/해제하세요.'),
       teacherKeys.length === 0
         ? React.createElement('div', { style:{ padding:'20px', background:'#f9fafb', borderRadius:'8px', fontSize:'13px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', textAlign:'center' } }, teacherPicker.subject + ' 과목의 반이 없습니다. 선생님 페이지에서 먼저 반을 만들어 주세요.')
         : teacherKeys.map(function(tkey){
@@ -4345,7 +4387,7 @@ teacherPicker && (function(){
                     style:{ display:'flex', justifyContent:'space-between', alignItems:'center', background: on ? '#FFEBED' : '#fff', border:'1.5px solid ' + (on ? '#E60012' : '#d6dbde'), borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontWeight:'700', color:'#1A1A1A', cursor:'pointer', fontFamily:'Manrope, sans-serif', textAlign:'left' }
                   },
                     React.createElement('span', null, (cls.name || '반') + (cls.grade ? ' · ' + cls.grade : '')),
-                    on ? React.createElement('span', { style:{ color:'#E60012', fontSize:'11px', fontWeight:'800' } }, '✓ 현재 배정') : React.createElement('span', { style:{ color:'rgba(0,0,0,0.4)', fontSize:'11px' } }, '선택 ›')
+                    on ? React.createElement('span', { style:{ color:'#E60012', fontSize:'11px', fontWeight:'800' } }, '✓ 배정됨 (해제)') : React.createElement('span', { style:{ color:'rgba(0,0,0,0.4)', fontSize:'11px' } }, '+ 추가')
                   );
                 })
               )
