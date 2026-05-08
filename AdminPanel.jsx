@@ -68,6 +68,7 @@ const [editingCourse, setEditingCourse] = React.useState(null);
 const [courseFilterSubject, setCourseFilterSubject] = React.useState('전체');
 const [courseFilterLevel, setCourseFilterLevel] = React.useState('전체');
 const [courseFilterGrade, setCourseFilterGrade] = React.useState('전체');
+const [courseFilterTeacher, setCourseFilterTeacher] = React.useState('전체');
 const [courseFilterSearch, setCourseFilterSearch] = React.useState('');
 const [expandedStudent, setExpandedStudent] = React.useState(null);
 const [saveToast, setSaveToast] = React.useState(false);
@@ -1633,8 +1634,16 @@ React.createElement('select', {
   React.createElement('option', { value:'전체' }, '학년 전체'),
   (courseFilterLevel!=='전체' ? (SCHOOL_LEVELS[courseFilterLevel]||{grades:[]}).grades : []).map(function(g){ return React.createElement('option', { key:g, value:g }, g); })
 ),
-(courseFilterSubject!=='전체' || courseFilterLevel!=='전체' || courseFilterGrade!=='전체' || courseFilterSearch.trim()) && React.createElement('button', {
-  onClick: function(){ setCourseFilterSubject('전체'); setCourseFilterLevel('전체'); setCourseFilterGrade('전체'); setCourseFilterSearch(''); },
+React.createElement('select', {
+  value: courseFilterTeacher,
+  onChange: function(e){ setCourseFilterTeacher(e.target.value); },
+  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'전체' }, '선생님 전체'),
+  dbTeachers.filter(function(t){ return t.role==='teacher'; }).map(function(t){ return React.createElement('option', { key:t.id, value:t.name }, t.name); })
+),
+(courseFilterSubject!=='전체' || courseFilterLevel!=='전체' || courseFilterGrade!=='전체' || courseFilterTeacher!=='전체' || courseFilterSearch.trim()) && React.createElement('button', {
+  onClick: function(){ setCourseFilterSubject('전체'); setCourseFilterLevel('전체'); setCourseFilterGrade('전체'); setCourseFilterTeacher('전체'); setCourseFilterSearch(''); },
   style:{ background:'transparent', color:'rgba(0,0,0,0.55)', border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
 }, '초기화')
 ),
@@ -1644,6 +1653,7 @@ var filtered = state.courses.filter(function(c){
   if (courseFilterSubject !== '전체' && c.subject !== courseFilterSubject) return false;
   if (courseFilterLevel !== '전체' && c.level !== courseFilterLevel) return false;
   if (courseFilterGrade !== '전체' && c.grade !== courseFilterGrade) return false;
+  if (courseFilterTeacher !== '전체' && c.teacher !== courseFilterTeacher) return false;
   if (q) {
     var hay = [c.name, c.teacher, c.subject, c.grade].filter(Boolean).join(' ').toLowerCase();
     if (hay.indexOf(q) < 0) return false;
