@@ -89,6 +89,7 @@ const [bulkSchoolCustom, setBulkSchoolCustom] = React.useState('');
 const [bulkSubjects, setBulkSubjects] = React.useState([]);
 const [bulkTeacherId, setBulkTeacherId] = React.useState('');
 const [bulkClassId, setBulkClassId] = React.useState('');
+const [teacherPicker, setTeacherPicker] = React.useState(null); // { studentId, subject } 팝업 열기 전용
 const [dbStudents, setDbStudents] = React.useState([]);
 const [dbWithdrawnStudents, setDbWithdrawnStudents] = React.useState([]);
 const [studentViewMode, setStudentViewMode] = React.useState('active'); // 'active' | 'withdrawn'
@@ -1782,7 +1783,8 @@ React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)',
 )
 ),
 
-selectedIds.length > 0 && (function() {
+// PC 전용: 일괄 배정 패널 (모바일에서는 학생 카드 안의 과목 → 선생님 팝업으로 처리)
+selectedIds.length > 0 && !adminIsMobile && (function() {
 var bulkLabelS = { fontSize:'11px', fontWeight:'700', color:'rgba(255,255,255,0.6)', fontFamily:'Manrope, sans-serif', minWidth:'70px' };
 var bulkSelectS = { border:'none', borderRadius:'6px', padding:'7px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'rgba(255,255,255,0.15)', color:'#fff', outline:'none', cursor:'pointer' };
 var bulkInputS = Object.assign({}, bulkSelectS, { cursor:'text', minWidth:'140px' });
@@ -2124,6 +2126,30 @@ React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap',
 SUBJECTS.map(function(sub) {
 return React.createElement('button', { key:sub, onClick:function(){ toggleSubject(st.id, sub); },
 style:{ background:(st.subjects||[]).includes(sub)?'#E60012':'#f2f0eb', color:(st.subjects||[]).includes(sub)?'#fff':'rgba(0,0,0,0.7)', border:(st.subjects||[]).includes(sub)?'2px solid #E60012':'2px solid transparent', borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' } }, sub);
+})
+)
+),
+// 담당 선생님 — 과목별로 현재 배정 표시 + 클릭 시 선생님 팝업
+(st.subjects || []).length > 0 && React.createElement('div', { style:{ marginBottom:'14px' } },
+React.createElement('label', { style:{ ...labelS, marginBottom:'8px' } }, '담당 선생님 (과목 클릭 시 변경)'),
+React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px' } },
+(st.subjects || []).map(function(sub) {
+var myClass = (teacherClasses || []).find(function(c){ return c.subject === sub && (classStudents[c.id] || []).includes(st.id); });
+var profileForClass = myClass ? (dbTeacherProfiles || []).find(function(p){ return String(p.id) === String(myClass.teacher_id); }) : null;
+var label = myClass
+  ? (profileForClass ? profileForClass.name : '선생님') + ' · ' + (myClass.name || '반')
+  : '미배정';
+return React.createElement('button', {
+  key: sub,
+  onClick: function(){ setTeacherPicker({ studentId: st.id, subject: sub }); },
+  style:{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', border:'1px solid #d6dbde', borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontWeight:'700', color:'rgba(0,0,0,0.85)', cursor:'pointer', fontFamily:'Manrope, sans-serif', textAlign:'left' }
+},
+  React.createElement('span', { style:{ display:'flex', alignItems:'center', gap:'8px' } },
+    React.createElement('span', { style:{ background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'800' } }, sub),
+    React.createElement('span', { style:{ color: myClass ? '#1A1A1A' : 'rgba(0,0,0,0.4)', fontWeight: myClass ? '700' : '500' } }, label)
+  ),
+  React.createElement('span', { style:{ color:'rgba(0,0,0,0.35)', fontSize:'12px' } }, myClass ? '변경 ›' : '배정 ›')
+);
 })
 )
 ),
@@ -4229,6 +4255,63 @@ kakaoTarget && (function(){
           setKakaoTarget(null);
         }, style:{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📨 발송 이력 저장')
       )
+    )
+  );
+})(),
+
+// 담당 선생님 배정 팝업 (학생 카드 → 과목 클릭 시 열림)
+teacherPicker && (function(){
+  var stForPicker = dbStudents.find(function(s){ return String(s.id) === String(teacherPicker.studentId); });
+  if (!stForPicker) return null;
+  // 해당 과목으로 묶인 반들 → 선생님별로 그룹
+  var classesForSubject = (teacherClasses || []).filter(function(c){ return c.subject === teacherPicker.subject; });
+  var byTeacher = {};
+  classesForSubject.forEach(function(c){
+    var key = String(c.teacher_id);
+    if (!byTeacher[key]) byTeacher[key] = { teacher: (dbTeacherProfiles || []).find(function(p){ return String(p.id) === key; }), classes: [] };
+    byTeacher[key].classes.push(c);
+  });
+  var teacherKeys = Object.keys(byTeacher);
+
+  async function assignToClass(cls) {
+    // 같은 과목의 다른 반에서는 제거 (중복 방지)
+    var otherSameSubject = (teacherClasses || []).filter(function(c){ return c.subject === teacherPicker.subject && c.id !== cls.id && (classStudents[c.id] || []).includes(stForPicker.id); });
+    for (var i = 0; i < otherSameSubject.length; i++) {
+      try { await removeStudentFromClass(otherSameSubject[i].id, stForPicker.id); } catch(e) {}
+    }
+    await addStudentToClass(cls.id, stForPicker.id);
+    setTeacherPicker(null);
+  }
+
+  return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }, onClick: function(){ setTeacherPicker(null); } },
+    React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'20px', maxWidth:'440px', width:'100%', maxHeight:'82vh', overflowY:'auto' }, onClick: function(e){ e.stopPropagation(); } },
+      React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' } },
+        React.createElement('h3', { style:{ margin:0, fontSize:'15px', fontFamily:'Manrope, sans-serif', fontWeight:'800', color:'#1A1A1A' } }, stForPicker.name + ' · ' + teacherPicker.subject + ' 담당 선생님'),
+        React.createElement('button', { onClick:function(){ setTeacherPicker(null); }, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.5)' } }, '×')
+      ),
+      React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', margin:'0 0 14px' } }, '반을 선택하면 ' + teacherPicker.subject + '의 다른 반에서는 자동으로 빠집니다.'),
+      teacherKeys.length === 0
+        ? React.createElement('div', { style:{ padding:'20px', background:'#f9fafb', borderRadius:'8px', fontSize:'13px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', textAlign:'center' } }, teacherPicker.subject + ' 과목의 반이 없습니다. 선생님 페이지에서 먼저 반을 만들어 주세요.')
+        : teacherKeys.map(function(tkey){
+            var grp = byTeacher[tkey];
+            var t = grp.teacher;
+            return React.createElement('div', { key: tkey, style:{ marginBottom:'12px', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px' } },
+              React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, (t ? t.name : '선생님') + (t && t.email ? ' · ' + t.email : '')),
+              React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px' } },
+                grp.classes.map(function(cls){
+                  var on = (classStudents[cls.id] || []).includes(stForPicker.id);
+                  return React.createElement('button', {
+                    key: cls.id,
+                    onClick: function(){ assignToClass(cls); },
+                    style:{ display:'flex', justifyContent:'space-between', alignItems:'center', background: on ? '#FFEBED' : '#fff', border:'1.5px solid ' + (on ? '#E60012' : '#d6dbde'), borderRadius:'8px', padding:'10px 12px', fontSize:'13px', fontWeight:'700', color:'#1A1A1A', cursor:'pointer', fontFamily:'Manrope, sans-serif', textAlign:'left' }
+                  },
+                    React.createElement('span', null, (cls.name || '반') + (cls.grade ? ' · ' + cls.grade : '')),
+                    on ? React.createElement('span', { style:{ color:'#E60012', fontSize:'11px', fontWeight:'800' } }, '✓ 현재 배정') : React.createElement('span', { style:{ color:'rgba(0,0,0,0.4)', fontSize:'11px' } }, '선택 ›')
+                  );
+                })
+              )
+            );
+          })
     )
   );
 })()
