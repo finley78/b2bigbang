@@ -2894,10 +2894,11 @@ React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', border
     if (realClasses.length === 0) {
       return React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', textAlign:'center', padding:'12px' } }, '아직 배정된 반이 없습니다');
     }
-    return realClasses.map(function(cls){
+    return React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:'8px' } },
+    realClasses.map(function(cls){
       var clsStudents = classStudents[cls.id] || [];
       var isExpanded = expandedClassId === cls.id;
-      return React.createElement('div', { key:cls.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', marginBottom:'8px' } },
+      return React.createElement('div', { key:cls.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', marginBottom:0, alignSelf:'start', gridColumn: isExpanded ? '1 / -1' : 'auto', order: isExpanded ? -1 : 0 } },
         React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
           React.createElement('div', { style:{ flex:1, cursor:'pointer' }, onClick: function(){ setExpandedClassId(isExpanded?null:cls.id); setClassStudentSearch(''); } },
             React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, cls.name),
@@ -2950,7 +2951,7 @@ React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', border
           )
         )
       );
-    });
+    }));
   })()
 ),
 
