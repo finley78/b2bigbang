@@ -77,26 +77,21 @@
         ? React.createElement('div', { style:{ padding:'40px', textAlign:'center', color:'#9ca3af' } }, '불러오는 중...')
         : !lists.length
           ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 단어장이 없습니다. "+ 새 단어장" 버튼으로 만들어 주세요.')
-          : React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap:'12px' } },
+          : React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px' } },
               lists.map(function(L){
-                return React.createElement('div', { key:L.id, style:Object.assign({}, STYLES.card, { cursor:'pointer', transition:'all 0.15s' }), onClick:function(){ setSelectedListId(L.id); } },
-                  React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'8px', marginBottom:'8px' } },
-                    React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', flex:1 } }, L.name),
-                    React.createElement('div', { style:{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'4px' } },
-                      React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, L._wordCount + '단어'),
-                      L._wordCount > 0 && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'600', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '유닛 ' + Math.ceil(L._wordCount / (L.unit_size || 20)) + '개 (' + (L.unit_size || 20) + '/유닛)')
-                    )
+                return React.createElement('div', { key:L.id, style:Object.assign({}, STYLES.card, { cursor:'pointer', transition:'all 0.15s', padding:'12px' }), onClick:function(){ setSelectedListId(L.id); } },
+                  React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'6px', marginBottom:'6px' } },
+                    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, L.name),
+                    React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'1px 6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, L._wordCount + '단어')
                   ),
-                  React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'8px' } },
-                    L.subject && React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif' } }, L.subject),
-                    L.grade && React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif' } }, '· ' + L.grade)
+                  React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginBottom:'6px' } },
+                    [L.subject, L.grade, L._wordCount > 0 ? 'UNIT ' + Math.ceil(L._wordCount / (L.unit_size || 20)) + '개' : null].filter(Boolean).join(' · ')
                   ),
-                  L.description && React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', marginBottom:'10px', lineHeight:'1.5', overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' } }, L.description),
-                  React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'10px', paddingTop:'10px', borderTop:'1px solid rgba(0,0,0,0.06)' } },
-                    React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, (L.creator_name || '알 수 없음') + ' · ' + String(L.created_at || '').slice(0,10)),
-                    React.createElement('div', { style:{ display:'flex', gap:'6px' } },
-                      React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingList(L); }, style:Object.assign({}, STYLES.btnGhost, { padding:'4px 10px', fontSize:'11px' }) }, '편집'),
-                      React.createElement('button', { onClick:function(e){ e.stopPropagation(); deleteList(L); }, style:Object.assign({}, STYLES.btnDanger, { padding:'4px 10px', fontSize:'11px' }) }, '삭제')
+                  React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'6px', paddingTop:'6px', borderTop:'1px solid rgba(0,0,0,0.06)', gap:'4px' } },
+                    React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 } }, L.creator_name || '알 수 없음'),
+                    React.createElement('div', { style:{ display:'flex', gap:'4px' } },
+                      React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingList(L); }, style:Object.assign({}, STYLES.btnGhost, { padding:'2px 6px', fontSize:'10px' }) }, '편집'),
+                      React.createElement('button', { onClick:function(e){ e.stopPropagation(); deleteList(L); }, style:Object.assign({}, STYLES.btnDanger, { padding:'2px 6px', fontSize:'10px' }) }, '삭제')
                     )
                   )
                 );
@@ -293,7 +288,7 @@
                 var thisUnit = Math.floor(i / unitSize) + 1;
                 var isUnitStart = i % unitSize === 0;
                 return React.createElement(React.Fragment, { key:w.id },
-                  isUnitStart && React.createElement('div', { style:{ gridColumn:'1 / -1', padding:'10px 4px 4px', fontSize:'11px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em', borderTop: i > 0 ? '1px dashed rgba(0,0,0,0.1)' : 'none', marginTop: i > 0 ? '6px' : 0 } }, '── 유닛 ' + thisUnit + ' ──'),
+                  isUnitStart && React.createElement('div', { style:{ gridColumn:'1 / -1', padding:'10px 4px 4px', fontSize:'11px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em', borderTop: i > 0 ? '1px dashed rgba(0,0,0,0.1)' : 'none', marginTop: i > 0 ? '6px' : 0 } }, '── UNIT ' + thisUnit + ' ──'),
                   React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 1.5fr 100px', gap:'8px', padding:'10px 4px', borderBottom:'1px solid rgba(0,0,0,0.06)', fontSize:'13px', fontFamily:'Manrope, sans-serif', alignItems:'center' } },
                     !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.4)', fontSize:'12px' } }, (i+1)),
                     React.createElement('div', { style:{ fontWeight:'700', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis' } }, w.word),
@@ -313,21 +308,21 @@
       activeTab === 'tests' && (
         !words.length
           ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '먼저 단어를 추가해야 시험을 만들 수 있어요.')
-          : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'20px' } },
+          : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
               unitsArray.map(function(unit){
                 return React.createElement('div', { key:unit.unit_index },
                   // 유닛 헤더
-                  React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:'8px', paddingBottom:'8px', borderBottom:'2px solid #1A1A1A' } },
+                  React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:'5px', paddingBottom:'4px', borderBottom:'1px solid #1A1A1A' } },
                     React.createElement('div', null,
-                      React.createElement('span', { style:{ fontSize:'15px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, '유닛 ' + unit.unit_index),
-                      React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginLeft:'10px' } },
+                      React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } }, 'UNIT ' + unit.unit_index),
+                      React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginLeft:'8px' } },
                         unit.words.length + '단어 · ' + (unit.words[0] && unit.words[0].word) + (unit.words.length > 1 ? ' ~ ' + unit.words[unit.words.length-1].word : '')
                       )
                     ),
-                    React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, unit.tests.length + '개 시험')
+                    React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, unit.tests.length + '개 시험')
                   ),
                   // 시험 카드 그리드 + 추가 버튼
-                  React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(220px, 1fr))', gap:'10px' } },
+                  React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(160px, 1fr))', gap:'6px' } },
                     unit.tests.map(function(t){
                       var modes = [];
                       if (t.multiple_choice_count) modes.push('객 ' + t.multiple_choice_count);
@@ -339,27 +334,27 @@
                       var statusColor = t.status === 'open' ? '#006241' : t.status === 'closed' ? '#6b7280' : '#92400e';
                       var statusLabel = t.status === 'open' ? '진행중' : t.status === 'closed' ? '마감' : '준비중';
                       var borderColor = t.status === 'open' ? '#006241' : t.status === 'closed' ? '#d1d5db' : '#fbbf24';
-                      return React.createElement('div', { key:t.id, style:{ background:'#fff', border:'1.5px solid ' + borderColor, borderRadius:'10px', padding:'12px', display:'flex', flexDirection:'column', gap:'8px', cursor:'pointer', transition:'transform 0.15s, box-shadow 0.15s', fontFamily:'Manrope, sans-serif' }, onMouseEnter:function(e){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'; }, onMouseLeave:function(e){ e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }, onClick:function(){ setResultsTest(t); } },
+                      return React.createElement('div', { key:t.id, style:{ background:'#fff', border:'1.5px solid ' + borderColor, borderRadius:'8px', padding:'8px', display:'flex', flexDirection:'column', gap:'4px', cursor:'pointer', transition:'transform 0.15s, box-shadow 0.15s', fontFamily:'Manrope, sans-serif' }, onMouseEnter:function(e){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'; }, onMouseLeave:function(e){ e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }, onClick:function(){ setResultsTest(t); } },
                         // 상태 뱃지
                         React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center' } },
-                          React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:statusBg, color:statusColor, borderRadius:'4px', padding:'2px 8px', letterSpacing:'0.04em' } }, statusLabel),
-                          React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', color:'rgba(0,0,0,0.4)' } }, totalQ + '문제')
+                          React.createElement('span', { style:{ fontSize:'9px', fontWeight:'800', background:statusBg, color:statusColor, borderRadius:'3px', padding:'1px 6px', letterSpacing:'0.04em' } }, statusLabel),
+                          React.createElement('span', { style:{ fontSize:'9px', fontWeight:'700', color:'rgba(0,0,0,0.4)' } }, totalQ + '문제')
                         ),
                         // 시험 제목
-                        React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, t.title),
+                        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, t.title),
                         // 모드 요약
-                        React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontWeight:'600' } }, modes.join(' · ') || '문제 없음'),
+                        React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.55)', fontWeight:'600', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, modes.join(' · ') || '문제 없음'),
                         // 액션 버튼
-                        React.createElement('div', { style:{ display:'flex', gap:'6px', marginTop:'4px', borderTop:'1px solid rgba(0,0,0,0.06)', paddingTop:'8px' } },
-                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setResultsTest(t); }, style:{ flex:1, background:'#FFEBED', color:'#E60012', border:'none', borderRadius:'6px', padding:'6px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📊 결과'),
-                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'6px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
+                        React.createElement('div', { style:{ display:'flex', gap:'4px', marginTop:'2px', borderTop:'1px solid rgba(0,0,0,0.06)', paddingTop:'4px' } },
+                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setResultsTest(t); }, style:{ flex:1, background:'#FFEBED', color:'#E60012', border:'none', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '📊 결과'),
+                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '✏ 편집')
                         )
                       );
                     }).concat([
                       // + 시험 추가 카드 (마지막)
-                      React.createElement('button', { key:'add-' + unit.unit_index, onClick:function(){ setShowTestCreate(unit.unit_index); }, style:{ background:'#fff', border:'2px dashed #d6dbde', borderRadius:'10px', padding:'12px', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'6px', cursor:'pointer', transition:'all 0.15s', fontFamily:'Manrope, sans-serif', minHeight:'120px', color:'rgba(0,0,0,0.45)' }, onMouseEnter:function(e){ e.currentTarget.style.borderColor='#E60012'; e.currentTarget.style.color='#E60012'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor='#d6dbde'; e.currentTarget.style.color='rgba(0,0,0,0.45)'; } },
-                        React.createElement('div', { style:{ fontSize:'24px', fontWeight:'300', lineHeight:1 } }, '+'),
-                        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700' } }, '시험 추가')
+                      React.createElement('button', { key:'add-' + unit.unit_index, onClick:function(){ setShowTestCreate(unit.unit_index); }, style:{ background:'#fff', border:'1.5px dashed #d6dbde', borderRadius:'8px', padding:'8px', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', cursor:'pointer', transition:'all 0.15s', fontFamily:'Manrope, sans-serif', minHeight:'70px', color:'rgba(0,0,0,0.45)' }, onMouseEnter:function(e){ e.currentTarget.style.borderColor='#E60012'; e.currentTarget.style.color='#E60012'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor='#d6dbde'; e.currentTarget.style.color='rgba(0,0,0,0.45)'; } },
+                        React.createElement('div', { style:{ fontSize:'18px', fontWeight:'300', lineHeight:1 } }, '+'),
+                        React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700' } }, '시험 추가')
                       )
                     ])
                   )
@@ -656,7 +651,7 @@
     var sb = window.supabase;
     var isEdit = !!props.test;
     var initial = props.test || {
-      title: '유닛 ' + props.unitIndex + ' 시험',
+      title: 'UNIT ' + props.unitIndex + ' 시험',
       multiple_choice_count: 0,
       spelling_count: 0,
       writing_count: 0,
@@ -831,7 +826,7 @@
       React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(640px, calc(100% - 32px))' }) },
         React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
         React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 14px', fontFamily:'Manrope, sans-serif' } }, isEdit ? '시험 편집' : '시험 만들기'),
-        React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '유닛 ' + props.unitIndex + ' · 단어 ' + props.unitWordCount + '개'),
+        React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, 'UNIT ' + props.unitIndex + ' · 단어 ' + props.unitWordCount + '개'),
 
         React.createElement('div', null,
           // 배포 대상 — 클래스 카드 (클릭 시 preset 불러오기 + 배포 대상 등록) + 개별 학생
@@ -885,7 +880,7 @@
             })
           ),
           React.createElement('div', { style:{ fontSize:'11px', color: totalQ > props.unitWordCount ? '#c82014' : 'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } },
-            '총 ' + totalQ + '문제 / 유닛 ' + props.unitWordCount + '단어' + (totalQ > props.unitWordCount ? ' — 단어 수보다 많이 출제할 수 없어요' : '')
+            '총 ' + totalQ + '문제 / UNIT ' + props.unitWordCount + '단어' + (totalQ > props.unitWordCount ? ' — 단어 수보다 많이 출제할 수 없어요' : '')
           ),
 
           React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'10px' } },
@@ -1064,7 +1059,7 @@
       React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(720px, calc(100% - 32px))' }), onClick:function(e){ e.stopPropagation(); } },
         React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
         React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 4px', fontFamily:'Manrope, sans-serif' } }, test.title + ' — 응시 결과'),
-        React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '유닛 ' + test.unit_index),
+        React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, 'UNIT ' + test.unit_index),
 
         loading
           ? React.createElement('div', { style:{ padding:'40px', textAlign:'center', color:'#9ca3af' } }, '불러오는 중...')

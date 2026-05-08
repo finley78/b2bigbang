@@ -81,7 +81,7 @@
     );
   }
 
-  // ── STUDY: 단어장 → 유닛 → 모드 선택 → 학습 ─────────
+  // ── STUDY: 단어장 → UNIT → 모드 선택 → 학습 ─────────
   function StudyMenu(props) {
     var sb = window.supabase;
     var [stage, setStage] = React.useState('list'); // list | units | modes | playing
@@ -142,7 +142,7 @@
       });
     }
 
-    var pageTitle = stage === 'list' ? '학습할 단어장 선택' : stage === 'units' ? selectedList.name + ' — 유닛 선택' : '학습 모드 선택';
+    var pageTitle = stage === 'list' ? '학습할 단어장 선택' : stage === 'units' ? selectedList.name + ' — UNIT 선택' : '학습 모드 선택';
 
     return React.createElement('div', { style: S.page },
       React.createElement(StudentHeader, { title: '학습 (STUDY)', subtitle: pageTitle, onBack: backStage }),
@@ -158,7 +158,7 @@
                     return React.createElement('button', { key: L.id, onClick: function(){ pickList(L); }, style: { background: '#fff', border: '1.5px solid ' + THEME.border, borderRadius: '12px', padding: '16px', cursor: 'pointer', fontFamily: THEME.font, textAlign: 'left' } },
                       React.createElement('div', { style: { fontSize: '15px', fontWeight: '800', color: THEME.dark, marginBottom: '6px' } }, L.name),
                       React.createElement('div', { style: { fontSize: '12px', color: THEME.textMid } },
-                        [L.subject, L.grade, L._wordCount + '단어', '유닛 ' + L._unitCount + '개'].filter(Boolean).join(' · ')
+                        [L.subject, L.grade, L._wordCount + '단어', 'UNIT ' + L._unitCount + '개'].filter(Boolean).join(' · ')
                       )
                     );
                   })
@@ -176,7 +176,7 @@
                 return arr;
               })().map(function(uo){
                 return React.createElement('button', { key: uo.unit, onClick: function(){ pickUnit(uo.unit); }, style: { background: '#fff', border: '1.5px solid ' + THEME.border, borderRadius: '12px', padding: '16px 12px', cursor: 'pointer', fontFamily: THEME.font, textAlign: 'center', minHeight: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' } },
-                  React.createElement('div', { style: { fontSize: '11px', fontWeight: '700', color: THEME.textLight } }, '유닛'),
+                  React.createElement('div', { style: { fontSize: '11px', fontWeight: '700', color: THEME.textLight } }, 'UNIT'),
                   React.createElement('div', { style: { fontSize: '24px', fontWeight: '800', color: THEME.primary } }, uo.unit),
                   React.createElement('div', { style: { fontSize: '11px', color: THEME.textMid } }, uo.words.length + '단어')
                 );
@@ -186,7 +186,7 @@
             React.createElement('div', null,
               React.createElement('div', { style: Object.assign({}, S.card, { marginBottom: '12px', background: THEME.primaryBg }) },
                 React.createElement('div', { style: { fontSize: '11px', color: THEME.primary, fontWeight: '700', marginBottom: '4px' } }, '선택됨'),
-                React.createElement('div', { style: { fontSize: '14px', fontWeight: '800', color: THEME.dark } }, selectedList.name + ' · 유닛 ' + selectedUnit)
+                React.createElement('div', { style: { fontSize: '14px', fontWeight: '800', color: THEME.dark } }, selectedList.name + ' · UNIT ' + selectedUnit)
               ),
               React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr', gap: '10px' } },
                 [
@@ -216,7 +216,7 @@
     if (props.mode === 'flashcard') return React.createElement(FlashCardPlayer, props);
     // 다른 모드는 추후 구현 — 일단 안내
     return React.createElement('div', { style: S.page },
-      React.createElement(StudentHeader, { title: '학습', subtitle: props.list.name + ' · 유닛 ' + props.unitIndex, onBack: props.onBack }),
+      React.createElement(StudentHeader, { title: '학습', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
       React.createElement('div', { style: { padding: '40px 16px', textAlign: 'center', maxWidth: '720px', margin: '0 auto' } },
         React.createElement('div', { style: Object.assign({}, S.card, { padding: '40px 20px', color: THEME.textMid }) },
           React.createElement('div', { style: { fontSize: '40px', marginBottom: '12px' } }, '🚧'),
@@ -275,7 +275,7 @@
 
     if (!started) {
       return React.createElement('div', { style: S.page },
-        React.createElement(StudentHeader, { title: 'Flash Card', subtitle: props.list.name + ' · 유닛 ' + props.unitIndex, onBack: props.onBack }),
+        React.createElement(StudentHeader, { title: 'Flash Card', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
         React.createElement('div', { style: { padding: '40px 16px', textAlign: 'center', maxWidth: '500px', margin: '0 auto' } },
           React.createElement('div', { style: Object.assign({}, S.card, { padding: '40px 20px' }) },
             React.createElement('div', { style: { fontSize: '48px', marginBottom: '14px' } }, '🎴'),
@@ -288,7 +288,7 @@
     }
 
     return React.createElement('div', { style: S.page },
-      React.createElement(StudentHeader, { title: 'Flash Card', subtitle: props.list.name + ' · 유닛 ' + props.unitIndex, onBack: props.onBack }),
+      React.createElement(StudentHeader, { title: 'Flash Card', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
 
       React.createElement('div', { style: { padding: '12px 16px', maxWidth: '600px', margin: '0 auto' } },
         // 진행률
@@ -401,7 +401,7 @@
                       React.createElement('div', { style: { flex: 1, minWidth: 0 } },
                         React.createElement('div', { style: { fontSize: '15px', fontWeight: '800', color: THEME.dark, fontFamily: THEME.font } }, t.title),
                         React.createElement('div', { style: { fontSize: '12px', color: THEME.textMid, marginTop: '4px', fontFamily: THEME.font } },
-                          [listInfo.name, '유닛 ' + t.unit_index, modes.join(' · ')].filter(Boolean).join(' · ')
+                          [listInfo.name, 'UNIT ' + t.unit_index, modes.join(' · ')].filter(Boolean).join(' · ')
                         )
                       )
                     ),
@@ -884,7 +884,7 @@
                     React.createElement('div', { style: { flex: 1, minWidth: 0 } },
                       React.createElement('div', { style: { fontSize: '14px', fontWeight: '800', color: THEME.dark, fontFamily: THEME.font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, t.title || '시험'),
                       React.createElement('div', { style: { fontSize: '12px', color: THEME.textMid, marginTop: '2px', fontFamily: THEME.font } },
-                        [listInfo.name, '유닛 ' + a.unit_index, a.score + '/' + a.total, '응시 ' + a.attempt_number + '회차'].filter(Boolean).join(' · ')
+                        [listInfo.name, 'UNIT ' + a.unit_index, a.score + '/' + a.total, '응시 ' + a.attempt_number + '회차'].filter(Boolean).join(' · ')
                       ),
                       React.createElement('div', { style: { fontSize: '11px', color: THEME.textLight, marginTop: '2px' } }, String(a.submitted_at || '').slice(0,16).replace('T',' '))
                     ),
@@ -983,7 +983,7 @@
 
     if (selectedTest) {
       return React.createElement('div', { style: S.page },
-        React.createElement(StudentHeader, { title: selectedTest.title || '순위', subtitle: '유닛 ' + selectedTest.unit_index, onBack: function(){ setSelectedTest(null); setRanking([]); } }),
+        React.createElement(StudentHeader, { title: selectedTest.title || '순위', subtitle: 'UNIT ' + selectedTest.unit_index, onBack: function(){ setSelectedTest(null); setRanking([]); } }),
         React.createElement('div', { style: { padding: '16px', maxWidth: '600px', margin: '0 auto' } },
           loadingRank
             ? React.createElement('div', { style: { padding: '40px', textAlign: 'center', color: THEME.textLight } }, '순위 계산 중...')
@@ -1021,7 +1021,7 @@
                   var listInfo = (t.vocab_lists) || {};
                   return React.createElement('button', { key: t.id, onClick: function(){ loadRanking(t); }, style: { background: '#fff', border: '1.5px solid ' + THEME.border, borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', fontFamily: THEME.font, textAlign: 'left' } },
                     React.createElement('div', { style: { fontSize: '14px', fontWeight: '800', color: THEME.dark } }, t.title),
-                    React.createElement('div', { style: { fontSize: '12px', color: THEME.textMid, marginTop: '2px' } }, [listInfo.name, '유닛 ' + t.unit_index].filter(Boolean).join(' · '))
+                    React.createElement('div', { style: { fontSize: '12px', color: THEME.textMid, marginTop: '2px' } }, [listInfo.name, 'UNIT ' + t.unit_index].filter(Boolean).join(' · '))
                   );
                 })
               )
