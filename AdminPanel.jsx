@@ -66,6 +66,13 @@ const [editingBanner, setEditingBanner] = React.useState(null);
 const [editingNotice, setEditingNotice] = React.useState(null);
 const [editingCourse, setEditingCourse] = React.useState(null);
 const [expandedStudent, setExpandedStudent] = React.useState(null);
+const [saveToast, setSaveToast] = React.useState(false);
+const saveToastTimer = React.useRef(null);
+const showSaved = React.useCallback(function() {
+  setSaveToast(true);
+  if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
+  saveToastTimer.current = setTimeout(function(){ setSaveToast(false); }, 1800);
+}, []);
 const [expandedTeacher, setExpandedTeacher] = React.useState(null);
 const [expandedMember, setExpandedMember] = React.useState(null);
 const [memberFilter, setMemberFilter] = React.useState('전체');
@@ -923,6 +930,7 @@ setViewsDataMap(function(prev){ var n = Object.assign({}, prev); n[studentId] = 
 async function updateStudentGrade(studentId, grade) {
 await sb.from('students').update({ grade }).eq('id', studentId);
 setDbStudents(s => s.map(st => st.id === studentId ? { ...st, grade } : st));
+showSaved();
 }
 
 async function toggleSubject(studentId, subject) {
@@ -931,6 +939,7 @@ const subjects = st.subjects || [];
 const updated = subjects.includes(subject) ? subjects.filter(s => s !== subject) : [...subjects, subject];
 await sb.from('students').update({ subjects: updated }).eq('id', studentId);
 setDbStudents(s => s.map(st => st.id === studentId ? { ...st, subjects: updated } : st));
+showSaved();
 }
 
 async function toggleEnroll(studentId, courseId) {
@@ -946,6 +955,7 @@ if (st.id !== studentId) return st;
 const ec = enrolled ? st.enrolledCourses.filter(c => c !== courseId) : [...st.enrolledCourses, courseId];
 return { ...st, enrolledCourses: ec };
 }));
+showSaved();
 }
 
 async function approveTeacher(teacherId) {
@@ -1245,6 +1255,11 @@ setState(s => ({ ...s, announcements: s.announcements.filter(a => a.id!==id) }))
 }
 
 return React.createElement('div', { style:{ background:'#f2f0eb', minHeight:'80vh' } },
+
+saveToast && React.createElement('div', { style:{ position:'fixed', bottom:'24px', right:'24px', background:'#1f7a3d', color:'#fff', padding:'12px 20px', borderRadius:'10px', fontSize:'14px', fontWeight:'700', fontFamily:'Manrope, sans-serif', boxShadow:'0 6px 16px rgba(0,0,0,0.18)', zIndex:99999, display:'flex', alignItems:'center', gap:'8px', pointerEvents:'none' } },
+  React.createElement('span', { style:{ fontSize:'16px' } }, '✓'),
+  React.createElement('span', null, '저장됨')
+),
 
 React.createElement('div', { style:{ background:'#1A1A1A', padding:'24px 40px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
@@ -1755,7 +1770,10 @@ style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', font
 React.createElement('option', { value:'created_desc' }, '↓ 등록일 최신순'),
 React.createElement('option', { value:'created_asc' }, '↑ 등록일 오래된순'),
 React.createElement('option', { value:'name_asc' }, '↓ 이름 가나다순'),
-React.createElement('option', { value:'name_desc' }, '↑ 이름 가나다 역순')
+React.createElement('option', { value:'name_desc' }, '↑ 이름 가나다 역순'),
+React.createElement('option', { value:'grade_asc' }, '↑ 학년 낮은순'),
+React.createElement('option', { value:'grade_desc' }, '↓ 학년 높은순'),
+React.createElement('option', { value:'subject_asc' }, '↓ 과목순 (국·영·수·과)')
 )
 ),
 
@@ -2025,9 +2043,23 @@ if (!hasTeacherCourse) return false;
 return true;
 });
 
+var GRADE_RANK = { '1학년':1,'2학년':2,'3학년':3,'4학년':4,'5학년':5,'6학년':6,'중1':7,'중2':8,'중3':9,'고1':10,'고2':11,'고3':12 };
+var SUBJECT_RANK = { '국어':1,'영어':2,'수학':3,'과학':4 };
 filtered = filtered.slice().sort(function(a, b) {
 if (sortStudentBy === 'name_asc') return (a.name || '').localeCompare(b.name || '', 'ko');
 if (sortStudentBy === 'name_desc') return (b.name || '').localeCompare(a.name || '', 'ko');
+if (sortStudentBy === 'grade_asc' || sortStudentBy === 'grade_desc') {
+var aR = GRADE_RANK[a.grade] || 99;
+var bR = GRADE_RANK[b.grade] || 99;
+if (aR !== bR) return sortStudentBy === 'grade_asc' ? aR - bR : bR - aR;
+return (a.name || '').localeCompare(b.name || '', 'ko');
+}
+if (sortStudentBy === 'subject_asc') {
+var aS = (a.subjects && a.subjects[0]) ? (SUBJECT_RANK[a.subjects[0]] || 99) : 99;
+var bS = (b.subjects && b.subjects[0]) ? (SUBJECT_RANK[b.subjects[0]] || 99) : 99;
+if (aS !== bS) return aS - bS;
+return (a.name || '').localeCompare(b.name || '', 'ko');
+}
 var aDate = a.created_at || '';
 var bDate = b.created_at || '';
 if (sortStudentBy === 'created_asc') {
@@ -2105,6 +2137,7 @@ onChange: async function(e) {
 var school = e.target.value;
 await sb.from('students').update({ school }).eq('id', st.id);
 setDbStudents(function(prev){ return prev.map(function(s){ return s.id===st.id?Object.assign({},s,{school}):s; }); });
+showSaved();
 },
 style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
 },
