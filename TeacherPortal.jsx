@@ -637,6 +637,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (matchedAssignment) setSelectedCourseAssignment(matchedAssignment);
     setStudents([]);
     setSelectedStudentIds([]);
+    setSelectedStudent(null);
+    setStudentDetail(null);
     loadClassExams(cls.id);
     setScores({});
     setDebug("4. 반 학생 조회 시작: " + cls.name);
