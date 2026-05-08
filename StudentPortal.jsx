@@ -11,10 +11,9 @@ const SUBJECT_COLORS = {
 var levelFromGrade = window.B2Utils.levelFromGrade;
 
 /* ── Login Modal ──────────────────────────────── */
-function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot }) {
+function LoginModal({ onLogin, onClose, onSignup, initialForgot }) {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
-  const [isAdmin, setIsAdmin] = React.useState(false);
   const [msg, setMsg] = React.useState('');
   const [forgotMode, setForgotMode] = React.useState(!!initialForgot);
   const [emailMode, setEmailMode] = React.useState(false);
@@ -39,31 +38,53 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
   const floatLabelStyle = { position:'absolute', top:'-9px', left:'10px', background:'#f9f9f9', padding:'0 4px', fontSize:'10px', fontWeight:'700', color:'rgba(0,0,0,0.87)', letterSpacing:'0.04em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' };
   const inputStyle = { width:'100%', border:'none', outline:'none', background:'transparent', fontSize:'14px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', boxSizing:'border-box' };
 
-  // 관리자 로그인
-  function handleAdminLogin() {
-    if (!email || !password) { setMsg('아이디와 비밀번호를 입력해 주세요.'); return; }
-    if (email === 'admin' && password === 'b2admin') { onAdminLogin(); onClose(); }
-    else { setMsg('관리자 정보가 맞지 않습니다.'); }
-  }
-
-  // 일반 로그인 (학생/학부모/선생님)
+  // 이메일/비밀번호 로그인 (Supabase Auth)
+  // 학생·학부모·선생님·관리자 모두 동일한 흐름. role은 students 행에서 결정됨.
   async function handleEmailLogin() {
     if (!email || !password) { setMsg('이메일과 비밀번호를 입력해 주세요.'); return; }
     setLoading(true); setMsg('');
     try {
-      const { data: user, error } = await sb.from('students')
-        .select('*').eq('email', email.trim()).single();
-      if (error || !user) { setMsg('등록된 계정이 없습니다.'); setLoading(false); return; }
-      if (user.withdrawn_at || user.is_active === false) { setMsg('탈퇴 처리된 계정입니다.'); setLoading(false); return; }
-      if (user.role === 'pending_teacher') { setMsg('관리자 승인 대기 중입니다.'); setLoading(false); return; }
-      if (user.role === 'pending_student' || user.role === 'pending_parent') { setMsg('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); setLoading(false); return; }
-      var pwOk = await window.B2Utils.verifyPassword(password, user.password_hash);
-      if (!pwOk) { setMsg('비밀번호가 틀렸습니다.'); setLoading(false); return; }
-      // 평문이면 이번 기회에 해시로 자동 변환 (사용자 영향 없음)
-      await window.B2Utils.migrateIfPlain(user.password_hash, password, user.id);
-      onLogin(await window.B2Utils.buildUserFromStudentRow(user));
+      const { data: authData, error: authError } = await sb.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      if (authError) {
+        const m = String(authError.message || '').toLowerCase();
+        if (m.includes('invalid') || m.includes('credentials')) {
+          setMsg('이메일 또는 비밀번호가 올바르지 않습니다.');
+        } else {
+          setMsg('로그인 실패: ' + authError.message);
+        }
+        setLoading(false); return;
+      }
+      if (!authData?.user?.id) {
+        setMsg('로그인 응답을 받지 못했습니다.'); setLoading(false); return;
+      }
+      // students 행 조회 (auth_user_id로 매칭)
+      const { data: studentRow, error: rowError } = await sb.from('students')
+        .select('*').eq('auth_user_id', authData.user.id).maybeSingle();
+      if (rowError || !studentRow) {
+        await sb.auth.signOut();
+        setMsg('계정 정보가 연결되지 않았습니다. 관리자에게 문의해 주세요.');
+        setLoading(false); return;
+      }
+      if (studentRow.withdrawn_at || studentRow.is_active === false) {
+        await sb.auth.signOut();
+        setMsg('탈퇴 처리된 계정입니다.'); setLoading(false); return;
+      }
+      if (studentRow.role === 'pending_teacher') {
+        await sb.auth.signOut();
+        setMsg('관리자 승인 대기 중입니다.'); setLoading(false); return;
+      }
+      if (studentRow.role === 'pending_student' || studentRow.role === 'pending_parent') {
+        await sb.auth.signOut();
+        setMsg('가입 처리 중입니다. 잠시 후 다시 시도해 주세요.'); setLoading(false); return;
+      }
+      onLogin(await window.B2Utils.buildUserFromStudentRow(studentRow));
       onClose();
-    } catch(e) { setMsg('오류가 발생했습니다.'); }
+    } catch(e) {
+      setMsg('오류가 발생했습니다: ' + (e?.message || e));
+    }
     setLoading(false);
   }
 
@@ -103,8 +124,7 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
   }
 
   function handleLogin() {
-    if (isAdmin) handleAdminLogin();
-    else handleEmailLogin();
+    handleEmailLogin();
   }
 
   async function submitForgot() {
@@ -114,10 +134,14 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
     }
     setForgotSending(true);
     try {
-      const { ok, data } = await window.B2Utils.callEdgeFn('send-password-reset', { email: forgotEmail.trim().toLowerCase() });
-      if (!ok) {
-        setMsg(data.error || '요청 처리 중 오류가 발생했습니다.');
-        setForgotSending(false); return;
+      // Supabase Auth 내장 비밀번호 재설정 메일 발송
+      const { error } = await sb.auth.resetPasswordForEmail(
+        forgotEmail.trim().toLowerCase(),
+        { redirectTo: window.location.origin + '/?reset=supabase' }
+      );
+      if (error) {
+        // 보안상 이메일 존재 여부 노출 X — 어떤 응답이든 동일하게 처리
+        console.warn('resetPasswordForEmail:', error.message);
       }
       setForgotDone(true);
     } catch (e) {
@@ -155,13 +179,13 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
     return React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }, onClick:onClose },
       React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', width:'400px', padding:'36px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', position:'relative', maxHeight:'90vh', overflowY:'auto' }, onClick:e=>e.stopPropagation() },
         React.createElement('button', { onClick:onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
-        React.createElement('button', { onClick: function(){ setEmailMode(false); setMsg(''); setIsAdmin(false); setEmail(''); setPassword(''); }, style:{ background:'none', border:'none', fontSize:'13px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', cursor:'pointer', padding:0, marginBottom:'16px' } }, '← 돌아가기'),
-        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 18px', fontFamily:'Manrope, sans-serif' } }, isAdmin ? '관리자 로그인' : '이메일로 로그인'),
+        React.createElement('button', { onClick: function(){ setEmailMode(false); setMsg(''); setEmail(''); setPassword(''); }, style:{ background:'none', border:'none', fontSize:'13px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', cursor:'pointer', padding:0, marginBottom:'16px' } }, '← 돌아가기'),
+        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 18px', fontFamily:'Manrope, sans-serif' } }, '이메일로 로그인'),
 
-        // 이메일/아이디 입력
+        // 이메일 입력
         React.createElement('div', { style:inputFieldStyle },
-          React.createElement('div', { style:floatLabelStyle }, isAdmin ? '관리자 아이디' : '이메일'),
-          React.createElement('input', { type: isAdmin ? 'text' : 'email', name: isAdmin ? 'username' : 'email', autoComplete: isAdmin ? 'username' : 'email', placeholder: isAdmin ? '관리자 아이디 입력' : 'example@email.com', value:email, onChange:e=>{ setEmail(e.target.value); setMsg(''); }, style:inputStyle })
+          React.createElement('div', { style:floatLabelStyle }, '이메일'),
+          React.createElement('input', { type:'email', name:'email', autoComplete:'email', placeholder:'example@email.com', value:email, onChange:e=>{ setEmail(e.target.value); setMsg(''); }, style:inputStyle })
         ),
 
         // 비밀번호 입력
@@ -181,25 +205,15 @@ function LoginModal({ onLogin, onClose, onAdminLogin, onSignup, initialForgot })
           )
         ),
 
-        // 관리자 체크박스
-        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px', cursor:'pointer' }, onClick:()=>{ setIsAdmin(v=>!v); setMsg(''); setEmail(''); setPassword(''); } },
-          React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'4px', border: isAdmin ? 'none' : '1.5px solid rgba(0,0,0,0.3)', background: isAdmin ? '#1A1A1A' : '#fff', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.15s' } },
-            isAdmin && React.createElement('svg', { width:'11', height:'11', viewBox:'0 0 12 12', fill:'none' },
-              React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' })
-            )
-          ),
-          React.createElement('span', { style:{ fontSize:'13px', fontWeight:'600', color: isAdmin ? '#1A1A1A' : 'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', userSelect:'none' } }, '관리자로 로그인')
-        ),
-
         msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', background:'#fff5f5', borderRadius:'6px', padding:'8px 12px' } }, msg),
 
         // 로그인 버튼
-        React.createElement('button', { onClick:handleLogin, disabled:loading, style:{ width:'100%', background: loading?'#aaa': isAdmin ? '#1A1A1A' : (isMobile ? '#E60012' : '#1E3932'), color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'14px', transition:'background 0.2s' } },
-          loading ? '로그인 중...' : (isAdmin ? '관리자 로그인' : '로그인')
+        React.createElement('button', { onClick:handleLogin, disabled:loading, style:{ width:'100%', background: loading?'#aaa': (isMobile ? '#E60012' : '#1E3932'), color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'14px', transition:'background 0.2s' } },
+          loading ? '로그인 중...' : '로그인'
         ),
 
-        // 비밀번호 찾기 (관리자가 아닐 때만)
-        !isAdmin && React.createElement('div', { style:{ textAlign:'center' } },
+        // 비밀번호 찾기
+        React.createElement('div', { style:{ textAlign:'center' } },
           React.createElement('span', { onClick: function(){ setForgotMode(true); setForgotEmail(email); setMsg(''); }, style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', cursor:'pointer', textDecoration:'underline' } }, '비밀번호 잊으셨나요?')
         )
       )
@@ -338,61 +352,82 @@ function SignupPage({ onBack, onComplete, prefill }) {
 
     setLoading(true); setMsg('');
     const dbRole = roleType === 'teacher' ? 'pending_teacher' : roleType;
-    const ownPhoneNorm = normalizePhone(form.phone);
-    let pwHash = '';
-    try { pwHash = await window.B2Utils.hashPassword(form.password); }
-    catch (e) { setMsg('비밀번호 처리 중 오류가 발생했습니다.'); setLoading(false); return; }
-    const insertData = {
-      name: form.name.trim(),
-      email: form.email.trim().toLowerCase(),
-      password_hash: pwHash,
-      phone: form.phone.trim(),
-      address: form.address.trim(),
-      role: dbRole,
-      is_active: roleType !== 'teacher',
-      privacy_agreed: true,
-      agreed_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-    };
-    if (roleType === 'student') {
-      insertData.school = form.school.trim();
-      insertData.grade = form.grade.trim();
-      insertData.parent_phone = form.parentPhone.trim();
-    }
+    const emailNorm = form.email.trim().toLowerCase();
 
     try {
-      if (sb) {
-        const insertRes = await sb.from('students').insert(insertData).select().maybeSingle();
-        if (insertRes.error) {
-          if (String(insertRes.error.message || '').toLowerCase().indexOf('duplicate') >= 0 || String(insertRes.error.code || '') === '23505') {
-            setMsg('이미 가입된 이메일입니다. 다른 이메일을 사용하거나 로그인해 주세요.');
-          } else {
-            setMsg('가입 실패: ' + (insertRes.error.message || ''));
-          }
-          setLoading(false); return;
-        }
-        const inserted = insertRes.data;
+      if (!sb) { setMsg('네트워크 연결 오류'); setLoading(false); return; }
 
-        // 학생-학부모 자동 연결 (전화번호 매칭)
-        if (roleType === 'student' && inserted?.id) {
+      // 1. Supabase Auth 회원가입 — handle_new_user 트리거가 students 행을 자동 생성
+      const { data: signupData, error: signupError } = await sb.auth.signUp({
+        email: emailNorm,
+        password: form.password,
+        options: {
+          data: { name: form.name.trim(), role: dbRole },
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      if (signupError) {
+        const m = String(signupError.message || '').toLowerCase();
+        if (m.includes('already registered') || m.includes('already exists') || m.includes('user already')) {
+          setMsg('이미 가입된 이메일입니다. 다른 이메일을 사용하거나 로그인해 주세요.');
+        } else if (m.includes('password')) {
+          setMsg('비밀번호 형식 오류: ' + signupError.message);
+        } else {
+          setMsg('가입 실패: ' + signupError.message);
+        }
+        setLoading(false); return;
+      }
+      if (!signupData?.user?.id) {
+        setMsg('가입 응답을 받지 못했습니다.'); setLoading(false); return;
+      }
+
+      // 2. 트리거가 만든 students 행에 추가 필드 UPDATE
+      const additionalFields = {
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        privacy_agreed: true,
+        agreed_at: new Date().toISOString(),
+        is_active: roleType !== 'teacher',
+      };
+      if (roleType === 'student') {
+        additionalFields.school = form.school.trim();
+        additionalFields.grade = form.grade.trim();
+        additionalFields.parent_phone = form.parentPhone.trim();
+      }
+      const { data: updatedRows } = await sb.from('students')
+        .update(additionalFields)
+        .eq('auth_user_id', signupData.user.id)
+        .select('id')
+        .maybeSingle();
+      const insertedId = updatedRows?.id;
+
+      // 3. 학생-학부모 자동 연결 (전화번호 매칭)
+      if (insertedId) {
+        if (roleType === 'student') {
           const targetPhone = normalizePhone(form.parentPhone);
           const { data: parents } = await sb.from('students').select('id, phone').eq('role', 'parent');
           const matchedParent = (parents || []).find(p => normalizePhone(p.phone) === targetPhone);
           if (matchedParent) {
-            await sb.from('students').update({ parent_id: matchedParent.id }).eq('id', inserted.id);
+            await sb.from('students').update({ parent_id: matchedParent.id }).eq('id', insertedId);
           }
-        } else if (roleType === 'parent' && inserted?.id) {
+        } else if (roleType === 'parent') {
           const targetPhone = normalizePhone(form.studentPhone);
           const { data: studentsList } = await sb.from('students').select('id, phone').eq('role', 'student');
           const matchedStudent = (studentsList || []).find(s => normalizePhone(s.phone) === targetPhone);
           if (matchedStudent) {
-            await sb.from('students').update({ parent_id: inserted.id, parent_phone: form.phone.trim() }).eq('id', matchedStudent.id);
+            await sb.from('students').update({ parent_id: insertedId, parent_phone: form.phone.trim() }).eq('id', matchedStudent.id);
           }
         }
       }
+
+      // 4. 선생님은 대기 상태이므로 즉시 로그아웃 (관리자 승인 후 로그인)
+      if (roleType === 'teacher') {
+        try { await sb.auth.signOut(); } catch (e) {}
+      }
+
       setStep(3);
     } catch(e) {
-      setMsg('가입 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      setMsg('가입 중 오류가 발생했습니다: ' + (e?.message || e));
     }
     setLoading(false);
   }
@@ -1818,13 +1853,14 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     if (!user) return;
     if (!pwDraft.current || !pwDraft.next) { alert('현재 비밀번호와 새 비밀번호를 입력해 주세요.'); return; }
     if (pwDraft.next !== pwDraft.confirm) { alert('새 비밀번호 확인이 일치하지 않습니다.'); return; }
+    if (pwDraft.next.length < 6) { alert('새 비밀번호는 6자 이상이어야 합니다.'); return; }
+    if (!user.email) { alert('이메일 정보를 찾을 수 없습니다.'); return; }
     var sb = window.supabase;
-    var { data: row } = await sb.from('students').select('password_hash').eq('id', user.id).single();
-    var curOk = row && await window.B2Utils.verifyPassword(pwDraft.current, row.password_hash);
-    if (!curOk) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
-    var newHash = await window.B2Utils.hashPassword(pwDraft.next);
-    var { error } = await sb.from('students').update({ password_hash: newHash }).eq('id', user.id);
-    if (error) { alert('변경 실패: ' + error.message); return; }
+    // 현재 비밀번호 검증 — 같은 이메일로 재로그인 시도
+    var verify = await sb.auth.signInWithPassword({ email: user.email, password: pwDraft.current });
+    if (verify.error) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
+    var upd = await sb.auth.updateUser({ password: pwDraft.next });
+    if (upd.error) { alert('변경 실패: ' + upd.error.message); return; }
     alert('비밀번호가 변경되었습니다.');
     setPwDraft({ current:'', next:'', confirm:'' });
   }

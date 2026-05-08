@@ -25,33 +25,24 @@ var adminDistBucket = window.B2Utils.scoreDistBucket;
 var adminColorForScore = window.B2Utils.scoreColor;
 
 /* ── Admin Login ────────────────────────────── */
-function AdminLogin({ onLogin }) {
-const [pw, setPw] = React.useState('');
-const [error, setError] = React.useState(false);
-
-function attempt() {
-if (pw === 'b2admin') { onLogin(); }
-else { setError(true); setTimeout(() => setError(false), 2000); }
-}
-
-return React.createElement('div', { style:{ minHeight:'70vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f2f0eb' } },
-React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', padding:'40px', width:'360px', boxShadow:'0 4px 24px rgba(0,0,0,0.1)' } },
-React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'28px' } },
-React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '관리자 로그인')
-),
-React.createElement('div', { style:{ position:'relative', background:'#f9f9f9', borderRadius:'4px', border:`1px solid ${error?'#c82014':'#d6dbde'}`, padding:'14px 12px 10px', marginBottom:'16px' } },
-React.createElement('div', { style:{ position:'absolute', top:'-9px', left:'10px', background:'#f9f9f9', padding:'0 4px', fontSize:'10px', fontWeight:'700', color: error?'#c82014':'rgba(0,0,0,0.87)', letterSpacing:'0.04em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif' } }, error?'비밀번호 오류':'비밀번호'),
-React.createElement('input', { type:'password', name:'admin-password', autoComplete:'current-password', value:pw, onChange:e=>setPw(e.target.value), onKeyDown:e=>e.key==='Enter'&&attempt(), placeholder:'관리자 비밀번호', style:{ width:'100%', border:'none', outline:'none', background:'transparent', fontSize:'14px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', boxSizing:'border-box' } })
-),
-React.createElement('button', { onClick:attempt, style:{ width:'100%', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.2s ease' },
-onMouseDown:e=>e.currentTarget.style.transform='scale(0.98)', onMouseUp:e=>e.currentTarget.style.transform='scale(1)' }, '로그인'),
-React.createElement('p', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.35)', textAlign:'center', marginTop:'12px', fontFamily:'Manrope, sans-serif' } }, '데모 비밀번호: b2admin')
+// AdminLogin — Supabase Auth 이전 후 단순 안내 화면.
+// 관리자 권한은 students.role='admin' + auth.users 매칭으로 결정됨.
+// 로그인 안 한 상태로 /admin 진입 시 노출되며, 메인 로그인 모달로 유도.
+function AdminLogin({ onLoginClick }) {
+return React.createElement('div', { style:{ minHeight:'70vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f2f0eb', padding:'20px' } },
+React.createElement('div', { style:{ background:'#fff', borderRadius:'16px', padding:'40px', width:'400px', maxWidth:'100%', boxShadow:'0 4px 24px rgba(0,0,0,0.1)', textAlign:'center' } },
+React.createElement('h1', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:'0 0 12px' } }, '관리자 권한이 필요합니다'),
+React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.7', margin:'0 0 24px' } }, '관리자 계정으로 로그인 후 이용해 주세요.'),
+React.createElement('button', {
+  onClick: function(){ if (typeof onLoginClick === 'function') onLoginClick(); },
+  style:{ width:'100%', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'14px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+}, '로그인 화면으로')
 )
 );
 }
 
 /* ── Admin Panel ────────────────────────────── */
-function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed, user }) {
+function AdminPanel({ state, setState, onLogout, adminAuthed, setAdminAuthed, user, onLoginClick }) {
 const authed = adminAuthed;
 const setAuthed = setAdminAuthed;
 const [tab, setTab] = React.useState('home');
@@ -1158,7 +1149,7 @@ await assignCourseToTeacher(teacher, course);
 }
 }
 
-if (!authed) return React.createElement(AdminLogin, { onLogin:()=>setAuthed(true) });
+if (!authed) return React.createElement(AdminLogin, { onLoginClick });
 
 const tabs = [
 { id:'banner',  label:'배너 관리' },

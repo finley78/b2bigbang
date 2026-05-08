@@ -1397,12 +1397,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!profileDraft || !profileDraft._row_id) { alert('계정 정보를 찾을 수 없습니다.'); return; }
     if (!pwDraft.current || !pwDraft.next) { alert('현재/새 비밀번호를 모두 입력해 주세요.'); return; }
     if (pwDraft.next !== pwDraft.confirm) { alert('새 비밀번호 확인이 일치하지 않습니다.'); return; }
-    var { data: row } = await sb.from('students').select('password_hash').eq('id', profileDraft._row_id).single();
-    var curOk = row && await window.B2Utils.verifyPassword(pwDraft.current, row.password_hash);
-    if (!curOk) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
-    var newHash = await window.B2Utils.hashPassword(pwDraft.next);
-    var { error } = await sb.from('students').update({ password_hash: newHash }).eq('id', profileDraft._row_id);
-    if (error) { alert('변경 실패: ' + error.message); return; }
+    if (pwDraft.next.length < 6) { alert('새 비밀번호는 6자 이상이어야 합니다.'); return; }
+    var emailForAuth = profileDraft.email || user?.email;
+    if (!emailForAuth) { alert('이메일 정보를 찾을 수 없습니다.'); return; }
+    // 현재 비밀번호 검증 — 같은 이메일로 재로그인 시도
+    var verify = await sb.auth.signInWithPassword({ email: emailForAuth, password: pwDraft.current });
+    if (verify.error) { alert('현재 비밀번호가 맞지 않습니다.'); return; }
+    var upd = await sb.auth.updateUser({ password: pwDraft.next });
+    if (upd.error) { alert('변경 실패: ' + upd.error.message); return; }
     alert('비밀번호가 변경되었습니다.');
     setPwDraft({ current:'', next:'', confirm:'' });
   }

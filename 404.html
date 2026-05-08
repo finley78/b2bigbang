@@ -462,15 +462,15 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260510ag"></script>
-<script src="TopNav.js?v=20260510ag"></script>
-<script src="HomePage.js?v=20260510ag"></script>
-<script src="Pages.js?v=20260510ag"></script>
-<script src="VocabManager.js?v=20260510ag"></script>
-<script src="VocabPlayer.js?v=20260510ag"></script>
-<script src="StudentPortal.js?v=20260510ag"></script>
-<script src="TeacherPortal.js?v=20260510ag"></script>
-<script src="AdminPanel.js?v=20260510ag"></script>
+<script src="Utils.js?v=20260509a-auth"></script>
+<script src="TopNav.js?v=20260509a-auth"></script>
+<script src="HomePage.js?v=20260509a-auth"></script>
+<script src="Pages.js?v=20260509a-auth"></script>
+<script src="VocabManager.js?v=20260509a-auth"></script>
+<script src="VocabPlayer.js?v=20260509a-auth"></script>
+<script src="StudentPortal.js?v=20260509a-auth"></script>
+<script src="TeacherPortal.js?v=20260509a-auth"></script>
+<script src="AdminPanel.js?v=20260509a-auth"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -542,9 +542,64 @@ function App() {
 const [page, setPage] = React.useState(() => {
   try { return sessionStorage.getItem('b2_page') || 'home'; } catch { return 'home'; }
 });
+// 초기 hydrate: localStorage에 있으면 즉시 표시 (로딩 플래시 방지),
+// 직후 Supabase 세션과 동기화하여 실제 권한·정보로 갱신.
 const [user, setUser] = React.useState(() => {
   try { const s = localStorage.getItem('b2_user'); return s ? JSON.parse(s) : null; } catch { return null; }
 });
+
+// Supabase 세션과 동기화 — auth.users.id 기준으로 students 행 재조회
+React.useEffect(() => {
+  let cancelled = false;
+  async function syncSession(session) {
+    if (cancelled) return;
+    if (!session?.user?.id) {
+      // 세션 없음 — localStorage에 잔재가 있어도 정리
+      try {
+        if (localStorage.getItem('b2_user')) {
+          window.B2Utils.clearAuthStorage();
+          setUser(null);
+          setIsAdmin(false);
+          setAdminAuthed(false);
+        }
+      } catch {}
+      return;
+    }
+    try {
+      const { data: row } = await window.supabase.from('students')
+        .select('*').eq('auth_user_id', session.user.id).maybeSingle();
+      if (cancelled) return;
+      if (!row) return; // students 행 미연결 (OAuth 미가입자 등) — 별도 처리는 OAuth 콜백에서
+      if (row.withdrawn_at || row.is_active === false) {
+        try { await window.supabase.auth.signOut(); } catch {}
+        return;
+      }
+      const u = await window.B2Utils.buildUserFromStudentRow(row);
+      setUser(u);
+      try { localStorage.setItem('b2_user', JSON.stringify(u)); } catch {}
+      const role = String(u.role || '').toLowerCase();
+      if (role === 'admin' || role === 'administrator' || role === '관리자') {
+        setIsAdmin(true); setAdminAuthed(true);
+        try { localStorage.setItem('b2_is_admin','true'); localStorage.setItem('b2_admin_authed','true'); } catch {}
+      }
+    } catch (e) { console.error('syncSession 오류:', e); }
+  }
+  (async () => {
+    try {
+      const { data } = await window.supabase.auth.getSession();
+      await syncSession(data?.session || null);
+    } catch (e) { console.error('getSession 오류:', e); }
+  })();
+  const subRes = window.supabase.auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+      syncSession(session);
+    } else if (event === 'SIGNED_OUT') {
+      setUser(null); setIsAdmin(false); setAdminAuthed(false);
+      try { window.B2Utils.clearAuthStorage(); } catch {}
+    }
+  });
+  return () => { cancelled = true; try { subRes.data.subscription.unsubscribe(); } catch {} };
+}, []);
 const [showLogin, setShowLogin] = React.useState(false);
 const [resetToken, setResetToken] = React.useState(null);
 const [loginInitialForgot, setLoginInitialForgot] = React.useState(false);
@@ -921,30 +976,19 @@ setShowLogin(false);
 navigate('signup');
 }
 
-const effectiveUser = adminAuthed
-? (user || { id:'admin', name:'관리자', role:'admin', isAdmin:true })
-: user;
+// Supabase Auth 이전 후: admin 권한은 students.role='admin'에서 결정됨.
+// effectiveUser는 단순히 user를 그대로 노출. (예전의 'admin' 가짜 객체 제거)
+const effectiveUser = user;
 
 return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', flexDirection:'column' } },
 
-// 로그인 모달
+// 로그인 모달 — admin/student/teacher/parent 모두 동일 흐름.
+// admin 권한은 로그인 후 students.role='admin'을 보고 handleLogin이 자동 라우팅.
 showLogin && React.createElement(LoginModal, {
 key: loginInitialForgot ? 'login-forgot' : 'login-normal',
 initialForgot: loginInitialForgot,
 onLogin: handleLogin,
 onClose: ()=>{ setShowLogin(false); setLoginInitialForgot(false); },
-onAdminLogin: ()=>{
-const adminUser = { id:'admin', name:'관리자', role:'admin', isAdmin:true };
-setUser(adminUser);
-setIsAdmin(true);
-setAdminAuthed(true);
-try {
-  localStorage.setItem('b2_user', JSON.stringify(adminUser));
-  localStorage.setItem('b2_is_admin','true');
-  localStorage.setItem('b2_admin_authed','true');
-} catch {}
-navigate('admin');
-},
 onSignup: handleSignup,
 }),
 
@@ -1035,6 +1079,7 @@ adminAuthed,
 setAdminAuthed,
 onLogout: handleLogout,
 user,
+onLoginClick: ()=>setShowLogin(true),
 }),
 ),
 

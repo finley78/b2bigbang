@@ -971,13 +971,20 @@ function ResetPasswordPage({ token, onDone }) {
   const [tokenValid, setTokenValid] = React.useState(false);
   const [tokenError, setTokenError] = React.useState('');
 
+  // Supabase Auth 복구 흐름:
+  //   recovery 메일의 링크에 ?reset=supabase + #access_token=...&type=recovery 가 포함됨.
+  //   Supabase JS SDK가 hash를 자동 파싱해 세션 생성 → getSession()이 type='recovery' 세션을 반환.
   React.useEffect(function(){
     (async function(){
       try {
-        const { ok, data } = await window.B2Utils.callEdgeFn('verify-password-reset', { action: 'check', token: token });
-        if (ok) { setTokenValid(true); }
-        else { setTokenError(data.error || '유효하지 않은 링크입니다.'); }
-      } catch (e) { setTokenError('네트워크 오류'); }
+        var sb = window.supabase;
+        var res = await sb.auth.getSession();
+        if (res && res.data && res.data.session && res.data.session.user) {
+          setTokenValid(true);
+        } else {
+          setTokenError('유효하지 않거나 만료된 링크입니다. 다시 요청해 주세요.');
+        }
+      } catch (e) { setTokenError('네트워크 오류가 발생했습니다.'); }
       finally { setTokenChecked(true); }
     })();
   }, [token]);
@@ -988,10 +995,13 @@ function ResetPasswordPage({ token, onDone }) {
     if (pw !== pw2) { setMsg('비밀번호 확인이 일치하지 않습니다.'); return; }
     setLoading(true);
     try {
-      const { ok, data } = await window.B2Utils.callEdgeFn('verify-password-reset', { action: 'reset', token: token, newPassword: pw });
-      if (!ok) { setMsg(data.error || '재설정에 실패했습니다.'); setLoading(false); return; }
+      var sb = window.supabase;
+      var upd = await sb.auth.updateUser({ password: pw });
+      if (upd && upd.error) { setMsg('재설정에 실패했습니다: ' + upd.error.message); setLoading(false); return; }
+      // 재설정 후 세션은 자동 로그인 상태이지만, 일관성을 위해 로그아웃 후 다시 로그인 유도
+      try { await sb.auth.signOut(); } catch (e) {}
       setDone(true);
-    } catch (e) { setMsg('네트워크 오류'); }
+    } catch (e) { setMsg('네트워크 오류가 발생했습니다.'); }
     finally { setLoading(false); }
   }
 
