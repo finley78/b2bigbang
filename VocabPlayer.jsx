@@ -37,7 +37,7 @@
       window.speechSynthesis.cancel(); // 이전 재생 중단
       var u = new SpeechSynthesisUtterance(String(text));
       u.lang = (opts && opts.lang) || 'en-US';
-      u.rate = (opts && opts.rate) || 0.85; // 학생용: 약간 느리게 발음
+      u.rate = (opts && opts.rate) || 0.8; // 학생용: 약간 느리게 발음
       u.pitch = (opts && opts.pitch) || 1;
       window.speechSynthesis.speak(u);
     } catch (e) {}

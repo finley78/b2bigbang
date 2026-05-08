@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510g';
+const CACHE_VERSION = 'b2-bigbang-20260510h';
 const OFFLINE_URLS = [
   './',
   './index.html',
