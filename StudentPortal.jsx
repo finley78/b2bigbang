@@ -88,24 +88,14 @@ function LoginModal({ onLogin, onClose, onSignup, initialForgot }) {
     setLoading(false);
   }
 
-  // 소셜 로그인 — supabase.auth.signInWithOAuth 트리거 (실제 매칭은 App의 OAuth 콜백 핸들러가 처리)
+  // 소셜 로그인 — supabase.auth.signInWithOAuth 트리거. Phase 4 syncSession이 매칭/링크 처리.
   async function handleProvider(provider) {
     setLoading(true); setMsg('');
     try {
       if (provider === 'naver') {
-        // Naver는 Supabase 미지원 → 직접 OAuth flow. state는 sessionStorage 검증용
-        const NAVER_CLIENT_ID = 'iNR8oMfZKRrFvQxgWMvJ';
-        const NAVER_REDIRECT_URI = 'https://b2bigbang.com/auth/naver-callback';
-        const rand = (function(){
-          try { return crypto.randomUUID(); } catch { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-        })();
-        const state = 'naver_' + rand;
-        try { sessionStorage.setItem('b2_naver_state', state); } catch {}
-        const url = 'https://nid.naver.com/oauth2.0/authorize?response_type=code'
-          + '&client_id=' + encodeURIComponent(NAVER_CLIENT_ID)
-          + '&redirect_uri=' + encodeURIComponent(NAVER_REDIRECT_URI)
-          + '&state=' + encodeURIComponent(state);
-        window.location.href = url;
+        // Naver는 Supabase가 미지원 + Edge Function이 Supabase 세션을 발급하지 못해 임시 비활성화.
+        setMsg('네이버 로그인은 현재 점검 중입니다. 다른 로그인 방법을 이용해 주세요.');
+        setLoading(false);
         return;
       }
       const { error } = await sb.auth.signInWithOAuth({
