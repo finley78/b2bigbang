@@ -230,6 +230,14 @@
       localStorage.removeItem('b2_admin_authed');
       localStorage.removeItem('b2_hidden_at');
       sessionStorage.removeItem('b2_page');
+      // Supabase auth 토큰까지 제거 — 안 그러면 페이지 reload 시
+      // onAuthStateChange가 SIGNED_IN으로 자동 복원해 다시 로그인됨
+      var sbKeys = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('sb-') === 0) sbKeys.push(k);
+      }
+      sbKeys.forEach(function(k){ try { localStorage.removeItem(k); } catch (e) {} });
     } catch (e) {}
   }
 

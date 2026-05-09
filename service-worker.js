@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260509k-cards';
+const CACHE_VERSION = 'b2-bigbang-20260509l-pwa-session';
 const OFFLINE_URLS = [
   './',
   './index.html',

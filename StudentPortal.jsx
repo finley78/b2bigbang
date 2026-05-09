@@ -12,7 +12,10 @@ var levelFromGrade = window.B2Utils.levelFromGrade;
 
 /* ── Login Modal ──────────────────────────────── */
 function LoginModal({ onClose, onSignup, initialForgot }) {
-  const [email, setEmail] = React.useState('');
+  // 아이디 저장: 마지막에 체크된 상태로 로그인했다면 그 이메일을 mount 시 미리 채움
+  const [email, setEmail] = React.useState(function(){
+    try { return localStorage.getItem('b2_remembered_email') || ''; } catch { return ''; }
+  });
   const [password, setPassword] = React.useState('');
   const [msg, setMsg] = React.useState('');
   const [forgotMode, setForgotMode] = React.useState(!!initialForgot);
@@ -22,6 +25,12 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
   const [forgotDone, setForgotDone] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [showPw, setShowPw] = React.useState(false);
+  const [rememberEmail, setRememberEmail] = React.useState(function(){
+    try { return !!localStorage.getItem('b2_remembered_email'); } catch { return false; }
+  });
+  // 자동입력 자동 로그인 방지 — emailMode 진입 시각 기록.
+  // Chrome 비밀번호 매니저가 자동으로 채우면서 트리거되는 Enter/submit을 800ms 동안 무시.
+  const emailModeOpenedAtRef = React.useRef(0);
   const isMobile = window.B2Utils.useIsMobile();
   // OAuth 페이지 다녀오거나 뒤로가기로 돌아왔을 때 loading 잠금 자동 해제
   // (signInWithOAuth가 redirect 안 하고 끝나면 다른 소셜 버튼이 disabled로 묶이는 문제 방지)
@@ -42,6 +51,9 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
   // 학생·학부모·선생님·관리자 모두 동일한 흐름. role은 students 행에서 결정됨.
   // 상태 검사(pending/withdrawn) 및 user 상태 갱신·페이지 이동은 App.syncSession이 SIGNED_IN 이벤트에서 단일 처리.
   async function handleEmailLogin() {
+    // 자동입력 가드 — emailMode 진입 후 800ms 이내 트리거된 호출은 사용자 의도가 아닐 가능성이 큼
+    // (Chrome 비밀번호 매니저가 자동완성하면서 Enter나 submit을 시뮬레이션하는 케이스)
+    if (emailModeOpenedAtRef.current && Date.now() - emailModeOpenedAtRef.current < 800) return;
     if (!email || !password) { setMsg('이메일과 비밀번호를 입력해 주세요.'); return; }
     setLoading(true); setMsg('');
     try {
@@ -61,6 +73,11 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
       if (!authData?.user?.id) {
         setMsg('로그인 응답을 받지 못했습니다.'); setLoading(false); return;
       }
+      // 아이디 저장 처리 — 체크되어 있으면 저장, 해제되어 있으면 삭제
+      try {
+        if (rememberEmail) localStorage.setItem('b2_remembered_email', email.trim().toLowerCase());
+        else localStorage.removeItem('b2_remembered_email');
+      } catch (e) {}
       // 인증 성공. SIGNED_IN 이벤트로 syncSession이 students 조회·상태 검증·라우팅 처리.
       onClose();
     } catch(e) {
@@ -176,6 +193,24 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
           )
         ),
 
+        // 아이디 저장 체크박스
+        React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'14px', cursor:'pointer', userSelect:'none', fontFamily:'Manrope, sans-serif' } },
+          React.createElement('input', {
+            type:'checkbox',
+            checked: rememberEmail,
+            onChange: function(e){
+              var checked = e.target.checked;
+              setRememberEmail(checked);
+              // 체크박스 즉시 반영 — 해제하면 저장된 값도 즉시 삭제
+              try {
+                if (!checked) localStorage.removeItem('b2_remembered_email');
+              } catch (err) {}
+            },
+            style:{ width:'16px', height:'16px', accentColor: isMobile ? '#E60012' : '#1E3932', cursor:'pointer', margin:0 }
+          }),
+          React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.7)', fontWeight:'600' } }, '아이디 저장')
+        ),
+
         msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', background:'#fff5f5', borderRadius:'6px', padding:'8px 12px' } }, msg),
 
         // 로그인 버튼
@@ -206,7 +241,7 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
 
       // 메인 "이메일 로그인" 버튼 (이메일 모드 진입)
       React.createElement('button', {
-        onClick: function(){ setEmailMode(true); setMsg(''); },
+        onClick: function(){ setEmailMode(true); setMsg(''); emailModeOpenedAtRef.current = Date.now(); },
         style:{ width:'100%', background: isMobile ? '#E60012' : '#1E3932', color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'16px', transition:'background 0.2s' }
       }, '이메일 로그인'),
 
