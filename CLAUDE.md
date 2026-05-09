@@ -123,14 +123,40 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-08, 마지막 ?v=20260510x)
+## 현재 진행 (2026-05-09, 마지막 ?v=20260509l-pwa-session)
 
 ### ★ 다음에 이어서 할 일 (집에서 작업 시 우선순위) ★
 1. **수강생 관리 펼친 카드 오른쪽 컬럼 채우기** (AdminPanel.jsx 라인 ~2280 근처):
    - **시험 성적**: 현재 "시험 성적은 곧 표시됩니다" placeholder. `exam_submissions` 테이블에서 student_id로 lazy load해서 최근 5건 표시. 점수/시험명/날짜.
    - **출결**: 현재 "출결은 곧 표시됩니다" placeholder. 출결 테이블이 있다면 이번 달 통계, 없으면 출결 시스템부터 설계.
-2. **퇴원 처리 버튼 위치**: 펼친 카드 하단에 있는데 2열 그리드 밖이라 어색할 수 있음 — 점검 필요
-3. 학생 검색 기입란 입력 시 성능: 60명 정도면 괜찮지만 더 늘면 debounce 고려
+2. **단어시험 후속**: STUDY 4모드 자유 학습(Flash Card 외에 객관식/스펠링/쓰기/듣기), Easy/Hard 난이도 분리(spelling_blank_ratio 외 추가 축)
+3. **TeacherPortal 시험 카드 종류 뱃지**: AdminPanel엔 있는데 TeacherPortal엔 빠짐 — 주간/월말/반시험 kind 뱃지 추가 (작은 작업)
+4. **퇴원 처리 버튼 위치**: 펼친 카드 하단에 있는데 2열 그리드 밖이라 어색할 수 있음 — 점검 필요
+5. 학생 검색 기입란 입력 시 성능: 60명 정도면 괜찮지만 더 늘면 debounce 고려
+
+### 오늘(2026-05-09) 한 일 정리 (PWA 세션·로그인 보안)
+- **PWA 5분 자동 로그아웃이 실제로는 안 되던 버그 수정** (?v=20260509l-pwa-session)
+  - 진짜 원인: `B2Utils.clearAuthStorage()`가 `b2_user`/`b2_is_admin`/`b2_admin_authed`/`b2_hidden_at`만 지우고 **Supabase의 `sb-<ref>-auth-token` 키들은 그대로 두어서**, 페이지 reload 시 `onAuthStateChange`가 자동 SIGNED_IN으로 다시 로그인 처리됨
+  - 수정: `clearAuthStorage()`가 localStorage의 모든 `sb-` prefix 키를 함께 제거. `index.html`의 `checkSessionExpiryOnLoad`도 동일 처리. visibilitychange 핸들러는 5분 초과 시 `clearAuthStorage` → `signOut` → `window.location.reload()`로 클라이언트 상태까지 끊음
+- **자동입력 직후 자동 로그인 방지** (LoginModal)
+  - emailMode 진입 시각을 `emailModeOpenedAtRef`에 기록, `handleEmailLogin` 호출 시 800ms 이내면 무시 → Chrome 비밀번호 매니저가 자동완성 직후 시뮬레이션하는 Enter/submit 트리거 차단
+- **아이디 저장 체크박스 추가** (LoginModal emailMode)
+  - 비밀번호 input 아래 체크박스, accent color는 PWA 빨강 / PC 그린
+  - 체크 후 로그인 성공 시 `b2_remembered_email`에 lowercase 저장, 모달 mount 시 자동 채움
+  - 체크 해제 시 즉시 삭제 (onChange에서)
+
+### 최근 작업 (2026-05-08~09, 인증 마이그레이션·무결성 감사·UI 통일)
+- **Supabase Auth 전면 이전 (Phase 1~7)**:
+  - Phase 1 (a39cab6): 스키마+헬퍼 함수 비파괴적 추가
+  - Phase 2 (04d8a7e): 기존 7명 auth.users 백필 + 관리자 지정
+  - Phase 3 (bafb4df): 이메일/비번 로그인을 Supabase Auth로 교체
+  - Phase 4 (90c12fe): OAuth 콜백을 syncSession에서 단일 처리
+  - Phase 5 (8b2a428): RLS 정책 일괄 플립 + 학생-학부모 자동 연결 헬퍼
+  - Phase 6 (4249449/fb75b7a): 레거시 인증 코드·객체 cleanup (코드만 → 파괴적)
+  - Phase 7 (f2b8a54/c9f81e3/a544661/6b13192): 무결성 감사 후속, 트리거 role 화이트리스트, email 대소문자 일관성, 학생 카드 학년 동그라미·전화번호 표시 통일, 학부모 자녀 상세 헤더 통일
+  - migrations baseline (3b2fc0b): 라이브 Supabase 스키마 통째 캡처
+- **회원 정보·학습 현황·시험 관리 카드 반응형 그리드 통일** (7075c83)
+- **성적 분석 필터 개선** (062420d): 반 선택 없이도 다른 필터로 결과 나오도록
 
 ### 오늘(2026-05-08) 한 일 정리
 - **수강생 관리 대대적 개선** (?v=20260510l~x)
