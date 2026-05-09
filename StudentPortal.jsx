@@ -28,9 +28,12 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
   const [rememberEmail, setRememberEmail] = React.useState(function(){
     try { return !!localStorage.getItem('b2_remembered_email'); } catch { return false; }
   });
-  // 자동입력 자동 로그인 방지 — emailMode 진입 시각 기록.
-  // Chrome 비밀번호 매니저가 자동으로 채우면서 트리거되는 Enter/submit을 800ms 동안 무시.
+  // 자동입력 자동 로그인 방지 — emailMode 진입 시각 기록 (1차 가드)
   const emailModeOpenedAtRef = React.useRef(0);
+  // 자동입력 자동 로그인 방지 (2차 가드) — 마지막으로 사용자가 신뢰된 pointerdown 한 시각.
+  // Chrome 비밀번호 매니저가 button.click()을 직접 dispatch하면 pointerdown은 트리거되지 않으므로,
+  // handleEmailLogin이 호출된 시점이 사용자 pointerdown 직후가 아니면 자동 트리거로 간주해 차단한다.
+  const lastUserPointerRef = React.useRef(0);
   const isMobile = window.B2Utils.useIsMobile();
   // OAuth 페이지 다녀오거나 뒤로가기로 돌아왔을 때 loading 잠금 자동 해제
   // (signInWithOAuth가 redirect 안 하고 끝나면 다른 소셜 버튼이 disabled로 묶이는 문제 방지)
@@ -41,6 +44,14 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
+  // pointerdown 추적 — capture phase로 document에 등록해 어디서든 신뢰된 클릭을 감지
+  React.useEffect(() => {
+    function track(e) {
+      if (e.isTrusted) lastUserPointerRef.current = Date.now();
+    }
+    document.addEventListener('pointerdown', track, true);
+    return () => document.removeEventListener('pointerdown', track, true);
+  }, []);
   const sb = window.supabase;
 
   const inputFieldStyle = { position:'relative', background:'#f9f9f9', borderRadius:'4px', border:'1px solid #d6dbde', padding:'14px 12px 10px', marginBottom:'10px' };
@@ -50,10 +61,15 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
   // 이메일/비밀번호 로그인 (Supabase Auth)
   // 학생·학부모·선생님·관리자 모두 동일한 흐름. role은 students 행에서 결정됨.
   // 상태 검사(pending/withdrawn) 및 user 상태 갱신·페이지 이동은 App.syncSession이 SIGNED_IN 이벤트에서 단일 처리.
-  async function handleEmailLogin() {
-    // 자동입력 가드 — emailMode 진입 후 800ms 이내 트리거된 호출은 사용자 의도가 아닐 가능성이 큼
-    // (Chrome 비밀번호 매니저가 자동완성하면서 Enter나 submit을 시뮬레이션하는 케이스)
+  async function handleEmailLogin(opts) {
+    // 1차 가드: emailMode 진입 후 800ms 이내는 자동 트리거로 간주
     if (emailModeOpenedAtRef.current && Date.now() - emailModeOpenedAtRef.current < 800) return;
+    // 2차 가드: 사용자가 명시적으로 트리거한 호출인지 검증
+    //  - opts.fromEnter=true: 비번 input에서 Enter 눌렀고 isTrusted=true (호출자가 검증)
+    //  - 그 외엔 마지막 신뢰된 pointerdown이 1초 이내여야 통과 (마우스/터치 클릭은 click 직전에 pointerdown 발생)
+    var fromEnter = !!(opts && opts.fromEnter);
+    var recentUserPointer = (Date.now() - lastUserPointerRef.current) < 1000 && lastUserPointerRef.current > 0;
+    if (!fromEnter && !recentUserPointer) return;
     if (!email || !password) { setMsg('이메일과 비밀번호를 입력해 주세요.'); return; }
     setLoading(true); setMsg('');
     try {
@@ -179,7 +195,7 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
         // 비밀번호 입력
         React.createElement('div', { style:{ ...inputFieldStyle, marginBottom:'12px' } },
           React.createElement('div', { style:floatLabelStyle }, '비밀번호'),
-          React.createElement('input', { type: showPw ? 'text' : 'password', name:'password', autoComplete:'current-password', placeholder:'비밀번호 입력', value:password, onChange:e=>{ setPassword(e.target.value); setMsg(''); }, onKeyDown:e=>e.key==='Enter'&&handleLogin(), style:{ ...inputStyle, paddingRight:'28px' } }),
+          React.createElement('input', { type: showPw ? 'text' : 'password', name:'password', autoComplete:'current-password', placeholder:'비밀번호 입력', value:password, onChange:e=>{ setPassword(e.target.value); setMsg(''); }, onKeyDown:e=>{ if (e.key==='Enter' && e.isTrusted) handleEmailLogin({ fromEnter:true }); }, style:{ ...inputStyle, paddingRight:'28px' } }),
           React.createElement('button', { type:'button', onClick:()=>setShowPw(v=>!v), 'aria-label': showPw ? '비밀번호 숨기기' : '비밀번호 표시', style:{ position:'absolute', right:'8px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', padding:'4px', cursor:'pointer', color:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center' } },
             showPw
               ? React.createElement('svg', { width:'18', height:'18', viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' },
@@ -213,8 +229,9 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
 
         msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', background:'#fff5f5', borderRadius:'6px', padding:'8px 12px' } }, msg),
 
-        // 로그인 버튼
-        React.createElement('button', { onClick:handleLogin, disabled:loading, style:{ width:'100%', background: loading?'#aaa': (isMobile ? '#E60012' : '#1E3932'), color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'14px', transition:'background 0.2s' } },
+        // 로그인 버튼 — type='button'으로 form submit 오인 방지.
+        // onPointerDown은 사용자 신뢰된 클릭일 때만 발생 → handleEmailLogin의 가드를 통과시킨다.
+        React.createElement('button', { type:'button', onClick:function(){ handleEmailLogin(); }, disabled:loading, style:{ width:'100%', background: loading?'#aaa': (isMobile ? '#E60012' : '#1E3932'), color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'14px', transition:'background 0.2s' } },
           loading ? '로그인 중...' : '로그인'
         ),
 
