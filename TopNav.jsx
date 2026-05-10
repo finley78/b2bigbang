@@ -83,9 +83,9 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
       // 우측: D-day + 햄버거
       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
         React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#000000', fontFamily:'Manrope, sans-serif' } }, `수능 D-${d}`),
-        // 햄버거 버튼
+        // 햄버거 버튼 — 관리자/선생님 페이지에선 메뉴를 펼치지 않고 공개 홈으로 이동
         React.createElement('button', {
-          onClick: () => setMenuOpen(!menuOpen),
+          onClick: () => { if (page === 'admin' || page === 'teacher') { setMenuOpen(false); setPage('home'); return; } setMenuOpen(!menuOpen); },
           style: { background:'none', border:'none', cursor:'pointer', padding:'4px', display:'flex', flexDirection:'column', gap:'5px' }
         },
           React.createElement('div', { style:{ width:'22px', height:'2px', background:'rgba(0,0,0,0.7)', borderRadius:'1px', transition:'all 0.2s', transform: menuOpen ? 'rotate(45deg) translateY(7px)' : 'none' } }),
@@ -95,8 +95,8 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
       )
     ),
 
-    // 모바일 드롭다운 메뉴
-    isMobile && menuOpen && React.createElement('div', { style: mnStyles.mobileMenu },
+    // 모바일 드롭다운 메뉴 — 관리자/선생님 페이지에선 펼쳐진 메뉴를 표시하지 않음(자체 화면이라 공개 네비 링크 불필요)
+    isMobile && menuOpen && page !== 'admin' && page !== 'teacher' && React.createElement('div', { style: mnStyles.mobileMenu },
       NAV_LINKS.map(label =>
         React.createElement('div', {
           key: label,
@@ -126,7 +126,7 @@ function MainNav({ page, setPage, user, adminAuthed, onLoginClick, onSignupClick
       )
     ),
     // 모바일 로그아웃 버튼 (로그인 상태)
-    isMobile && menuOpen && user && React.createElement('div', { style:{ background:'#fff', borderTop:'1px solid rgba(0,0,0,0.06)', padding:'12px 20px' } },
+    isMobile && menuOpen && page !== 'admin' && page !== 'teacher' && user && React.createElement('div', { style:{ background:'#fff', borderTop:'1px solid rgba(0,0,0,0.06)', padding:'12px 20px' } },
       React.createElement('button', {
         onClick:()=>{ onLogout(); setMenuOpen(false); },
         style:{ width:'100%', background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'10px', fontSize:'14px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
