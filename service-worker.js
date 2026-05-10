@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v31-lecture-subject-only';
+const CACHE_VERSION = 'b2-bigbang-20260510v32-teacher-course-edit-delete';
 const OFFLINE_URLS = [
   './',
   './index.html',

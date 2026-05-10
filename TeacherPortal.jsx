@@ -67,6 +67,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [distributeCourseId, setDistributeCourseId] = React.useState('');
   const [distributeDraft, setDistributeDraft] = React.useState({ scope:'unassigned', class_id:'', level:'', grade:'', grades:[], student_ids:[], picker_class_id:'' });
   const [distributing, setDistributing] = React.useState(false);
+  // 강좌 정보 수정 (이름·설명·과목)
+  const [editingCourseId, setEditingCourseId] = React.useState('');
+  const [editCourseDraft, setEditCourseDraft] = React.useState({ title:'', description:'', subject:'' });
+  const [savingCourseEdit, setSavingCourseEdit] = React.useState(false);
   const [distEnrollments, setDistEnrollments] = React.useState([]); // 현재 강좌의 enrollments
   const [allStudents, setAllStudents] = React.useState([]);
   const [classStudentMap, setClassStudentMap] = React.useState({}); // { class_id: [students...] }
@@ -267,6 +271,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return {
       id: course.id,
       title: course.title || course.name || "이름 없는 강좌",
+      description: course.description || "",
       subject: course.subjects?.name || course.subject || "",
       teacher: course.teacher || "",
       level: course.level || "",
@@ -355,6 +360,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     const { data: courseList, error: courseError } = await sb
       .from("courses")
       .select("*, subjects(name,color), videos(*)")
+      .eq("is_active", true)
       .order("sort_order", { ascending: true });
 
     if (courseError) {
@@ -1015,6 +1021,51 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       alert('저장 실패: ' + (e.message || e));
     } finally {
       setDistributing(false);
+    }
+  }
+  function openCourseEditor(course) {
+    setDistributeCourseId('');
+    setEditingCourseId(course.id);
+    setEditCourseDraft({ title: course.title || '', description: course.description || '', subject: course.subject || '' });
+  }
+  async function saveCourseEdit() {
+    if (!editingCourseId) return;
+    var d = editCourseDraft;
+    if (!String(d.title || '').trim()) { alert('강좌명을 입력해 주세요.'); return; }
+    setSavingCourseEdit(true);
+    try {
+      var subjectId = null;
+      if (d.subject) {
+        var sj = await sb.from('subjects').select('id').eq('name', d.subject).limit(1);
+        subjectId = (sj.data && sj.data[0]) ? sj.data[0].id : null;
+      }
+      var updates = { title: String(d.title).trim(), description: (d.description || '').trim() || null, subject_id: subjectId };
+      var { error } = await sb.from('courses').update(updates).eq('id', editingCourseId);
+      if (error) throw error;
+      setTeacherCourses(function(prev){ return prev.map(function(c){
+        if (String(c.id) !== String(editingCourseId)) return c;
+        return Object.assign({}, c, { title: updates.title, description: updates.description || '', subject: d.subject || '' });
+      }); });
+      alert('강좌 정보가 저장되었습니다.');
+      setEditingCourseId('');
+    } catch (e) {
+      alert('저장 실패: ' + (e.message || e));
+    } finally {
+      setSavingCourseEdit(false);
+    }
+  }
+  async function deleteTeacherCourse(course) {
+    if (!confirm('"' + (course.title || '강좌') + '" 강좌를 삭제할까요?\n\n· 이 강좌의 강의(영상)와 수강 학생들의 강좌 목록에서도 사라집니다.\n· 학생들의 시청 기록 등은 데이터베이스에 보관됩니다.')) return;
+    try {
+      var { error } = await sb.from('courses').update({ is_active: false }).eq('id', course.id);
+      if (error) throw error;
+      try { await sb.from('enrollments').update({ is_active: false }).eq('course_id', course.id); } catch (e) {}
+      setTeacherCourses(function(prev){ return prev.filter(function(c){ return String(c.id) !== String(course.id); }); });
+      if (String(distributeCourseId) === String(course.id)) setDistributeCourseId('');
+      if (String(editingCourseId) === String(course.id)) setEditingCourseId('');
+      alert('강좌가 삭제되었습니다.');
+    } catch (e) {
+      alert('삭제 실패: ' + (e.message || e));
     }
   }
   function describeCourseScope(c) {
@@ -2318,7 +2369,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             {/* 내 강좌 목록 + 배포 설정 */}
             <div style={{ borderTop:'1px solid #e5e7eb', marginTop:'24px', paddingTop:'18px' }}>
               <h3 style={{ fontSize:'15px', fontWeight:'800', marginBottom:'8px' }}>내 강좌 · {(teacherCourses || []).length}개</h3>
-              <p style={{ fontSize:'12px', color:'#6b7280', marginBottom:'12px', fontFamily:'Manrope, sans-serif' }}>이미 만든 강좌의 배포 대상을 변경할 수 있습니다.</p>
+              <p style={{ fontSize:'12px', color:'#6b7280', marginBottom:'12px', fontFamily:'Manrope, sans-serif' }}>이미 만든 강좌의 이름·설명·과목을 수정하거나, 배포 대상을 변경하거나, 강좌를 삭제할 수 있습니다.</p>
               {(teacherCourses || []).length === 0 ? (
                 <div style={{ color:'#9ca3af', fontSize:'13px', padding:'16px', background:'#f9fafb', borderRadius:'8px', fontFamily:'Manrope, sans-serif' }}>아직 개설한 강좌가 없습니다.</div>
               ) : (
@@ -2329,10 +2380,34 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         <div style={{ fontSize:'14px', fontWeight:'700', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' }}>{c.title}</div>
                         <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[c.subject, describeCourseScope(c), (c.lectures||[]).length+'강'].filter(Boolean).join(' · ')}</div>
                       </div>
-                      <button style={smallLightButtonStyle} onClick={() => { if (String(distributeCourseId) === String(c.id)) setDistributeCourseId(''); else openDistributeEditor(c); }}>
-                        {String(distributeCourseId) === String(c.id) ? '닫기' : '배포 설정'}
-                      </button>
+                      <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+                        <button style={smallPrimaryButtonStyle} onClick={() => { if (String(editingCourseId) === String(c.id)) setEditingCourseId(''); else openCourseEditor(c); }}>
+                          {String(editingCourseId) === String(c.id) ? '닫기' : '수정'}
+                        </button>
+                        <button style={smallLightButtonStyle} onClick={() => { if (String(distributeCourseId) === String(c.id)) setDistributeCourseId(''); else openDistributeEditor(c); }}>
+                          {String(distributeCourseId) === String(c.id) ? '닫기' : '배포 설정'}
+                        </button>
+                        <button style={smallDangerButtonStyle} onClick={() => deleteTeacherCourse(c)}>삭제</button>
+                      </div>
                     </div>
+
+                    {String(editingCourseId) === String(c.id) && (
+                      <div style={{ marginTop:'12px', padding:'12px', background:'#f9fafb', borderRadius:'8px' }}>
+                        <label style={{ fontSize:'11px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>강좌명</label>
+                        <input style={{ ...inputStyle, marginBottom:'10px' }} value={editCourseDraft.title} onChange={e => setEditCourseDraft({ ...editCourseDraft, title: e.target.value })} placeholder="강좌명" />
+                        <label style={{ fontSize:'11px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>설명 (선택)</label>
+                        <textarea style={{ ...inputStyle, minHeight:'60px', resize:'vertical', marginBottom:'10px' }} value={editCourseDraft.description} onChange={e => setEditCourseDraft({ ...editCourseDraft, description: e.target.value })} placeholder="강좌 소개·커리큘럼 등" />
+                        <label style={{ fontSize:'11px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>과목</label>
+                        <select style={{ ...inputStyle, marginBottom:'12px' }} value={editCourseDraft.subject} onChange={e => setEditCourseDraft({ ...editCourseDraft, subject: e.target.value })}>
+                          <option value="">선택 안 함</option>
+                          {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <div style={{ display:'flex', gap:'8px' }}>
+                          <button style={{ ...lightButtonStyle, flex:1 }} onClick={() => setEditingCourseId('')}>취소</button>
+                          <button style={{ ...buttonStyle, flex:1, opacity: savingCourseEdit ? 0.6 : 1, cursor: savingCourseEdit ? 'not-allowed' : 'pointer' }} onClick={saveCourseEdit} disabled={savingCourseEdit}>{savingCourseEdit ? '저장 중...' : '저장'}</button>
+                        </div>
+                      </div>
+                    )}
 
                     {String(distributeCourseId) === String(c.id) && (
                       <div style={{ marginTop:'12px', padding:'12px', background:'#f9fafb', borderRadius:'8px' }}>
