@@ -343,6 +343,7 @@ function SignupPage({ onBack, onComplete, prefill }) {
   });
   const [msg, setMsg] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [needsEmailConfirm, setNeedsEmailConfirm] = React.useState(false); // signUp 후 세션이 없으면 이메일 인증 대기
   const sb = window.supabase;
 
   const ROLE_OPTIONS = [
@@ -427,6 +428,8 @@ function SignupPage({ onBack, onComplete, prefill }) {
       if (!signupData?.user?.id) {
         setMsg('가입 응답을 받지 못했습니다.'); setLoading(false); return;
       }
+      // 세션이 안 왔으면(이메일 확인 옵션 ON) 이메일 인증 링크 안내가 필요
+      setNeedsEmailConfirm(!signupData.session);
 
       // 학생-학부모 자동 연결: 트리거가 만든 students 행 id를 가져와 RPC 호출.
       // 세션이 있을 때만 가능 (이메일 확인 ON이면 RPC가 안전하게 NULL 반환).
@@ -474,12 +477,22 @@ function SignupPage({ onBack, onComplete, prefill }) {
   if (step === 3) return React.createElement('div', { style:{ minHeight:'100vh', background:'#f8fafc' } },
     header,
     React.createElement('div', { style:{ maxWidth:'480px', margin:'0 auto', padding:'60px 20px', textAlign:'center' } },
-      React.createElement('div', { style:{ fontSize:'64px', marginBottom:'20px' } }, '완료'),
-      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, roleType === 'teacher' ? '가입 신청 완료' : '가입 완료!'),
-      React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.8' } },
-        roleType === 'teacher'
-          ? '선생님 가입은 관리자 승인 후 이용 가능합니다.\n승인 완료 시 연락드리겠습니다.'
-          : `${form.name}님, 환영합니다!\n이제 로그인하여 수강하실 수 있습니다.`
+      React.createElement('div', { style:{ fontSize:'64px', marginBottom:'20px' } }, needsEmailConfirm ? '📧' : '완료'),
+      React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, roleType === 'teacher' ? '가입 신청 완료' : (needsEmailConfirm ? '이메일 인증만 남았어요' : '가입 완료!')),
+      React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.8', whiteSpace:'pre-line' } },
+        (function(){
+          var lines = [];
+          if (roleType === 'teacher') {
+            lines.push('선생님 가입 신청이 접수되었습니다.');
+            if (needsEmailConfirm) lines.push('① 가입하신 이메일(' + form.email.trim() + ')로 보낸 인증 링크를 눌러주세요.\n② 관리자 승인이 완료되면 로그인하실 수 있습니다. (승인 시 연락드립니다.)');
+            else lines.push('관리자 승인이 완료되면 로그인하실 수 있습니다. (승인 시 연락드립니다.)');
+          } else {
+            lines.push(form.name + '님, 환영합니다!');
+            if (needsEmailConfirm) lines.push('가입하신 이메일(' + form.email.trim() + ')로 인증 링크를 보냈어요.\n메일의 링크를 눌러 인증을 마치면 로그인하실 수 있습니다.\n(메일이 안 보이면 스팸함도 확인해 주세요.)');
+            else lines.push('이제 로그인하여 수강하실 수 있습니다.');
+          }
+          return lines.join('\n');
+        })()
       ),
       React.createElement('button', { onClick: onBack, style:{ marginTop:'32px', background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'14px 36px', fontSize:'15px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '로그인하러 가기')
     )
