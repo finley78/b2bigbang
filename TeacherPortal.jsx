@@ -2841,17 +2841,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <button style={lightButtonStyle} onClick={clearAllStudents}>전체 해제</button>
                 <span style={{ alignSelf: "center", fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>점수 입력 {students.filter(s => String(scores[s.id]||"").trim() !== "").length}명 / 전체 {students.length}명</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: teacherIsMobile ? "1fr" : "repeat(auto-fill, minmax(260px, 1fr))", gap: "8px", marginBottom: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: teacherIsMobile ? "1fr 1fr" : "repeat(auto-fill, minmax(178px, 1fr))", gap: "6px", marginBottom: "12px" }}>
                 {students.map(s => {
                   const checked = selectedStudentIds.includes(s.id);
                   return (
-                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 9px", border: checked ? "1.5px solid #E60012" : "1px solid #e5e7eb", borderRadius: "8px", background: checked ? "#fff7f7" : "white" }}>
-                      <input type="checkbox" checked={checked} onChange={() => toggleStudent(s.id)} style={{ width: "16px", height: "16px", flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-                        <span style={{ fontWeight: "700", fontSize: "14px", color: "#1A1A1A", fontFamily: "Manrope, sans-serif" }}>{s.name}</span>
-                        {s.grade && <span style={{ fontSize: "11px", color: "#9ca3af", marginLeft: "6px", fontFamily: "Manrope, sans-serif" }}>{s.grade}</span>}
-                      </div>
-                      <input style={{ ...inputStyle, width: "64px", flexShrink: 0, textAlign: "center", padding: "7px 4px" }} type="number" placeholder="점수" value={scores[s.id] || ""} onChange={e => { updateScore(s.id, e.target.value); if (e.target.value && !selectedStudentIds.includes(s.id)) toggleStudent(s.id); }} />
+                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "5px 7px", border: checked ? "1.5px solid #E60012" : "1px solid #e5e7eb", borderRadius: "7px", background: checked ? "#fff7f7" : "white" }}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleStudent(s.id)} style={{ width: "15px", height: "15px", flexShrink: 0 }} />
+                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontWeight: "700", fontSize: "13px", color: "#1A1A1A", fontFamily: "Manrope, sans-serif" }} title={s.grade ? s.name + " (" + s.grade + ")" : s.name}>{s.name}</span>
+                      <input style={{ ...inputStyle, width: "52px", flexShrink: 0, textAlign: "center", padding: "5px 3px", fontSize: "13px" }} type="number" placeholder="점수" value={scores[s.id] || ""} onChange={e => { updateScore(s.id, e.target.value); if (e.target.value && !selectedStudentIds.includes(s.id)) toggleStudent(s.id); }} />
                     </div>
                   );
                 })}

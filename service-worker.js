@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v37-score-entry-grid';
+const CACHE_VERSION = 'b2-bigbang-20260511v38-score-entry-compact';
 const OFFLINE_URLS = [
   './',
   './index.html',
