@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v13-class-mgmt';
+const CACHE_VERSION = 'b2-bigbang-20260510v14-teacher-grade-fix';
 const OFFLINE_URLS = [
   './',
   './index.html',

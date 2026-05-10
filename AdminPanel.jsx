@@ -1071,13 +1071,8 @@ return Array.from(new Set((list || []).filter(Boolean).map(function(v) { return 
 }
 
 function getTeacherGradeAssignments(teacher) {
-var grades = splitAdminList(teacher && teacher.grade);
-var paired = grades.filter(function(item) {
-return TEACHER_ASSIGN_LEVELS.some(function(level) {
-return String(item).indexOf(level + ' ') === 0;
-});
-});
-return paired.length > 0 ? paired : grades;
+// 선생님 grade 컬럼에 저장된 태그 전체를 그대로 반환 ('과목-학교급 학년', '학교급 학년' 등 형식 혼재 가능 — 각 호출처에서 필터)
+return splitAdminList(teacher && teacher.grade);
 }
 
 function getTeacherAssignDraft(teacherId) {
@@ -3115,15 +3110,18 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
       ),
       React.createElement('button', {
         onClick: async function() {
+          if (!draft.level) { alert('학교급을 선택해 주세요.'); return; }
           if ((draft.grades || []).length === 0) { alert('학년을 1개 이상 선택해 주세요.'); return; }
-          var newTags = (draft.grades || []).map(function(g) { return sub + '-' + draft.level + ' ' + g; });
-          var existing = getTeacherGradeAssignments(t).filter(function(a) { return String(a).indexOf(sub + '-') !== 0; });
+          var prefix = sub + '-' + draft.level + ' ';
+          var newTags = (draft.grades || []).map(function(g) { return prefix + g; });
+          // 같은 과목 + 같은 학교급 태그만 교체. 같은 과목의 다른 학교급(예: 영어-중등 ~)은 그대로 둠.
+          var existing = getTeacherGradeAssignments(t).filter(function(a) { return String(a).indexOf(prefix) !== 0; });
           var merged = existing.concat(newTags);
           var gradeStr = Array.from(new Set(merged.filter(Boolean))).join(',');
-          var schoolStr = '';
-          await sb.from('students').update({ grade: gradeStr, school: schoolStr }).eq('id', t.id);
-          setDbTeachers(function(ts) { return ts.map(function(x) { return x.id===t.id ? Object.assign({},x,{grade:gradeStr,school:schoolStr}) : x; }); });
+          await sb.from('students').update({ grade: gradeStr, school: '' }).eq('id', t.id);
+          setDbTeachers(function(ts) { return ts.map(function(x) { return x.id===t.id ? Object.assign({},x,{grade:gradeStr,school:''}) : x; }); });
           updateTeacherAssignDraft(draftKey, { grades:[] });
+          if (typeof showSaved === 'function') showSaved();
         },
         style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
       }, '저장')
