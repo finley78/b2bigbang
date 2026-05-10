@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v5-nav-fix';
+const CACHE_VERSION = 'b2-bigbang-20260510v6-vocab-gate';
 const OFFLINE_URLS = [
   './',
   './index.html',

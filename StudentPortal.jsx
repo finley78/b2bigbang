@@ -2390,8 +2390,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
         { id:'video',    color:'#E60012', title:'영상 강의', sub:'수강 과목 ' + studentSubjects.length + '개', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
         { id:'test',     color:'#E60012', title:'테스트',  sub:'응시 가능 ' + testExamsAll.length + '건' + (pendingExams.length > 0 ? ' · 미응시 ' + pendingExams.length : ''), onClick:function(){ setStudentMode('test'); } },
         { id:'homework', color:'#E60012', title:'숙제',    sub:'제출 가능 ' + homeworkExamsAll.length + '건' + (pendingHomework.length > 0 ? ' · 미제출 ' + pendingHomework.length : ''), onClick:function(){ setStudentMode('homework'); } },
-        { id:'vocab',    color:'#E60012', title:'단어 시험', sub:'학습·시험·결과·순위', onClick:function(){ setStudentMode('vocab'); } },
-      ];
+        { id:'vocab',    color:'#E60012', title:'단어 시험', sub:'학습·시험·결과·순위', requiresEnglish:true, onClick:function(){ setStudentMode('vocab'); } },
+      ].filter(function(it){ return !it.requiresEnglish || studentSubjects.indexOf('영어') >= 0; });
       return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
         renderHeader(false),
         React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'32px 16px' } },
@@ -2422,8 +2422,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       { id:'video',    color:'#E60012', title:'영상 강의', sub:'수강 과목 ' + studentSubjects.length + '개', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
       { id:'test',     color:'#E60012', title:'테스트',  sub:'응시 가능 ' + testExamsAll.length + '건' + (pendingExams.length > 0 ? ' · 미응시 ' + pendingExams.length : ''), onClick:function(){ setStudentMode('test'); } },
       { id:'homework', color:'#E60012', title:'숙제',    sub:'제출 가능 ' + homeworkExamsAll.length + '건' + (pendingHomework.length > 0 ? ' · 미제출 ' + pendingHomework.length : ''), onClick:function(){ setStudentMode('homework'); } },
-      { id:'vocab',    color:'#E60012', title:'단어 시험', sub:'학습·시험·결과·순위', onClick:function(){ setStudentMode('vocab'); } },
-    ];
+      { id:'vocab',    color:'#E60012', title:'단어 시험', sub:'학습·시험·결과·순위', requiresEnglish:true, onClick:function(){ setStudentMode('vocab'); } },
+    ].filter(function(it){ return !it.requiresEnglish || studentSubjects.indexOf('영어') >= 0; });
     return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
       renderHeader(false),
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto', padding:'32px 16px' } },
@@ -2449,7 +2449,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     );
   }
 
-  // 학생 - 단어 시험 (보카트레인 형식: STUDY/TEST/REPORT/RANKING)
+  // 학생 - 단어 시험 (보카트레인 형식: STUDY/TEST/REPORT/RANKING) — 영어 수강생만 이용
   if (isStudent && studentMode === 'vocab') {
     return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'100vh' } },
       renderHeader(false),
@@ -2457,7 +2457,9 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
         React.createElement('button', { onClick:function(){ setStudentMode('home'); }, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '← 강의실로')
       ),
       React.createElement('div', { style:{ maxWidth:'960px', margin:'0 auto' } },
-        window.VocabPlayer
+        studentSubjects.indexOf('영어') < 0
+          ? React.createElement('div', { style:{ padding:'48px 24px', textAlign:'center', color:'#9ca3af', fontFamily:'Manrope, sans-serif', fontSize:'14px' } }, '단어 시험은 영어 수강생만 이용할 수 있어요.')
+        : window.VocabPlayer
           ? React.createElement(window.VocabPlayer, { user: user })
           : React.createElement('div', { style:{ padding:'40px', textAlign:'center', color:'#9ca3af' } }, '단어 시험 모듈이 로드되지 않았습니다.')
       )
