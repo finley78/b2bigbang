@@ -149,6 +149,14 @@ const [adminAttachLoading, setAdminAttachLoading] = React.useState(false);
 const [adminScrList, setAdminScrList] = React.useState([]);
 const [adminScrLoading, setAdminScrLoading] = React.useState(false);
 const [adminScrTeacherFilter, setAdminScrTeacherFilter] = React.useState('전체');
+// 학원 일정 탭을 마지막으로 본 시각 — 이후 들어온 신청만 홈 카드 배지에 카운트(탭 열면 배지 사라짐)
+const [scrSeenAt, setScrSeenAt] = React.useState(function(){ try { return localStorage.getItem('b2_admin_scr_seen') || ''; } catch (e) { return ''; } });
+function markScheduleSeen() {
+  var now = new Date().toISOString();
+  try { localStorage.setItem('b2_admin_scr_seen', now); } catch (e) {}
+  setScrSeenAt(now);
+}
+React.useEffect(function(){ if (tab === 'schedule') markScheduleSeen(); }, [tab]);
 // 레벨테스트
 const [adminLevelTests, setAdminLevelTests] = React.useState([]);
 const [adminTestKindFilter, setAdminTestKindFilter] = React.useState('all');
@@ -1383,12 +1391,12 @@ tab === 'home' && React.createElement('div', null,
           }, adminIsMobile ? mobileStyle : pcStyle), onMouseEnter:function(e){ e.currentTarget.style.borderColor = groupColor; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = '0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)'; } },
             t.label,
             (function(){
-              // 처리 대기 건수 배지 — 선생님 관리: 가입 승인 대기(학생/학부모+선생님), 수강생 관리: 수강 신청 대기, 학원 일정: 강의일정 변경 신청(오늘 이후)
-              var _todayStr = new Date().toISOString().slice(0,10);
+              // 처리 대기 건수 배지 — 선생님 관리: 가입 승인 대기(학생/학부모+선생님), 수강생 관리: 수강 신청 대기, 학원 일정: 아직 안 본 강의일정 변경 신청(학원 일정 탭 열면 0이 됨)
+              var _scrSeenMs = scrSeenAt ? new Date(scrSeenAt).getTime() : 0;
               var cnt = tid === 'teacher'
                 ? ((dbPending || []).filter(function(p){ return p.role !== 'pending_teacher'; }).length + (dbTeachers || []).filter(function(t2){ return t2.role === 'pending_teacher'; }).length)
                 : tid === 'enrollee' ? (pendingEnrollments || []).length
-                : tid === 'schedule' ? (adminScrList || []).filter(function(r){ return String(r.target_date||'') >= _todayStr; }).length
+                : tid === 'schedule' ? (adminScrList || []).filter(function(r){ var ms = new Date(r.created_at).getTime(); return !isNaN(ms) && ms > _scrSeenMs; }).length
                 : 0;
               return cnt > 0 ? React.createElement('span', { style:{ marginLeft:'8px', display:'inline-flex', alignItems:'center', justifyContent:'center', minWidth:'18px', height:'18px', padding:'0 5px', borderRadius:'999px', background:'#E60012', color:'#fff', fontSize:'11px', fontWeight:'800', fontFamily:'Manrope, sans-serif', verticalAlign:'middle' } }, String(cnt)) : null;
             })()
@@ -4123,7 +4131,9 @@ tab==='schedule' && React.createElement('div', null,
 
   /* 강의일정 변경 신청 모드 */
   adminScrMode === 'change' && (function(){
-    var teacherOptions = ['전체'].concat(Array.from(new Set(adminScrList.map(function(r){ return r.teacher_name; }).filter(Boolean))));
+    var _allTeacherNames = (dbTeachers || []).filter(function(t){ return t.role === 'teacher'; }).map(function(t){ return t.name; }).filter(Boolean);
+    var _namesInList = adminScrList.map(function(r){ return r.teacher_name; }).filter(Boolean);
+    var teacherOptions = ['전체'].concat(Array.from(new Set(_allTeacherNames.concat(_namesInList))).sort());
     var filtered = adminScrTeacherFilter === '전체' ? adminScrList : adminScrList.filter(function(r){ return r.teacher_name === adminScrTeacherFilter; });
     return React.createElement('div', null,
       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'14px', flexWrap:'wrap' } },
