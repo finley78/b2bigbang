@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v-teacher-studyviews';
+const CACHE_VERSION = 'b2-bigbang-20260510v2-class-buttons';
 const OFFLINE_URLS = [
   './',
   './index.html',
