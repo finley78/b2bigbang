@@ -1586,10 +1586,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   ];
 
   const TAB_GROUPS = [
-    { id: 'class',   label: '우리 반',        color:'#1d4ed8', tabs:['classes','scores','studyviews'] },
-    { id: 'assign',  label: '시험·숙제·단어',  color:'#E60012', tabs:['tests','homework','vocab'] },
-    { id: 'course',  label: '온라인 강좌',     color:'#1f7a3d', tabs:['course','lecture'] },
-    { id: 'academy', label: '학원',           color:'#c87000', tabs:['schedule','files','mypage'] },
+    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','homework','tests','vocab','scores','studyviews','course','lecture'] },
+    { id: 'academy', label: '학원',      color:'#c87000', tabs:['schedule','files'] },
+    { id: 'me',      label: '내 정보',   color:'#1A1A1A', tabs:['mypage'] },
   ];
 
   function loadOnTabClick(id) {

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v23-hw-view-images';
+const CACHE_VERSION = 'b2-bigbang-20260510v24-rollback';
 const OFFLINE_URLS = [
   './',
   './index.html',
