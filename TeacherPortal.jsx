@@ -1655,11 +1655,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <h2 style={{ fontSize:'17px', fontWeight:'800', color:'#1A1A1A', margin:0, fontFamily:'Manrope, sans-serif', letterSpacing:'-0.01em' }}>{g.label}</h2>
                 <span style={{ fontSize:'11px', fontWeight:'700', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{g.tabs.length}개</span>
               </div>
-              <div style={teacherIsMobile ? { display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:'10px' } : { display:'flex', flexWrap:'wrap', gap:'8px' }}>
+              <div style={teacherIsMobile ? { display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:'10px' } : { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'10px' }}>
                 {g.tabs.map(tid => {
                   const t = TABS.find(x => x.id === tid);
                   if (!t) return null;
-                  const pcStyle = { padding:'16px 18px', fontSize:'15px', display:'inline-flex', alignItems:'center', textAlign:'left', minHeight:'52px' };
+                  const pcStyle = { padding:'16px 18px', fontSize:'15px', display:'flex', alignItems:'center', textAlign:'left', minHeight:'52px' };
                   const mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
                   return (
                     <button key={tid} onClick={() => { setTeacherView(tid); loadOnTabClick(tid); }}

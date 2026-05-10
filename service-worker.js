@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v27-teacher-btn-sizes';
+const CACHE_VERSION = 'b2-bigbang-20260510v28-teacher-home-grid';
 const OFFLINE_URLS = [
   './',
   './index.html',
