@@ -1553,12 +1553,18 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     boxSizing: "border-box",
   };
 
+  // ── 버튼 크기 표준 (화면 크기에 따라 반응형) ──────────────
+  // 기본(주요 동작) 버튼 / 보조(밝은) 버튼 — 페이지 어디서나 같은 크기
   const buttonStyle = {
-    border: "none",
+    border: "1px solid transparent",
     borderRadius: "10px",
-    padding: "11px 16px",
-    cursor: "pointer",
+    padding: teacherIsMobile ? "9px 14px" : "10px 18px",
+    fontSize: teacherIsMobile ? "13px" : "14px",
     fontWeight: "700",
+    fontFamily: "Manrope, sans-serif",
+    lineHeight: 1.2,
+    whiteSpace: "nowrap",
+    cursor: "pointer",
     background: "#E60012",
     color: "white",
   };
@@ -1566,9 +1572,27 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const lightButtonStyle = {
     ...buttonStyle,
     background: "#f3f4f6",
-    color: "#111827",
-    border: "1px solid #e5e7eb",
+    color: "#374151",
+    border: "1px solid #d1d5db",
   };
+
+  // 목록 행 안의 작은 동작 버튼(수정/삭제/마감 등) — 색만 바꿔 쓰고 크기는 통일
+  const smallButtonStyle = {
+    border: "1px solid transparent",
+    borderRadius: "8px",
+    padding: teacherIsMobile ? "5px 10px" : "6px 11px",
+    fontSize: "12px",
+    fontWeight: "700",
+    fontFamily: "Manrope, sans-serif",
+    lineHeight: 1.2,
+    whiteSpace: "nowrap",
+    cursor: "pointer",
+    background: "#fff",
+    color: "#374151",
+  };
+  const smallLightButtonStyle = { ...smallButtonStyle, background: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db" };
+  const smallDangerButtonStyle = { ...smallButtonStyle, background: "#fff", color: "#c82014", border: "1px solid #c82014" };
+  const smallPrimaryButtonStyle = { ...smallButtonStyle, background: "#fff", color: "#E60012", border: "1px solid #E60012" };
 
   // 4탭 구조 렌더링
   const TABS = [
@@ -1833,7 +1857,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         <option value="기타">기타</option>
                       </select>
                       <input type="text" value={newNoteContent} onChange={e => setNewNoteContent(e.target.value)} placeholder="새 메모 입력 (Enter로 등록)" onKeyDown={(e) => { if (e.key === 'Enter' && !savingNote && newNoteContent.trim()) addStudentNote(); }} style={{ flex: 1, padding: "8px 10px", border: "1px solid #d6dbde", borderRadius: "6px", fontSize: "13px", fontFamily: "Manrope, sans-serif", minWidth: "120px" }} />
-                      <button onClick={addStudentNote} disabled={savingNote || !newNoteContent.trim()} style={{ background: savingNote || !newNoteContent.trim() ? "#9ca3af" : "#E60012", color: "#fff", border: "none", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: "700", cursor: savingNote || !newNoteContent.trim() ? "not-allowed" : "pointer", fontFamily: "Manrope, sans-serif", flexShrink: 0 }}>{savingNote ? '저장 중...' : '+ 추가'}</button>
+                      <button onClick={addStudentNote} disabled={savingNote || !newNoteContent.trim()} style={{ ...smallButtonStyle, background: (savingNote || !newNoteContent.trim()) ? "#9ca3af" : "#E60012", color: "#fff", cursor: (savingNote || !newNoteContent.trim()) ? "not-allowed" : "pointer", flexShrink: 0 }}>{savingNote ? '저장 중...' : '+ 추가'}</button>
                     </div>
                     {studentDetail.notes.length === 0 ? (
                       <div style={{ fontSize: "12px", color: "#9ca3af" }}>등록된 특이사항이 없습니다.</div>
@@ -1900,8 +1924,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px', flexWrap:'wrap', gap:'8px' }}>
             <h2 style={{ margin:0 }}>{isHwTab ? '숙제 발행' : '시험 발행'} — {selectedClass.name}</h2>
             <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-              <button onClick={() => { setSelectedClass(null); setSelectedClassId(""); }} style={{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>다른 반</button>
-              <button onClick={() => openExamForm(isHwTab ? 'homework' : 'class')} style={{ ...buttonStyle, padding:'9px 16px', fontSize:'13px' }}>+ 새 {isHwTab ? '숙제' : '시험'} 발행</button>
+              <button onClick={() => { setSelectedClass(null); setSelectedClassId(""); }} style={smallLightButtonStyle}>다른 반</button>
+              <button onClick={() => openExamForm(isHwTab ? 'homework' : 'class')} style={buttonStyle}>+ 새 {isHwTab ? '숙제' : '시험'} 발행</button>
             </div>
           </div>
           <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>{isHwTab ? '이 반의 학생들에게 숙제를 발행합니다. 객관식/서술형/녹음 중 원하는 답안을 받을 수 있습니다.' : '이 반의 학생들에게 시험지를 발행합니다. 학생들은 자기 포털에서 시험지를 보고 답안을 제출할 수 있습니다.'}</p>
@@ -1936,9 +1960,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         {ex.description && <div style={{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' }}>{ex.description}</div>}
                       </div>
                       <div style={{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 }}>
-                        <button onClick={() => openExamFormForEdit(ex)} style={{ background:'#fff', color:'#E60012', border:'1px solid #E60012', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>수정</button>
-                        <button onClick={() => toggleExamStatus(ex)} style={{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>{ex.status==='open' ? '마감' : '재오픈'}</button>
-                        <button onClick={() => deleteExam(ex)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>삭제</button>
+                        <button onClick={() => openExamFormForEdit(ex)} style={smallPrimaryButtonStyle}>수정</button>
+                        <button onClick={() => toggleExamStatus(ex)} style={smallLightButtonStyle}>{ex.status==='open' ? '마감' : '재오픈'}</button>
+                        <button onClick={() => deleteExam(ex)} style={smallDangerButtonStyle}>삭제</button>
                       </div>
                     </div>
                     {subs.length > 0 && (
@@ -2238,12 +2262,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                           : (
                             <>
                               <div style={{ display:'flex', gap:'8px', marginBottom:'6px', borderBottom:'1px solid #f3f4f6', paddingBottom:'6px' }}>
-                                <button type="button" style={{ ...lightButtonStyle, padding:'4px 10px', fontSize:'11px' }} onClick={() => {
+                                <button type="button" style={smallLightButtonStyle} onClick={() => {
                                   var ids = pickerStudents.map(s => s.id);
                                   var merged = Array.from(new Set(courseDraft.student_ids.concat(ids)));
                                   setCourseDraft({ ...courseDraft, student_ids: merged });
                                 }}>이 반 전체 추가</button>
-                                <button type="button" style={{ ...lightButtonStyle, padding:'4px 10px', fontSize:'11px' }} onClick={() => {
+                                <button type="button" style={smallLightButtonStyle} onClick={() => {
                                   var ids = pickerStudents.map(s => s.id);
                                   setCourseDraft({ ...courseDraft, student_ids: courseDraft.student_ids.filter(id => ids.indexOf(id) < 0) });
                                 }}>이 반에서 모두 제외</button>
@@ -2305,7 +2329,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         <div style={{ fontSize:'14px', fontWeight:'700', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' }}>{c.title}</div>
                         <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[c.subject, describeCourseScope(c), (c.lectures||[]).length+'강'].filter(Boolean).join(' · ')}</div>
                       </div>
-                      <button style={{ ...lightButtonStyle, padding:'6px 12px', fontSize:'12px' }} onClick={() => { if (String(distributeCourseId) === String(c.id)) setDistributeCourseId(''); else openDistributeEditor(c); }}>
+                      <button style={smallLightButtonStyle} onClick={() => { if (String(distributeCourseId) === String(c.id)) setDistributeCourseId(''); else openDistributeEditor(c); }}>
                         {String(distributeCourseId) === String(c.id) ? '닫기' : '배포 설정'}
                       </button>
                     </div>
@@ -2373,12 +2397,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                                     : (
                                       <>
                                         <div style={{ display:'flex', gap:'8px', marginBottom:'6px', borderBottom:'1px solid #f3f4f6', paddingBottom:'6px' }}>
-                                          <button type="button" style={{ ...lightButtonStyle, padding:'4px 10px', fontSize:'11px' }} onClick={() => {
+                                          <button type="button" style={smallLightButtonStyle} onClick={() => {
                                             var ids = pickerStudents.map(s => s.id);
                                             var merged = Array.from(new Set(distributeDraft.student_ids.concat(ids)));
                                             setDistributeDraft({ ...distributeDraft, student_ids: merged });
                                           }}>이 반 전체 추가</button>
-                                          <button type="button" style={{ ...lightButtonStyle, padding:'4px 10px', fontSize:'11px' }} onClick={() => {
+                                          <button type="button" style={smallLightButtonStyle} onClick={() => {
                                             var ids = pickerStudents.map(s => s.id);
                                             setDistributeDraft({ ...distributeDraft, student_ids: distributeDraft.student_ids.filter(id => ids.indexOf(id) < 0) });
                                           }}>이 반에서 모두 제외</button>
@@ -2407,8 +2431,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                           <div style={{ fontSize:'12px', color:'#6b7280', padding:'10px 12px', background:'#fff', borderRadius:'6px', fontFamily:'Manrope, sans-serif' }}>배포를 미정 상태로 두면 학생 화면에 노출되지 않습니다.</div>
                         )}
                         <div style={{ marginTop:'10px', display:'flex', justifyContent:'flex-end', gap:'8px' }}>
-                          <button style={{ ...lightButtonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={() => setDistributeCourseId('')}>취소</button>
-                          <button style={{ ...buttonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={saveDistribution} disabled={distributing}>{distributing ? '저장 중...' : '배포 저장'}</button>
+                          <button style={lightButtonStyle} onClick={() => setDistributeCourseId('')}>취소</button>
+                          <button style={buttonStyle} onClick={saveDistribution} disabled={distributing}>{distributing ? '저장 중...' : '배포 저장'}</button>
                         </div>
                       </div>
                     )}
@@ -2564,7 +2588,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <option value="60">60일</option>
                 </select>
               </div>
-              <button style={{ ...buttonStyle, padding: "11px 22px" }} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
+              <button style={buttonStyle} onClick={addVideoToCourse} disabled={savingOnline}>{savingOnline ? "저장 중..." : "강의 저장"}</button>
             </div>
 
             {/* 4. 강의 목록 (강좌명이 입력되면 표시) */}
@@ -3131,7 +3155,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                 {/* 학부모 일괄 발송 버튼 */}
                 <div style={{ display:'flex', justifyContent:'flex-end', gap:'8px', marginBottom:'12px' }}>
-                  <button style={{ ...lightButtonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev }; }) }); }}>전체 학부모 일괄 발송</button>
+                  <button style={lightButtonStyle} onClick={function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev }; }) }); }}>전체 학부모 일괄 발송</button>
                 </div>
 
                 {/* 학생별 카드 (점수목록 + AI코멘트 + 발송/리포트 버튼) */}
@@ -3157,8 +3181,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                           <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px', marginLeft: '12px', fontFamily: 'Manrope, sans-serif' }}>{r.scores.length}회 · 평균 {r.avg != null ? r.avg.toFixed(1)+'점' : '-'}</span>
                         </div>
                         <div style={{ display:'flex', gap:'6px' }}>
-                          <button style={{ background:'#fff', color:'#1A1A1A', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setReportStudentId(r.id); }}>학부모 리포트</button>
-                          <button style={{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }} onClick={function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev }] }); }}>알림톡</button>
+                          <button style={smallButtonStyle} onClick={function(){ setReportStudentId(r.id); }}>학부모 리포트</button>
+                          <button style={{ ...smallButtonStyle, background:'#F8B500', color:'#fff' }} onClick={function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev }] }); }}>알림톡</button>
                         </div>
                       </div>
                       <div style={{ padding: '12px 16px' }}>
@@ -3197,7 +3221,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <div style={{ marginTop:'24px', padding:'18px', background:'#f9fafb', border:'1px dashed #d6dbde', borderRadius:'12px', textAlign:'center' }}>
                   <div style={{ fontSize:'14px', fontWeight:'800', color:'#374151', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>시험지 분석</div>
                   <div style={{ fontSize:'12px', color:'#6b7280', marginBottom:'10px', fontFamily:'Manrope, sans-serif' }}>문제별 정답률 · 유형별 취약점 · 학생별 약점 개념 · 학습 우선순위 제안</div>
-                  <button disabled style={{ background:'#e5e7eb', color:'#9ca3af', border:'none', borderRadius:'6px', padding:'8px 16px', fontSize:'12px', fontWeight:'700', cursor:'not-allowed', fontFamily:'Manrope, sans-serif' }}>시험지 PDF 업로드 (준비 중)</button>
+                  <button disabled style={{ ...smallButtonStyle, background:'#e5e7eb', color:'#9ca3af', cursor:'not-allowed' }}>시험지 PDF 업로드 (준비 중)</button>
                   <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'8px', fontFamily:'Manrope, sans-serif' }}>시험지 분석 기능은 준비 중입니다.</div>
                 </div>
               </>
@@ -3401,7 +3425,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[scopeText, att.file_name, formatBytes(att.file_size), String(att.created_at||'').slice(0,10)].filter(Boolean).join(' · ')}</div>
                   </div>
                   <a href={attachmentPublicUrl(att.file_path)} target="_blank" rel="noopener" style={{ background:'#fff', color:'#E60012', border:'1px solid #E60012', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' }}>⬇ 다운로드</a>
-                  <button onClick={() => deleteAttachment(att)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>삭제</button>
+                  <button onClick={() => deleteAttachment(att)} style={smallDangerButtonStyle}>삭제</button>
                 </div>
               );
             })
@@ -3466,9 +3490,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
             {/* 월 네비게이션 */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
-              <button onClick={() => shiftMonth(-1)} style={{ ...lightButtonStyle, padding:'8px 14px' }}>‹ 이전</button>
+              <button onClick={() => shiftMonth(-1)} style={smallLightButtonStyle}>‹ 이전</button>
               <div style={{ fontSize:'18px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{monthLabel}</div>
-              <button onClick={() => shiftMonth(1)} style={{ ...lightButtonStyle, padding:'8px 14px' }}>다음 ›</button>
+              <button onClick={() => shiftMonth(1)} style={smallLightButtonStyle}>다음 ›</button>
             </div>
 
             {/* 달력 */}
@@ -3538,7 +3562,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <div style={{ marginTop:'8px' }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
                   <h3 style={{ fontSize:'15px', fontWeight:'800', color:'#111827', margin:0, fontFamily:'Manrope, sans-serif' }}>이 달 학사일정 ({academicInMonth.length}건)</h3>
-                  <button onClick={() => openAcademicForm('')} style={{ ...buttonStyle, padding:'8px 14px', fontSize:'13px' }}>+ 학사일정 추가</button>
+                  <button onClick={() => openAcademicForm('')} style={buttonStyle}>+ 학사일정 추가</button>
                 </div>
                 {academicInMonth.length === 0 ? (
                   <div style={{ color:'#9ca3af', fontSize:'13px' }}>이 달에 등록된 학사일정이 없습니다.</div>
@@ -3557,7 +3581,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                           <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>{a.creator_name} · {String(a.created_at||'').slice(0,10)}</div>
                         </div>
                         {teacherInfo && a.created_by === teacherInfo.id && (
-                          <button onClick={() => deleteAcademicSchedule(a)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>삭제</button>
+                          <button onClick={() => deleteAcademicSchedule(a)} style={smallDangerButtonStyle}>삭제</button>
                         )}
                       </div>
                     ))}
@@ -3679,7 +3703,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <div style={{ borderTop:'1px solid #fef2f2', marginTop:'24px', paddingTop:'18px' }}>
                 <h3 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'6px', color:'#c82014' }}>회원 탈퇴</h3>
                 <p style={{ fontSize:'12px', color:'#6b7280', marginBottom:'10px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' }}>탈퇴 시 로그인이 차단되며 담당 강좌·기록 등은 계정이 비활성화 처리됩니다. 복구가 어려우니 신중히 결정해 주세요.</p>
-                <button onClick={withdrawMyAccount} style={{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' }}>회원 탈퇴</button>
+                <button onClick={withdrawMyAccount} style={{ ...lightButtonStyle, background:'#fff', color:'#c82014', border:'1px solid #c82014', width:'100%' }}>회원 탈퇴</button>
               </div>
             </>
           )}
@@ -3714,8 +3738,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
                 <h2 style={{ margin:0, fontFamily:'Manrope, sans-serif' }}>학부모 전달용 리포트</h2>
                 <div style={{ display:'flex', gap:'6px' }} className="no-print">
-                  <button style={{ ...lightButtonStyle, padding:'6px 12px', fontSize:'12px' }} onClick={function(){ window.print(); }}>🖨 인쇄/PDF</button>
-                  <button style={{ ...lightButtonStyle, padding:'6px 12px', fontSize:'12px' }} onClick={function(){ setReportStudentId(''); }}>닫기</button>
+                  <button style={smallLightButtonStyle} onClick={function(){ window.print(); }}>🖨 인쇄/PDF</button>
+                  <button style={smallLightButtonStyle} onClick={function(){ setReportStudentId(''); }}>닫기</button>
                 </div>
               </div>
               <div style={{ borderTop:'2px solid #E60012', paddingTop:'14px' }}>
@@ -3832,8 +3856,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 );
               })}
               <div style={{ display:'flex', justifyContent:'flex-end', gap:'8px', marginTop:'10px' }}>
-                <button style={{ ...lightButtonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={function(){ setKakaoTarget(null); }}>취소</button>
-                <button style={{ ...buttonStyle, padding:'8px 14px', fontSize:'12px' }} onClick={async function(){ await sendKakaoNotifications(items); setKakaoTarget(null); }}>발송 이력 저장</button>
+                <button style={lightButtonStyle} onClick={function(){ setKakaoTarget(null); }}>취소</button>
+                <button style={buttonStyle} onClick={async function(){ await sendKakaoNotifications(items); setKakaoTarget(null); }}>발송 이력 저장</button>
               </div>
             </div>
           </div>

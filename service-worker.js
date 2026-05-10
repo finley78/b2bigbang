@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v26-vocab-unit-grid';
+const CACHE_VERSION = 'b2-bigbang-20260510v27-teacher-btn-sizes';
 const OFFLINE_URLS = [
   './',
   './index.html',
