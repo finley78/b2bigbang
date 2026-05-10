@@ -43,7 +43,7 @@ function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh
           var { error } = await sb.from('enrollments').insert({ student_id: user.id, course_id: course.id, status: 'pending', is_active: false });
           if (error) throw error;
         } else {
-          var { error: ue } = await sb.from('enrollments').update({ status: 'pending', is_active: false }).eq('id', existing.id);
+          var { error: ue } = await sb.from('enrollments').update({ status: 'pending', is_active: false, enrolled_at: new Date().toISOString() }).eq('id', existing.id);
           if (ue) throw ue;
         }
         setRequested(true);

@@ -484,15 +484,15 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260510v7-enroll-approval"></script>
-<script src="TopNav.js?v=20260510v7-enroll-approval"></script>
-<script src="HomePage.js?v=20260510v7-enroll-approval"></script>
-<script src="Pages.js?v=20260510v7-enroll-approval"></script>
-<script src="VocabManager.js?v=20260510v7-enroll-approval"></script>
-<script src="VocabPlayer.js?v=20260510v7-enroll-approval"></script>
-<script src="StudentPortal.js?v=20260510v7-enroll-approval"></script>
-<script src="TeacherPortal.js?v=20260510v7-enroll-approval"></script>
-<script src="AdminPanel.js?v=20260510v7-enroll-approval"></script>
+<script src="Utils.js?v=20260510v8-enroll-hardening"></script>
+<script src="TopNav.js?v=20260510v8-enroll-hardening"></script>
+<script src="HomePage.js?v=20260510v8-enroll-hardening"></script>
+<script src="Pages.js?v=20260510v8-enroll-hardening"></script>
+<script src="VocabManager.js?v=20260510v8-enroll-hardening"></script>
+<script src="VocabPlayer.js?v=20260510v8-enroll-hardening"></script>
+<script src="StudentPortal.js?v=20260510v8-enroll-hardening"></script>
+<script src="TeacherPortal.js?v=20260510v8-enroll-hardening"></script>
+<script src="AdminPanel.js?v=20260510v8-enroll-hardening"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -881,7 +881,24 @@ setDbLoaded(true);
 }
 }
 
+// 본인 수강 목록 등 user 정보를 다시 불러옴 — 관리자가 수강신청을 승인하면 학생이 강의실에 들어올 때 새로고침 없이 반영됨
+async function refreshUser() {
+try {
+const { data } = await window.supabase.auth.getSession();
+const sUserId = data && data.session && data.session.user && data.session.user.id;
+if (!sUserId) return;
+const r = await window.supabase.from('students').select('*').eq('auth_user_id', sUserId).maybeSingle();
+const row = r && r.data;
+if (!row || row.withdrawn_at || row.is_active === false) return;
+const u = await window.B2Utils.buildUserFromStudentRow(row);
+setUser(u);
+try { localStorage.setItem('b2_user', JSON.stringify(u)); } catch (e) {}
+} catch (e) { console.warn('refreshUser 실패:', e); }
+}
+
 React.useEffect(() => { loadFromDB(); }, []);
+// 학생이 강의실(portal)에 들어올 때마다 본인 수강 목록 갱신 (승인 즉시 반영)
+React.useEffect(() => { if (page === 'portal' && user) { refreshUser(); } }, [page]);
 
 // 브라우저 뒤로가기 지원 + 폰 뒤로가기 앱 내 처리
 React.useEffect(() => {

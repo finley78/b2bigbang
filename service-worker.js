@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v7-enroll-approval';
+const CACHE_VERSION = 'b2-bigbang-20260510v8-enroll-hardening';
 const OFFLINE_URLS = [
   './',
   './index.html',
