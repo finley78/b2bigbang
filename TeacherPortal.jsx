@@ -912,17 +912,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     (allStudents || []).forEach(function(s){ if (s.grade) presentGrades[s.grade] = true; });
     var gradeOptions = GRADE_ORDER.filter(function(g){ return presentGrades[g]; }).concat(Object.keys(presentGrades).filter(function(g){ return GRADE_ORDER.indexOf(g) < 0; }));
     var anyFilterActive = !!(q || classFilterId || gradeFilter);
+    // 반 드롭다운: 학년 필터가 걸려 있으면 그 학년을 포함하는 반(또는 학년 미지정 반)만
+    var classOptions = (availableClassCards || []).filter(function(cls){
+      if (!gradeFilter) return true;
+      if (!cls.grade) return true;
+      return String(cls.grade).split(',').map(function(s){ return s.trim(); }).indexOf(gradeFilter) >= 0;
+    });
     return (
       <div>
         <div style={{ display:'flex', gap:'8px', marginBottom:'8px', flexWrap:'wrap' }}>
           <input style={{ ...inputStyle, flex:'2 1 150px' }} placeholder="학생 이름 검색" value={f.search || ''} onChange={e => setF({ search: e.target.value })} />
-          <select style={{ ...inputStyle, flex:'1 1 110px' }} value={gradeFilter} onChange={e => setF({ grade: e.target.value })}>
+          <select style={{ ...inputStyle, flex:'1 1 110px' }} value={gradeFilter} onChange={e => setF({ grade: e.target.value, classId: '' })}>
             <option value="">학년 전체</option>
             {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
-          <select style={{ ...inputStyle, flex:'1 1 120px' }} value={classFilterId} onChange={e => { var cid = e.target.value; setF({ classId: cid }); if (cid) loadClassStudentsCached(cid); }}>
+          <select style={{ ...inputStyle, flex:'1 1 120px' }} value={classFilterId} onChange={e => { var cid = e.target.value; setF({ classId: cid, grade: '' }); if (cid) loadClassStudentsCached(cid); }}>
             <option value="">반 전체</option>
-            {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+            {classOptions.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
           </select>
           {anyFilterActive && <button type="button" style={smallLightButtonStyle} onClick={() => opts.onFiltersChange(Object.assign({}, STU_FILTER_INIT))}>필터 초기화</button>}
         </div>
