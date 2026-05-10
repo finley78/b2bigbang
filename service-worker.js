@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v33-admin-course-teacher-filter';
+const CACHE_VERSION = 'b2-bigbang-20260511v34-course-student-search-picker';
 const OFFLINE_URLS = [
   './',
   './index.html',
