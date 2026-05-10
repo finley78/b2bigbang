@@ -1613,6 +1613,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)'
                       }, teacherIsMobile ? mobileStyle : pcStyle)}>
                       {t.label}
+                      {(function(){
+                        // 카드 숫자 배지 — 담당 클래스 수 / 내가 만든 강좌 수 (대시보드에서 한눈에)
+                        var cnt = tid === 'classes' ? (classes || []).length : tid === 'course' ? (teacherCourses || []).length : 0;
+                        return cnt > 0 ? <span style={{ marginLeft:'8px', display:'inline-flex', alignItems:'center', justifyContent:'center', minWidth:'18px', height:'18px', padding:'0 5px', borderRadius:'999px', background:'#1A1A1A', color:'#fff', fontSize:'11px', fontWeight:'800', verticalAlign:'middle' }}>{String(cnt)}</span> : null;
+                      })()}
                     </button>
                   );
                 })}

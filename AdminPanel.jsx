@@ -286,6 +286,9 @@ isEnrollee: (m.enrollments || []).some(function(e){ return e.is_active; }),
 const { data: pendEnr } = await sb.from('enrollments').select('id, student_id, course_id, enrolled_at').eq('status', 'pending').order('enrolled_at', { ascending: false });
 if (pendEnr) setPendingEnrollments(pendEnr); else setPendingEnrollments([]);
 
+// 강의일정 변경 신청 (홈 카드 배지용 — 자세한 건 학원 일정 탭)
+loadAdminScheduleRequests();
+
 const { data: teachers } = await sb.from('students').select('*').in('role', ['teacher','pending_teacher']);
 if (teachers) {
 setDbTeachers(teachers.map(t => ({
@@ -1382,10 +1385,12 @@ tab === 'home' && React.createElement('div', null,
           }, adminIsMobile ? mobileStyle : pcStyle), onMouseEnter:function(e){ e.currentTarget.style.borderColor = groupColor; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = '0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)'; } },
             t.label,
             (function(){
-              // 처리 대기 건수 배지 — 선생님 관리: 승인 대기(학생/학부모 + 선생님), 수강생 관리: 수강 신청 대기
+              // 처리 대기 건수 배지 — 선생님 관리: 가입 승인 대기(학생/학부모+선생님), 수강생 관리: 수강 신청 대기, 학원 일정: 강의일정 변경 신청(오늘 이후)
+              var _todayStr = new Date().toISOString().slice(0,10);
               var cnt = tid === 'teacher'
                 ? ((dbPending || []).filter(function(p){ return p.role !== 'pending_teacher'; }).length + (dbTeachers || []).filter(function(t2){ return t2.role === 'pending_teacher'; }).length)
                 : tid === 'enrollee' ? (pendingEnrollments || []).length
+                : tid === 'schedule' ? (adminScrList || []).filter(function(r){ return String(r.target_date||'') >= _todayStr; }).length
                 : 0;
               return cnt > 0 ? React.createElement('span', { style:{ marginLeft:'8px', display:'inline-flex', alignItems:'center', justifyContent:'center', minWidth:'18px', height:'18px', padding:'0 5px', borderRadius:'999px', background:'#E60012', color:'#fff', fontSize:'11px', fontWeight:'800', fontFamily:'Manrope, sans-serif', verticalAlign:'middle' } }, String(cnt)) : null;
             })()
