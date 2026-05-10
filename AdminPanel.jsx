@@ -2897,23 +2897,17 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
     // 과목 라벨
     React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, sub),
 
-    // 학교급(여러 개) + 학년(여러 개) 선택 + 저장
+    // 학교급 + 학년 선택 + 저장
     React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'10px' } },
-      React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap' } },
+      React.createElement('select', {
+        value: draft.level,
+        onChange: function(e) { updateTeacherAssignDraft(draftKey, { level: e.target.value }); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
         TEACHER_ASSIGN_LEVELS.map(function(level) {
-          var lvSel = (draft.levels || []).includes(level);
-          return React.createElement('button', {
-            key:level, type:'button',
-            onClick: function() {
-              var lvs = draft.levels || [];
-              var next = lvSel ? lvs.filter(function(x){ return x!==level; }) : lvs.concat(level);
-              updateTeacherAssignDraft(draftKey, { levels: next });
-            },
-            style:{ background:lvSel?'#1A1A1A':'#fff', color:lvSel?'#fff':'rgba(0,0,0,0.62)', border:lvSel?'2px solid #1A1A1A':'1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 11px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
-          }, level);
+          return React.createElement('option', { key:level, value:level }, level);
         })
       ),
-      React.createElement('div', { style:{ width:'1px', height:'18px', background:'#d6dbde' } }),
       React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap' } },
         TEACHER_ASSIGN_GRADES.map(function(grade) {
           var selected = (draft.grades || []).includes(grade);
@@ -2930,18 +2924,15 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
       ),
       React.createElement('button', {
         onClick: async function() {
-          var lvs = draft.levels || [];
-          var gds = draft.grades || [];
-          if (lvs.length === 0) { alert('학교급을 1개 이상 선택해 주세요.'); return; }
-          if (gds.length === 0) { alert('학년을 1개 이상 선택해 주세요.'); return; }
-          var newTags = [];
-          lvs.forEach(function(lv){ gds.forEach(function(g){ newTags.push(sub + '-' + lv + ' ' + g); }); });
+          if ((draft.grades || []).length === 0) { alert('학년을 1개 이상 선택해 주세요.'); return; }
+          var newTags = (draft.grades || []).map(function(g) { return sub + '-' + draft.level + ' ' + g; });
           var existing = getTeacherGradeAssignments(t).filter(function(a) { return String(a).indexOf(sub + '-') !== 0; });
           var merged = existing.concat(newTags);
           var gradeStr = Array.from(new Set(merged.filter(Boolean))).join(',');
-          await sb.from('students').update({ grade: gradeStr, school: '' }).eq('id', t.id);
-          setDbTeachers(function(ts) { return ts.map(function(x) { return x.id===t.id ? Object.assign({},x,{grade:gradeStr,school:''}) : x; }); });
-          updateTeacherAssignDraft(draftKey, { levels:[], grades:[] });
+          var schoolStr = '';
+          await sb.from('students').update({ grade: gradeStr, school: schoolStr }).eq('id', t.id);
+          setDbTeachers(function(ts) { return ts.map(function(x) { return x.id===t.id ? Object.assign({},x,{grade:gradeStr,school:schoolStr}) : x; }); });
+          updateTeacherAssignDraft(draftKey, { grades:[] });
         },
         style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
       }, '저장')
