@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v30-admin-schedule-fixes';
+const CACHE_VERSION = 'b2-bigbang-20260510v31-lecture-subject-only';
 const OFFLINE_URLS = [
   './',
   './index.html',
