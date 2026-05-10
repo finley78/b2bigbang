@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v20-homepage-tab';
+const CACHE_VERSION = 'b2-bigbang-20260510v21-no-hw-in-leveltest';
 const OFFLINE_URLS = [
   './',
   './index.html',

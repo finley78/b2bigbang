@@ -468,7 +468,7 @@ async function loadAdminLevelTests() {
   setAdminLevelTestLoading(true);
   var sb = window.supabase;
   try {
-    var { data: tests } = await sb.from('exams').select('*').in('kind', ['level','weekly','monthly','homework']).order('created_at', { ascending: false });
+    var { data: tests } = await sb.from('exams').select('*').in('kind', ['level','weekly','monthly']).order('created_at', { ascending: false }); // 숙제(homework)는 선생님 페이지에서 관리 — 시험 관리 탭에는 안 뜸
     setAdminLevelTests(tests || []);
     if (tests && tests.length > 0) {
       var ids = tests.map(function(t){ return t.id; });
@@ -4290,11 +4290,11 @@ tab==='leveltest' && (function(){
     React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '시험 관리'),
     React.createElement('button', { onClick: adminOpenLtForm, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 16px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 새 시험 발행')
   ),
-  React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '레벨테스트 / 주간 · 월말 테스트 / 숙제를 발행하고 답안을 자동 채점합니다.'),
+  React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '레벨테스트 / 주간 · 월말 테스트를 발행하고 답안을 자동 채점합니다. (숙제는 선생님 페이지 — 반별 발행)'),
 
   /* 종류 필터 (1차) */
   React.createElement('div', { style:{ display:'inline-flex', background:'#f2f0eb', borderRadius:'8px', padding:'3px', gap:'2px', marginBottom:'8px' } },
-    [{v:'all',l:'전체'},{v:'level',l:'레벨'},{v:'weekly',l:'주간'},{v:'monthly',l:'월말'},{v:'homework',l:'숙제'}].map(function(o){
+    [{v:'all',l:'전체'},{v:'level',l:'레벨'},{v:'weekly',l:'주간'},{v:'monthly',l:'월말'}].map(function(o){
       var on = adminTestKindFilter === o.v;
       var count = o.v === 'all' ? adminLevelTests.length : adminLevelTests.filter(function(t){ return (t.kind||'level') === o.v; }).length;
       return React.createElement('button', { key:o.v, onClick:function(){ setAdminTestKindFilter(o.v); }, style:{ background: on?'#1A1A1A':'transparent', color: on?'#fff':'rgba(0,0,0,0.55)', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, o.l + ' ' + count);
@@ -4431,8 +4431,7 @@ tab==='leveltest' && (function(){
       React.createElement('select', { value: adminLtDraft.kind || 'level', onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { kind:e.target.value })); }, style:Object.assign({}, inputS, { marginBottom:'14px', width:'100%', cursor:'pointer' }) },
         React.createElement('option', { value:'level' }, '레벨테스트 (회원이 신청 후 응시)'),
         React.createElement('option', { value:'weekly' }, '주간 테스트 (학원 학생 모두 응시 가능)'),
-        React.createElement('option', { value:'monthly' }, '월말 테스트 (학원 학생 모두 응시 가능)'),
-        React.createElement('option', { value:'homework' }, '숙제 (학원 학생 모두 제출 가능)')
+        React.createElement('option', { value:'monthly' }, '월말 테스트 (학원 학생 모두 응시 가능)')
       ),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '제목 *'),
       React.createElement('input', { value: adminLtDraft.title, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { title:e.target.value })); }, placeholder: adminLtDraft.kind==='weekly' ? '예: 수학 주간 테스트 (중1, 5월 1주차)' : (adminLtDraft.kind==='monthly' ? '예: 수학 월말 테스트 (중1, 5월)' : '예: 수학 레벨테스트 (중1)'), style:Object.assign({}, inputS, { marginBottom:'14px', width:'100%' }) }),
