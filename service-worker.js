@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v17-admin-student-detail';
+const CACHE_VERSION = 'b2-bigbang-20260510v18-admin-tabs';
 const OFFLINE_URLS = [
   './',
   './index.html',

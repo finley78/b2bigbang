@@ -1289,10 +1289,11 @@ const tabs = [
 ];
 
 const tabGroups = [
-{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about','programs','eventbtn','footer'] },
-{ id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
-{ id:'students', label:'수강생',    tabs:['enrollee','classmgmt','views','analysis'] },
-{ id:'academy',  label:'학원 관리', tabs:['leveltest','vocab','member','schedule','files'] },
+// '학습 현황'(views)은 대시보드에서 제외 — 학생 카드 펼치면 그 학생 영상 진도·시험·단어·출결·특이사항이 다 보임. (render 블록은 남겨둠.)
+{ id:'students', label:'학생·클래스·성적',   tabs:['enrollee','classmgmt','member','analysis'] },
+{ id:'teachers', label:'선생님·강좌',        tabs:['teacher','course','records'] },
+{ id:'academy',  label:'시험·단어·자료·일정', tabs:['leveltest','vocab','files','schedule'] },
+{ id:'webapp',   label:'홈페이지 편집',      tabs:['banner','notice','feature','about','programs','eventbtn','footer'] },
 ];
 
 const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'8px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box' };
