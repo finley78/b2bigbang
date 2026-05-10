@@ -47,6 +47,7 @@ const authed = adminAuthed;
 const setAuthed = setAdminAuthed;
 const [tab, setTab] = React.useState('home');
 const [tabGroup, setTabGroup] = React.useState('webapp');
+const [hpSub, setHpSub] = React.useState('banner'); // '홈페이지 편집' 탭 안의 서브탭(배너/공지/섹션/학원안내/프로그램/이벤트버튼/푸터)
 const [adminIsMobile, setAdminIsMobile] = React.useState(typeof window !== 'undefined' && window.innerWidth < 1024);
 React.useEffect(function(){
   function h(){ setAdminIsMobile(window.innerWidth < 1024); }
@@ -1267,25 +1268,20 @@ await assignCourseToTeacher(teacher, course);
 if (!authed) return React.createElement(AdminLogin, { onLoginClick });
 
 const tabs = [
-{ id:'banner',  label:'배너 관리' },
-{ id:'notice',  label:'공지사항' },
-{ id:'course',  label:'강좌 관리' },
 { id:'enrollee',label:'수강생 관리' },
 { id:'classmgmt',label:'클래스 관리' },
 { id:'member',  label:'회원 정보' },
-{ id:'teacher', label:'선생님 관리' },
-{ id:'records', label:'업무일지 및 특이사항' },
 { id:'analysis',label:'성적 분석' },
 { id:'views',   label:'학습 현황' },
-{ id:'files',   label:'자료실' },
-{ id:'schedule',label:'학원 일정' },
+{ id:'teacher', label:'선생님 관리' },
+{ id:'course',  label:'강좌 관리' },
+{ id:'records', label:'업무일지 및 특이사항' },
 { id:'leveltest',label:'시험 관리' },
 { id:'vocab',   label:'단어장' },
-{ id:'feature', label:'섹션 편집' },
-{ id:'about',   label:'학원안내 편집' },
-{ id:'programs',label:'프로그램 편집' },
-{ id:'eventbtn',label:'이벤트 버튼' },
-{ id:'footer',  label:'푸터(사업자정보)' },
+{ id:'files',   label:'자료실' },
+{ id:'schedule',label:'학원 일정' },
+{ id:'homepage',label:'홈페이지 편집' },
+// 아래 7개는 '홈페이지 편집' 탭 내부 서브탭으로 통합됨 (대시보드 카드는 'homepage' 하나) — id 는 breadcrumb 등에서 안 쓰이므로 tabs 배열에는 안 둠
 ];
 
 const tabGroups = [
@@ -1293,7 +1289,7 @@ const tabGroups = [
 { id:'students', label:'학생·클래스·성적',   tabs:['enrollee','classmgmt','member','analysis'] },
 { id:'teachers', label:'선생님·강좌',        tabs:['teacher','course','records'] },
 { id:'academy',  label:'시험·단어·자료·일정', tabs:['leveltest','vocab','files','schedule'] },
-{ id:'webapp',   label:'홈페이지 편집',      tabs:['banner','notice','feature','about','programs','eventbtn','footer'] },
+{ id:'webapp',   label:'홈페이지 편집',      tabs:['homepage'] },
 ];
 
 const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'8px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box' };
@@ -1410,7 +1406,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'16px 18px', fontSize:'15px', display:'inline-flex', alignItems:'center', minHeight:'52px' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'homepage') setHpSub('banner'); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -1435,8 +1431,16 @@ tab === 'home' && React.createElement('div', null,
   })
 ),
 
-/* ── BANNER TAB ── */
-tab==='banner' && React.createElement('div', null,
+/* ── 홈페이지 편집 TAB (배너·공지사항·섹션·학원안내·프로그램·이벤트버튼·푸터 통합) — 서브탭 네비 ── */
+tab==='homepage' && React.createElement('div', { style:{ display:'flex', gap:'4px', flexWrap:'wrap', marginBottom:'18px', borderBottom:'1px solid #e5e7eb', paddingBottom:'12px' } },
+  [{ k:'banner', l:'배너' },{ k:'notice', l:'공지사항' },{ k:'feature', l:'섹션 편집' },{ k:'about', l:'학원안내', load:loadAboutContent },{ k:'programs', l:'프로그램', load:loadProgramsContent },{ k:'eventbtn', l:'이벤트 버튼', load:loadEventBtn },{ k:'footer', l:'푸터', load:loadFooterContent }].map(function(s){
+    var on = hpSub === s.k;
+    return React.createElement('button', { key:s.k, onClick:function(){ setHpSub(s.k); if (s.load) s.load(); }, style:{ background: on?'#1A1A1A':'#fff', color: on?'#fff':'rgba(0,0,0,0.6)', border: on?'2px solid #1A1A1A':'1.5px solid #d6dbde', borderRadius:'8px', padding:'6px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, s.l);
+  })
+),
+
+/* ── 홈페이지 편집 > 배너 ── */
+(tab==='homepage' && hpSub==='banner') && React.createElement('div', null,
 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' } },
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '히어로 배너'),
 React.createElement('button', { onClick:addBanner, style:btnS() }, '+ 배너 추가')
@@ -1565,7 +1569,7 @@ b.video_url
 ),
 
 /* ── NOTICE TAB ── */
-tab==='notice' && React.createElement('div', null,
+(tab==='homepage' && hpSub==='notice') && React.createElement('div', null,
 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' } },
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, '공지사항 관리'),
 React.createElement('div', { style:{ display:'flex', gap:'8px' } },
@@ -4592,7 +4596,7 @@ tab==='leveltest' && (function(){
 tab==='vocab' && window.VocabManager && React.createElement(window.VocabManager, { user: user || { id: null, name: '관리자', role: 'admin' }, isAdmin: true }),
 
 /* ── 학원안내 편집 TAB ── */
-tab==='about' && React.createElement('div', null,
+(tab==='homepage' && hpSub==='about') && React.createElement('div', null,
   React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
     React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '학원안내 페이지 편집'),
     React.createElement('button', { onClick: saveAboutContent, disabled: aboutSaving || !aboutDraft, style:{ background: aboutSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: aboutSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, aboutSaving ? '저장 중...' : '변경사항 저장')
@@ -4724,7 +4728,7 @@ tab==='about' && React.createElement('div', null,
 ),
 
 /* ── 이벤트 버튼 편집 TAB ── */
-tab==='eventbtn' && React.createElement('div', null,
+(tab==='homepage' && hpSub==='eventbtn') && React.createElement('div', null,
   React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
     React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '이벤트 floating 버튼'),
     React.createElement('button', { onClick: saveEventBtn, disabled: eventBtnSaving || !eventBtnDraft, style:{ background: eventBtnSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: eventBtnSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, eventBtnSaving ? '저장 중...' : '변경사항 저장')
@@ -4770,7 +4774,7 @@ tab==='eventbtn' && React.createElement('div', null,
 ),
 
 /* ── 푸터 편집 TAB ── */
-tab==='footer' && React.createElement('div', null,
+(tab==='homepage' && hpSub==='footer') && React.createElement('div', null,
   React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
     React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '푸터 (사업자 정보)'),
     React.createElement('button', { onClick: saveFooterContent, disabled: footerSaving || !footerDraft, style:{ background: footerSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: footerSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, footerSaving ? '저장 중...' : '변경사항 저장')
@@ -4800,7 +4804,7 @@ tab==='footer' && React.createElement('div', null,
 ),
 
 /* ── 프로그램 편집 TAB ── */
-tab==='programs' && React.createElement('div', null,
+(tab==='homepage' && hpSub==='programs') && React.createElement('div', null,
   React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
     React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '프로그램 페이지 편집'),
     React.createElement('button', { onClick: saveProgramsContent, disabled: programsSaving || !programsDraft, style:{ background: programsSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: programsSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, programsSaving ? '저장 중...' : '변경사항 저장')
@@ -4876,7 +4880,7 @@ tab==='programs' && React.createElement('div', null,
 ),
 
 /* ── 섹션 편집 TAB ── */
-tab==='feature' && React.createElement('div', null,
+(tab==='homepage' && hpSub==='feature') && React.createElement('div', null,
 React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'20px' } },
   React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '홍보 섹션 편집'),
   React.createElement('button', { onClick: saveFeatureContent, disabled: featureSaving, style:{ background: featureSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'9px 18px', fontSize:'13px', fontWeight:'800', cursor: featureSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, featureSaving ? '저장 중...' : '변경사항 저장')

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v19-teacher-tabs';
+const CACHE_VERSION = 'b2-bigbang-20260510v20-homepage-tab';
 const OFFLINE_URLS = [
   './',
   './index.html',
