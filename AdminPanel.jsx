@@ -1732,7 +1732,7 @@ React.createElement('select', {
   style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
 },
   React.createElement('option', { value:'전체' }, '선생님 전체'),
-  dbTeachers.filter(function(t){ return t.role==='teacher'; }).map(function(t){ return React.createElement('option', { key:t.id, value:String(t.id) }, t.name); })
+  (dbTeacherProfiles || []).map(function(t){ return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님'); })
 ),
 (courseFilterSubject!=='전체' || courseFilterLevel!=='전체' || courseFilterGrade!=='전체' || courseFilterTeacher!=='전체' || courseFilterSearch.trim()) && React.createElement('button', {
   onClick: function(){ setCourseFilterSubject('전체'); setCourseFilterLevel('전체'); setCourseFilterGrade('전체'); setCourseFilterTeacher('전체'); setCourseFilterSearch(''); },
@@ -1772,7 +1772,10 @@ React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', backgro
 React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, c.name),
 React.createElement('span', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, (function(){
 var className = c.class_id ? ((teacherClasses||[]).find(x=>String(x.id)===String(c.class_id))||{}).name : '';
-var parts = [c.teacher, c.level, c.grade, className].filter(Boolean);
+var tid = effectiveTeacherId(c);
+var prof = tid ? (dbTeacherProfiles||[]).find(x=>String(x.id)===tid) : null;
+var tname = (prof && prof.name) || c.teacher || '';
+var parts = [tname, c.level || effectiveLevel(c), c.grade || effectiveGrade(c), className].filter(Boolean);
 return parts.length > 0 ? parts.join(' · ') : '선생님 등록 강좌';
 })())
 ),
