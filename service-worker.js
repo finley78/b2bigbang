@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v24-rollback';
+const CACHE_VERSION = 'b2-bigbang-20260510v25-vocab-grade-assign';
 const OFFLINE_URLS = [
   './',
   './index.html',

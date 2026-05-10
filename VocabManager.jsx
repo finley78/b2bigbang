@@ -350,8 +350,8 @@
                           React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '편집')
                         )
                       );
-                    }).concat([
-                      // + 시험 추가 카드 (마지막)
+                    }).concat(unit.tests.length > 0 ? [] : [
+                      // + 시험 추가 카드 — 그 유닛에 아직 시험이 없을 때만 (이미 출제했으면 시험 카드의 '편집'으로 수정)
                       React.createElement('button', { key:'add-' + unit.unit_index, onClick:function(){ setShowTestCreate(unit.unit_index); }, style:{ background:'#fff', border:'1.5px dashed #d6dbde', borderRadius:'8px', padding:'8px', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', cursor:'pointer', transition:'all 0.15s', fontFamily:'Manrope, sans-serif', minHeight:'70px', color:'rgba(0,0,0,0.45)' }, onMouseEnter:function(e){ e.currentTarget.style.borderColor='#E60012'; e.currentTarget.style.color='#E60012'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor='#d6dbde'; e.currentTarget.style.color='rgba(0,0,0,0.45)'; } },
                         React.createElement('div', { style:{ fontSize:'18px', fontWeight:'300', lineHeight:1 } }, '+'),
                         React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700' } }, '시험 추가')
@@ -670,6 +670,7 @@
     var [students, setStudents] = React.useState([]);
     var [selectedClassIds, setSelectedClassIds] = React.useState([]);
     var [selectedStudentIds, setSelectedStudentIds] = React.useState([]);
+    var [selectedGrades, setSelectedGrades] = React.useState([]); // 학년으로 배포 — 저장 시 그 학년 학생 전체로 펼쳐서 student_id 배정
     var [studentSearch, setStudentSearch] = React.useState('');
     var [saving, setSaving] = React.useState(false);
 
@@ -733,7 +734,16 @@
       if (!draft.title || !draft.title.trim()) { alert('시험 이름을 입력해 주세요.'); return; }
       if (totalQ === 0) { alert('최소 한 모드는 1문제 이상 출제해야 합니다.'); return; }
       if (totalQ > props.unitWordCount) { alert('이 유닛의 단어 수(' + props.unitWordCount + ')보다 많은 문제를 출제할 수 없습니다.'); return; }
-      if (selectedClassIds.length === 0 && selectedStudentIds.length === 0 && draft.status === 'open') {
+      // 학년 선택 시 → 그 학년 학생 전체 id 로 펼쳐서 개별 학생과 합침
+      var gradeStudentIds = [];
+      if (selectedGrades.length > 0) {
+        try {
+          var grRes = await sb.from('students').select('id').eq('is_active', true).in('role', ['student','학생']).in('grade', selectedGrades);
+          gradeStudentIds = ((grRes && grRes.data) || []).map(function(x){ return x.id; });
+        } catch (e) {}
+      }
+      var allStudentIds = Array.from(new Set(selectedStudentIds.concat(gradeStudentIds)));
+      if (selectedClassIds.length === 0 && allStudentIds.length === 0 && draft.status === 'open') {
         if (!confirm('배포 대상이 비어 있습니다. 그래도 "진행중"으로 저장할까요?\n(아무도 응시할 수 없습니다)')) return;
       }
 
@@ -775,7 +785,7 @@
         // 배포 대상 등록
         var assignments = [];
         selectedClassIds.forEach(function(cid) { assignments.push({ test_id: testId, class_id: cid }); });
-        selectedStudentIds.forEach(function(sid) { assignments.push({ test_id: testId, student_id: sid }); });
+        allStudentIds.forEach(function(sid) { assignments.push({ test_id: testId, student_id: sid }); });
         if (assignments.length > 0) {
           var ai = await sb.from('vocab_test_assignments').insert(assignments);
           if (ai.error) throw ai.error;
@@ -862,6 +872,22 @@
                       s.grade && React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, s.grade)
                     );
                   })
+            ),
+            // 학년으로 배포 — 그 학년 학생 전체에게 (저장 시 student_id로 펼침)
+            React.createElement('div', { style:Object.assign({}, STYLES.label, { marginTop:'14px', marginBottom:'6px' }) }, '학년으로 배포 ' + (selectedGrades.length ? '(' + selectedGrades.join(', ') + ' — 해당 학년 학생 전체)' : '(선택 안 함)')),
+            React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap' } },
+              (function(){
+                var ORDER = ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'];
+                var present = ORDER.filter(function(g){ return (students||[]).some(function(s){ return s.grade === g; }); });
+                var extras = Array.from(new Set((students||[]).map(function(s){ return s.grade; }).filter(function(g){ return g && ORDER.indexOf(g) < 0; })));
+                var opts = present.concat(extras);
+                if (opts.length === 0) return React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '활성 학생이 없습니다.');
+                return opts.map(function(g){
+                  var cnt = (students||[]).filter(function(s){ return s.grade === g; }).length;
+                  var on = selectedGrades.indexOf(g) >= 0;
+                  return React.createElement('button', { key:g, type:'button', onClick:function(){ setSelectedGrades(function(arr){ return arr.indexOf(g) >= 0 ? arr.filter(function(x){ return x!==g; }) : arr.concat([g]); }); }, style:{ background: on ? '#E60012' : '#fff', color: on ? '#fff' : 'rgba(0,0,0,0.62)', border: on ? '2px solid #E60012' : '1.5px solid #d6dbde', borderRadius:'999px', padding:'5px 11px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, g + ' (' + cnt + ')');
+                });
+              })()
             )
           ),
 
