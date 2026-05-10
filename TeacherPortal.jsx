@@ -1168,7 +1168,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       var insertRow = {
         kind: kindVal,
         class_id: selectedClass.id,
-        teacher_id: teacherInfo.id,
+        teacher_id: (user && user.id) || null, // exams.teacher_id 는 students(id) 참조 — 로그인 선생님의 students.id 사용
         teacher_name: teacherInfo.name || user?.name || '선생님',
         title: d.title.trim(),
         subject: d.subject.trim() || null,
@@ -1260,7 +1260,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         mimeType = scrDraft.file.type || null;
       }
       var insertRow = {
-        teacher_id: teacherInfo.id,
+        teacher_id: (user && user.id) || null, // schedule_change_requests.teacher_id 는 students(id) 참조
         teacher_name: teacherInfo.name || user?.name || '선생님',
         target_date: scrSelectedDate,
         reason: scrDraft.reason.trim(),
@@ -3384,7 +3384,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             (acByDate[ds2] = acByDate[ds2] || []).push(a);
           }
         });
-        const myRequests = scrRequests.filter(r => teacherInfo && r.teacher_id === teacherInfo.id);
+        const myRequests = scrRequests.filter(r => teacherInfo && r.teacher_id === ((user && user.id) || teacherInfo.id));
         function shiftMonth(delta) {
           const nm = m + delta;
           const ny = y + Math.floor(nm / 12);
@@ -3452,7 +3452,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       {scrMode === 'change' ? (
                         <>
                           {reqs.slice(0,3).map((r,ri) => {
-                            const mine = teacherInfo && r.teacher_id === teacherInfo.id;
+                            const mine = teacherInfo && r.teacher_id === ((user && user.id) || teacherInfo.id);
                             return (
                               <span key={ri} style={{
                                 fontSize:'10px', fontWeight:'700',
