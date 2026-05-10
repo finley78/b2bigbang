@@ -58,11 +58,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [aiComments, setAiComments] = React.useState({}); // { student_id+test_score_id: comment }
 
   // 강좌 개설
-  const [courseDraft, setCourseDraft] = React.useState({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[], picker_class_id:'' });
+  const [courseDraft, setCourseDraft] = React.useState({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', grades:[], student_ids:[], picker_class_id:'' });
   const [creatingCourse, setCreatingCourse] = React.useState(false);
   // 사후 배포 편집
   const [distributeCourseId, setDistributeCourseId] = React.useState('');
-  const [distributeDraft, setDistributeDraft] = React.useState({ scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[], picker_class_id:'' });
+  const [distributeDraft, setDistributeDraft] = React.useState({ scope:'unassigned', class_id:'', level:'', grade:'', grades:[], student_ids:[], picker_class_id:'' });
   const [distributing, setDistributing] = React.useState(false);
   const [distEnrollments, setDistEnrollments] = React.useState([]); // 현재 강좌의 enrollments
   const [allStudents, setAllStudents] = React.useState([]);
@@ -416,7 +416,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         }
         if (c.class_id) return false;
         if (lectureLevel && c.level && c.level !== lectureLevel) return false;
-        if (lectureGrade && c.grade && c.grade !== lectureGrade) return false;
+        if (lectureGrade && c.grade && String(c.grade).split(',').map(function(s){ return s.trim(); }).indexOf(lectureGrade) < 0) return false;
         return true;
       });
       let courseId;
@@ -893,7 +893,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!d.title.trim()) { alert('강좌명을 입력해 주세요.'); return; }
     if (!d.subject) { alert('과목을 선택해 주세요.'); return; }
     if (d.scope === 'class' && !d.class_id) { alert('클래스를 선택해 주세요.'); return; }
-    if (d.scope === 'level' && (!d.level || !d.grade)) { alert('초중고/학년을 선택해 주세요.'); return; }
+    if (d.scope === 'level' && (!d.level || !(d.grades||[]).length)) { alert('초중고와 학년(하나 이상)을 선택해 주세요.'); return; }
     if (d.scope === 'students' && d.student_ids.length === 0) { alert('1명 이상의 학생을 선택해 주세요.'); return; }
     setCreatingCourse(true);
     try {
@@ -908,7 +908,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         subject_id: subjectId,
         is_active: true,
         level: d.scope === 'level' ? d.level : null,
-        grade: d.scope === 'level' ? d.grade : null,
+        grade: d.scope === 'level' ? (d.grades||[]).join(',') : null,
         class_id: d.scope === 'class' ? d.class_id : null,
         teacher_id: teacherInfo?.id || null,
       };
@@ -922,7 +922,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       }
       var mapped = mapCourseForTeacher(created);
       setTeacherCourses(function(prev){ return [...prev, mapped]; });
-      setCourseDraft({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', student_ids:[], picker_class_id:'' });
+      setCourseDraft({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', grades:[], student_ids:[], picker_class_id:'' });
       var msg = d.scope === 'unassigned'
         ? '강좌가 개설되었습니다. 배포 대상은 아래 "내 강좌" 목록에서 언제든 설정할 수 있습니다.'
         : '강좌가 개설되었습니다. "강의 추가" 탭에서 영상을 등록하세요.';
@@ -931,7 +931,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         setTeacherView('lecture');
         setLectureCourseName(mapped.title);
         if (d.scope === 'class') setLectureClassId(d.class_id);
-        if (d.scope === 'level') { setLectureLevel(d.level); setLectureGrade(d.grade); }
+        if (d.scope === 'level') { setLectureLevel(d.level); setLectureGrade((d.grades||[])[0] || ''); }
         setLectureSubject(d.subject);
       }
     } catch (e) {
@@ -958,7 +958,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       class_id: course.class_id || '',
       level: course.level || '',
       grade: course.grade || '',
+      grades: String(course.grade || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean),
       student_ids: studentIds,
+      picker_class_id: '',
     });
     // 학생 목록 (담당 선생님 학생들 우선)
     if (allStudents.length === 0) {
@@ -971,14 +973,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var d = distributeDraft;
     if (!distributeCourseId) return;
     if (d.scope === 'class' && !d.class_id) { alert('클래스를 선택해 주세요.'); return; }
-    if (d.scope === 'level' && (!d.level || !d.grade)) { alert('초중고/학년을 선택해 주세요.'); return; }
+    if (d.scope === 'level' && (!d.level || !(d.grades||[]).length)) { alert('초중고와 학년(하나 이상)을 선택해 주세요.'); return; }
     if (d.scope === 'students' && d.student_ids.length === 0) { alert('1명 이상의 학생을 선택해 주세요.'); return; }
     setDistributing(true);
     try {
       var updates = {
         class_id: d.scope === 'class' ? d.class_id : null,
         level:    d.scope === 'level' ? d.level : null,
-        grade:    d.scope === 'level' ? d.grade : null,
+        grade:    d.scope === 'level' ? (d.grades||[]).join(',') : null,
       };
       var { error } = await sb.from('courses').update(updates).eq('id', distributeCourseId);
       if (error) throw error;
@@ -2153,7 +2155,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   { v:'level',      l:'학년 (초중고+학년)' },
                 ].map(opt => (
                   <label key={opt.v} style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                    <input type="radio" checked={courseDraft.scope === opt.v} onChange={() => setCourseDraft({ ...courseDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids:[], picker_class_id:'' })} /> {opt.l}
+                    <input type="radio" checked={courseDraft.scope === opt.v} onChange={() => setCourseDraft({ ...courseDraft, scope: opt.v, class_id:'', level:'', grade:'', grades:[], student_ids:[], picker_class_id:'' })} /> {opt.l}
                   </label>
                 ))}
               </div>
@@ -2217,15 +2219,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 );
               })()}
               {courseDraft.scope === 'level' && (
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
-                  <select style={inputStyle} value={courseDraft.level} onChange={e => setCourseDraft({ ...courseDraft, level: e.target.value, grade:'' })}>
+                <div>
+                  <select style={{ ...inputStyle, marginBottom:'8px' }} value={courseDraft.level} onChange={e => setCourseDraft({ ...courseDraft, level: e.target.value, grades:[] })}>
                     <option value="">초중고 선택</option>
                     {Object.keys(LEVELS).map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
-                  <select style={inputStyle} value={courseDraft.grade} onChange={e => setCourseDraft({ ...courseDraft, grade: e.target.value })} disabled={!courseDraft.level}>
-                    <option value="">학년 선택</option>
-                    {(LEVELS[courseDraft.level] || []).map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
+                  {courseDraft.level && (
+                    <div>
+                      <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'5px', fontFamily:'Manrope, sans-serif' }}>학년 (여러 개 선택 가능 — 예: 고1·고2 동시)</div>
+                      <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+                        {(LEVELS[courseDraft.level] || []).map(g => {
+                          var sel = (courseDraft.grades || []).indexOf(g) >= 0;
+                          return <button key={g} type="button" onClick={() => { var arr = courseDraft.grades || []; setCourseDraft({ ...courseDraft, grades: sel ? arr.filter(x => x !== g) : arr.concat([g]) }); }}
+                            style={{ background: sel ? '#E60012' : '#fff', color: sel ? '#fff' : 'rgba(0,0,0,0.62)', border: sel ? '2px solid #E60012' : '1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 12px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>{g}</button>;
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2271,15 +2281,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                           </select>
                         )}
                         {distributeDraft.scope === 'level' && (
-                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
-                            <select style={inputStyle} value={distributeDraft.level} onChange={e => setDistributeDraft({ ...distributeDraft, level: e.target.value, grade:'' })}>
+                          <div>
+                            <select style={{ ...inputStyle, marginBottom:'8px' }} value={distributeDraft.level} onChange={e => setDistributeDraft({ ...distributeDraft, level: e.target.value, grades:[] })}>
                               <option value="">초중고</option>
                               {['초등','중등','고등'].map(l => <option key={l} value={l}>{l}</option>)}
                             </select>
-                            <select style={inputStyle} value={distributeDraft.grade} onChange={e => setDistributeDraft({ ...distributeDraft, grade: e.target.value })} disabled={!distributeDraft.level}>
-                              <option value="">학년</option>
-                              {({ '초등':['1학년','2학년','3학년','4학년','5학년','6학년'], '중등':['중1','중2','중3'], '고등':['고1','고2','고3'] }[distributeDraft.level] || []).map(g => <option key={g} value={g}>{g}</option>)}
-                            </select>
+                            {distributeDraft.level && (
+                              <div>
+                                <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'5px', fontFamily:'Manrope, sans-serif' }}>학년 (여러 개 선택 가능)</div>
+                                <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+                                  {({ '초등':['1학년','2학년','3학년','4학년','5학년','6학년'], '중등':['중1','중2','중3'], '고등':['고1','고2','고3'] }[distributeDraft.level] || []).map(g => {
+                                    var sel = (distributeDraft.grades || []).indexOf(g) >= 0;
+                                    return <button key={g} type="button" onClick={() => { var arr = distributeDraft.grades || []; setDistributeDraft({ ...distributeDraft, grades: sel ? arr.filter(x => x !== g) : arr.concat([g]) }); }}
+                                      style={{ background: sel ? '#E60012' : '#fff', color: sel ? '#fff' : 'rgba(0,0,0,0.62)', border: sel ? '2px solid #E60012' : '1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 12px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>{g}</button>;
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                         {distributeDraft.scope === 'students' && (() => {
@@ -2381,14 +2399,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             const cls = inferredClass;
             if (cls) {
               if (c.subject && cls.subject && clean(c.subject) !== clean(cls.subject)) return false;
-              if (c.grade && cls.grade && c.grade !== cls.grade) return false;
+              if (c.grade && cls.grade && String(c.grade).split(',').map(function(s){ return s.trim(); }).indexOf(cls.grade) < 0) return false;
             }
             return true;
           }
           // 학년/과목 모드: 클래스 전용 강좌는 제외
           if (c.class_id) return false;
           if (lectureLevel && c.level && c.level !== lectureLevel) return false;
-          if (lectureGrade && c.grade && c.grade !== lectureGrade) return false;
+          if (lectureGrade && c.grade && String(c.grade).split(',').map(function(s){ return s.trim(); }).indexOf(lectureGrade) < 0) return false;
           if (effectiveSubject && c.subject && clean(c.subject) !== clean(effectiveSubject)) return false;
           return true;
         });

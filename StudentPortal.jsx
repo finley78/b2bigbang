@@ -1929,7 +1929,11 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
                 .map(function(c){ return c.id; });
               var byLevel = (user.level && user.grade)
                 ? courses
-                    .filter(function(c){ return c.level === user.level && c.grade === user.grade; })
+                    .filter(function(c){
+                      if (c.level !== user.level) return false;
+                      // c.grade 는 '고1' 한 개 또는 '고1,고2' 처럼 콤마로 여러 개일 수 있음
+                      return String(c.grade||'').split(',').map(function(s){ return s.trim(); }).indexOf(user.grade) >= 0;
+                    })
                     .map(function(c){ return c.id; })
                 : [];
               return Array.from(new Set([].concat(explicit, byClass, byLevel)));
