@@ -2835,22 +2835,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <div style={{ marginBottom: "12px" }}>
                 <input style={inputStyle} placeholder="시험 범위 (선택)" value={testInfo.testRange} onChange={e => setTestInfo(p => ({...p, testRange: e.target.value}))} />
               </div>
-              <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>체크된 학생에게만 성적이 저장됩니다.</p>
-              <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+              <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>점수를 입력하면 그 학생은 자동으로 체크됩니다. 체크된 학생 중 점수가 입력된 학생만 저장돼요. 체크를 풀면 그 학생은 제외됩니다.</p>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
                 <button style={lightButtonStyle} onClick={selectAllStudents}>전체 선택</button>
                 <button style={lightButtonStyle} onClick={clearAllStudents}>전체 해제</button>
+                <span style={{ alignSelf: "center", fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>점수 입력 {students.filter(s => String(scores[s.id]||"").trim() !== "").length}명 / 전체 {students.length}명</span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: teacherIsMobile ? "1fr" : "repeat(auto-fill, minmax(260px, 1fr))", gap: "8px", marginBottom: "12px" }}>
                 {students.map(s => {
                   const checked = selectedStudentIds.includes(s.id);
                   return (
-                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", border: checked ? "1px solid #E60012" : "1px solid #e5e7eb", borderRadius: "10px", background: checked ? "#f0fdf4" : "white" }}>
-                      <input type="checkbox" checked={checked} onChange={() => toggleStudent(s.id)} style={{ width: "16px", height: "16px" }} />
-                      <div style={{ flex: 1 }}>
-                        <strong style={{ fontFamily: "Manrope, sans-serif" }}>{s.name}</strong>
-                        <div style={{ fontSize: "12px", color: "#6b7280", fontFamily: "Manrope, sans-serif" }}>{s.grade || "-"}</div>
+                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 9px", border: checked ? "1.5px solid #E60012" : "1px solid #e5e7eb", borderRadius: "8px", background: checked ? "#fff7f7" : "white" }}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleStudent(s.id)} style={{ width: "16px", height: "16px", flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+                        <span style={{ fontWeight: "700", fontSize: "14px", color: "#1A1A1A", fontFamily: "Manrope, sans-serif" }}>{s.name}</span>
+                        {s.grade && <span style={{ fontSize: "11px", color: "#9ca3af", marginLeft: "6px", fontFamily: "Manrope, sans-serif" }}>{s.grade}</span>}
                       </div>
-                      <input style={{ ...inputStyle, width: "100px" }} type="number" placeholder="점수" value={scores[s.id] || ""} disabled={!checked} onChange={e => updateScore(s.id, e.target.value)} />
+                      <input style={{ ...inputStyle, width: "64px", flexShrink: 0, textAlign: "center", padding: "7px 4px" }} type="number" placeholder="점수" value={scores[s.id] || ""} onChange={e => { updateScore(s.id, e.target.value); if (e.target.value && !selectedStudentIds.includes(s.id)) toggleStudent(s.id); }} />
                     </div>
                   );
                 })}

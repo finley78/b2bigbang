@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v36-student-filter-class-narrow';
+const CACHE_VERSION = 'b2-bigbang-20260511v37-score-entry-grid';
 const OFFLINE_URLS = [
   './',
   './index.html',
