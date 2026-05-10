@@ -121,7 +121,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       try { window.history.pushState({ page:'teacher', b2Inner:true }, ''); } catch (err) {}
     }
   }, [selectedClass, examFormOpen]);
-  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
+  const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], existing_paths:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
+  const [editingExamId, setEditingExamId] = React.useState(null); // null=새 발행, id=기존 시험/숙제 수정
   const [examUploading, setExamUploading] = React.useState(false);
   const [examSubmissionsByExam, setExamSubmissionsByExam] = React.useState({}); // { exam_id: [submissions] }
 
@@ -1127,18 +1128,39 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   }
   function openExamForm(presetKind) {
     var k = presetKind === 'homework' ? 'homework' : 'class';
-    setExamDraft({ kind:k, title:'', subject:'', test_date: new Date().toISOString().slice(0,10), description:'', files:[], question_count: k==='homework' ? '0' : '10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
+    var subs = (teacherInfo && Array.isArray(teacherInfo.subjects)) ? teacherInfo.subjects.filter(Boolean) : [];
+    setEditingExamId(null);
+    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], question_count: k==='homework' ? '0' : '10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
+    setExamFormOpen(true);
+  }
+  function openExamFormForEdit(exam) {
+    setEditingExamId(exam.id);
+    setExamDraft({
+      kind: exam.kind === 'homework' ? 'homework' : (exam.kind || 'class'),
+      title: exam.title || '',
+      subject: exam.subject || '',
+      test_date: exam.test_date || '',
+      description: exam.description || '',
+      files: [],
+      existing_paths: Array.isArray(exam.image_paths) ? exam.image_paths : [],
+      question_count: String(exam.question_count || 0),
+      choices_per_question: String(exam.choices_per_question || 5),
+      text_question_count: String(exam.text_question_count || (exam.allow_text_answer ? 1 : 0)),
+      time_limit_minutes: String(exam.time_limit_minutes || 0),
+      answer_key: exam.answer_key || {},
+      allow_audio_answer: !!exam.allow_audio_answer,
+    });
     setExamFormOpen(true);
   }
   function closeExamForm() {
     setExamFormOpen(false);
+    setEditingExamId(null);
   }
   async function submitExam() {
     if (!teacherInfo) { alert('선생님 정보가 없습니다.'); return; }
     if (!selectedClass) { alert('반을 먼저 선택해 주세요.'); return; }
     var d = examDraft;
     if (!d.title.trim()) { alert('시험 제목을 입력해 주세요.'); return; }
-    if (!d.files || d.files.length === 0) { alert('시험지 이미지를 1장 이상 업로드해 주세요.'); return; }
     var qc = parseInt(d.question_count, 10);
     if (isNaN(qc) || qc < 0) qc = 0;
     var cpq = parseInt(d.choices_per_question, 10);
@@ -1155,25 +1177,25 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (isNaN(tlm) || tlm < 0) tlm = 0;
     setExamUploading(true);
     try {
-      var paths = [];
-      for (var i = 0; i < d.files.length; i++) {
-        var f = d.files[i];
-        var ext = (f.name.split('.').pop() || 'png').toLowerCase();
-        var path = 'exams/' + selectedClass.id + '/' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
-        var up = await sb.storage.from('attachments').upload(path, f, { cacheControl:'3600', upsert:false });
-        if (up.error) throw up.error;
-        paths.push(path);
+      var paths = (d.existing_paths && d.existing_paths.length) ? d.existing_paths.slice() : [];
+      if (d.files && d.files.length > 0) {
+        // 새 이미지를 올리면 기존 이미지를 대체
+        paths = [];
+        for (var i = 0; i < d.files.length; i++) {
+          var f = d.files[i];
+          var ext = (f.name.split('.').pop() || 'png').toLowerCase();
+          var path = 'exams/' + selectedClass.id + '/' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+          var up = await sb.storage.from('attachments').upload(path, f, { cacheControl:'3600', upsert:false });
+          if (up.error) throw up.error;
+          paths.push(path);
+        }
       }
       var kindVal = (d.kind === 'weekly' || d.kind === 'monthly' || d.kind === 'homework') ? d.kind : 'class';
-      var insertRow = {
-        kind: kindVal,
-        class_id: selectedClass.id,
-        teacher_id: (user && user.id) || null, // exams.teacher_id 는 students(id) 참조 — 로그인 선생님의 students.id 사용
-        teacher_name: teacherInfo.name || user?.name || '선생님',
+      var row = {
         title: d.title.trim(),
-        subject: d.subject.trim() || null,
+        subject: (d.subject||'').trim() || null,
         test_date: d.test_date || null,
-        description: d.description.trim() || null,
+        description: (d.description||'').trim() || null,
         image_paths: paths,
         question_count: qc,
         choices_per_question: cpq,
@@ -1182,17 +1204,29 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         time_limit_minutes: tlm,
         answer_key: d.answer_key || {},
         objective_total: qc,
-        status: 'open',
         allow_audio_answer: !!d.allow_audio_answer && kindVal === 'homework',
       };
-      var { error } = await sb.from('exams').insert(insertRow);
-      if (error) throw error;
-      var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : (kindVal === 'homework' ? '숙제' : '시험지'));
-      alert(kindLabel + '이(가) 발행되었습니다.');
+      if (editingExamId) {
+        var u = await sb.from('exams').update(row).eq('id', editingExamId);
+        if (u.error) throw u.error;
+        alert('수정되었습니다.');
+      } else {
+        var insertRow = Object.assign({
+          kind: kindVal,
+          class_id: selectedClass.id,
+          teacher_id: (user && user.id) || null, // exams.teacher_id 는 students(id) 참조
+          teacher_name: teacherInfo.name || user?.name || '선생님',
+          status: 'open',
+        }, row);
+        var { error } = await sb.from('exams').insert(insertRow);
+        if (error) throw error;
+        var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : (kindVal === 'homework' ? '숙제' : '시험지'));
+        alert(kindLabel + '이(가) 발행되었습니다.');
+      }
       closeExamForm();
       await loadClassExams(selectedClass.id);
     } catch (e) {
-      alert('발행 실패: ' + (e.message || e));
+      alert((editingExamId ? '수정' : '발행') + ' 실패: ' + (e.message || e));
     } finally {
       setExamUploading(false);
     }
@@ -1902,6 +1936,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         {ex.description && <div style={{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' }}>{ex.description}</div>}
                       </div>
                       <div style={{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 }}>
+                        <button onClick={() => openExamFormForEdit(ex)} style={{ background:'#fff', color:'#E60012', border:'1px solid #E60012', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>수정</button>
                         <button onClick={() => toggleExamStatus(ex)} style={{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>{ex.status==='open' ? '마감' : '재오픈'}</button>
                         <button onClick={() => deleteExam(ex)} style={{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>삭제</button>
                       </div>
@@ -1952,7 +1987,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             <div onClick={closeExamForm} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
               <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'520px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }}>
-                  <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>새 {examDraft.kind === 'homework' ? '숙제' : '시험'} 발행 — {selectedClass?.name}</h3>
+                  <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>{editingExamId ? ((examDraft.kind === 'homework' ? '숙제' : '시험') + ' 수정') : ('새 ' + (examDraft.kind === 'homework' ? '숙제' : '시험') + ' 발행')} — {selectedClass?.name}</h3>
                   <button onClick={closeExamForm} style={{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' }}>×</button>
                 </div>
 
@@ -1974,11 +2009,17 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                 <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
                   <div style={{ flex:1 }}>
-                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>과목 (선택)</label>
-                    <select value={examDraft.subject} onChange={e => setExamDraft({ ...examDraft, subject: e.target.value })} style={inputStyle}>
-                      <option value="">과목 선택</option>
-                      {["국어","영어","수학","과학","사회"].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    {(function(){
+                      var subs = (teacherInfo && Array.isArray(teacherInfo.subjects)) ? teacherInfo.subjects.filter(Boolean) : [];
+                      var opts = subs.length ? subs : ["국어","영어","수학","과학","사회"];
+                      return (<>
+                        <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>과목{subs.length ? ' (담당 과목)' : ' (선택)'}</label>
+                        <select value={examDraft.subject} onChange={e => setExamDraft({ ...examDraft, subject: e.target.value })} style={inputStyle}>
+                          <option value="">{subs.length ? '과목 선택' : '과목 선택 (선택사항)'}</option>
+                          {opts.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </>);
+                    })()}
                   </div>
                   <div style={{ flex:1 }}>
                     <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험일자 (선택)</label>
@@ -1989,8 +2030,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>안내사항 (선택)</label>
                 <textarea value={examDraft.description} onChange={e => setExamDraft({ ...examDraft, description: e.target.value })} rows={2} placeholder="예: 시험 시간 50분, 객관식 + 서술형" style={{ ...inputStyle, resize:'vertical', marginBottom:'14px' }} />
 
-                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 이미지 * (여러 장 가능, 페이지 순서대로)</label>
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 이미지 (선택 — 여러 장 가능, 페이지 순서대로)</label>
                 <input type="file" accept="image/*" multiple onChange={e => setExamDraft({ ...examDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                {editingExamId && (examDraft.existing_paths || []).length > 0 && (!examDraft.files || examDraft.files.length === 0) && (
+                  <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>기존 이미지 {(examDraft.existing_paths || []).length}장 유지 — 새로 올리면 교체됩니다.</div>
+                )}
                 {examDraft.files && examDraft.files.length > 0 && (
                   <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>{examDraft.files.length}장 선택됨 — {examDraft.files.map(f => f.name).join(', ')}</div>
                 )}
@@ -2103,9 +2147,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   </div>
                 )}
 
+                {(parseInt(examDraft.text_question_count, 10) || 0) > 0 && (
+                  <div style={{ marginBottom:'14px', background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:'8px', padding:'10px 12px', fontSize:'12px', color:'#0c4a6e', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' }}>
+                    <strong>서술형 문항</strong>은 학생이 제출한 뒤 선생님이 직접 채점합니다 — 정답을 미리 입력할 필요 없습니다.
+                  </div>
+                )}
+
                 <div style={{ display:'flex', gap:'8px', marginTop:'8px' }}>
                   <button onClick={closeExamForm} style={{ ...lightButtonStyle, flex:1 }}>취소</button>
-                  <button onClick={submitExam} disabled={examUploading} style={{ ...buttonStyle, flex:1, opacity: examUploading ? 0.6 : 1, cursor: examUploading ? 'not-allowed' : 'pointer' }}>{examUploading ? '발행 중...' : '발행'}</button>
+                  <button onClick={submitExam} disabled={examUploading} style={{ ...buttonStyle, flex:1, opacity: examUploading ? 0.6 : 1, cursor: examUploading ? 'not-allowed' : 'pointer' }}>{examUploading ? (editingExamId ? '저장 중...' : '발행 중...') : (editingExamId ? '저장' : '발행')}</button>
                 </div>
               </div>
             </div>

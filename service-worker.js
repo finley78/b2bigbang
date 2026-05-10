@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v15-exam-fk-fix';
+const CACHE_VERSION = 'b2-bigbang-20260510v16-exam-form';
 const OFFLINE_URLS = [
   './',
   './index.html',
