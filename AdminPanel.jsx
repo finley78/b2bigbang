@@ -62,6 +62,10 @@ const [courseFilterGrade, setCourseFilterGrade] = React.useState('전체');
 const [courseFilterTeacher, setCourseFilterTeacher] = React.useState('전체');
 const [courseFilterSearch, setCourseFilterSearch] = React.useState('');
 const [expandedStudent, setExpandedStudent] = React.useState(null);
+// 학생 카드 펼침 시 종합 현황(시험·단어·영상·출결·특이사항)
+const [adminStuDetail, setAdminStuDetail] = React.useState(null);
+const [adminStuDetailId, setAdminStuDetailId] = React.useState(null);
+const [adminStuDetailLoading, setAdminStuDetailLoading] = React.useState(false);
 const [saveToast, setSaveToast] = React.useState(false);
 const saveToastTimer = React.useRef(null);
 const showSaved = React.useCallback(function() {
@@ -987,6 +991,37 @@ const { data } = await sb.from('video_views')
 .eq('student_id', studentId)
 .order('last_watched_at', { ascending: false });
 setViewsDataMap(function(prev){ var n = Object.assign({}, prev); n[studentId] = data || []; return n; });
+}
+
+// 학생 카드 펼침 시: 그 학생의 시험·단어·영상·출결·특이사항을 한 번에 로드 (한 학생 정보가 흩어져 있던 걸 한 화면에)
+async function loadAdminStudentDetail(studentId) {
+if (adminStuDetailId === studentId && adminStuDetail) return; // 이미 로드됨
+setAdminStuDetailLoading(true);
+setAdminStuDetailId(studentId);
+setAdminStuDetail(null);
+try {
+  var thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  var results = await Promise.all([
+    sb.from('test_scores').select('*').eq('student_id', studentId).order('test_date', { ascending: false }),
+    sb.from('vocab_test_attempts').select('*, vocab_tests(title, unit_index)').eq('student_id', studentId).order('submitted_at', { ascending: false }),
+    sb.from('teacher_notes').select('*').eq('student_id', studentId).order('note_date', { ascending: false }),
+    sb.from('attendance').select('status').eq('student_id', studentId).gte('date', thirtyDaysAgo),
+    sb.from('video_views').select('*, videos(title), courses(title)').eq('student_id', studentId).order('last_watched_at', { ascending: false }),
+  ]);
+  var attRows = (results[3] && results[3].data) || [];
+  var att = { present:0, late:0, absent:0, excused:0, total: attRows.length };
+  attRows.forEach(function(a){ if (att[a.status] != null) att[a.status]++; });
+  setAdminStuDetail({
+    scores: (results[0] && results[0].data) || [],
+    vocabAttempts: (results[1] && results[1].data) || [],
+    notes: (results[2] && results[2].data) || [],
+    attendance: att,
+    videoViews: (results[4] && results[4].data) || [],
+  });
+} catch (e) {
+  setAdminStuDetail({ scores:[], vocabAttempts:[], notes:[], attendance:{present:0,late:0,absent:0,excused:0,total:0}, videoViews:[] });
+}
+setAdminStuDetailLoading(false);
 }
 
 async function updateStudentGrade(studentId, grade) {
@@ -2304,14 +2339,14 @@ isSelected && React.createElement('svg', { width:'11', height:'11', viewBox:'0 0
 React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' })
 )
 ),
-React.createElement('div', { style:{ flex:1, minWidth:0, cursor:'pointer', display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }, onClick:function(){ var __nx = expandedStudent===st.id?null:st.id; setExpandedStudent(__nx); if (__nx) { setTimeout(function(){ var el = document.getElementById('student-grid-top'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); } } },
+React.createElement('div', { style:{ flex:1, minWidth:0, cursor:'pointer', display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }, onClick:function(){ var __nx = expandedStudent===st.id?null:st.id; setExpandedStudent(__nx); if (__nx) { loadAdminStudentDetail(__nx); setTimeout(function(){ var el = document.getElementById('student-grid-top'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); } } },
 st.grade && React.createElement('span', { style:{ background:'#1A1A1A', color:'#fff', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, st.grade),
 React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', textDecoration: isWithdrawn?'line-through':'none' } }, st.name),
 (st.subjects||[]).map(function(sub){ return React.createElement('span', { key:sub, style:{ background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, sub); }),
 isWithdrawn && st.withdrawn_at && React.createElement('span', { style:{ background:'#f0f0f0', color:'#5a5a5a', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '퇴원 ' + String(st.withdrawn_at).slice(0,10))
 ),
 React.createElement('span', {
-onClick: function() { var __nx = expandedStudent===st.id?null:st.id; setExpandedStudent(__nx); if (__nx) { setTimeout(function(){ var el = document.getElementById('student-grid-top'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); } },
+onClick: function() { var __nx = expandedStudent===st.id?null:st.id; setExpandedStudent(__nx); if (__nx) { loadAdminStudentDetail(__nx); setTimeout(function(){ var el = document.getElementById('student-grid-top'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); } },
 style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', cursor:'pointer', transition:'transform 0.2s', transform: expandedStudent===st.id?'rotate(180deg)':'none', flexShrink:0 }
 }, '▾')
 ),
@@ -2503,12 +2538,48 @@ React.createElement('label', { style:labelS }, '특이사항·메모'),
 })()
 ),
 React.createElement('div', null,
-React.createElement('label', { style:labelS }, '최근 시험 성적'),
-React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', padding:'10px 12px', background:'#f9f9f9', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } }, '시험 성적은 곧 표시됩니다')
-),
-React.createElement('div', null,
-React.createElement('label', { style:labelS }, '출결'),
-React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', padding:'10px 12px', background:'#f9f9f9', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } }, '출결은 곧 표시됩니다')
+React.createElement('label', { style:labelS }, '학습 현황 (시험·단어·영상·출결·특이사항)'),
+(function(){
+  if (adminStuDetailId !== st.id || !adminStuDetail) {
+    return React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', padding:'10px 12px', background:'#f9f9f9', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } }, adminStuDetailLoading ? '불러오는 중...' : '불러오는 중...');
+  }
+  var dd = adminStuDetail;
+  var sc = dd.scores || [], va = dd.vocabAttempts || [], nt = dd.notes || [], vv = dd.videoViews || [], at = dd.attendance || {present:0,late:0,absent:0,excused:0,total:0};
+  var vvDone = vv.filter(function(v){ return (v.progress_pct||0) >= 90; }).length;
+  var vvAvg = vv.length ? Math.round(vv.reduce(function(a,v){ return a + (v.progress_pct||0); }, 0) / vv.length) : 0;
+  var box = { background:'#f9f9f9', borderRadius:'8px', padding:'10px 12px', marginBottom:'8px', fontFamily:'Manrope, sans-serif' };
+  var subLbl = { fontSize:'11px', fontWeight:'800', color:'rgba(0,0,0,0.55)', marginBottom:'5px' };
+  var line = { fontSize:'12px', color:'rgba(0,0,0,0.7)', padding:'2px 0', lineHeight:'1.5' };
+  var none = React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.38)' } }, '기록 없음');
+  return React.createElement('div', null,
+    React.createElement('div', { style:box },
+      React.createElement('div', { style:subLbl }, '시험 성적 (' + sc.length + '건)'),
+      sc.length === 0 ? none : React.createElement('div', null,
+        sc.slice(0,5).map(function(s,i){ return React.createElement('div', { key:i, style:line }, (s.test_name || s.subject || '시험') + ' — ' + (s.score != null ? s.score : '-') + (s.total != null ? ' / ' + s.total : '') + (s.test_date ? '  (' + String(s.test_date).slice(0,10) + ')' : '')); }),
+        sc.length > 5 ? React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)' } }, '외 ' + (sc.length-5) + '건') : null
+      )
+    ),
+    React.createElement('div', { style:box },
+      React.createElement('div', { style:subLbl }, '영상 시청 진도'),
+      vv.length === 0 ? none : React.createElement('div', null,
+        React.createElement('div', { style:line }, '시청 ' + vv.length + '강 · 완료 ' + vvDone + '강 · 평균 진도 ' + vvAvg + '%'),
+        vv.slice(0,4).map(function(v,i){ return React.createElement('div', { key:i, style:{ ...line, fontSize:'11px', color:'rgba(0,0,0,0.5)' } }, ((v.videos && v.videos.title) || '강의') + ' — ' + (v.progress_pct||0) + '%' + (v.last_watched_at ? '  (' + String(v.last_watched_at).slice(0,10) + ')' : '')); })
+      )
+    ),
+    React.createElement('div', { style:box },
+      React.createElement('div', { style:subLbl }, '단어시험 (' + va.length + '건)'),
+      va.length === 0 ? none : React.createElement('div', null, va.slice(0,5).map(function(a,i){ return React.createElement('div', { key:i, style:line }, ((a.vocab_tests && a.vocab_tests.title) || '단어시험') + ' — ' + (a.score != null ? a.score : '-') + (a.total != null ? ' / ' + a.total : '') + (a.submitted_at ? '  (' + String(a.submitted_at).slice(0,10) + ')' : '')); }))
+    ),
+    React.createElement('div', { style:box },
+      React.createElement('div', { style:subLbl }, '출결 (최근 30일)'),
+      at.total === 0 ? none : React.createElement('div', { style:line }, '출석 ' + at.present + ' · 지각 ' + at.late + ' · 결석 ' + at.absent + ' · 사유 ' + at.excused + '  (총 ' + at.total + '회)')
+    ),
+    React.createElement('div', { style:box },
+      React.createElement('div', { style:subLbl }, '특이사항 (' + nt.length + '건)'),
+      nt.length === 0 ? none : React.createElement('div', null, nt.slice(0,5).map(function(n,i){ return React.createElement('div', { key:i, style:{ ...line, whiteSpace:'pre-line' } }, (n.note_date ? '[' + String(n.note_date).slice(0,10) + '] ' : '') + (n.content || '')); }))
+    )
+  );
+})()
 )
 )
 ),
