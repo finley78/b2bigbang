@@ -30,10 +30,10 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
   });
   // 자동입력 자동 로그인 방지 — emailMode 진입 시각 기록 (1차 가드)
   const emailModeOpenedAtRef = React.useRef(0);
-  // 자동입력 자동 로그인 방지 (2차 가드) — 마지막으로 사용자가 신뢰된 pointerdown 한 시각.
-  // Chrome 비밀번호 매니저가 button.click()을 직접 dispatch하면 pointerdown은 트리거되지 않으므로,
-  // handleEmailLogin이 호출된 시점이 사용자 pointerdown 직후가 아니면 자동 트리거로 간주해 차단한다.
-  const lastUserPointerRef = React.useRef(0);
+  // 자동입력 자동 로그인 방지 (2차 가드) — 로그인 버튼 자체에 직접 신뢰된 pointerdown이 있었는지.
+  // PWA 비밀번호 매니저가 input을 채운 뒤 자동으로 submit click을 dispatch하는 시나리오를 차단한다.
+  // 페이지 어디든의 pointerdown이 아니라 "버튼을 향한 pointerdown"만 카운트한다.
+  const loginBtnPointerRef = React.useRef(0);
   const isMobile = window.B2Utils.useIsMobile();
   // OAuth 페이지 다녀오거나 뒤로가기로 돌아왔을 때 loading 잠금 자동 해제
   // (signInWithOAuth가 redirect 안 하고 끝나면 다른 소셜 버튼이 disabled로 묶이는 문제 방지)
@@ -43,14 +43,6 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
     }
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, []);
-  // pointerdown 추적 — capture phase로 document에 등록해 어디서든 신뢰된 클릭을 감지
-  React.useEffect(() => {
-    function track(e) {
-      if (e.isTrusted) lastUserPointerRef.current = Date.now();
-    }
-    document.addEventListener('pointerdown', track, true);
-    return () => document.removeEventListener('pointerdown', track, true);
   }, []);
   const sb = window.supabase;
 
@@ -66,10 +58,11 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
     if (emailModeOpenedAtRef.current && Date.now() - emailModeOpenedAtRef.current < 800) return;
     // 2차 가드: 사용자가 명시적으로 트리거한 호출인지 검증
     //  - opts.fromEnter=true: 비번 input에서 Enter 눌렀고 isTrusted=true (호출자가 검증)
-    //  - 그 외엔 마지막 신뢰된 pointerdown이 1초 이내여야 통과 (마우스/터치 클릭은 click 직전에 pointerdown 발생)
+    //  - opts.fromTrustedClick=true: 로그인 버튼 click이 isTrusted=true이고 버튼 자체에 신뢰된 pointerdown이 있었음 (호출자가 검증)
+    // PWA 비밀번호 매니저가 자동 submit하는 경우 click은 isTrusted=false라 통과 못 함.
     var fromEnter = !!(opts && opts.fromEnter);
-    var recentUserPointer = (Date.now() - lastUserPointerRef.current) < 1000 && lastUserPointerRef.current > 0;
-    if (!fromEnter && !recentUserPointer) return;
+    var fromTrustedClick = !!(opts && opts.fromTrustedClick);
+    if (!fromEnter && !fromTrustedClick) return;
     if (!email || !password) { setMsg('이메일과 비밀번호를 입력해 주세요.'); return; }
     setLoading(true); setMsg('');
     try {
@@ -230,8 +223,22 @@ function LoginModal({ onClose, onSignup, initialForgot }) {
         msg && React.createElement('div', { style:{ fontSize:'12px', color:'#c82014', fontFamily:'Manrope, sans-serif', marginBottom:'12px', lineHeight:'1.6', background:'#fff5f5', borderRadius:'6px', padding:'8px 12px' } }, msg),
 
         // 로그인 버튼 — type='button'으로 form submit 오인 방지.
-        // onPointerDown은 사용자 신뢰된 클릭일 때만 발생 → handleEmailLogin의 가드를 통과시킨다.
-        React.createElement('button', { type:'button', onClick:function(){ handleEmailLogin(); }, disabled:loading, style:{ width:'100%', background: loading?'#aaa': (isMobile ? '#E60012' : '#1E3932'), color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'14px', transition:'background 0.2s' } },
+        // 자동완성 자동 로그인 차단:
+        //  (1) onPointerDown: 사용자가 버튼 자체를 누르면 isTrusted=true → loginBtnPointerRef 갱신
+        //  (2) onClick: e.isTrusted=true이고 직전 600ms 내 버튼 pointerdown이 있어야만 통과
+        //  PWA 비밀번호 매니저가 자동으로 click()을 dispatch하면 isTrusted=false라 차단됨.
+        React.createElement('button', {
+          type:'button',
+          onPointerDown: function(e){ if (e && e.isTrusted) loginBtnPointerRef.current = Date.now(); },
+          onClick: function(e){
+            if (!e || !e.isTrusted) return; // synthetic click(자동완성 등) 차단
+            var hasBtnPointer = (Date.now() - loginBtnPointerRef.current) < 600 && loginBtnPointerRef.current > 0;
+            if (!hasBtnPointer) return; // 버튼에 향한 신뢰된 pointerdown이 없으면 차단
+            handleEmailLogin({ fromTrustedClick:true });
+          },
+          disabled:loading,
+          style:{ width:'100%', background: loading?'#aaa': (isMobile ? '#E60012' : '#1E3932'), color:'#fff', border:'none', borderRadius:'8px', padding:'13px', fontSize:'14px', fontWeight:'700', cursor: loading?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', marginBottom:'14px', transition:'background 0.2s' }
+        },
           loading ? '로그인 중...' : '로그인'
         ),
 

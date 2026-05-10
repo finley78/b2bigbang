@@ -426,13 +426,35 @@ body { font-family: 'Manrope', sans-serif; background: #f8fafc; min-height: 100v
 })();
 </script>
 
-<!-- PWA Service Worker 등록 -->
+<!-- PWA Service Worker 등록 + 자동 업데이트 -->
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js')
-      .then((reg) => console.log('SW 등록 완료:', reg.scope))
+      .then((reg) => {
+        console.log('SW 등록 완료:', reg.scope);
+        // 매 페이지 로드 시 SW 업데이트 체크 (PWA가 새 빌드를 빨리 받게 함)
+        try { reg.update(); } catch (e) {}
+        // 새 SW가 설치되면 즉시 활성화 + 페이지 한 번 새로고침
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              // 새 SW 설치 완료 → controllerchange 이벤트로 새로고침
+              console.log('새 SW 설치됨, 페이지를 갱신합니다...');
+            }
+          });
+        });
+      })
       .catch((err) => console.warn('SW 등록 실패:', err));
+    // 새 SW가 활성화(controllerchange)되면 페이지 1회 자동 새로고침으로 새 캐시 적용
+    let refreshed = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshed) return;
+      refreshed = true;
+      window.location.reload();
+    });
   });
 }
 </script>
@@ -462,15 +484,15 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260509m-autofill-guard"></script>
-<script src="TopNav.js?v=20260509m-autofill-guard"></script>
-<script src="HomePage.js?v=20260509m-autofill-guard"></script>
-<script src="Pages.js?v=20260509m-autofill-guard"></script>
-<script src="VocabManager.js?v=20260509m-autofill-guard"></script>
-<script src="VocabPlayer.js?v=20260509m-autofill-guard"></script>
-<script src="StudentPortal.js?v=20260509m-autofill-guard"></script>
-<script src="TeacherPortal.js?v=20260509m-autofill-guard"></script>
-<script src="AdminPanel.js?v=20260509m-autofill-guard"></script>
+<script src="Utils.js?v=20260510v-teacher-studyviews"></script>
+<script src="TopNav.js?v=20260510v-teacher-studyviews"></script>
+<script src="HomePage.js?v=20260510v-teacher-studyviews"></script>
+<script src="Pages.js?v=20260510v-teacher-studyviews"></script>
+<script src="VocabManager.js?v=20260510v-teacher-studyviews"></script>
+<script src="VocabPlayer.js?v=20260510v-teacher-studyviews"></script>
+<script src="StudentPortal.js?v=20260510v-teacher-studyviews"></script>
+<script src="TeacherPortal.js?v=20260510v-teacher-studyviews"></script>
+<script src="AdminPanel.js?v=20260510v-teacher-studyviews"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -544,6 +566,33 @@ const SESSION_GRACE_MS = 5 * 60 * 1000;
     localStorage.removeItem('b2_hidden_at');
   } catch (e) {}
 })();
+
+// 화면 어디서든 사용하는 "맨 위로" 플로팅 버튼.
+// [임시 디버그] 항상 보이게 하여 캐시/코드 문제 분간. 정상 동작 확인되면 스크롤 조건 복구.
+function ScrollToTopFab(props) {
+  const offset = props.offsetBottom || 24;
+  function scrollUp(){
+    try { window.scrollTo({ top:0, behavior:'smooth' }); } catch(e) { window.scrollTo(0,0); }
+    try {
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+    } catch(e) {}
+  }
+  return React.createElement('button', {
+    onClick: scrollUp,
+    'aria-label': '맨 위로',
+    style: {
+      position:'fixed', right:'20px', bottom: offset + 'px',
+      width:'52px', height:'52px', borderRadius:'50%',
+      background:'#E60012', color:'#fff', border:'2px solid #fff',
+      boxShadow:'0 6px 18px rgba(230,0,18,0.45)',
+      cursor:'pointer', zIndex: 9999,
+      display:'flex', alignItems:'center', justifyContent:'center'
+    }
+  }, React.createElement('svg', { width:'22', height:'22', viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:'3', strokeLinecap:'round', strokeLinejoin:'round' },
+      React.createElement('polyline', { points:'18 15 12 9 6 15' })
+  ));
+}
 
 function App() {
 const [page, setPage] = React.useState(() => {
@@ -921,6 +970,18 @@ const role = getUserRole(u);
 return role === 'teacher' || role === 'teachers' || role === '선생님' || role === '강사';
 }
 
+// 학원 내부인(학생·선생님·관리자) 판별. 이벤트 배너 같은 신규 고객 유치용 UI를 숨길 때 사용.
+// 일반 회원(role 없음·parent 등)은 잠재 고객이므로 false 반환 → 노출 대상.
+function isInsiderUser(u) {
+if (!u) return false;
+const role = getUserRole(u);
+return (
+  role === 'admin' || role === 'administrator' || role === '관리자' ||
+  role === 'teacher' || role === 'teachers' || role === '선생님' || role === '강사' ||
+  role === 'student' || role === 'students' || role === '학생'
+);
+}
+
 function handleLogout() {
 setUser(null);
 setIsAdmin(false);
@@ -1050,8 +1111,12 @@ onLoginClick: ()=>setShowLogin(true),
 /* 사이트 푸터 (관리자/선생님/응시 화면 제외) */
 page !== 'admin' && page !== 'teacher' && React.createElement(SiteFooter, { setPage: navigate }),
 
-/* 이벤트 floating 버튼 (관리자가 enabled로 토글 / 페이지별 제외 / 한 번 누르면 영구 숨김 / 로그인 사용자는 가림) */
-eventButton.enabled && !eventClicked && !user && page !== (eventButton.target_page || 'leveltest') && page !== 'admin' && page !== 'teacher' && React.createElement('button', {
+/* 맨 위로 가기 floating 버튼 (모든 페이지) — 이벤트 버튼이 보이면 그 위에 비키도록 offset 조정 */
+React.createElement(ScrollToTopFab, { offsetBottom: (eventButton.enabled && !eventClicked && !isInsiderUser(user) && page !== (eventButton.target_page || 'leveltest') && page !== 'admin' && page !== 'teacher') ? 84 : 24 }),
+
+/* 이벤트 floating 버튼: 학원 내부인(학생·선생님·관리자)에게는 숨김, 비로그인·일반 회원(잠재 고객)에게만 노출.
+   페이지별 제외(타겟 페이지 / 관리자 / 선생님 페이지)는 그대로. 한 번 누르면 영구 숨김. */
+eventButton.enabled && !eventClicked && !isInsiderUser(user) && page !== (eventButton.target_page || 'leveltest') && page !== 'admin' && page !== 'teacher' && React.createElement('button', {
   onClick: function(){
     try { localStorage.setItem('b2_event_button_clicked', eventButtonKey); } catch (e) {}
     setEventClickedKey(eventButtonKey);

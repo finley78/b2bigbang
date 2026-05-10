@@ -128,6 +128,16 @@ const [analysisTestName, setAnalysisTestName] = React.useState('전체');
 const [analysisTeacherId, setAnalysisTeacherId] = React.useState('전체');
 const [analysisSearch, setAnalysisSearch] = React.useState('');
 const [analysisStudentId, setAnalysisStudentId] = React.useState('');
+// 성적분석 최상위 모드: 'class'(반별) | 'student'(학생별 — 전체 학생 검색)
+const [analysisMode, setAnalysisMode] = React.useState('class');
+// 반별 모드 안의 서브탭: 'overview'(차트·요약) | 'students'(반 학생 아코디언)
+const [analysisSubTab, setAnalysisSubTab] = React.useState('overview');
+// 반별 모드 차트 범위: 'all'(이 반 학생들의 모든 시험) | 'standard'(이 반 표준 시험만)
+const [analysisChartScope, setAnalysisChartScope] = React.useState('all');
+// 학생별 모드 학년 필터
+const [analysisStudentGrade, setAnalysisStudentGrade] = React.useState('전체');
+// 학생별 아코디언 펼침 상태 — 한 번에 하나만 열림
+const [expandedAnalysisStudentId, setExpandedAnalysisStudentId] = React.useState('');
 const [reportStudentId, setReportStudentId] = React.useState('');
 const [kakaoTarget, setKakaoTarget] = React.useState(null);
 const [adminNotificationLogs, setAdminNotificationLogs] = React.useState([]);
@@ -139,6 +149,9 @@ const [adminScrTeacherFilter, setAdminScrTeacherFilter] = React.useState('전체
 // 레벨테스트
 const [adminLevelTests, setAdminLevelTests] = React.useState([]);
 const [adminTestKindFilter, setAdminTestKindFilter] = React.useState('all');
+const [adminTestSubjectFilter, setAdminTestSubjectFilter] = React.useState('all');
+const [adminTestLevelFilter, setAdminTestLevelFilter] = React.useState('all');
+const [adminTestSearch, setAdminTestSearch] = React.useState('');
 const [aboutDraft, setAboutDraft] = React.useState(null);
 const [aboutSaving, setAboutSaving] = React.useState(false);
 const [programsDraft, setProgramsDraft] = React.useState(null);
@@ -660,6 +673,26 @@ var { data, error } = await sb.from('classes').insert(payload).select('*').singl
 if (error) { alert('반 생성 실패: ' + error.message); return; }
 setTeacherClasses(function(prev){ return [...(prev||[]), data]; });
 setClassManageDrafts(function(prev){ var n = Object.assign({}, prev); delete n[teacher.id]; return n; });
+
+// 담당 반의 학교급/학년/과목을 선생님의 '담당 과목·학년 배정'에도 자동 반영 (이중 입력 방지)
+try {
+  var _lvl = draft.level || '초등';
+  var _subj = (draft.subject || '').trim();
+  var _upd = {};
+  // 1) 과목 자동 추가
+  if (_subj) {
+    var _curSubjects = Array.isArray(teacher.subjects) ? teacher.subjects.slice() : [];
+    if (_curSubjects.indexOf(_subj) < 0) { _curSubjects.push(_subj); _upd.subjects = _curSubjects; }
+  }
+  // 2) 학년 태그 자동 추가 — 형식: '과목-학교급 학년' (과목 없으면 '학교급 학년'), '과목별 학교급/학년 배정' 섹션과 동일
+  var _newTag = (_subj ? _subj + '-' : '') + _lvl + ' ' + draft.grade;
+  var _curGrades = splitAdminList(teacher && teacher.grade);
+  if (_curGrades.indexOf(_newTag) < 0) { _curGrades.push(_newTag); _upd.grade = joinAdminList(_curGrades); }
+  if (_upd.subjects || _upd.grade) {
+    await sb.from('students').update(_upd).eq('id', teacher.id);
+    setDbTeachers(function(ts){ return ts.map(function(x){ return x.id === teacher.id ? Object.assign({}, x, _upd) : x; }); });
+  }
+} catch (e) { /* 자동 반영 실패해도 반 생성은 유지 */ }
 }
 
 async function deleteTeacherClass(classId) {
@@ -2918,7 +2951,7 @@ React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', 
 // 담당 반 관리
 React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #edf0f2' } },
   React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', letterSpacing:'0.06em', textTransform:'uppercase', fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, '담당 반 관리'),
-  React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '실제 운영 중인 반을 추가하고 학생을 배정합니다. 선생님 페이지의 담당 클래스에 표시됩니다.'),
+  React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '실제 운영 중인 반을 추가하고 학생을 배정합니다. 선생님 페이지의 담당 클래스에 표시됩니다. (반을 추가하면 위의 담당 과목·학년 배정에도 자동 반영됩니다.)'),
   (function(){
     var draft = classManageDrafts[t.id] || { name:'', level:'초등', grade:'', subject:'' };
     return React.createElement('div', { style:{ background:'#f9f9f9', borderRadius:'10px', padding:'14px', marginBottom:'12px', display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' } },
@@ -2928,22 +2961,27 @@ React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', border
         placeholder: '반 이름 (예: 고1 영어 A반)',
         style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'180px', flex:1 }
       }),
-      React.createElement('select', {
-        value: draft.level,
-        onChange: function(e){ var v = e.target.value; setClassManageDrafts(function(prev){ var next = Object.assign({}, prev); next[t.id] = Object.assign({}, draft, { level: v, grade: '' }); return next; }); },
-        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
-      },
-        React.createElement('option', {value:'초등'}, '초등'),
-        React.createElement('option', {value:'중등'}, '중등'),
-        React.createElement('option', {value:'고등'}, '고등')
+      // 학교급 — 버튼 토글 (한 번에 하나)
+      React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap' } },
+        ['초등','중등','고등'].map(function(lv){
+          var sel = draft.level === lv;
+          return React.createElement('button', {
+            key:lv, type:'button',
+            onClick: function(){ setClassManageDrafts(function(prev){ var next = Object.assign({}, prev); next[t.id] = Object.assign({}, draft, { level: lv, grade: '' }); return next; }); },
+            style:{ background: sel?'#1A1A1A':'#fff', color: sel?'#fff':'rgba(0,0,0,0.62)', border: sel?'2px solid #1A1A1A':'1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 12px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+          }, lv);
+        })
       ),
-      React.createElement('select', {
-        value: draft.grade,
-        onChange: function(e){ var v = e.target.value; setClassManageDrafts(function(prev){ var next = Object.assign({}, prev); next[t.id] = Object.assign({}, draft, { grade: v }); return next; }); },
-        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
-      },
-        React.createElement('option', {value:''}, '학년'),
-        SCHOOL_LEVELS[draft.level].grades.map(function(g){ return React.createElement('option', {key:g, value:g}, g); })
+      // 학년 — 버튼 토글 (선택한 학년으로 반 1개 생성, 반복해서 여러 반 추가 가능)
+      React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap' } },
+        SCHOOL_LEVELS[draft.level].grades.map(function(g){
+          var sel = draft.grade === g;
+          return React.createElement('button', {
+            key:g, type:'button',
+            onClick: function(){ setClassManageDrafts(function(prev){ var next = Object.assign({}, prev); next[t.id] = Object.assign({}, draft, { grade: g }); return next; }); },
+            style:{ background: sel?'#E60012':'#fff', color: sel?'#fff':'rgba(0,0,0,0.62)', border: sel?'2px solid #E60012':'1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 12px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+          }, g);
+        })
       ),
       React.createElement('select', {
         value: draft.subject,
@@ -3103,50 +3141,106 @@ React.createElement('input', {
 /* ── 성적 분석 TAB ── */
 tab==='analysis' && React.createElement('div', null,
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '성적 분석'),
-React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '선생님이 등록한 시험 성적을 통합해서 확인합니다.'),
+React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '반별 또는 학생별로 시험 성적을 확인합니다.'),
 
-React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px' } },
-React.createElement('select', {
-  value: analysisClassId,
-  onChange: function(e){ setAnalysisClassId(e.target.value); },
-  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
-},
-  React.createElement('option', { value:'' }, '반 전체'),
-  (teacherClasses || []).filter(function(c){ return c.grade; }).map(function(c){ return React.createElement('option', { key:c.id, value:String(c.id) }, c.name); })
+// 최상위 모드 토글 — 반별 / 학생별
+React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'14px' } },
+  ['class','student'].map(function(m){
+    var active = analysisMode === m;
+    var label = m === 'class' ? '반별 분석' : '학생별 분석';
+    return React.createElement('button', {
+      key: m,
+      onClick: function(){ setAnalysisMode(m); setExpandedAnalysisStudentId(''); },
+      style:{ flex:1, background: active ? '#E60012' : '#fff', color: active ? '#fff' : '#374151', border:'1px solid '+(active?'#E60012':'#d6dbde'), borderRadius:'10px', padding:'12px 16px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.15s' }
+    }, label);
+  })
 ),
-React.createElement('select', {
-  value: analysisTeacherId,
-  onChange: function(e){ setAnalysisTeacherId(e.target.value); },
-  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
-},
-  React.createElement('option', { value:'전체' }, '선생님 전체'),
-  dbTeacherProfiles.map(function(t){ return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님'); })
-),
-React.createElement('select', {
-  value: analysisSubject,
-  onChange: function(e){ setAnalysisSubject(e.target.value); },
-  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
-},
-  React.createElement('option', { value:'전체' }, '과목 전체'),
-  SUBJECTS.map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
-),
-React.createElement('select', {
-  value: analysisTestName,
-  onChange: function(e){ setAnalysisTestName(e.target.value); },
-  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
-},
-  React.createElement('option', { value:'전체' }, '시험 전체'),
-  ['주간평가','월말평가','1학기 중간','1학기 기말','2학기 중간','2학기 기말'].map(function(n){ return React.createElement('option', { key:n, value:n }, n); })
-),
-React.createElement('input', {
-  value: analysisSearch,
-  onChange: function(e){ setAnalysisSearch(e.target.value); },
-  placeholder: '학생명·선생님명 검색',
-  style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'180px', flex:1 }
-})
-),
+
+// 모드별 필터 영역
+analysisMode === 'class'
+  ? React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px' } },
+      React.createElement('select', {
+        value: analysisClassId,
+        onChange: function(e){ setAnalysisClassId(e.target.value); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer', color: analysisClassId ? '#1A1A1A' : '#E60012' }
+      },
+        React.createElement('option', { value:'' }, '반 선택'),
+        (teacherClasses || []).filter(function(c){ return c.grade; }).map(function(c){ return React.createElement('option', { key:c.id, value:String(c.id) }, c.name); })
+      ),
+      React.createElement('select', {
+        value: analysisTeacherId,
+        onChange: function(e){ setAnalysisTeacherId(e.target.value); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
+        React.createElement('option', { value:'전체' }, '선생님 전체'),
+        dbTeacherProfiles.map(function(t){ return React.createElement('option', { key:t.id, value:String(t.id) }, t.name || t.email || '선생님'); })
+      ),
+      React.createElement('select', {
+        value: analysisSubject,
+        onChange: function(e){ setAnalysisSubject(e.target.value); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
+        React.createElement('option', { value:'전체' }, '과목 전체'),
+        SUBJECTS.map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+      ),
+      React.createElement('select', {
+        value: analysisTestName,
+        onChange: function(e){ setAnalysisTestName(e.target.value); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
+        React.createElement('option', { value:'전체' }, '시험 전체'),
+        ['주간평가','월말평가','1학기 중간','1학기 기말','2학기 중간','2학기 기말'].map(function(n){ return React.createElement('option', { key:n, value:n }, n); })
+      ),
+      React.createElement('input', {
+        value: analysisSearch,
+        onChange: function(e){ setAnalysisSearch(e.target.value); },
+        placeholder: '반 안에서 학생 검색',
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'180px', flex:1 }
+      })
+    )
+  : React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px' } },
+      // 학생별 모드: 학년 + 반 + 과목 + 검색
+      React.createElement('select', {
+        value: analysisStudentGrade,
+        onChange: function(e){ setAnalysisStudentGrade(e.target.value); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
+        React.createElement('option', { value:'전체' }, '학년 전체'),
+        ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'].map(function(g){ return React.createElement('option', { key:g, value:g }, g); })
+      ),
+      React.createElement('select', {
+        value: analysisClassId,
+        onChange: function(e){ setAnalysisClassId(e.target.value); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
+        React.createElement('option', { value:'' }, '반 전체'),
+        (teacherClasses || []).filter(function(c){ return c.grade; }).map(function(c){ return React.createElement('option', { key:c.id, value:String(c.id) }, c.name); })
+      ),
+      React.createElement('select', {
+        value: analysisSubject,
+        onChange: function(e){ setAnalysisSubject(e.target.value); },
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+      },
+        React.createElement('option', { value:'전체' }, '과목 전체'),
+        SUBJECTS.map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+      ),
+      React.createElement('input', {
+        value: analysisSearch,
+        onChange: function(e){ setAnalysisSearch(e.target.value); },
+        placeholder: '학생 이름 검색',
+        style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'180px', flex:1 }
+      })
+    ),
 
 (function(){
+  // 반별 모드인데 반을 선택하지 않은 경우 — 안내
+  if (analysisMode === 'class' && !analysisClassId) {
+    return React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'48px 20px' } },
+      React.createElement('div', { style:{ fontSize:'40px', marginBottom:'12px' } }, '🎯'),
+      React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'#374151', marginBottom:'6px' } }, '분석할 반을 선택해 주세요'),
+      React.createElement('div', { style:{ fontSize:'13px', color:'#9ca3af' } }, '위에서 반을 선택하면 그 반의 통계와 학생별 성적을 확인할 수 있습니다.')
+    );
+  }
   var q = analysisSearch.trim().toLowerCase();
   var scoresFiltered = (adminAnalysis || []).filter(function(s){
     if (analysisTeacherId !== '전체' && String(s.teacher_id) !== String(analysisTeacherId)) return false;
@@ -3154,14 +3248,57 @@ React.createElement('input', {
     if (analysisTestName !== '전체' && s.test_name !== analysisTestName) return false;
     return true;
   });
-  // 반 선택 시 → 그 반 학생만. 미선택 시 → 필터링된 점수 데이터에서 학생 ID 추출.
+  // targetIds — 모드별 분기
   var targetIds;
-  if (analysisClassId) {
+  if (analysisMode === 'class') {
+    // 반별: 그 반에 등록된 학생만
     targetIds = (classStudents[analysisClassId] || []).map(String);
   } else {
-    var idSet = {};
-    scoresFiltered.forEach(function(s){ if (s.student_id) idSet[String(s.student_id)] = true; });
-    targetIds = Object.keys(idSet);
+    // 학생별: 학년·반 필터를 적용한 모든 학생
+    var pool = dbStudents || [];
+    if (analysisStudentGrade !== '전체') {
+      pool = pool.filter(function(st){ return st.grade === analysisStudentGrade; });
+    }
+    if (analysisClassId) {
+      var classMemberSet = {};
+      (classStudents[analysisClassId] || []).forEach(function(id){ classMemberSet[String(id)] = true; });
+      pool = pool.filter(function(st){ return classMemberSet[String(st.id)]; });
+    }
+    targetIds = pool.map(function(st){ return String(st.id); });
+  }
+  // 표준 시험 판정 (반별 모드만) — 그 반 학생의 30%+ 가 응시한 (test_name|test_date|subject) 조합
+  // 30% 미만 응시면 "추가 응시" 시험으로 분류한다.
+  var classMemberSet2 = {};
+  if (analysisMode === 'class') {
+    (classStudents[analysisClassId] || []).forEach(function(id){ classMemberSet2[String(id)] = true; });
+  }
+  var classSize = analysisMode === 'class' ? Object.keys(classMemberSet2).length : 0;
+  var standardTestKeys = {};
+  var extraTestKeys = {}; // 추가 응시 시험 → { key: [studentName, ...] }
+  if (analysisMode === 'class' && classSize > 0) {
+    var keyTakers = {}; // key → Set of student IDs (반 멤버만 카운트)
+    (adminAnalysis || []).forEach(function(s){
+      if (!classMemberSet2[String(s.student_id)]) return;
+      var k = (s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||'');
+      if (!keyTakers[k]) keyTakers[k] = {};
+      keyTakers[k][String(s.student_id)] = true;
+    });
+    Object.keys(keyTakers).forEach(function(k){
+      var n = Object.keys(keyTakers[k]).length;
+      if (n / classSize >= 0.3) {
+        standardTestKeys[k] = true;
+      } else {
+        extraTestKeys[k] = Object.keys(keyTakers[k]);
+      }
+    });
+  }
+  // 반별 모드의 차트 범위 토글: 'standard' 면 차트용 점수에서 추가 응시를 제외
+  var scoresForChart = scoresFiltered;
+  if (analysisMode === 'class' && analysisChartScope === 'standard') {
+    scoresForChart = scoresFiltered.filter(function(s){
+      var k = (s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||'');
+      return standardTestKeys[k];
+    });
   }
   var subjectActive = analysisSubject !== '전체';
   var testNameActive = analysisTestName !== '전체';
@@ -3183,22 +3320,30 @@ React.createElement('input', {
     var myAvg = myVals.length ? myVals.reduce(function(a,b){return a+b;},0)/myVals.length : null;
     var last = myScores[myScores.length-1] || null;
     var prev = myScores[myScores.length-2] || null;
-    return { id:sid, name:name, grade:grade, scores: myScores, avg: myAvg, last: last, prev: prev, parent_phone: (stu && (stu.parent_phone||stu.phone))||null };
+    // 반별 모드일 때만 추가 응시 횟수 계산
+    var extraCount = 0;
+    if (analysisMode === 'class' && classSize > 0) {
+      myScores.forEach(function(s){
+        var k = (s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||'');
+        if (extraTestKeys[k]) extraCount++;
+      });
+    }
+    return { id:sid, name:name, grade:grade, scores: myScores, avg: myAvg, last: last, prev: prev, parent_phone: (stu && (stu.parent_phone||stu.phone))||null, extraCount: extraCount };
   }).filter(Boolean);
 
   if (rows.length === 0) {
     return React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '표시할 학생이 없습니다');
   }
 
-  // 시험 회차 계산
-  var testKeys = Array.from(new Set(scoresFiltered.filter(function(s){ return targetIds.indexOf(String(s.student_id)) >= 0; }).map(function(s){ return (s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||''); }))).filter(Boolean).sort();
+  // 시험 회차 계산 — 차트용은 scoresForChart 사용 (반별 모드 + chartScope='standard'면 추가 응시 제외됨)
+  var testKeys = Array.from(new Set(scoresForChart.filter(function(s){ return targetIds.indexOf(String(s.student_id)) >= 0; }).map(function(s){ return (s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||''); }))).filter(Boolean).sort();
   var lastKey = testKeys[testKeys.length-1] || null;
   var prevKey = testKeys[testKeys.length-2] || null;
-  function avgForKey(key){ if(!key) return null; var arr = scoresFiltered.filter(function(s){ return ((s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||'')) === key && targetIds.indexOf(String(s.student_id))>=0; }).map(function(s){ return Number(s.score); }).filter(function(v){return !isNaN(v);}); return arr.length ? arr.reduce(function(a,b){return a+b;},0)/arr.length : null; }
+  function avgForKey(key){ if(!key) return null; var arr = scoresForChart.filter(function(s){ return ((s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||'')) === key && targetIds.indexOf(String(s.student_id))>=0; }).map(function(s){ return Number(s.score); }).filter(function(v){return !isNaN(v);}); return arr.length ? arr.reduce(function(a,b){return a+b;},0)/arr.length : null; }
   var lastAvg = avgForKey(lastKey);
   var prevAvg = avgForKey(prevKey);
   var avgChange = (lastAvg != null && prevAvg != null) ? lastAvg - prevAvg : null;
-  var lastVals = lastKey ? scoresFiltered.filter(function(s){ return ((s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||'')) === lastKey && targetIds.indexOf(String(s.student_id))>=0; }).map(function(s){ return Number(s.score); }).filter(function(v){return !isNaN(v);}) : [];
+  var lastVals = lastKey ? scoresForChart.filter(function(s){ return ((s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||'')) === lastKey && targetIds.indexOf(String(s.student_id))>=0; }).map(function(s){ return Number(s.score); }).filter(function(v){return !isNaN(v);}) : [];
   var lastMax = lastVals.length ? Math.max.apply(null, lastVals) : null;
   var lastMin = lastVals.length ? Math.min.apply(null, lastVals) : null;
   var lastTakers = lastVals.length;
@@ -3383,38 +3528,60 @@ React.createElement('input', {
       })()
     );
   }
+  // 학생별 아코디언 — 헤더 한 줄(이름·평균·이번 점수·전회 대비 ▲▼)만 기본 표시,
+  // 탭하면 시험 이력 + AI 코멘트 펼침. 한 번에 하나만 열림(setExpandedAnalysisStudentId 단일값).
   function studentRows() {
     return rows.map(function(r){
+      var isOpen = String(expandedAnalysisStudentId) === String(r.id);
       var lastScore = r.last ? Number(r.last.score) : null;
       var prevScore = r.prev ? Number(r.prev.score) : null;
+      var diff = (lastScore != null && prevScore != null && !isNaN(lastScore) && !isNaN(prevScore)) ? (lastScore - prevScore) : null;
       var trendVals = r.scores.map(function(s){return Number(s.score);}).filter(function(v){return !isNaN(v);});
       var aiComment = B2Utils.generateComment({
         studentName: r.name, score: lastScore, prevScore: prevScore, classAvg: lastAvg, recentTrend: trendVals,
         subject: r.last ? r.last.subject : '', testName: r.last ? r.last.test_name : ''
       });
-      return React.createElement('div', { key:r.id, style:{ marginBottom:'12px', border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden' } },
-        React.createElement('div', { style:{ background:'#1A1A1A', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' } },
-          React.createElement('div', null,
-            React.createElement('span', { style:{ fontWeight:'800', color:'#fff', fontSize:'14px', fontFamily:'Manrope, sans-serif' } }, r.name),
-            r.grade && React.createElement('span', { style:{ color:'rgba(255,255,255,0.6)', fontSize:'12px', marginLeft:'8px', fontFamily:'Manrope, sans-serif' } }, r.grade),
-            React.createElement('span', { style:{ color:'rgba(255,255,255,0.85)', fontSize:'12px', marginLeft:'12px', fontFamily:'Manrope, sans-serif' } }, r.scores.length + '회 · 평균 ' + (r.avg != null ? r.avg.toFixed(1)+'점' : '-'))
+      return React.createElement('div', { key:r.id, style:{ marginBottom:'8px', border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden', background:'#fff' } },
+        // 헤더 — 항상 보이는 한 줄 요약. 탭하면 펼침.
+        React.createElement('div', {
+          onClick: function(){ setExpandedAnalysisStudentId(isOpen ? '' : r.id); },
+          style:{ background: isOpen ? '#1A1A1A' : '#fff', color: isOpen ? '#fff' : '#1A1A1A', padding:'12px 14px', display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', userSelect:'none', transition:'background 0.15s' }
+        },
+          React.createElement('span', { style:{ fontSize:'12px', color: isOpen ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', width:'10px', flexShrink:0 } }, isOpen ? '▼' : '▶'),
+          React.createElement('span', { style:{ fontWeight:'800', fontSize:'14px', fontFamily:'Manrope, sans-serif', flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } },
+            r.name,
+            r.grade && React.createElement('span', { style:{ color: isOpen ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.4)', fontSize:'12px', marginLeft:'6px', fontWeight:'500' } }, r.grade)
           ),
-          React.createElement('div', { style:{ display:'flex', gap:'6px' } },
-            React.createElement('button', { onClick:function(){ setReportStudentId(r.id); }, style:{ background:'#fff', color:'#1A1A1A', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '학부모 리포트'),
-            React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }] }); }, style:{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '알림톡')
-          )
+          // 추가 응시 배지 (반별 모드만, extraCount > 0)
+          r.extraCount > 0 && React.createElement('span', { title:'반 표준 외 시험 응시 횟수', style:{ fontSize:'11px', fontWeight:'800', fontFamily:'Manrope, sans-serif', color:'#7a5c0e', background: isOpen ? 'rgba(248,181,0,0.85)' : '#fef9ec', border: isOpen ? 'none' : '1px solid #f0e1ad', padding:'2px 6px', borderRadius:'4px', flexShrink:0 } }, '+'+r.extraCount+'회'),
+          // 이번 시험 점수 + 전회 대비
+          lastScore != null
+            ? React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', fontFamily:'Manrope, sans-serif', color: isOpen ? '#fff' : adminColorForScore(lastScore), flexShrink:0 } }, lastScore+'점')
+            : React.createElement('span', { style:{ fontSize:'12px', color: isOpen ? 'rgba(255,255,255,0.5)' : '#9ca3af', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, '미응시'),
+          diff != null && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif', color: diff >= 0 ? '#E60012' : '#c82014', background: isOpen ? 'rgba(255,255,255,0.15)' : (diff >= 0 ? '#fef2f2' : '#fef2f2'), padding:'2px 6px', borderRadius:'4px', flexShrink:0 } }, (diff >= 0 ? '▲' : '▼') + Math.abs(diff).toFixed(1)),
+          React.createElement('span', { style:{ fontSize:'11px', color: isOpen ? 'rgba(255,255,255,0.7)' : '#6b7280', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, '평균 ' + (r.avg != null ? r.avg.toFixed(1) : '-'))
         ),
-        React.createElement('div', { style:{ padding:'12px 16px' } },
+        // 본문 — 펼친 경우에만 렌더
+        isOpen && React.createElement('div', { style:{ padding:'12px 14px', borderTop:'1px solid #e5e7eb' } },
+          // 액션 버튼 — 헤더에서 본문으로 이동(헤더 탭과 충돌 방지)
+          React.createElement('div', { style:{ display:'flex', gap:'6px', marginBottom:'12px' } },
+            React.createElement('button', { onClick:function(e){ e.stopPropagation(); setReportStudentId(r.id); }, style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '학부모 리포트'),
+            React.createElement('button', { onClick:function(e){ e.stopPropagation(); setKakaoTarget({ mode:'single', students:[{ id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }] }); }, style:{ background:'#F8B500', color:'#fff', border:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '알림톡')
+          ),
           r.scores.length === 0 ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', fontStyle:'italic', fontFamily:'Manrope, sans-serif' } }, '아직 등록된 성적이 없습니다 (미응시)')
             : [
               r.scores.slice().sort(function(a,b){ return (b.test_date||'').localeCompare(a.test_date||''); }).map(function(s, si){
                 var pct = Math.max(0, Math.min(100, Math.round(Number(s.score) || 0)));
+                var sk = (s.test_date||'')+'|'+(s.test_name||'')+'|'+(s.subject||'');
+                var isExtra = analysisMode === 'class' && extraTestKeys[sk];
                 return React.createElement('div', { key:si, style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'6px' } },
-                  React.createElement('div', { style:{ width:'180px', flexShrink:0 } },
-                    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'600', color:'#374151', fontFamily:'Manrope, sans-serif' } }, s.test_name || '(무제)'),
+                  React.createElement('div', { style:{ width:'140px', flexShrink:0 } },
+                    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'600', color:'#374151', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'4px' } },
+                      s.test_name || '(무제)',
+                      isExtra && React.createElement('span', { style:{ fontSize:'9px', fontWeight:'800', color:'#7a5c0e', background:'#fef9ec', border:'1px solid #f0e1ad', borderRadius:'3px', padding:'1px 4px' } }, '추가')
+                    ),
                     React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, [s.subject, s.test_date].filter(Boolean).join(' · '))
                   ),
-                  React.createElement('span', { style:{ width:'90px', fontSize:'11px', color:'#9ca3af', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, (s.teachers && s.teachers.name) ? s.teachers.name + ' 선생님' : ''),
                   React.createElement('div', { style:{ flex:1, height:'14px', background:'#f3f4f6', borderRadius:'7px', overflow:'hidden' } }, React.createElement('div', { style:{ width:pct+'%', height:'100%', background:adminColorForScore(s.score) } })),
                   React.createElement('span', { style:{ width:'44px', fontSize:'13px', fontWeight:'700', color:adminColorForScore(s.score), textAlign:'right', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, s.score+'점')
                 );
@@ -3427,6 +3594,20 @@ React.createElement('input', {
         )
       );
     });
+  }
+  // 서브탭 바 — '개관' / '학생별' 토글
+  function subTabBar() {
+    var btn = function(key, label){
+      var active = analysisSubTab === key;
+      return React.createElement('button', {
+        onClick: function(){ setAnalysisSubTab(key); },
+        style:{ flex:1, background: active ? '#1A1A1A' : '#fff', color: active ? '#fff' : '#374151', border:'1px solid '+(active?'#1A1A1A':'#d6dbde'), borderRadius:'8px', padding:'10px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'background 0.15s' }
+      }, label);
+    };
+    return React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'14px' } },
+      btn('overview', '개관'),
+      btn('students', '학생별 (' + rows.length + '명)')
+    );
   }
   function paperPlaceholder() {
     return React.createElement('div', { style:{ marginTop:'24px', padding:'18px', background:'#f9fafb', border:'1px dashed #d6dbde', borderRadius:'12px', textAlign:'center' } },
@@ -3441,8 +3622,68 @@ React.createElement('input', {
       React.createElement('button', { onClick:function(){ setKakaoTarget({ mode:'bulk', students: rows.map(function(r){ return { id:r.id, name:r.name, last:r.last, prev:r.prev, parent_phone:r.parent_phone }; }) }); }, style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, '전체 학부모 일괄 발송')
     );
   }
+  // 차트 범위 토글 — 반별 모드 개관 상단
+  function chartScopeToggle() {
+    var btn = function(key, label){
+      var active = analysisChartScope === key;
+      return React.createElement('button', {
+        onClick: function(){ setAnalysisChartScope(key); },
+        style:{ background: active ? '#1A1A1A' : '#fff', color: active ? '#fff' : '#6b7280', border:'1px solid '+(active?'#1A1A1A':'#d6dbde'), borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+      }, label);
+    };
+    return React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'12px', padding:'8px 10px', background:'#f9fafb', borderRadius:'8px' } },
+      React.createElement('span', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif', fontWeight:'700' } }, '차트 범위:'),
+      btn('all', '전체 시험'),
+      btn('standard', '표준 시험만')
+    );
+  }
+  // 추가 응시 시험 알림 — 반별 모드 개관 상단
+  function extraTestsBanner() {
+    var keys = Object.keys(extraTestKeys);
+    if (keys.length === 0) return null;
+    // 가장 최근 5개만 표시
+    var sorted = keys.slice().sort().reverse().slice(0, 5);
+    return React.createElement('div', { style:{ marginBottom:'14px', padding:'12px 14px', background:'#fef9ec', border:'1px solid #f0e1ad', borderRadius:'10px' } },
+      React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#7a5c0e', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '⚠ 추가 응시 시험 ' + keys.length + '건'),
+      React.createElement('div', { style:{ fontSize:'11px', color:'#6b5511', marginBottom:'8px', fontFamily:'Manrope, sans-serif', lineHeight:'1.5' } }, '반 학생 30% 미만이 응시한 시험입니다 (특강·다른 학년 시험 등). 반 통계엔 영향이 적지만 학생별 종합엔 포함됩니다.'),
+      sorted.map(function(k){
+        var parts = k.split('|');
+        var date = parts[0], tname = parts[1], subj = parts[2];
+        var takerIds = extraTestKeys[k] || [];
+        var takerNames = takerIds.map(function(id){ var stu = dbStudents.find(function(x){return String(x.id)===String(id);}); return stu && stu.name; }).filter(Boolean).slice(0, 5);
+        return React.createElement('div', { key:k, style:{ fontSize:'11px', color:'#374151', fontFamily:'Manrope, sans-serif', marginBottom:'2px' } },
+          React.createElement('span', { style:{ fontWeight:'700' } }, (tname||'(무제)')),
+          React.createElement('span', { style:{ color:'#9ca3af', marginLeft:'4px' } }, '· ' + (subj||'-') + ' · ' + (date||'-')),
+          React.createElement('span', { style:{ marginLeft:'6px', color:'#7a5c0e', fontWeight:'700' } }, takerIds.length+'명'),
+          takerNames.length > 0 && React.createElement('span', { style:{ marginLeft:'6px', color:'#6b7280' } }, '(' + takerNames.join(', ') + (takerIds.length > takerNames.length ? ' 외' : '') + ')')
+        );
+      }),
+      keys.length > 5 && React.createElement('div', { style:{ fontSize:'10px', color:'#9ca3af', marginTop:'4px', fontFamily:'Manrope, sans-serif' } }, '… 외 ' + (keys.length - 5) + '건')
+    );
+  }
 
-  return React.createElement('div', null, summaryCards(), gradeBucketsRow(), distChart(), studentBars(), trendLine(), cumulativeBlock(), focusBlock(), bulkButton(), studentRows(), paperPlaceholder());
+  // 모드별 렌더링 분기
+  if (analysisMode === 'student') {
+    // 학생별 분석: 학생 아코디언 + 일괄 발송 버튼만
+    return React.createElement('div', null,
+      React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '검색된 학생 ' + rows.length + '명 — 카드를 탭하면 시험 이력이 펼쳐집니다.'),
+      bulkButton(),
+      studentRows()
+    );
+  }
+  // 반별 분석
+  return React.createElement('div', null,
+    subTabBar(),
+    analysisSubTab === 'overview'
+      ? React.createElement('div', null,
+          extraTestsBanner(),
+          chartScopeToggle(),
+          summaryCards(), gradeBucketsRow(), distChart(), studentBars(), trendLine(), cumulativeBlock(), focusBlock(), paperPlaceholder()
+        )
+      : React.createElement('div', null,
+          bulkButton(), studentRows()
+        )
+  );
 })()
 ),
 
@@ -3522,6 +3763,14 @@ React.createElement('input', {
         if (viewsCourse !== '전체' && String(v.course_id) !== String(viewsCourse)) return false;
         return true;
       });
+      // 수강 과목 — enrolledCourses → courses.subject 매핑하여 유니크 추출
+      var enrolledIds = (st.enrolledCourses || []).map(String);
+      var subjSet = {};
+      enrolledIds.forEach(function(cid){
+        var c = (state.courses || []).find(function(x){ return String(x.id) === cid; });
+        if (c && c.subject) subjSet[c.subject] = true;
+      });
+      var subjectList = Object.keys(subjSet);
 
       return React.createElement('div', { key:st.id, style:{ ...cardS, marginBottom:0, alignSelf:'start', border: isOpen?'2px solid #1A1A1A':'2px solid transparent', transition:'border 0.15s', gridColumn: isOpen ? '1 / -1' : 'auto', order: isOpen ? -1 : 0 } },
         React.createElement('div', {
@@ -3533,7 +3782,10 @@ React.createElement('input', {
         },
           React.createElement('div', { style:{ width:'36px', height:'36px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.grade || st.name[0]),
           React.createElement('div', { style:{ flex:1, minWidth:0 } },
-            React.createElement('div', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, st.name)
+            React.createElement('div', { style:{ display:'flex', alignItems:'baseline', gap:'6px', minWidth:0 } },
+              React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, st.name),
+              subjectList.length > 0 && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'600', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 } }, subjectList.join('·'))
+            )
           ),
           React.createElement('span', { style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', transition:'transform 0.2s', transform: isOpen?'rotate(180deg)':'none', flexShrink:0 } }, '▾')
         ),
@@ -3717,7 +3969,22 @@ tab==='schedule' && React.createElement('div', null,
 tab==='leveltest' && (function(){
   var KIND_LABELS = { level:'레벨테스트', weekly:'주간 테스트', monthly:'월말 테스트', homework:'숙제' };
   var KIND_COLORS = { level:'#E60012', weekly:'#1d4ed8', monthly:'#7c3aed', homework:'#f59e0b' };
-  var visibleTests = adminTestKindFilter === 'all' ? adminLevelTests : adminLevelTests.filter(function(t){ return (t.kind||'level') === adminTestKindFilter; });
+  // 단계적 필터: 종류 → 과목 → 학교급 → 학년 → 검색
+  var afterKind = adminTestKindFilter === 'all' ? adminLevelTests : adminLevelTests.filter(function(t){ return (t.kind||'level') === adminTestKindFilter; });
+  var visibleTests = afterKind.filter(function(t){
+    if (adminTestSubjectFilter !== 'all' && (t.subject||'') !== adminTestSubjectFilter) return false;
+    if (adminTestLevelFilter !== 'all' && (t.school_level||'') !== adminTestLevelFilter) return false;
+    var q = adminTestSearch.trim().toLowerCase();
+    if (q) {
+      var hay = [t.title, t.subject, t.school_level, t.target_grade, t.description].filter(Boolean).join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+  // 종류 필터 안에서만 등장하는 과목·학교급 옵션을 동적으로 산출 (없는 옵션은 숨김)
+  var subjectsInKind = Array.from(new Set(afterKind.map(function(t){ return t.subject; }).filter(Boolean))).sort();
+  var levelsInKind = Array.from(new Set(afterKind.map(function(t){ return t.school_level; }).filter(Boolean)));
+  var hasAnySubFilter = adminTestSubjectFilter !== 'all' || adminTestLevelFilter !== 'all' || adminTestSearch.trim() !== '';
   return React.createElement('div', null,
   React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px' } },
     React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', margin:0 } }, '시험 관리'),
@@ -3725,13 +3992,44 @@ tab==='leveltest' && (function(){
   ),
   React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '레벨테스트 / 주간 · 월말 테스트 / 숙제를 발행하고 답안을 자동 채점합니다.'),
 
-  /* 종류 필터 */
-  React.createElement('div', { style:{ display:'inline-flex', background:'#f2f0eb', borderRadius:'8px', padding:'3px', gap:'2px', marginBottom:'14px' } },
+  /* 종류 필터 (1차) */
+  React.createElement('div', { style:{ display:'inline-flex', background:'#f2f0eb', borderRadius:'8px', padding:'3px', gap:'2px', marginBottom:'8px' } },
     [{v:'all',l:'전체'},{v:'level',l:'레벨'},{v:'weekly',l:'주간'},{v:'monthly',l:'월말'},{v:'homework',l:'숙제'}].map(function(o){
       var on = adminTestKindFilter === o.v;
       var count = o.v === 'all' ? adminLevelTests.length : adminLevelTests.filter(function(t){ return (t.kind||'level') === o.v; }).length;
       return React.createElement('button', { key:o.v, onClick:function(){ setAdminTestKindFilter(o.v); }, style:{ background: on?'#1A1A1A':'transparent', color: on?'#fff':'rgba(0,0,0,0.55)', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, o.l + ' ' + count);
     })
+  ),
+
+  /* 세부 필터 (2차): 과목 / 학교급 / 검색 / 초기화 */
+  React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'14px' } },
+    React.createElement('select', {
+      value: adminTestSubjectFilter,
+      onChange: function(e){ setAdminTestSubjectFilter(e.target.value); },
+      style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 10px', fontSize:'12px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+    },
+      React.createElement('option', { value:'all' }, '과목 전체'),
+      subjectsInKind.map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+    ),
+    React.createElement('select', {
+      value: adminTestLevelFilter,
+      onChange: function(e){ setAdminTestLevelFilter(e.target.value); },
+      style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 10px', fontSize:'12px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+    },
+      React.createElement('option', { value:'all' }, '학교급 전체'),
+      levelsInKind.map(function(l){ return React.createElement('option', { key:l, value:l }, l); })
+    ),
+    React.createElement('input', {
+      value: adminTestSearch,
+      onChange: function(e){ setAdminTestSearch(e.target.value); },
+      placeholder: '시험 제목·내용 검색',
+      style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'180px', flex:1 }
+    }),
+    hasAnySubFilter && React.createElement('button', {
+      onClick: function(){ setAdminTestSubjectFilter('all'); setAdminTestLevelFilter('all'); setAdminTestSearch(''); },
+      style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'7px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', color:'#6b7280', fontFamily:'Manrope, sans-serif' }
+    }, '필터 초기화'),
+    React.createElement('span', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif', marginLeft:'auto' } }, visibleTests.length + ' / ' + afterKind.length + '건')
   ),
 
   adminLevelTestLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '불러오는 중...') :

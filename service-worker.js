@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260509m-autofill-guard';
+const CACHE_VERSION = 'b2-bigbang-20260510v-teacher-studyviews';
 const OFFLINE_URLS = [
   './',
   './index.html',

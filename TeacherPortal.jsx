@@ -26,6 +26,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [savingOnline, setSavingOnline] = React.useState(false);
   const [teacherView, setTeacherView] = React.useState("dashboard");
   const teacherIsMobile = window.B2Utils.useIsMobile();
+  // 학습 현황 (담당 학생들의 영상 시청 진도)
+  const [studyViews, setStudyViews] = React.useState(null);          // null=미로딩, []=조회 완료
+  const [studyViewsLoading, setStudyViewsLoading] = React.useState(false);
+  const [studyViewsExpandedId, setStudyViewsExpandedId] = React.useState(null);
   // 업무일지
   const [teacherNotes, setTeacherNotes] = React.useState([]);
   const [noteDraft, setNoteDraft] = React.useState({ date: new Date().toISOString().slice(0,10), content: '' });
@@ -863,6 +867,25 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     return loaded;
   }
 
+  // ── 학습 현황: 내가 개설한 강좌를 수강하는 학생들의 영상 시청 진도 ──
+  async function loadStudyViews() {
+    setStudyViewsLoading(true);
+    try {
+      var courseIds = (teacherCourses || []).map(function(c){ return c.id; }).filter(Boolean);
+      if (courseIds.length === 0) { setStudyViews([]); setStudyViewsLoading(false); return; }
+      var { data, error } = await sb.from('video_views')
+        .select('*, videos(title), courses(title, subjects(name)), students(id, name, grade, school)')
+        .in('course_id', courseIds)
+        .order('last_watched_at', { ascending: false });
+      if (error) { setDebug('학습 현황 조회 오류: ' + error.message); setStudyViews([]); }
+      else { setStudyViews(data || []); }
+    } catch (e) {
+      setDebug('학습 현황 오류: ' + (e && e.message ? e.message : '알 수 없는 오류'));
+      setStudyViews([]);
+    }
+    setStudyViewsLoading(false);
+  }
+
   // ── 강좌 개설 ──
   async function createCourse() {
     var d = courseDraft;
@@ -1520,13 +1543,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     { id: "vocab",    label: "단어장" },
     { id: "homework", label: "숙제" },
     { id: "scores",   label: "성적" },
+    { id: "studyviews", label: "학습 현황" },
     { id: "files",    label: "자료실" },
     { id: "schedule", label: "학원 일정" },
     { id: "mypage",   label: "마이페이지" },
   ];
 
   const TAB_GROUPS = [
-    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','homework','tests','vocab','scores','course','lecture'] },
+    { id: 'class',   label: '수업 관리', color:'#1d4ed8', tabs:['classes','homework','tests','vocab','scores','studyviews','course','lecture'] },
     { id: 'academy', label: '학원',      color:'#c87000', tabs:['schedule','files'] },
     { id: 'me',      label: '내 정보',   color:'#1A1A1A', tabs:['mypage'] },
   ];
@@ -1537,6 +1561,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (id === "files") loadAttachments();
     if (id === "schedule") { loadScheduleRequests(); loadAcademicSchedules(); }
     if (id === "mypage") loadMyProfile();
+    if (id === "studyviews") loadStudyViews();
     if ((id === "tests" || id === "homework") && selectedClass?.id) loadClassExams(selectedClass.id);
   }
 
@@ -3103,6 +3128,102 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'8px', fontFamily:'Manrope, sans-serif' }}>시험지 분석 기능은 준비 중입니다.</div>
                 </div>
               </>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ── 탭: 학습 현황 (담당 학생 영상 시청 진도) ── */}
+      {teacherView === "studyviews" && (
+        <div>
+          <div style={{ ...cardStyle, marginBottom: "16px" }}>
+            <h2 style={{ marginBottom: "6px" }}>학습 현황</h2>
+            <p style={{ marginTop: 0, marginBottom: 0, color: "#6b7280", fontSize: "14px" }}>내가 개설한 강좌를 수강 중인 학생들의 영상 시청 진도를 확인합니다.</p>
+          </div>
+          {(studyViewsLoading || studyViews === null) ? (
+            <div style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>불러오는 중...</div>
+          ) : (teacherCourses || []).length === 0 ? (
+            <div style={{ ...cardStyle, textAlign: "center", color: "#9ca3af", fontSize: "14px", padding: "32px" }}>개설한 온라인 강좌가 없습니다. "강좌 개설"·"강의 추가"에서 먼저 강좌와 영상을 등록해 주세요.</div>
+          ) : studyViews.length === 0 ? (
+            <div style={{ ...cardStyle, textAlign: "center", color: "#9ca3af", fontSize: "14px", padding: "32px" }}>아직 영상을 시청한 학생이 없습니다.</div>
+          ) : (() => {
+            var byStudent = {};
+            studyViews.forEach(function(v){
+              var sid = v.student_id;
+              if (!byStudent[sid]) byStudent[sid] = { student: v.students || { id: sid, name: "학생" }, rows: [] };
+              byStudent[sid].rows.push(v);
+            });
+            var groups = Object.keys(byStudent).map(function(k){ return byStudent[k]; });
+            groups.sort(function(a, b){
+              var la = a.rows.reduce(function(m, r){ return (r.last_watched_at || "") > m ? r.last_watched_at : m; }, "");
+              var lb = b.rows.reduce(function(m, r){ return (r.last_watched_at || "") > m ? r.last_watched_at : m; }, "");
+              return String(lb).localeCompare(String(la));
+            });
+            return (
+              <div>
+                <div style={{ fontSize: "12px", fontWeight: "700", color: "#9ca3af", marginBottom: "8px", fontFamily: "Manrope, sans-serif" }}>{groups.length + "명"}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {groups.map(function(g){
+                    var st = g.student;
+                    var open = studyViewsExpandedId === st.id;
+                    var total = g.rows.length;
+                    var done = g.rows.filter(function(r){ return (r.progress_pct || 0) >= 90; }).length;
+                    var avg = total > 0 ? Math.round(g.rows.reduce(function(a, r){ return a + (r.progress_pct || 0); }, 0) / total) : 0;
+                    var byCourse = {};
+                    g.rows.forEach(function(r){
+                      var ck = r.course_id;
+                      if (!byCourse[ck]) byCourse[ck] = { title: (r.courses && r.courses.title) || "강좌", subject: (r.courses && r.courses.subjects && r.courses.subjects.name) || "", videos: [] };
+                      byCourse[ck].videos.push(r);
+                    });
+                    return (
+                      <div key={st.id} style={{ background: "#fff", border: open ? "2px solid #1A1A1A" : "1.5px solid #e5e7eb", borderRadius: "12px", overflow: "hidden", fontFamily: "Manrope, sans-serif" }}>
+                        <button onClick={function(){ setStudyViewsExpandedId(open ? null : st.id); }} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: "14px", padding: "14px 16px" }}>
+                          <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#FFEBED", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "800", color: "#E60012", flexShrink: 0 }}>{st.grade || String(st.name || "")[0] || "—"}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: "16px", fontWeight: "800", color: "#111827" }}>{st.name}{st.school ? <span style={{ fontSize: "12px", fontWeight: "600", color: "#9ca3af", marginLeft: "6px" }}>{st.school}</span> : null}</div>
+                            <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>{"시청 " + total + "강 · 완료 " + done + "강 · 평균 진도 " + avg + "%"}</div>
+                          </div>
+                          <div style={{ fontSize: "18px", color: "#d1d5db", flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</div>
+                        </button>
+                        {open && (
+                          <div style={{ padding: "0 16px 14px", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+                            {Object.keys(byCourse).map(function(ck, ci){
+                              var grp = byCourse[ck];
+                              var grpDone = grp.videos.filter(function(r){ return (r.progress_pct || 0) >= 90; }).length;
+                              return (
+                                <div key={ci} style={{ marginTop: "12px", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
+                                  <div style={{ background: "#1A1A1A", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontWeight: "800", color: "#fff", fontSize: "13px" }}>{grp.title}{grp.subject ? " · " + grp.subject : ""}</span>
+                                    <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "11px" }}>{grpDone + "/" + grp.videos.length + "강 완료"}</span>
+                                  </div>
+                                  <div style={{ padding: "8px 12px" }}>
+                                    {grp.videos.map(function(r, vi){
+                                      var pct = r.progress_pct || 0;
+                                      var barColor = pct >= 90 ? "#E60012" : pct >= 50 ? "#F8B500" : "#e5e7eb";
+                                      var txtColor = pct >= 90 ? "#E60012" : pct >= 50 ? "#F8B500" : "#9ca3af";
+                                      var lw = r.last_watched_at ? String(r.last_watched_at).slice(0, 10) : "—";
+                                      return (
+                                        <div key={vi} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "5px 0", borderBottom: vi < grp.videos.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                                          <span style={{ fontSize: "12px", color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(r.videos && r.videos.title) || "강의"}</span>
+                                          <div style={{ width: "80px", height: "6px", background: "#f3f4f6", borderRadius: "3px", overflow: "hidden", flexShrink: 0 }}>
+                                            <div style={{ width: pct + "%", height: "100%", background: barColor, borderRadius: "3px" }} />
+                                          </div>
+                                          <span style={{ width: "34px", fontSize: "11px", fontWeight: "700", color: txtColor, textAlign: "right", flexShrink: 0 }}>{pct + "%"}</span>
+                                          <span style={{ fontSize: "10px", color: "#9ca3af", flexShrink: 0, width: "64px", textAlign: "right" }}>{lw}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })()}
         </div>
