@@ -1379,7 +1379,17 @@ tab === 'home' && React.createElement('div', null,
             fontWeight:'700', color:'#111827',
             letterSpacing:'-0.01em', transition:'border-color 0.15s, box-shadow 0.15s',
             boxShadow:'0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)'
-          }, adminIsMobile ? mobileStyle : pcStyle), onMouseEnter:function(e){ e.currentTarget.style.borderColor = groupColor; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = '0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)'; } }, t.label);
+          }, adminIsMobile ? mobileStyle : pcStyle), onMouseEnter:function(e){ e.currentTarget.style.borderColor = groupColor; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = '0 0 0.5px rgba(0,0,0,0.14), 0 1px 1px rgba(0,0,0,0.24)'; } },
+            t.label,
+            (function(){
+              // 처리 대기 건수 배지 — 선생님 관리: 승인 대기(학생/학부모 + 선생님), 수강생 관리: 수강 신청 대기
+              var cnt = tid === 'teacher'
+                ? ((dbPending || []).filter(function(p){ return p.role !== 'pending_teacher'; }).length + (dbTeachers || []).filter(function(t2){ return t2.role === 'pending_teacher'; }).length)
+                : tid === 'enrollee' ? (pendingEnrollments || []).length
+                : 0;
+              return cnt > 0 ? React.createElement('span', { style:{ marginLeft:'8px', display:'inline-flex', alignItems:'center', justifyContent:'center', minWidth:'18px', height:'18px', padding:'0 5px', borderRadius:'999px', background:'#E60012', color:'#fff', fontSize:'11px', fontWeight:'800', fontFamily:'Manrope, sans-serif', verticalAlign:'middle' } }, String(cnt)) : null;
+            })()
+          );
         })
       )
     );

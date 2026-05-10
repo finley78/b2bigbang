@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v9-signup-confirm-msg';
+const CACHE_VERSION = 'b2-bigbang-20260510v10-admin-badges';
 const OFFLINE_URLS = [
   './',
   './index.html',
