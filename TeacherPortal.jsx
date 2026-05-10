@@ -73,8 +73,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [savingCourseEdit, setSavingCourseEdit] = React.useState(false);
   const [distEnrollments, setDistEnrollments] = React.useState([]); // 현재 강좌의 enrollments
   const [allStudents, setAllStudents] = React.useState([]);
-  const [courseStuSearch, setCourseStuSearch] = React.useState('');
-  const [distStuSearch, setDistStuSearch] = React.useState('');
+  const STU_FILTER_INIT = { search:'', classId:'', grade:'' };
+  const [courseStuFilters, setCourseStuFilters] = React.useState(STU_FILTER_INIT);
+  const [distStuFilters, setDistStuFilters] = React.useState(STU_FILTER_INIT);
   const [classStudentMap, setClassStudentMap] = React.useState({}); // { class_id: [students...] }
 
   // 영상 노출 기간 (강의 추가 폼)
@@ -883,16 +884,20 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setAllStudents(stuList || []);
   }
 
-  // 개별 학생 선택 — 이름/학년 검색 + (선택)반 필터로 전체 학생 중에서 체크.
-  // opts: { selectedIds, onChange(newIds), classFilterId, onClassFilterChange(id), search, onSearchChange(text) }
+  // 개별 학생 선택 — 이름 검색 + 학년 필터 + (선택)반 필터로 전체 학생 중에서 체크.
+  // opts: { selectedIds, onChange(newIds), filters:{search,classId,grade}, onFiltersChange(newFilters) }
   function renderStudentPicker(opts) {
-    var classFilterId = opts.classFilterId || '';
-    var q = String(opts.search || '').trim().toLowerCase();
+    var f = opts.filters || STU_FILTER_INIT;
+    var setF = function(patch){ opts.onFiltersChange(Object.assign({}, f, patch)); };
+    var q = String(f.search || '').trim().toLowerCase();
+    var classFilterId = f.classId || '';
+    var gradeFilter = f.grade || '';
     var pool = (allStudents || []).slice();
     if (classFilterId) {
       var inClass = new Set(((classStudentMap || {})[classFilterId] || []).map(function(s){ return String(s.id); }));
       pool = pool.filter(function(s){ return inClass.has(String(s.id)); });
     }
+    if (gradeFilter) pool = pool.filter(function(s){ return String(s.grade || '') === gradeFilter; });
     if (q) pool = pool.filter(function(s){
       return String(s.name||'').toLowerCase().indexOf(q) >= 0 || String(s.grade||'').toLowerCase().indexOf(q) >= 0 || String(s.school||'').toLowerCase().indexOf(q) >= 0;
     });
@@ -901,14 +906,25 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var sel = (opts.selectedIds || []);
     var selSet = new Set(sel.map(String));
     var notLoaded = (allStudents || []).length === 0;
+    // 학년 옵션 (실제 학생에 있는 학년만, 정해진 순서대로)
+    var GRADE_ORDER = ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'];
+    var presentGrades = {};
+    (allStudents || []).forEach(function(s){ if (s.grade) presentGrades[s.grade] = true; });
+    var gradeOptions = GRADE_ORDER.filter(function(g){ return presentGrades[g]; }).concat(Object.keys(presentGrades).filter(function(g){ return GRADE_ORDER.indexOf(g) < 0; }));
+    var anyFilterActive = !!(q || classFilterId || gradeFilter);
     return (
       <div>
         <div style={{ display:'flex', gap:'8px', marginBottom:'8px', flexWrap:'wrap' }}>
-          <input style={{ ...inputStyle, flex:'2 1 160px' }} placeholder="학생 이름·학년 검색" value={opts.search || ''} onChange={e => opts.onSearchChange(e.target.value)} />
-          <select style={{ ...inputStyle, flex:'1 1 130px' }} value={classFilterId} onChange={e => { var cid = e.target.value; opts.onClassFilterChange(cid); if (cid) loadClassStudentsCached(cid); }}>
+          <input style={{ ...inputStyle, flex:'2 1 150px' }} placeholder="학생 이름 검색" value={f.search || ''} onChange={e => setF({ search: e.target.value })} />
+          <select style={{ ...inputStyle, flex:'1 1 110px' }} value={gradeFilter} onChange={e => setF({ grade: e.target.value })}>
+            <option value="">학년 전체</option>
+            {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+          <select style={{ ...inputStyle, flex:'1 1 120px' }} value={classFilterId} onChange={e => { var cid = e.target.value; setF({ classId: cid }); if (cid) loadClassStudentsCached(cid); }}>
             <option value="">반 전체</option>
             {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
           </select>
+          {anyFilterActive && <button type="button" style={smallLightButtonStyle} onClick={() => opts.onFiltersChange(Object.assign({}, STU_FILTER_INIT))}>필터 초기화</button>}
         </div>
         <div style={{ display:'flex', gap:'6px', marginBottom:'8px', flexWrap:'wrap' }}>
           <button type="button" style={smallLightButtonStyle} onClick={() => opts.onChange(Array.from(new Set(sel.concat(visibleIds))))}>보이는 {pool.length}명 모두 추가</button>
@@ -917,7 +933,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         </div>
         <div style={{ maxHeight:'240px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'6px', background:'#fff' }}>
           {notLoaded ? <div style={{ fontSize:'12px', color:'#9ca3af', padding:'10px', fontFamily:'Manrope, sans-serif' }}>학생 목록 불러오는 중...</div>
-            : pool.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af', padding:'10px', fontFamily:'Manrope, sans-serif' }}>{classFilterId ? '이 반에 학생이 없거나 아직 불러오는 중입니다.' : '검색 결과가 없습니다.'}</div>
+            : pool.length === 0 ? <div style={{ fontSize:'12px', color:'#9ca3af', padding:'10px', fontFamily:'Manrope, sans-serif' }}>{classFilterId ? '이 반에 학생이 없거나 아직 불러오는 중입니다.' : '조건에 맞는 학생이 없습니다.'}</div>
             : pool.map(s => {
                 var checked = selSet.has(String(s.id));
                 return (
@@ -994,7 +1010,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       var mapped = mapCourseForTeacher(created);
       setTeacherCourses(function(prev){ return [...prev, mapped]; });
       setCourseDraft({ title:'', description:'', subject:'', scope:'unassigned', class_id:'', level:'', grade:'', grades:[], student_ids:[], picker_class_id:'' });
-      setCourseStuSearch('');
+      setCourseStuFilters(STU_FILTER_INIT);
       var msg = d.scope === 'unassigned'
         ? '강좌가 개설되었습니다. 배포 대상은 아래 "내 강좌" 목록에서 언제든 설정할 수 있습니다.'
         : '강좌가 개설되었습니다. "강의 추가" 탭에서 영상을 등록하세요.';
@@ -1034,7 +1050,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       student_ids: studentIds,
       picker_class_id: '',
     });
-    setDistStuSearch('');
+    setDistStuFilters(STU_FILTER_INIT);
     // 학생 목록 (담당 선생님 학생들 우선)
     if (allStudents.length === 0) {
       var { data: stuList } = await sb.from('students').select('id, name, grade, school').eq('role', 'student').eq('is_active', true).order('name');
@@ -2343,10 +2359,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   { v:'unassigned', l:'미정 (나중에 설정)' },
                   { v:'class',      l:'클래스 전체' },
                   { v:'students',   l:'개별 학생 선택' },
-                  { v:'level',      l:'학년 (초중고+학년)' },
                 ].map(opt => (
                   <label key={opt.v} style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                    <input type="radio" checked={courseDraft.scope === opt.v} onChange={() => { setCourseDraft({ ...courseDraft, scope: opt.v, class_id:'', level:'', grade:'', grades:[], student_ids:[], picker_class_id:'' }); setCourseStuSearch(''); if (opt.v === 'students') ensureAllStudentsLoaded(); }} /> {opt.l}
+                    <input type="radio" checked={courseDraft.scope === opt.v} onChange={() => { setCourseDraft({ ...courseDraft, scope: opt.v, class_id:'', level:'', grade:'', grades:[], student_ids:[], picker_class_id:'' }); setCourseStuFilters(STU_FILTER_INIT); if (opt.v === 'students') ensureAllStudentsLoaded(); }} /> {opt.l}
                   </label>
                 ))}
               </div>
@@ -2356,32 +2371,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
                 </select>
               )}
-              {courseDraft.scope === 'students' && renderStudentPicker({
-                selectedIds: courseDraft.student_ids,
-                onChange: ids => setCourseDraft({ ...courseDraft, student_ids: ids }),
-                classFilterId: courseDraft.picker_class_id,
-                onClassFilterChange: cid => setCourseDraft({ ...courseDraft, picker_class_id: cid }),
-                search: courseStuSearch,
-                onSearchChange: setCourseStuSearch,
-              })}
-              {courseDraft.scope === 'level' && (
+              {courseDraft.scope === 'students' && (
                 <div>
-                  <select style={{ ...inputStyle, marginBottom:'8px' }} value={courseDraft.level} onChange={e => setCourseDraft({ ...courseDraft, level: e.target.value, grades:[] })}>
-                    <option value="">초중고 선택</option>
-                    {Object.keys(LEVELS).map(l => <option key={l} value={l}>{l}</option>)}
-                  </select>
-                  {courseDraft.level && (
-                    <div>
-                      <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'5px', fontFamily:'Manrope, sans-serif' }}>학년 (여러 개 선택 가능 — 예: 고1·고2 동시)</div>
-                      <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
-                        {(LEVELS[courseDraft.level] || []).map(g => {
-                          var sel = (courseDraft.grades || []).indexOf(g) >= 0;
-                          return <button key={g} type="button" onClick={() => { var arr = courseDraft.grades || []; setCourseDraft({ ...courseDraft, grades: sel ? arr.filter(x => x !== g) : arr.concat([g]) }); }}
-                            style={{ background: sel ? '#E60012' : '#fff', color: sel ? '#fff' : 'rgba(0,0,0,0.62)', border: sel ? '2px solid #E60012' : '1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 12px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>{g}</button>;
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>한 학년 전체에 주려면 아래 "학년" 필터로 그 학년만 본 뒤 "보이는 N명 모두 추가"를 누르세요.</div>
+                  {renderStudentPicker({
+                    selectedIds: courseDraft.student_ids,
+                    onChange: ids => setCourseDraft({ ...courseDraft, student_ids: ids }),
+                    filters: courseStuFilters,
+                    onFiltersChange: setCourseStuFilters,
+                  })}
                 </div>
               )}
             </div>
@@ -2437,10 +2435,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                             { v:'unassigned', l:'미정' },
                             { v:'class',      l:'클래스' },
                             { v:'students',   l:'개별 학생' },
-                            { v:'level',      l:'학년' },
                           ].map(opt => (
                             <label key={opt.v} style={{ fontSize:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                              <input type="radio" checked={distributeDraft.scope === opt.v} onChange={() => { setDistributeDraft({ ...distributeDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids: opt.v === 'students' ? distEnrollments.slice() : [], picker_class_id:'' }); setDistStuSearch(''); if (opt.v === 'students') ensureAllStudentsLoaded(); }} /> {opt.l}
+                              <input type="radio" checked={distributeDraft.scope === opt.v} onChange={() => { setDistributeDraft({ ...distributeDraft, scope: opt.v, class_id:'', level:'', grade:'', student_ids: opt.v === 'students' ? distEnrollments.slice() : [], picker_class_id:'' }); setDistStuFilters(STU_FILTER_INIT); if (opt.v === 'students') ensureAllStudentsLoaded(); }} /> {opt.l}
                             </label>
                           ))}
                         </div>
@@ -2450,34 +2447,17 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                             {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
                           </select>
                         )}
-                        {distributeDraft.scope === 'level' && (
+                        {distributeDraft.scope === 'students' && (
                           <div>
-                            <select style={{ ...inputStyle, marginBottom:'8px' }} value={distributeDraft.level} onChange={e => setDistributeDraft({ ...distributeDraft, level: e.target.value, grades:[] })}>
-                              <option value="">초중고</option>
-                              {['초등','중등','고등'].map(l => <option key={l} value={l}>{l}</option>)}
-                            </select>
-                            {distributeDraft.level && (
-                              <div>
-                                <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'5px', fontFamily:'Manrope, sans-serif' }}>학년 (여러 개 선택 가능)</div>
-                                <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
-                                  {({ '초등':['1학년','2학년','3학년','4학년','5학년','6학년'], '중등':['중1','중2','중3'], '고등':['고1','고2','고3'] }[distributeDraft.level] || []).map(g => {
-                                    var sel = (distributeDraft.grades || []).indexOf(g) >= 0;
-                                    return <button key={g} type="button" onClick={() => { var arr = distributeDraft.grades || []; setDistributeDraft({ ...distributeDraft, grades: sel ? arr.filter(x => x !== g) : arr.concat([g]) }); }}
-                                      style={{ background: sel ? '#E60012' : '#fff', color: sel ? '#fff' : 'rgba(0,0,0,0.62)', border: sel ? '2px solid #E60012' : '1.5px solid #d6dbde', borderRadius:'999px', padding:'6px 12px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>{g}</button>;
-                                  })}
-                                </div>
-                              </div>
-                            )}
+                            <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>한 학년 전체에 주려면 아래 "학년" 필터로 그 학년만 본 뒤 "보이는 N명 모두 추가"를 누르세요.</div>
+                            {renderStudentPicker({
+                              selectedIds: distributeDraft.student_ids,
+                              onChange: ids => setDistributeDraft({ ...distributeDraft, student_ids: ids }),
+                              filters: distStuFilters,
+                              onFiltersChange: setDistStuFilters,
+                            })}
                           </div>
                         )}
-                        {distributeDraft.scope === 'students' && renderStudentPicker({
-                          selectedIds: distributeDraft.student_ids,
-                          onChange: ids => setDistributeDraft({ ...distributeDraft, student_ids: ids }),
-                          classFilterId: distributeDraft.picker_class_id,
-                          onClassFilterChange: cid => setDistributeDraft({ ...distributeDraft, picker_class_id: cid }),
-                          search: distStuSearch,
-                          onSearchChange: setDistStuSearch,
-                        })}
                         {distributeDraft.scope === 'unassigned' && (
                           <div style={{ fontSize:'12px', color:'#6b7280', padding:'10px 12px', background:'#fff', borderRadius:'6px', fontFamily:'Manrope, sans-serif' }}>배포를 미정 상태로 두면 학생 화면에 노출되지 않습니다.</div>
                         )}
