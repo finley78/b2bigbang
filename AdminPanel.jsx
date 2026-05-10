@@ -665,7 +665,7 @@ async function deleteAdminAcademicSchedule(item) {
 }
 function adminAcademicCategoryLabel(c) {
   if (c === 'vacation') return '방학';
-  if (c === 'exam') return '시험';
+  if (c === 'exam') return '시험기간';
   return '기타';
 }
 function adminAcademicCategoryColor(c) {

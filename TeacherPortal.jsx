@@ -1,3 +1,6 @@
+// 학원 주변 학교 목록 (학사일정 학교 선택용)
+const TP_NEARBY_SCHOOLS = ['은지초','검암초','간재울초','검암중','간재울중','백석중','서곶중','대인고','서인천고','백석고'];
+
 function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [teacherInfo, setTeacherInfo] = React.useState(null);
   const [classes, setClasses] = React.useState([]);
@@ -1389,7 +1392,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   }
   function academicCategoryLabel(c) {
     if (c === 'vacation') return '방학';
-    if (c === 'exam') return '시험';
+    if (c === 'exam') return '시험기간';
     return '기타';
   }
   function academicCategoryColor(c) {
@@ -3626,7 +3629,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                   <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>분류 *</label>
                   <div style={{ display:'flex', gap:'8px', marginBottom:'14px' }}>
-                    {[{k:'vacation',l:'방학'},{k:'exam',l:'시험'},{k:'other',l:'기타'}].map(c => (
+                    {[{k:'vacation',l:'방학'},{k:'exam',l:'시험기간'},{k:'other',l:'기타'}].map(c => (
                       <button key={c.k} onClick={() => setAcademicDraft({ ...academicDraft, category: c.k })} style={{
                         flex:1, padding:'9px 0', borderRadius:'8px', cursor:'pointer', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif',
                         background: academicDraft.category===c.k ? academicCategoryColor(c.k) : '#fff',
@@ -3640,7 +3643,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <input value={academicDraft.title} onChange={e => setAcademicDraft({ ...academicDraft, title: e.target.value })} placeholder="예: 여름방학, 1학기 중간고사" style={{ ...inputStyle, marginBottom:'14px' }} />
 
                   <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>학교 (선택)</label>
-                  <input value={academicDraft.school} onChange={e => setAcademicDraft({ ...academicDraft, school: e.target.value })} placeholder="예: ○○고등학교" style={{ ...inputStyle, marginBottom:'14px' }} />
+                  <select value={academicDraft.school} onChange={e => setAcademicDraft({ ...academicDraft, school: e.target.value })} style={{ ...inputStyle, marginBottom:'14px' }}>
+                    <option value="">학교 선택 안 함 (전체)</option>
+                    {TP_NEARBY_SCHOOLS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
 
                   <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
                     <div style={{ flex:1 }}>
