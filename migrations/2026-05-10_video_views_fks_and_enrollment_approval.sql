@@ -26,9 +26,7 @@ UPDATE public.enrollments SET status = 'approved' WHERE status IS NULL;
 
 CREATE INDEX IF NOT EXISTS enrollments_status_idx ON public.enrollments (status);
 
--- (student_id, course_id) 중복 수강행 방지
-ALTER TABLE public.enrollments
-  ADD CONSTRAINT enrollments_student_course_uq UNIQUE (student_id, course_id);
+-- (student_id, course_id) 중복 수강행 방지 — UNIQUE 제약은 enrollments_student_id_course_id_key 로 이미 존재함 (추가 작업 불필요)
 
 -- RLS 강화: 학생은 자기 행을 status='pending' & is_active=false 로만 생성/수정 가능 (UI 우회 자가 승인 차단). 관리자/선생님은 제약 없음.
 DROP POLICY IF EXISTS enrollments_admin_teacher_write ON public.enrollments;
