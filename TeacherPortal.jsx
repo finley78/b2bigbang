@@ -2779,7 +2779,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       {/* ── 성적 탭 서브 토글 ── */}
       {teacherView === "scores" && (
         <div style={{ display:'flex', gap:0, borderBottom:'1px solid #e5e7eb', marginBottom:'18px' }}>
-          {[{ id:'register', label:'성적 등록' }, { id:'analysis', label:'성적 분석' }].map(sm => (
+          {[{ id:'register', label:'종이 시험 성적 입력' }, { id:'analysis', label:'성적 분석' }].map(sm => (
             <button key={sm.id} onClick={() => setScoreSubMode(sm.id)} style={{
               padding:'12px 20px', background:'none', border:'none',
               borderBottom: scoreSubMode===sm.id ? '2px solid #E60012' : '2px solid transparent',
@@ -2794,8 +2794,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       {/* ── 탭4: 성적 등록 ── */}
       {teacherView === "scores" && scoreSubMode === "register" && (
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
-          <h2 style={{ marginBottom: "4px" }}>성적 등록</h2>
-          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>대상 반을 선택하면 학생이 자동으로 표시됩니다.</p>
+          <h2 style={{ marginBottom: "4px" }}>종이 시험 성적 입력</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "10px" }}>학원에서 종이로 본 시험(주간평가·월말평가·중간·기말 등) 점수를 입력하는 곳입니다. 대상 반을 선택하면 학생이 자동으로 표시됩니다.</p>
+          <div style={{ background:"#FFF7ED", border:"1px solid #fed7aa", borderRadius:"8px", padding:"9px 12px", marginBottom:"16px", fontSize:"12px", color:"#9a3412", fontFamily:"Manrope, sans-serif", lineHeight:1.6 }}>
+            앱에서 학생이 직접 푸는 <strong>단어 시험</strong>과 <strong>객관식 시험</strong>은 자동으로 채점됩니다 — 여기에 다시 입력하지 않아도 돼요. 결과는 "성적 분석" 탭에서 볼 수 있습니다.
+          </div>
 
           <div style={{ marginBottom: "16px" }}>
             <label style={{ fontSize: "11px", fontWeight: "800", color: "#374151", display: "block", marginBottom: "6px", letterSpacing: "0.04em", textTransform: "uppercase" }}>대상 반</label>
