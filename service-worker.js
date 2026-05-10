@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v22-admin-hw-view';
+const CACHE_VERSION = 'b2-bigbang-20260510v23-hw-view-images';
 const OFFLINE_URLS = [
   './',
   './index.html',

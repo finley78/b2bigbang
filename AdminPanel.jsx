@@ -162,6 +162,7 @@ const [adminHwList, setAdminHwList] = React.useState([]);
 const [adminHwSubs, setAdminHwSubs] = React.useState({}); // { exam_id: 제출수 }
 const [adminHwLoading, setAdminHwLoading] = React.useState(false);
 const [adminHwTeacherFilter, setAdminHwTeacherFilter] = React.useState('전체');
+const [adminHwExpandedId, setAdminHwExpandedId] = React.useState(null); // 숙제 내용(이미지) 펼쳐 보기
 const [adminTestSubjectFilter, setAdminTestSubjectFilter] = React.useState('all');
 const [adminTestLevelFilter, setAdminTestLevelFilter] = React.useState('all');
 const [adminTestSearch, setAdminTestSearch] = React.useState('');
@@ -2797,17 +2798,33 @@ tab==='adminhw' && (function(){
         if ((h.question_count||0) > 0) modes.push('객관식 ' + h.question_count);
         if ((h.text_question_count||0) > 0 || h.allow_text_answer) modes.push('서술형');
         if (h.allow_audio_answer) modes.push('녹음');
-        return React.createElement('div', { key:h.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' } },
-          React.createElement('div', { style:{ flex:1, minWidth:'200px' } },
-            React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
-              React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background: h.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, h.status==='open' ? '제출 가능' : '마감'),
-              h.subject && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, h.subject),
-              React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, h.title)
+        var isExp = adminHwExpandedId === h.id;
+        var imgs = Array.isArray(h.image_paths) ? h.image_paths : [];
+        return React.createElement('div', { key:h.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px' } },
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap', cursor:'pointer' }, onClick:function(){ setAdminHwExpandedId(isExp ? null : h.id); } },
+            React.createElement('div', { style:{ flex:1, minWidth:'200px' } },
+              React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+                React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background: h.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, h.status==='open' ? '제출 가능' : '마감'),
+                h.subject && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, h.subject),
+                React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, h.title)
+              ),
+              React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginTop:'3px' } }, clsName + ' · ' + (h.teacher_name || '?') + ' 선생님' + (h.created_at ? ' · ' + String(h.created_at).slice(0,10) + ' 발행' : '') + (modes.length ? ' · ' + modes.join(' + ') : ''))
             ),
-            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginTop:'3px' } }, clsName + ' · ' + (h.teacher_name || '?') + ' 선생님' + (h.created_at ? ' · ' + String(h.created_at).slice(0,10) + ' 발행' : '') + (modes.length ? ' · ' + modes.join(' + ') : '')),
-            h.description && React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'3px', whiteSpace:'pre-line' } }, h.description)
+            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color: subCnt > 0 ? '#E60012' : 'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, '제출 ' + subCnt + '건'),
+            React.createElement('span', { style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', flexShrink:0, transition:'transform 0.2s', transform: isExp ? 'rotate(180deg)' : 'none' } }, '▾')
           ),
-          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color: subCnt > 0 ? '#E60012' : 'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, '제출 ' + subCnt + '건')
+          isExp && React.createElement('div', { style:{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid #f3f4f6' } },
+            h.description && React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', marginBottom:'8px', whiteSpace:'pre-line' } }, '안내: ' + h.description),
+            imgs.length === 0
+              ? React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '첨부 이미지 없음 — 객관식/서술형/녹음 답안만 받는 숙제예요.')
+              : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+                  imgs.map(function(p, pi){
+                    return React.createElement('a', { key:pi, href: adminAttachmentPublicUrl(p), target:'_blank', rel:'noopener', style:{ display:'block' } },
+                      React.createElement('img', { src: adminAttachmentPublicUrl(p), alt: '숙제 ' + (pi+1) + '페이지', loading:'lazy', style:{ maxWidth:'100%', borderRadius:'8px', border:'1px solid #e5e7eb', display:'block' } })
+                    );
+                  })
+                )
+          )
         );
       })
     )
