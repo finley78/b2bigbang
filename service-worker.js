@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v3-subjectassign-revert';
+const CACHE_VERSION = 'b2-bigbang-20260510v4-ui-fixes';
 const OFFLINE_URLS = [
   './',
   './index.html',

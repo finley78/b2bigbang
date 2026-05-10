@@ -2514,11 +2514,10 @@ value: memberFilter,
 onChange: function(e) { setMemberFilter(e.target.value); setExpandedMember(null); setEditingMember(null); },
 style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', background:'#fff', cursor:'pointer', outline:'none' }
 },
-React.createElement('option', { value:'전체' }, '전체 ' + dbMembers.length + '명'),
+React.createElement('option', { value:'전체' }, '전체 ' + dbMembers.filter(function(m){ return m.role!=='teacher'; }).length + '명'),
 React.createElement('option', { value:'수강생' }, '수강생 ' + dbMembers.filter(function(m){ return m.role==='student'&&m.isEnrollee; }).length + '명'),
 React.createElement('option', { value:'일반회원' }, '일반회원 ' + dbMembers.filter(function(m){ return m.role==='student'&&!m.isEnrollee; }).length + '명'),
-React.createElement('option', { value:'학부모' }, '학부모 ' + dbMembers.filter(function(m){ return m.role==='parent'; }).length + '명'),
-React.createElement('option', { value:'선생님' }, '선생님 ' + dbMembers.filter(function(m){ return m.role==='teacher'; }).length + '명')
+React.createElement('option', { value:'학부모' }, '학부모 ' + dbMembers.filter(function(m){ return m.role==='parent'; }).length + '명')
 )
 ),
 
@@ -2589,10 +2588,10 @@ React.createElement('button', {
 (function() {
 // 필터링 로직 (검색/필터 모드 통합)
 var filtered = dbMembers.filter(function(m) {
+if (m.role === 'teacher') return false;   // 선생님은 '선생님 관리'에서만 관리 — 회원정보 목록에는 표시 안 함
 if (memberFilter === '수강생'   && !(m.role==='student' && m.isEnrollee))  return false;
 if (memberFilter === '일반회원' && !(m.role==='student' && !m.isEnrollee)) return false;
 if (memberFilter === '학부모'   && m.role !== 'parent')  return false;
-if (memberFilter === '선생님'   && m.role !== 'teacher') return false;
 
 if (memberSearchMode === 'search' && memberSearch.trim()) {
   var q = memberSearch.trim().toLowerCase();
