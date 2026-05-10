@@ -1017,9 +1017,14 @@ showSaved();
 
 // 학생 자가 수강신청 승인 → 수강 가능 (is_active=true)
 async function approveEnrollment(id) {
+const pe = pendingEnrollments.find(p => p.id === id);
 const { error } = await sb.from('enrollments').update({ status: 'approved', is_active: true }).eq('id', id);
 if (error) { alert('승인 실패: ' + error.message); return; }
 setPendingEnrollments(prev => prev.filter(p => p.id !== id));
+if (pe) {
+  setDbMembers(prev => prev.map(m => m.id === pe.student_id ? { ...m, isEnrollee: true } : m));
+  setDbStudents(prev => prev.map(s => s.id === pe.student_id ? { ...s, enrolledCourses: (s.enrolledCourses || []).indexOf(pe.course_id) >= 0 ? s.enrolledCourses : [...(s.enrolledCourses || []), pe.course_id] } : s));
+}
 showSaved();
 }
 // 수강신청 거절 → 거절 처리 (is_active=false 유지)
