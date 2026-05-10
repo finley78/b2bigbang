@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260510v6-vocab-gate';
+const CACHE_VERSION = 'b2-bigbang-20260510v7-enroll-approval';
 const OFFLINE_URLS = [
   './',
   './index.html',

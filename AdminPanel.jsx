@@ -98,6 +98,7 @@ const [dbStudents, setDbStudents] = React.useState([]);
 const [dbWithdrawnStudents, setDbWithdrawnStudents] = React.useState([]);
 const [studentViewMode, setStudentViewMode] = React.useState('active'); // 'active' | 'withdrawn'
 const [dbMembers, setDbMembers] = React.useState([]);
+const [pendingEnrollments, setPendingEnrollments] = React.useState([]); // 학생 자가 수강신청 — 승인 대기
 const [dbTeachers, setDbTeachers] = React.useState([]);
 const [dbTeacherProfiles, setDbTeacherProfiles] = React.useState([]);
 const [teacherClasses, setTeacherClasses] = React.useState([]);
@@ -269,16 +270,21 @@ role: 'student',
 setDbWithdrawnStudents(mappedW);
 }
 
-const { data: allMembers } = await sb.from('students').select('*, enrollments(course_id)').in('role', ['student','parent','teacher']).eq('is_active', true);
+const { data: allMembers } = await sb.from('students').select('*, enrollments(course_id, is_active)').in('role', ['student','parent','teacher']).eq('is_active', true);
 if (allMembers) {
 setDbMembers(allMembers.map(m => ({
 id: m.id, name: m.name, email: m.email, provider: m.login_provider,
 role: m.role, grade: m.grade || '', school: m.school || '',
 phone: m.phone || '', address: m.address || '', createdAt: m.created_at,
 parentId: m.parent_id || null,
-isEnrollee: (m.enrollments || []).length > 0,
+// 승인된(is_active) 수강이 1개라도 있어야 '수강생' — 신청만 한(pending=is_active false) 상태는 아직 일반회원
+isEnrollee: (m.enrollments || []).some(function(e){ return e.is_active; }),
 })));
 }
+
+// 수강 신청 대기 (학생 자가 신청, 관리자 승인 대기)
+const { data: pendEnr } = await sb.from('enrollments').select('id, student_id, course_id, enrolled_at').eq('status', 'pending').order('enrolled_at', { ascending: false });
+if (pendEnr) setPendingEnrollments(pendEnr); else setPendingEnrollments([]);
 
 const { data: teachers } = await sb.from('students').select('*').in('role', ['teacher','pending_teacher']);
 if (teachers) {
@@ -1007,6 +1013,21 @@ const ec = enrolled ? st.enrolledCourses.filter(c => c !== courseId) : [...st.en
 return { ...st, enrolledCourses: ec };
 }));
 showSaved();
+}
+
+// 학생 자가 수강신청 승인 → 수강 가능 (is_active=true)
+async function approveEnrollment(id) {
+const { error } = await sb.from('enrollments').update({ status: 'approved', is_active: true }).eq('id', id);
+if (error) { alert('승인 실패: ' + error.message); return; }
+setPendingEnrollments(prev => prev.filter(p => p.id !== id));
+showSaved();
+}
+// 수강신청 거절 → 거절 처리 (is_active=false 유지)
+async function rejectEnrollment(id) {
+if (!confirm('이 수강 신청을 거절할까요?')) return;
+const { error } = await sb.from('enrollments').update({ status: 'rejected', is_active: false }).eq('id', id);
+if (error) { alert('거절 실패: ' + error.message); return; }
+setPendingEnrollments(prev => prev.filter(p => p.id !== id));
 }
 
 async function approveTeacher(teacherId) {
@@ -1826,6 +1847,28 @@ React.createElement('input', { value:lec.youtubeId||'', onChange:function(e){ va
 tab==='enrollee' && (function() {
 var studentSource = studentViewMode === 'withdrawn' ? dbWithdrawnStudents : dbStudents;
 return React.createElement('div', null,
+
+// 수강 신청 대기 (학생이 프로그램 페이지에서 직접 신청 → 승인 필요)
+React.createElement('div', { style:{ marginBottom:'20px' } },
+  React.createElement('h2', { style:{ fontSize:'15px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '수강 신청 대기' + (pendingEnrollments.length > 0 ? ' (' + pendingEnrollments.length + '건)' : '')),
+  pendingEnrollments.length === 0
+    ? React.createElement('div', { style:{ background:'#fff', borderRadius:'10px', padding:'14px 16px', fontSize:'13px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, '현재 대기 중인 수강 신청이 없습니다.')
+    : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+        pendingEnrollments.map(function(pe){
+          var stu = (dbMembers || []).find(function(m){ return m.id === pe.student_id; }) || (dbStudents || []).find(function(s){ return s.id === pe.student_id; }) || (dbWithdrawnStudents || []).find(function(s){ return s.id === pe.student_id; });
+          var crs = (state.courses || []).find(function(c){ return String(c.id) === String(pe.course_id); });
+          return React.createElement('div', { key:pe.id, style:{ background:'#fff', border:'1px solid #f0d97a', borderLeft:'4px solid #E60012', borderRadius:'10px', padding:'12px 14px', display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' } },
+            React.createElement('div', { style:{ flex:1, minWidth:'180px' } },
+              React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, (stu && stu.name) || '(학생 정보 없음)'),
+              React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, ((crs && (crs.name || crs.title)) || '(강좌 정보 없음)') + (crs && crs.subject ? ' · ' + crs.subject : '') + (pe.enrolled_at ? ' · ' + String(pe.enrolled_at).slice(0,10) + ' 신청' : ''))
+            ),
+            React.createElement('button', { onClick:function(){ approveEnrollment(pe.id); }, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 16px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '승인'),
+            React.createElement('button', { onClick:function(){ rejectEnrollment(pe.id); }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '거절')
+          );
+        })
+      )
+),
+
 React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'16px' } },
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginRight:'8px', flexShrink:0 } },
 studentViewMode === 'withdrawn' ? `퇴원 학생 (${dbWithdrawnStudents.length}명)` : `수강생 관리 (${dbStudents.length}명)`),

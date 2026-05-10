@@ -3,28 +3,53 @@
 /* ── Course Detail Page ─────────────────────── */
 function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh }) {
   const [enrolling, setEnrolling] = React.useState(false);
-  const [enrolled, setEnrolled] = React.useState(false);
+  const [requested, setRequested] = React.useState(false);      // 방금 신청 제출함
+  const [enrollStatus, setEnrollStatus] = React.useState(null); // null=확인중, 'approved'|'pending'|'none'
   const adminMode = !!(user && (user.role === 'admin' || user.isAdmin));
   const isTeacher = !!(user && (user.role === 'teacher' || user.role === 'teachers'));
-  const alreadyEnrolled = enrolled || (user && Array.isArray(user.enrolledCourses) && user.enrolledCourses.indexOf(course.id) >= 0);
+  // 이 강좌에 대한 내 수강 상태 조회 (버튼 표시용)
+  React.useEffect(function(){
+    if (!user || !user.id || !course || !course.id) { setEnrollStatus('none'); return; }
+    var sb = window.supabase;
+    sb.from('enrollments').select('status, is_active').eq('student_id', user.id).eq('course_id', course.id).maybeSingle()
+      .then(function(r){
+        var d = r && r.data;
+        if (!d) { setEnrollStatus('none'); return; }
+        if (d.is_active === true || d.status === 'approved') setEnrollStatus('approved');
+        else if (d.status === 'pending') setEnrollStatus('pending');
+        else setEnrollStatus('none');
+      })
+      .catch(function(){ setEnrollStatus('none'); });
+  }, [user && user.id, course && course.id]);
+  const alreadyEnrolled = enrollStatus === 'approved' || (user && Array.isArray(user.enrolledCourses) && user.enrolledCourses.indexOf(course.id) >= 0);
+  const pendingRequest = requested || enrollStatus === 'pending';
 
   async function enroll() {
     if (!user) { if (onLoginClick) onLoginClick(); return; }
-    if (alreadyEnrolled) return;
+    if (alreadyEnrolled) { alert('이미 수강 중인 강좌입니다.'); return; }
+    if (pendingRequest) { alert('이미 수강 신청하셨습니다. 관리자 승인을 기다려 주세요.'); return; }
     setEnrolling(true);
     var sb = window.supabase;
     try {
-      var { data: existing } = await sb.from('enrollments').select('id').eq('student_id', user.id).eq('course_id', course.id).maybeSingle();
-      if (!existing) {
-        var { error } = await sb.from('enrollments').insert({ student_id: user.id, course_id: course.id, is_active: true });
-        if (error) throw error;
+      var { data: existing } = await sb.from('enrollments').select('id, status, is_active').eq('student_id', user.id).eq('course_id', course.id).maybeSingle();
+      if (existing && (existing.is_active === true || existing.status === 'approved')) {
+        setEnrollStatus('approved');
+        alert('이미 수강 중인 강좌입니다.');
+      } else if (existing && existing.status === 'pending') {
+        setEnrollStatus('pending');
+        alert('이미 수강 신청하셨습니다. 관리자 승인을 기다려 주세요.');
       } else {
-        await sb.from('enrollments').update({ is_active: true }).eq('id', existing.id);
+        if (!existing) {
+          var { error } = await sb.from('enrollments').insert({ student_id: user.id, course_id: course.id, status: 'pending', is_active: false });
+          if (error) throw error;
+        } else {
+          var { error: ue } = await sb.from('enrollments').update({ status: 'pending', is_active: false }).eq('id', existing.id);
+          if (ue) throw ue;
+        }
+        setRequested(true);
+        setEnrollStatus('pending');
+        alert('수강 신청이 접수되었습니다. 관리자 승인 후 수강하실 수 있어요.');
       }
-      setEnrolled(true);
-      alert('수강 신청이 완료되었습니다. 마이페이지에서 강좌를 확인하세요.');
-      if (refresh) try { refresh(); } catch(e) {}
-      if (setPage) setPage('portal');
     } catch (e) {
       alert('수강 신청 실패: ' + (e.message || e));
     } finally {
@@ -113,10 +138,16 @@ function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh
         // 수강 신청 버튼 (로그인 상태에 따라 동작 분기)
         (function(){
           if (alreadyEnrolled) {
-            return React.createElement('button', { disabled:true, style:{ background:'#e5e7eb', color:'#6b7280', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:'not-allowed', fontFamily:'Manrope, sans-serif', width:'100%' } }, '✓ 신청 완료된 강좌');
+            return React.createElement('button', { disabled:true, style:{ background:'#e5e7eb', color:'#6b7280', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:'not-allowed', fontFamily:'Manrope, sans-serif', width:'100%' } }, '✓ 수강 중인 강좌');
           }
           if (adminMode || isTeacher) {
             return React.createElement('button', { onClick:()=>setPage(adminMode ? 'admin' : 'teacher'), style:{ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, adminMode ? '관리자 페이지로' : '선생님 페이지로');
+          }
+          if (pendingRequest) {
+            return React.createElement('div', null,
+              React.createElement('button', { disabled:true, style:{ background:'#fff3cd', color:'#856404', border:'1px solid #f0d97a', borderRadius:'8px', padding:'16px', fontSize:'15px', fontWeight:'700', cursor:'not-allowed', fontFamily:'Manrope, sans-serif', width:'100%' } }, '신청 접수됨 · 관리자 승인 대기 중'),
+              React.createElement('div', { style:{ marginTop:'8px', fontSize:'12px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', textAlign:'center' } }, '관리자가 승인하면 강의실에서 수강하실 수 있어요.')
+            );
           }
           if (!user) {
             return React.createElement('div', null,
@@ -124,7 +155,7 @@ function CourseDetailPage({ course, onBack, setPage, user, onLoginClick, refresh
               React.createElement('button', { onClick:()=>setPage('contact'), style:{ marginTop:'8px', background:'#fff', color:color, border:'1px solid '+color, borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, '먼저 문의하기')
             );
           }
-          return React.createElement('button', { onClick:enroll, disabled:enrolling, style:{ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:enrolling?'wait':'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, enrolling ? '신청 중...' : '수강 신청하기');
+          return React.createElement('button', { onClick:enroll, disabled:enrolling || enrollStatus===null, style:{ background:color, color:'#fff', border:'none', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'700', cursor:(enrolling||enrollStatus===null)?'wait':'pointer', fontFamily:'Manrope, sans-serif', width:'100%', opacity:(enrolling||enrollStatus===null)?0.7:1 } }, enrolling ? '신청 중...' : (enrollStatus===null ? '확인 중...' : '수강 신청하기'));
         })()
       )
     )
