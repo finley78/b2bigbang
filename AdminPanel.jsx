@@ -157,6 +157,11 @@ const [adminScrTeacherFilter, setAdminScrTeacherFilter] = React.useState('전체
 // 레벨테스트
 const [adminLevelTests, setAdminLevelTests] = React.useState([]);
 const [adminTestKindFilter, setAdminTestKindFilter] = React.useState('all');
+// 숙제 현황 (관리자가 선생님들 발행 숙제 보기)
+const [adminHwList, setAdminHwList] = React.useState([]);
+const [adminHwSubs, setAdminHwSubs] = React.useState({}); // { exam_id: 제출수 }
+const [adminHwLoading, setAdminHwLoading] = React.useState(false);
+const [adminHwTeacherFilter, setAdminHwTeacherFilter] = React.useState('전체');
 const [adminTestSubjectFilter, setAdminTestSubjectFilter] = React.useState('all');
 const [adminTestLevelFilter, setAdminTestLevelFilter] = React.useState('all');
 const [adminTestSearch, setAdminTestSearch] = React.useState('');
@@ -489,6 +494,22 @@ async function loadAdminLevelTests() {
   } finally {
     setAdminLevelTestLoading(false);
   }
+}
+// 숙제 현황 — 선생님들이 반별로 발행한 숙제(exams kind='homework') + 제출 수
+async function loadAdminHomework() {
+  setAdminHwLoading(true);
+  try {
+    var { data: hws } = await sb.from('exams').select('*, classes(name)').eq('kind', 'homework').order('created_at', { ascending: false });
+    setAdminHwList(hws || []);
+    if (hws && hws.length > 0) {
+      var ids = hws.map(function(h){ return h.id; });
+      var { data: subs } = await sb.from('exam_submissions').select('exam_id').in('exam_id', ids);
+      var cnt = {};
+      (subs || []).forEach(function(s){ cnt[s.exam_id] = (cnt[s.exam_id] || 0) + 1; });
+      setAdminHwSubs(cnt);
+    } else { setAdminHwSubs({}); }
+  } catch (e) { console.error('숙제 현황 로드 실패:', e); setAdminHwList([]); setAdminHwSubs({}); }
+  setAdminHwLoading(false);
 }
 function adminOpenLtForm() {
   setAdminLtDraft({ id:null, kind:'level', existing_paths:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
@@ -1275,6 +1296,7 @@ const tabs = [
 { id:'views',   label:'학습 현황' },
 { id:'teacher', label:'선생님 관리' },
 { id:'course',  label:'강좌 관리' },
+{ id:'adminhw', label:'숙제 현황' },
 { id:'records', label:'업무일지 및 특이사항' },
 { id:'leveltest',label:'시험 관리' },
 { id:'vocab',   label:'단어장' },
@@ -1287,7 +1309,7 @@ const tabs = [
 const tabGroups = [
 // '학습 현황'(views)은 대시보드에서 제외 — 학생 카드 펼치면 그 학생 영상 진도·시험·단어·출결·특이사항이 다 보임. (render 블록은 남겨둠.)
 { id:'students', label:'학생·클래스·성적',   tabs:['enrollee','classmgmt','member','analysis'] },
-{ id:'teachers', label:'선생님·강좌',        tabs:['teacher','course','records'] },
+{ id:'teachers', label:'선생님·강좌',        tabs:['teacher','course','adminhw','records'] },
 { id:'academy',  label:'시험·단어·자료·일정', tabs:['leveltest','vocab','files','schedule'] },
 { id:'webapp',   label:'홈페이지 편집',      tabs:['homepage'] },
 ];
@@ -1406,7 +1428,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'16px 18px', fontSize:'15px', display:'inline-flex', alignItems:'center', minHeight:'52px' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'homepage') setHpSub('banner'); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'adminhw') loadAdminHomework(); if (tid === 'homepage') setHpSub('banner'); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -2750,6 +2772,45 @@ tab==='classmgmt' && (function(){
           );
         })
       )
+  );
+})(),
+
+/* ── 숙제 현황 TAB (관리자가 선생님들 발행 숙제 보기) ── */
+tab==='adminhw' && (function(){
+  var teacherOpts = ['전체'].concat(Array.from(new Set((adminHwList||[]).map(function(h){ return h.teacher_name; }).filter(Boolean))));
+  var shown = adminHwTeacherFilter === '전체' ? (adminHwList||[]) : (adminHwList||[]).filter(function(h){ return h.teacher_name === adminHwTeacherFilter; });
+  return React.createElement('div', null,
+    React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'4px' } }, '숙제 현황'),
+    React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '선생님들이 반별로 발행한 숙제를 한 곳에서 확인합니다. (숙제 발행·채점은 선생님 페이지에서.)'),
+    React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px', flexWrap:'wrap' } },
+      React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif' } }, '선생님 필터:'),
+      React.createElement('select', { value: adminHwTeacherFilter, onChange:function(e){ setAdminHwTeacherFilter(e.target.value); }, style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'6px 12px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' } }, teacherOpts.map(function(t){ return React.createElement('option', { key:t, value:t }, t); })),
+      React.createElement('span', { style:{ marginLeft:'auto', fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '총 ' + shown.length + '건')
+    ),
+    adminHwLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' } }, '불러오는 중...')
+    : shown.length === 0 ? React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontSize:'14px', padding:'32px', fontFamily:'Manrope, sans-serif' } }, '발행된 숙제가 없습니다. (선생님이 반별로 발행하면 여기에 표시됩니다.)')
+    : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+      shown.map(function(h){
+        var subCnt = (adminHwSubs && adminHwSubs[h.id]) || 0;
+        var clsName = (h.classes && h.classes.name) || '(반 정보 없음)';
+        var modes = [];
+        if ((h.question_count||0) > 0) modes.push('객관식 ' + h.question_count);
+        if ((h.text_question_count||0) > 0 || h.allow_text_answer) modes.push('서술형');
+        if (h.allow_audio_answer) modes.push('녹음');
+        return React.createElement('div', { key:h.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' } },
+          React.createElement('div', { style:{ flex:1, minWidth:'200px' } },
+            React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+              React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background: h.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, h.status==='open' ? '제출 가능' : '마감'),
+              h.subject && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, h.subject),
+              React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, h.title)
+            ),
+            React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginTop:'3px' } }, clsName + ' · ' + (h.teacher_name || '?') + ' 선생님' + (h.created_at ? ' · ' + String(h.created_at).slice(0,10) + ' 발행' : '') + (modes.length ? ' · ' + modes.join(' + ') : '')),
+            h.description && React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'3px', whiteSpace:'pre-line' } }, h.description)
+          ),
+          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color: subCnt > 0 ? '#E60012' : 'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, '제출 ' + subCnt + '건')
+        );
+      })
+    )
   );
 })(),
 
