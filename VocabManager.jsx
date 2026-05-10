@@ -235,6 +235,38 @@
       load();
     }
 
+    // 시험이 없는 모든 유닛에 기본 시험을 한 번에 생성 (준비중 상태)
+    async function createTestsForAllUnits() {
+      var missing = unitsArray.filter(function(x){ return x.tests.length === 0 && x.words.length > 0; });
+      if (missing.length === 0) { alert('모든 유닛에 이미 시험이 있습니다.'); return; }
+      if (!confirm(missing.length + '개 유닛에 기본 시험을 만들까요?\n\n· 각 시험: 그 유닛 단어 전부, 객관식\n· 상태는 "준비중"으로 생성됩니다 — 각 시험의 "편집"에서 배포 대상(반/학년)과 진행 상태를 정해 주세요.')) return;
+      var rows = missing.map(function(x){
+        return {
+          list_id: props.listId,
+          title: 'UNIT ' + x.unit_index + ' 단어시험',
+          unit_index: x.unit_index,
+          teacher_id: window.B2Utils.safeUserId(props.user),
+          teacher_name: (props.user && props.user.name) || null,
+          multiple_choice_count: x.words.length,
+          spelling_count: 0,
+          writing_count: 0,
+          listening_count: 0,
+          choices_per_question: 4,
+          question_direction: 'mixed',
+          spelling_blank_ratio: 0.5,
+          seconds_per_question: 30,
+          show_answer_seconds: 2,
+          attempts_allowed: 1,
+          status: 'draft',
+          due_at: null,
+        };
+      });
+      var ins = await sb.from('vocab_tests').insert(rows);
+      if (ins.error) { alert('생성 실패: ' + (ins.error.message || ins.error)); return; }
+      alert(missing.length + '개 유닛 시험을 만들었어요. 각 시험의 "편집"에서 배포 대상과 진행 상태를 정해 주세요.');
+      load();
+    }
+
     if (loading) return React.createElement('div', { style:{ padding:'40px', textAlign:'center', color:'#9ca3af' } }, '불러오는 중...');
     if (!list) return React.createElement('div', { style:{ padding:'40px', textAlign:'center', color:'#9ca3af' } }, '단어장을 찾을 수 없습니다.');
 
@@ -261,6 +293,9 @@
           ),
           activeTab === 'words' && React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
             React.createElement('button', { onClick:function(){ setShowImport(true); }, style:STYLES.btnPrimary }, '+ 단어 추가')
+          ),
+          activeTab === 'tests' && words.length > 0 && React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
+            React.createElement('button', { onClick:createTestsForAllUnits, style:STYLES.btnPrimary }, '유닛 전체 시험 만들기')
           )
         )
       ),
@@ -308,9 +343,9 @@
       activeTab === 'tests' && (
         !words.length
           ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '먼저 단어를 추가해야 시험을 만들 수 있어요.')
-          : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'12px' } },
+          : React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(240px, 1fr))', gap:'12px', alignItems:'start' } },
               unitsArray.map(function(unit){
-                return React.createElement('div', { key:unit.unit_index },
+                return React.createElement('div', { key:unit.unit_index, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px' } },
                   // 유닛 헤더
                   React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:'5px', paddingBottom:'4px', borderBottom:'1px solid #1A1A1A' } },
                     React.createElement('div', null,
@@ -321,8 +356,8 @@
                     ),
                     React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, unit.tests.length + '개 시험')
                   ),
-                  // 시험 카드 그리드 + 추가 버튼
-                  React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(160px, 1fr))', gap:'6px' } },
+                  // 시험 카드 (유닛 셀이 좁아졌으니 1열) + 추가 버튼
+                  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px' } },
                     unit.tests.map(function(t){
                       var modes = [];
                       if (t.multiple_choice_count) modes.push('객 ' + t.multiple_choice_count);
