@@ -1299,7 +1299,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setExamFormOpen(false);
     setEditingExamId(null);
   }
-  async function submitExam() {
+  async function removeExamFilesTeacher(which) {
+    if (!editingExamId) { alert('아직 발행 전이라 삭제할 파일이 없습니다. (파일 선택을 비워두면 됩니다)'); return; }
+    var key = which === 'answer' ? 'answer_existing_paths' : 'existing_paths';
+    var col = which === 'answer' ? 'answer_paths' : 'image_paths';
+    var label = which === 'answer' ? '답안지·해설' : '시험지';
+    var paths = (examDraft[key] || []).slice();
+    if (paths.length === 0) { alert('삭제할 ' + label + ' 파일이 없습니다.'); return; }
+    if (!confirm('등록된 ' + label + ' 파일 ' + paths.length + '개를 모두 삭제할까요?')) return;
+    try { await sb.storage.from('attachments').remove(paths); } catch (e) {}
+    var upd = {}; upd[col] = [];
+    var { error } = await sb.from('exams').update(upd).eq('id', editingExamId);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    setExamDraft(function(p){ var o = Object.assign({}, p); o[key] = []; return o; });
+    await loadClassExams(selectedClass && selectedClass.id);
+    alert(label + ' 파일을 삭제했습니다.');
+  }
+  async function submitExam(thenAnalyze) {
     if (!teacherInfo) { alert('선생님 정보가 없습니다.'); return; }
     if (!selectedClass) { alert('반을 먼저 선택해 주세요.'); return; }
     var d = examDraft;
@@ -1367,10 +1383,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         objective_total: qc,
         allow_audio_answer: !!d.allow_audio_answer && kindVal === 'homework',
       };
+      var savedId = null;
       if (editingExamId) {
         var u = await sb.from('exams').update(row).eq('id', editingExamId);
         if (u.error) throw u.error;
-        alert('수정되었습니다.');
+        savedId = editingExamId;
+        if (thenAnalyze !== true) alert('수정되었습니다.');
       } else {
         var insertRow = Object.assign({
           kind: kindVal,
@@ -1379,13 +1397,28 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           teacher_name: teacherInfo.name || user?.name || '선생님',
           status: 'open',
         }, row);
-        var { error } = await sb.from('exams').insert(insertRow);
-        if (error) throw error;
+        var ins = await sb.from('exams').insert(insertRow).select('id').single();
+        if (ins.error) throw ins.error;
+        savedId = ins.data && ins.data.id;
         var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : (kindVal === 'homework' ? '숙제' : '시험지'));
-        alert(kindLabel + '이(가) 발행되었습니다.');
+        if (thenAnalyze !== true) alert(kindLabel + '이(가) 발행되었습니다.');
       }
       closeExamForm();
       await loadClassExams(selectedClass.id);
+      if (thenAnalyze === true && savedId) {
+        setAnalyzingExamId(savedId);
+        try {
+          var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: savedId });
+          if (!r.ok || (r.data && r.data.error)) { alert('저장은 됐지만 문항 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); }
+          else {
+            await loadClassExams(selectedClass.id);
+            setAnalysisOpenId(savedId);
+            var us = (r.data && r.data.usage) || {};
+            alert('저장 + 문항 분석 완료!\n시험 카드에서 "분석 보기"로 결과를 확인하세요.' + (us.input_tokens ? '\n(입력 ' + us.input_tokens + ' 토큰 / 출력 ' + (us.output_tokens||0) + ' 토큰)' : ''));
+          }
+        } catch (ee) { alert('저장은 됐지만 문항 분석 실패: ' + (ee.message || ee)); }
+        finally { setAnalyzingExamId(null); }
+      }
     } catch (e) {
       alert((editingExamId ? '수정' : '발행') + ' 실패: ' + (e.message || e));
     } finally {
@@ -2263,22 +2296,29 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>안내사항 (선택)</label>
                 <textarea value={examDraft.description} onChange={e => setExamDraft({ ...examDraft, description: e.target.value })} rows={2} placeholder="예: 시험 시간 50분, 객관식 + 서술형" style={{ ...inputStyle, resize:'vertical', marginBottom:'14px' }} />
 
-                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 이미지 (선택 — 여러 장 가능, 페이지 순서대로)</label>
-                <input type="file" accept="image/*" multiple onChange={e => setExamDraft({ ...examDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
-                {editingExamId && (examDraft.existing_paths || []).length > 0 && (!examDraft.files || examDraft.files.length === 0) && (
-                  <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>기존 이미지 {(examDraft.existing_paths || []).length}장 유지 — 새로 올리면 교체됩니다.</div>
+                {editingExamId && (
+                  <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'10px 12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>
+                    <div style={{ fontSize:'12px', fontWeight:'800', color:'#1e40af', marginBottom:'6px' }}>현재 등록된 파일</div>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', marginBottom:'6px' }}>
+                      <span style={{ fontSize:'12px', color:(examDraft.existing_paths||[]).length>0?'#1e3a8a':'#9ca3af' }}>시험지: {(examDraft.existing_paths||[]).length}장{(examDraft.existing_paths||[]).length===0?' (없음)':''}</span>
+                      {(examDraft.existing_paths||[]).length>0 && <button onClick={() => removeExamFilesTeacher('exam')} style={{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>시험지 모두 삭제</button>}
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' }}>
+                      <span style={{ fontSize:'12px', color:(examDraft.answer_existing_paths||[]).length>0?'#1e3a8a':'#9ca3af' }}>답안지·해설: {(examDraft.answer_existing_paths||[]).length}개{(examDraft.answer_existing_paths||[]).length===0?' (없음)':''}</span>
+                      {(examDraft.answer_existing_paths||[]).length>0 && <button onClick={() => removeExamFilesTeacher('answer')} style={{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>답안지 모두 삭제</button>}
+                    </div>
+                  </div>
                 )}
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 이미지{editingExamId ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' (선택 — 여러 장 가능, 페이지 순서대로)'}</label>
+                <input type="file" accept="image/*" multiple onChange={e => setExamDraft({ ...examDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
                 {examDraft.files && examDraft.files.length > 0 && (
-                  <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>{examDraft.files.length}장 선택됨 — {examDraft.files.map(f => f.name).join(', ')}</div>
+                  <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' }}>새 시험지 {examDraft.files.length}장 선택됨 (저장 시 교체)</div>
                 )}
 
-                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>답안지·해설 이미지 (선택 — 자동 문항 분석 정확도 향상)</label>
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>답안지·해설 (선택 — 자동 문항 분석 정확도 향상, PDF 가능){editingExamId ? ' — 새 파일 선택하면 위 기존 답안 전체가 교체됩니다' : ''}</label>
                 <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setExamDraft({ ...examDraft, answer_files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
-                {editingExamId && (examDraft.answer_existing_paths || []).length > 0 && (!examDraft.answer_files || examDraft.answer_files.length === 0) && (
-                  <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>기존 답안지 {(examDraft.answer_existing_paths || []).length}장 유지 — 새로 올리면 교체됩니다.</div>
-                )}
                 {examDraft.answer_files && examDraft.answer_files.length > 0 && (
-                  <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>{examDraft.answer_files.length}장 선택됨 — {examDraft.answer_files.map(f => f.name).join(', ')}</div>
+                  <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' }}>새 답안지 {examDraft.answer_files.length}개 선택됨 (저장 시 교체)</div>
                 )}
 
                 {/* 일반 시험: 기존 입력 그대로 */}
@@ -2395,9 +2435,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   </div>
                 )}
 
-                <div style={{ display:'flex', gap:'8px', marginTop:'8px' }}>
-                  <button onClick={closeExamForm} style={{ ...lightButtonStyle, flex:1 }}>취소</button>
-                  <button onClick={submitExam} disabled={examUploading} style={{ ...buttonStyle, flex:1, opacity: examUploading ? 0.6 : 1, cursor: examUploading ? 'not-allowed' : 'pointer' }}>{examUploading ? (editingExamId ? '저장 중...' : '발행 중...') : (editingExamId ? '저장' : '발행')}</button>
+                <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginTop:'8px' }}>
+                  <div style={{ display:'flex', gap:'8px' }}>
+                    <button onClick={closeExamForm} disabled={examUploading || !!analyzingExamId} style={{ ...lightButtonStyle, flex:1, cursor: (examUploading||analyzingExamId) ? 'not-allowed' : 'pointer' }}>취소</button>
+                    <button onClick={() => submitExam(false)} disabled={examUploading || !!analyzingExamId} style={{ ...buttonStyle, flex:1, opacity: (examUploading||analyzingExamId) ? 0.6 : 1, cursor: (examUploading||analyzingExamId) ? 'not-allowed' : 'pointer' }}>{examUploading ? (editingExamId ? '저장 중...' : '발행 중...') : (editingExamId ? '저장' : '발행')}</button>
+                  </div>
+                  <button onClick={() => submitExam(true)} disabled={examUploading || !!analyzingExamId} style={{ background: (examUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:(examUploading||analyzingExamId)?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' }}>{analyzingExamId ? 'Claude 문항 분석 중... (1~2분 소요)' : (examUploading ? '저장 중...' : '저장하고 Claude 문항 분석 →')}</button>
                 </div>
               </div>
             </div>
