@@ -670,9 +670,10 @@ async function adminSubmitLevelTest(thenAnalyze) {
       savedId = ins.data && ins.data.id;
       if (!doAnalyze) alert(kindLabel + '이(가) 발행되었습니다.');
     }
-    adminCloseLtForm();
+    if (!doAnalyze) adminCloseLtForm();
     await loadAdminLevelTests();
     if (doAnalyze && savedId) {
+      setAdminLtDraft(function(p){ return Object.assign({}, p, { id: savedId }); });
       setAnalyzingExamId(savedId);
       try {
         var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: savedId });
@@ -681,7 +682,8 @@ async function adminSubmitLevelTest(thenAnalyze) {
           await loadAdminLevelTests();
           setAnalysisOpenId(savedId);
           var u = (r.data && r.data.usage) || {};
-          alert('저장 및 문항 분석 완료!\n시험 카드의 "수정·분석"을 다시 열면 결과를 볼 수 있습니다.' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' 토큰 / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
+          setAdminLtDraft(function(p){ return Object.assign({}, p, { id: savedId, analysis: (r.data && r.data.analysis) || p.analysis }); });
+          alert('문항 분석 완료!' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
         }
       } catch (ee) { alert('저장은 됐지만 문항 분석 실패: ' + (ee.message || ee)); }
       finally { setAnalyzingExamId(null); }

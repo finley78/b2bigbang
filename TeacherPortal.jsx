@@ -1432,9 +1432,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : (kindVal === 'homework' ? '숙제' : '시험지'));
         if (!doAnalyze) alert(kindLabel + '이(가) 발행되었습니다.');
       }
-      closeExamForm();
+      if (!doAnalyze) closeExamForm();
       await loadClassExams(selectedClass.id);
       if (doAnalyze && savedId) {
+        setEditingExamId(savedId);
         setAnalyzingExamId(savedId);
         try {
           var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: savedId });
@@ -1443,7 +1444,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             await loadClassExams(selectedClass.id);
             setAnalysisOpenId(savedId);
             var us = (r.data && r.data.usage) || {};
-            alert('저장 및 문항 분석 완료!\n시험 카드의 "수정·분석"을 다시 열면 결과를 볼 수 있습니다.' + (us.input_tokens ? '\n(입력 ' + us.input_tokens + ' 토큰 / 출력 ' + (us.output_tokens||0) + ' 토큰)' : ''));
+            setExamDraft(function(p){ return Object.assign({}, p, { analysis: (r.data && r.data.analysis) || p.analysis }); });
+            alert('문항 분석 완료!' + (us.input_tokens ? '\n(입력 ' + us.input_tokens + ' / 출력 ' + (us.output_tokens||0) + ' 토큰)' : ''));
           }
         } catch (ee) { alert('저장은 됐지만 문항 분석 실패: ' + (ee.message || ee)); }
         finally { setAnalyzingExamId(null); }
