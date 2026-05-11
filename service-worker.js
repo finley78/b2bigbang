@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v39-paper-score-label';
+const CACHE_VERSION = 'b2-bigbang-20260511v40-attendance';
 const OFFLINE_URLS = [
   './',
   './index.html',

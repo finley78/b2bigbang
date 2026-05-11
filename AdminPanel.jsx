@@ -125,6 +125,7 @@ const [classStudents, setClassStudents] = React.useState({}); // { class_id: [st
 const [clsMgmtDraft, setClsMgmtDraft] = React.useState({ teacher_id:'', name:'', levels:[], grades:[], subjects:[] }); // 클래스 관리 탭 — 새 반 추가 폼
 const [clsMgmtTeacherFilter, setClsMgmtTeacherFilter] = React.useState('전체'); // 클래스 관리 탭 — 선생님 필터
 const [adminAnalysis, setAdminAnalysis] = React.useState([]);
+const [adminAttendance, setAdminAttendance] = React.useState([]);
 const [analysisClassId, setAnalysisClassId] = React.useState('');
 const [analysisSubject, setAnalysisSubject] = React.useState('전체');
 const [analysisTestName, setAnalysisTestName] = React.useState('전체');
@@ -336,6 +337,10 @@ const { data: scores, error: scoresError } = await sb.from('test_scores')
   .order('test_date', { ascending: false });
 if (scoresError) console.error('test_scores load error:', scoresError.message || scoresError);
 if (scores) setAdminAnalysis(scores);
+
+const { data: attRows, error: attError } = await sb.from('attendance').select('id, student_id, date, status');
+if (attError) console.error('attendance load error:', attError.message || attError);
+if (attRows) setAdminAttendance(attRows);
 }
 
 async function loadAdminAttachments() {
@@ -1009,6 +1014,22 @@ const subjects = st.subjects || [];
 const updated = subjects.includes(subject) ? subjects.filter(s => s !== subject) : [...subjects, subject];
 await sb.from('students').update({ subjects: updated }).eq('id', studentId);
 setDbStudents(s => s.map(st => st.id === studentId ? { ...st, subjects: updated } : st));
+showSaved();
+}
+
+async function toggleAttendance(studentId, status) {
+const today = new Date().toISOString().slice(0, 10);
+const existing = adminAttendance.find(a => String(a.student_id) === String(studentId) && a.date === today);
+if (existing && existing.status === status) {
+await sb.from('attendance').delete().eq('id', existing.id);
+setAdminAttendance(prev => prev.filter(a => a.id !== existing.id));
+} else if (existing) {
+await sb.from('attendance').update({ status }).eq('id', existing.id);
+setAdminAttendance(prev => prev.map(a => a.id === existing.id ? { ...a, status } : a));
+} else {
+const { data, error } = await sb.from('attendance').insert({ student_id: studentId, date: today, status }).select().single();
+if (!error && data) setAdminAttendance(prev => prev.concat([{ id: data.id, student_id: studentId, date: today, status }]));
+}
 showSaved();
 }
 
@@ -2515,11 +2536,60 @@ React.createElement('label', { style:labelS }, '특이사항·메모'),
 ),
 React.createElement('div', null,
 React.createElement('label', { style:labelS }, '최근 시험 성적'),
-React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', padding:'10px 12px', background:'#f9f9f9', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } }, '시험 성적은 곧 표시됩니다')
+(function(){
+  var scoresForStudent = (adminAnalysis || []).filter(function(s){ return String(s.student_id) === String(st.id); }).slice(0, 5);
+  if (scoresForStudent.length === 0) return React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', padding:'10px 12px', background:'#f9f9f9', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } }, '등록된 시험 성적 없음');
+  return React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px' } },
+    scoresForStudent.map(function(s){
+      var total = Number(s.total) || 100;
+      var pct = total ? Math.round((Number(s.score) / total) * 100) : Number(s.score);
+      var color = pct >= 80 ? '#16a34a' : pct >= 60 ? '#c87000' : '#c82014';
+      return React.createElement('div', { key:s.id, style:{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#f9f9f9', borderRadius:'6px', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ flex:1, minWidth:0 } },
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.85)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, s.test_name || s.test_type || '시험'),
+          React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', marginTop:'1px' } }, [s.subject, s.test_date].filter(Boolean).join(' · '))
+        ),
+        React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:color, marginLeft:'8px', flexShrink:0 } }, s.score + (s.total ? '/' + s.total : ''))
+      );
+    })
+  );
+})()
 ),
 React.createElement('div', null,
 React.createElement('label', { style:labelS }, '출결'),
-React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.45)', padding:'10px 12px', background:'#f9f9f9', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } }, '출결은 곧 표시됩니다')
+(function(){
+  var today = new Date().toISOString().slice(0,10);
+  var ym = today.slice(0,7);
+  var thisMonth = (adminAttendance || []).filter(function(a){ return String(a.student_id) === String(st.id) && (a.date || '').slice(0,7) === ym; });
+  var tally = { present:0, late:0, absent:0, excused:0 };
+  thisMonth.forEach(function(a){ if (tally[a.status] != null) tally[a.status]++; });
+  var todayRow = (adminAttendance || []).find(function(a){ return String(a.student_id) === String(st.id) && a.date === today; });
+  var todayStatus = todayRow ? todayRow.status : null;
+  var BTNS = [['present','출석','#16a34a'], ['late','지각','#c87000'], ['absent','결석','#c82014'], ['excused','사유','#6b7280']];
+  return React.createElement('div', null,
+    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'6px', marginBottom:'8px' } },
+      BTNS.map(function(b){
+        var k = b[0], label = b[1], color = b[2];
+        return React.createElement('div', { key:k, style:{ padding:'6px 4px', background:'#f9f9f9', borderRadius:'6px', textAlign:'center', fontFamily:'Manrope, sans-serif' } },
+          React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', fontWeight:'700' } }, label),
+          React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:color, marginTop:'2px' } }, tally[k] || 0)
+        );
+      })
+    ),
+    React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700', color:'rgba(0,0,0,0.45)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '오늘 출결'),
+    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'6px' } },
+      BTNS.map(function(b){
+        var k = b[0], label = b[1], color = b[2];
+        var on = todayStatus === k;
+        return React.createElement('button', {
+          key:k,
+          onClick: function(){ toggleAttendance(st.id, k); },
+          style:{ background: on ? color : '#fff', color: on ? '#fff' : color, border: '1.5px solid ' + color, borderRadius:'6px', padding:'6px 4px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', transition:'all 0.15s' }
+        }, label);
+      })
+    )
+  );
+})()
 )
 )
 ),

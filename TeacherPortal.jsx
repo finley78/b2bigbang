@@ -2014,7 +2014,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                   {/* 출결 통계 */}
                   <div style={cardStyle}>
-                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>📅 출결 (최근 30일)</div>
+                    <div style={{ fontSize: "13px", fontWeight: "800", color: "#1A1A1A", marginBottom: "10px", fontFamily: "Manrope, sans-serif" }}>출결 (최근 30일)</div>
                     {studentDetail.attendance.total === 0 ? (
                       <div style={{ fontSize: "12px", color: "#9ca3af" }}>최근 출결 기록이 없습니다.</div>
                     ) : (

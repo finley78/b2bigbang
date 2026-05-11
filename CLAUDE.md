@@ -123,14 +123,14 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-11 기준, 최신 ?v=20260511v39-paper-score-label / HEAD = 910733c)
+## 현재 진행 (2026-05-11 기준, 최신 ?v=20260511v40-attendance)
 
 > **★ 이 블록이 최신입니다. 아래 옛날 섹션들(2026-05-08~09 등)은 참고용 — 일부는 롤백되어 현재 코드에 없음. ★**
 
 ### 어디까지 했나 (2026-05-09 ~ 2026-05-11 세션)
 - 2026-05-09~10에 관리자/선생님 페이지·수강신청 승인 흐름·숙제시험 발행 폼 등 대규모 작업 → 그 중 "앱 단순화 리팩토링"(관리자/선생님 탭 통폐합 4단계)은 **사용자 요청으로 전부 revert함** (커밋 `e66c527`). 다시 살리려면 `git revert e66c527`. **롤백 기준점 = `380afef`(?v=20260510v16-exam-form)**.
 - DB 마이그레이션(video_views FK 3개, enrollments.status+RLS, link_my_auth_account 확장, **courses.teacher_id 컬럼 추가**)은 코드 revert와 무관하게 그대로 적용됨. `migrations/2026-05-10*.sql` 참고.
-- 2026-05-10~11 추가 작업 (전부 push·배포 완료, ?v 순서 v25→v39):
+- 2026-05-10~11 추가 작업 (전부 push·배포 완료, ?v 순서 v25→v40):
   - 단어장: 시험 탭 유닛을 그리드로 + "유닛 전체 시험 만들기" 버튼(`VocabManager` `createTestsForAllUnits`). 단어 시험 '학년으로 배포' 추가, 유닛에 시험 있으면 '시험 추가' 카드 숨김.
   - 선생님 페이지 버튼 크기 표준화(`buttonStyle`/`lightButtonStyle`에 fontSize·fontFamily·반응형, `smallButtonStyle` 계열 신설). 선생님 홈 메뉴 카드 11개를 같은 너비 그리드로.
   - 학사일정: 분류 '시험'→'시험기간'(TeacherPortal/AdminPanel `academicCategoryLabel`), 학교 칸 자유입력→드롭다운(`TP_NEARBY_SCHOOLS`).
@@ -141,13 +141,14 @@ DDL은 `apply_migration` 사용.
   - 선생님 강좌 **수정·삭제** 가능하게('내 강좌' 목록에 [수정][삭제], 수정=이름·설명·과목 인라인 패널, 삭제=`is_active=false` + enrollments 비활성화). `loadTeacherCourses`에 `.eq("is_active", true)` 추가.
   - 강좌 '개별 학생' 배포: 반 먼저 골라야 했던 걸 → `renderStudentPicker`(이름 검색 + 학년 필터 + (선택)반 필터, '보이는 N명 모두 추가/빼기', 학년·반 상호 배타). 배포 대상 라디오에서 '학년' 옵션 제거(개설 폼·배포 설정 양쪽).
   - '성적 등록' → **'종이 시험 성적 입력'**으로 개명 + 주황 안내박스(앱 단어시험·객관식 시험은 자동 채점되니 여기 입력 불필요, 결과는 '성적 분석'). 학생 목록을 그리드+컴팩트하게(178px 칸, 점수 입력 시 자동 체크).
+  - **수강생 카드 펼치면 시험 성적·출결 표시 + 오늘 출결 토글** (v40-attendance). AdminPanel에 `adminAttendance` state + 전체 로드 + `toggleAttendance(student_id, status)` 함수. 펼친 카드 오른쪽 컬럼: 최근 시험 성적 5건(`adminAnalysis`/`test_scores` 필터, 80/60 색상), 출결 이번 달 통계 4박스(present/late/absent/excused) + 오늘 출결 토글 4버튼(같은 status 재클릭 시 해제). `attendance`에 UNIQUE(student_id, date) 마이그레이션 적용. TeacherPortal `📅` 이모지 제거.
 - 상세 작업 로그·커밋 해시 순서·가챠는 메모리 `project_b2bigbang_2026-05_admin_work.md`에도 있음 (이 파일과 메모리 둘 다 봐도 됨).
 
 ### ★ 다음에 이어서 할 일 (후보 — 사용자가 우선순위 결정) ★
 1. **단순화 리팩토링** — 했다가 전부 revert함. 다시 하려면 `git revert e66c527`(통째로) 또는 개별 cherry-pick. 또는 처음부터 다시. 남은 후보(render-block 수술 필요해 더 위험): ① 회원정보 탭을 수강생 관리에 흡수(학부모 정보가 회원정보에만 있어 단순 제거 불가), ② 선생님 관리 안의 per-teacher '담당 반 관리' 제거(클래스 관리 탭이 일원화), ③ 성적분석 탭에서 '학생별 분석' 모드 제거(학생 상세로 흡수), 선생님 상세 통합, TeacherPortal 시험/숙제 탭 1개로 병합.
 2. **단어시험 후속**: STUDY 4모드 자유 학습(Flash Card 외 객관식/스펠링/쓰기/듣기), Easy/Hard 난이도 분리.
 3. **TeacherPortal 시험 카드 종류 뱃지**(주간/월말/반시험 kind) — AdminPanel엔 있는데 TeacherPortal엔 없음.
-4. **출결 시스템** — 학생 상세의 '출결' 영역이 placeholder. 출결 테이블 설계부터.
+4. **출결 시스템 확장** — AdminPanel 수강생 카드는 오늘 출결 토글·이번 달 통계까지 완료(v40). 다음 단계: 선생님 페이지에서도 출결 입력, 출결 캘린더/월별 상세 보기, 학부모/학생 화면에 출결 표시.
 5. **시험지 분석표** — 자동 채점 결과 기반 문항별 정답률·약점 등. AdminPanel '성적 분석'의 '시험지 분석'(준비 중) 자리. 사용자가 양식 줄 예정.
 6. **Naver OAuth 검수 요청**(현재 '개발 중' — 학생 일반 사용 가능하려면).
 
