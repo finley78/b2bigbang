@@ -2222,28 +2222,44 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
             )
           ),
 
-          /* 객관식 OMR */
+          /* 객관식 OMR (복수 정답 문항 지원) */
           qc > 0 && (function(){
             var cpq = activeExam.choices_per_question || 5;
             var circles = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
             var ak = (activeExam.answer_key && typeof activeExam.answer_key === 'object') ? activeExam.answer_key : {};
             var akNums = Object.keys(ak).map(Number).filter(function(n){ return !isNaN(n) && n > 0; }).sort(function(a,b){ return a-b; });
             var qNums = (akNums.length === qc) ? akNums : Array.from({ length: qc }, function(_, i){ return i + 1; });
+            function pickCountFor(num){ var a = String(ak[num] || ''); return (a.indexOf(',') >= 0) ? a.split(',').filter(Boolean).length : 1; }
+            var hasMulti = qNums.some(function(num){ return pickCountFor(num) > 1; });
             return React.createElement('div', { style:{ marginBottom: activeExam.allow_text_answer ? '24px' : 0 } },
-              React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
+              React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px', flexWrap:'wrap', gap:'4px' } },
                 React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, '객관식 (' + qc + '문항 · ' + cpq + '지선다)'),
-                React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '※ 보기를 클릭해 답을 선택하세요')
+                React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, hasMulti ? '※ 보기를 클릭. 일부 문항은 여러 개 골라야 합니다' : '※ 보기를 클릭해 답을 선택하세요')
               ),
-              React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'6px', border:'1px solid #1A1A1A', borderRadius:'6px', padding:'10px' } },
+              React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(240px, 1fr))', gap:'6px', border:'1px solid #1A1A1A', borderRadius:'6px', padding:'10px' } },
                 qNums.map(function(num){
                   var current = examAnswers[num];
+                  var pc = pickCountFor(num);
+                  var pickedArr = String(current || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
                   return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 4px', borderBottom:'1px dashed #e5e7eb' } },
-                    React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', minWidth:'28px', fontFamily:'Manrope, sans-serif', textAlign:'right' } }, num + '.'),
-                    React.createElement('div', { style:{ display:'flex', gap:'4px', flex:1 } },
+                    React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', minWidth: pc > 1 ? '54px' : '28px', fontFamily:'Manrope, sans-serif', textAlign:'right' } }, num + '.' + (pc > 1 ? ' (' + pc + '개)' : '')),
+                    React.createElement('div', { style:{ display:'flex', gap:'4px', flex:1, flexWrap:'wrap' } },
                       Array.from({ length: cpq }).map(function(_, ci){
                         var val = String(ci + 1);
-                        var picked = String(current) === val;
-                        return React.createElement('button', { key:ci, disabled: isLocked, onClick:function(){ if (isLocked) return; setExamAnswers(function(p){ var n = Object.assign({}, p); n[num] = val; return n; }); }, style:{
+                        var picked = pickedArr.indexOf(val) >= 0;
+                        return React.createElement('button', { key:ci, disabled: isLocked, onClick:function(){
+                          if (isLocked) return;
+                          setExamAnswers(function(p){
+                            var n = Object.assign({}, p);
+                            if (pc <= 1) { n[num] = val; return n; }
+                            var arr = String(n[num] || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+                            var pos = arr.indexOf(val);
+                            if (pos >= 0) { arr.splice(pos, 1); }
+                            else { arr.push(val); if (arr.length > pc) arr.shift(); }
+                            if (arr.length === 0) delete n[num]; else n[num] = arr.slice().sort().join(',');
+                            return n;
+                          });
+                        }, style:{
                           width:'32px', height:'32px', borderRadius:'50%',
                           background: picked ? '#1A1A1A' : '#fff',
                           color: picked ? '#fff' : '#374151',

@@ -123,7 +123,7 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-11 기준, 최신 ?v=20260511v59-omr-fullscreen)
+## 현재 진행 (2026-05-11 기준, 최신 ?v=20260511v60-multi-answer)
 
 ### ★ 자동 문항 분석 시스템 (진행 중) ★
 **목표**: 선생님 시험지 파일 업로드 → 답안지·해설 업로드 → Claude가 문항 수·정답·개념 분석 → 학생 응시 → 학생별 약점 분석표.
@@ -145,8 +145,9 @@ DDL은 `apply_migration` 사용.
 - **Phase B 핵심 완료 (v56)**: Edge Function `analyze-exam` v5가 분석 후 → `analysis.questions`에서 mc/text 문항을 추려 `exams` 행에 자동 반영: `question_count`=mc 개수, `text_question_count`=text 개수, `objective_total`=mc 개수, `allow_text_answer`=text>0, `choices_per_question`=mc choices_count 최대값, `answer_key`={실제문항번호: 정답}(`"확인 필요"`는 제외). `selected_questions`가 있으면 그 번호 문항만 사용. StudentPortal 응시 화면 OMR이 `answer_key` 키 개수가 `question_count`와 같으면 그 실제 번호(21~40 등)로 표시(아니면 1~qc fallback). AdminPanel 시험 카드 응시자 자동 채점 + GradingForm 자동 채점이 `Object.keys(answer_key)` 기준. AdminPanel 발행 폼 객관식 정답 입력칸도 answer_key 키 기준(라벨 "문항 분석하면 자동으로 채워집니다"). → 선생님은 시험지+답안지 올리고 "저장 및 문항 분석" 한 번이면 학생 OMR·자동 채점까지 완성.
 - **Phase C 완료 (v57)**: `exam_submissions.ai_analysis jsonb` 컬럼. Edge Function `analyze-student`(verify_jwt=false): submission_id 받아 → exam.analysis(문항 정보)와 학생 답안(answers/text_answers)을 텍스트로 묶어 Claude(`claude-sonnet-4-6`, tool_use `report_student_analysis`)에 보냄 → score/total/percentage/wrong_questions/by_topic/weak_topics/strengths/mistake_pattern/summary/recommendation 받아 `ai_analysis`에 저장. 시험지 이미지는 안 보내서 학생 1명당 토큰 적음(텍스트만). AdminPanel 시험 카드 응시자 목록에 ('AI 약점 분석'/'재분석' 버튼 — `t.analysis` 있을 때만) + `renderStudentAnalysis` 결과 표시. → 전체 자동 문항 분석 시스템 완성: 선생님 시험지+답안 업로드 → '저장 및 문항 분석' → 학생 응시 → 'AI 약점 분석'.
 - **v58**: `exams.hide_paper_for_students boolean DEFAULT false` 컬럼 + 발행 폼(AdminPanel/TeacherPortal)에 "종이 시험지로 진행 — 학생 화면엔 OMR만" 체크박스(`draft.hide_paper`). StudentPortal 응시 화면이 `hide_paper_for_students`면 시험지 뷰어를 숨기고 노란 안내박스 + OMR. v59: 학생 응시 모바일 OMR 시트에 `sheetMode='full'`(전체화면) 추가 — 헤더에 '전체'/'축소' 버튼. full이면 `position:fixed; inset:0; height:100dvh`로 OMR이 화면 전체 차지(폰 가로로 돌리면 가로 전체화면, OMR이 `repeat(auto-fit,minmax(220px,1fr))`라 여러 열로 펼쳐짐). 기존 `small`(35vh)/`large`(75vh)/`closed`는 그대로.
-- **남은 것(선택)**: TeacherPortal 발행 폼에도 answer_key 입력칸·학생 약점 분석 버튼 노출(현재 AdminPanel만). 학생/학부모 화면에 약점 분석 일부 노출 여부(현재 선생님만). 분석 결과 표시 시 selected 문항 강조. (API 비용 참고: 시험 문항 분석 1회 Sonnet ≈ 270원, 학생 약점 분석 1명 ≈ 40~70원. Claude.ai Max 구독과 별개로 console API 키 과금.)
-- 2026-05-10~11 추가 작업 (전부 push·배포 완료, ?v 순서 v25→v59):
+- **v60**: 복수 정답 객관식 지원 — Edge Function `analyze-exam` v6의 분석 스키마에 `pick_count`(고르는 답 개수, 기본 1) 추가, 지시문에 "'두 개 고르시오' 등은 pick_count를 그 수로, answer는 콤마 연결('2,4')". `answer_key` 값에 콤마가 있으면 그 문항은 복수 정답(정렬 저장). StudentPortal OMR: 그 문항은 헤더에 '(N개)' 표시 + N개까지 토글 선택(초과 시 가장 오래된 것 빠짐), `examAnswers[num]`을 콤마 정렬 string으로. 자동 채점(AdminPanel 응시자/GradingForm, TeacherPortal 제출자)이 양쪽 콤마 split→sort→join 정규화 비교. **TeacherPortal 시험 카드 '제출자 보기'에 자동 채점 점수(정답/오답 표시) + 'AI 약점 분석' 버튼·결과 추가** — 시험 출제한 담당 선생님도 자기 시험 결과·약점 분석을 볼 수 있게(피드백용). 관리자는 '시험 관리' 탭에서 모든 시험.
+- **남은 것(선택)**: TeacherPortal 발행 폼에도 answer_key 입력칸 노출(현재 AdminPanel만). 학생/학부모 화면에 약점 분석 일부 노출 여부. (API 비용: 시험 문항 분석 1회 Sonnet ≈ 270원, 학생 약점 분석 1명 ≈ 40~70원. Claude.ai Max 구독과 별개로 console API 키 과금. 한 시험 = 분석 1번 + 응시 학생 수만큼 약점 분석, 응시·자동채점은 API 안 씀 무료.)
+- 2026-05-10~11 추가 작업 (전부 push·배포 완료, ?v 순서 v25→v60):
   - 단어장: 시험 탭 유닛을 그리드로 + "유닛 전체 시험 만들기" 버튼(`VocabManager` `createTestsForAllUnits`). 단어 시험 '학년으로 배포' 추가, 유닛에 시험 있으면 '시험 추가' 카드 숨김.
   - 선생님 페이지 버튼 크기 표준화(`buttonStyle`/`lightButtonStyle`에 fontSize·fontFamily·반응형, `smallButtonStyle` 계열 신설). 선생님 홈 메뉴 카드 11개를 같은 너비 그리드로.
   - 학사일정: 분류 '시험'→'시험기간'(TeacherPortal/AdminPanel `academicCategoryLabel`), 학교 칸 자유입력→드롭다운(`TP_NEARBY_SCHOOLS`).

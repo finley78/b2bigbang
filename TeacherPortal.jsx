@@ -136,6 +136,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [examUploading, setExamUploading] = React.useState(false);
   const [analyzingExamId, setAnalyzingExamId] = React.useState(null);
   const [analysisOpenId, setAnalysisOpenId] = React.useState(null);
+  const [analyzingStudentId, setAnalyzingStudentId] = React.useState(null);
   const [examSubmissionsByExam, setExamSubmissionsByExam] = React.useState({}); // { exam_id: [submissions] }
 
   // 학원 일정 (강의일정 변경 + 학사일정)
@@ -1473,6 +1474,33 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     } catch (e) { alert('문항 분석 실패: ' + (e.message || e)); }
     finally { setAnalyzingExamId(null); }
   }
+  async function runStudentAnalysis(submissionId) {
+    if (!submissionId) return;
+    setAnalyzingStudentId(submissionId);
+    try {
+      var r = await window.B2Utils.callEdgeFn('analyze-student', { submission_id: submissionId });
+      if (!r.ok || (r.data && r.data.error)) { alert('학생 약점 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); return; }
+      await loadClassExams(selectedClass && selectedClass.id);
+      var u = (r.data && r.data.usage) || {};
+      alert('학생 약점 분석 완료!' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
+    } catch (e) { alert('학생 약점 분석 실패: ' + (e.message || e)); }
+    finally { setAnalyzingStudentId(null); }
+  }
+  function renderStudentAnalysis(a) {
+    if (!a) return null;
+    return (
+      <div style={{ marginTop:'6px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'8px', padding:'10px', fontSize:'11px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' }}>
+        <div style={{ fontWeight:'800', color:'#15803d', marginBottom:'4px' }}>AI 약점 분석{a.score != null ? ' — ' + a.score + '/' + (a.total != null ? a.total : '?') + (a.percentage != null ? ' (' + a.percentage + '%)' : '') : ''}</div>
+        {a.summary && <div style={{ color:'#374151', marginBottom:'4px', whiteSpace:'pre-line' }}>{a.summary}</div>}
+        {Array.isArray(a.weak_topics) && a.weak_topics.length > 0 && <div style={{ color:'#c82014', marginBottom:'2px', fontWeight:'700' }}>약점: {a.weak_topics.join(', ')}</div>}
+        {Array.isArray(a.strengths) && a.strengths.length > 0 && <div style={{ color:'#15803d', marginBottom:'2px' }}>강점: {a.strengths.join(', ')}</div>}
+        {a.mistake_pattern && <div style={{ color:'#c87000', marginBottom:'2px' }}>실수 패턴: {a.mistake_pattern}</div>}
+        {Array.isArray(a.wrong_questions) && a.wrong_questions.length > 0 && <div style={{ color:'#6b7280', marginBottom:'2px' }}>틀린 문항: {a.wrong_questions.join(', ')}번</div>}
+        {Array.isArray(a.by_topic) && a.by_topic.length > 0 && <div style={{ color:'#374151', marginBottom:'2px' }}>단원별: {a.by_topic.map(function(t){ return t.topic + ' ' + t.correct + '/' + t.total; }).join(' · ')}</div>}
+        {a.recommendation && <div style={{ color:'#1d4ed8', marginTop:'4px', whiteSpace:'pre-line', fontWeight:'600' }}>추천 학습: {a.recommendation}</div>}
+      </div>
+    );
+  }
   function renderExamAnalysis(a) {
     if (!a) return null;
     var qs = Array.isArray(a.questions) ? a.questions : [];
@@ -2245,11 +2273,25 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                           {subs.map(s => (
                             <div key={s.id} style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'8px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
                               <div style={{ fontWeight:'700', color:'#111827' }}>{s.student_name || '-'} · {String(s.submitted_at||'').slice(0,16).replace('T',' ')}</div>
-                              {ex.question_count > 0 && s.answers && Object.keys(s.answers).length > 0 && (
-                                <div style={{ marginTop:'4px', color:'#374151', fontSize:'11px' }}>
-                                  객관식: {Object.keys(s.answers).sort((a,b)=>Number(a)-Number(b)).map(k => k + '. ' + s.answers[k]).join(' / ')}
-                                </div>
-                              )}
+                              {ex.question_count > 0 && s.answers && Object.keys(s.answers).length > 0 && (() => {
+                                var ak = (ex.answer_key && typeof ex.answer_key === 'object') ? ex.answer_key : {};
+                                var akKeys = Object.keys(ak);
+                                var hasKey = akKeys.length > 0;
+                                var norm = function(v){ return String(v == null ? '' : v).split(',').map(function(x){ return x.trim(); }).filter(Boolean).sort().join(','); };
+                                var correct = 0;
+                                if (hasKey) akKeys.forEach(function(k){ var na = norm(s.answers[k]); if (na && na === norm(ak[k])) correct++; });
+                                return (
+                                  <div style={{ marginTop:'4px', color:'#374151', fontSize:'11px' }}>
+                                    객관식: {Object.keys(s.answers).sort((a,b)=>Number(a)-Number(b)).map(k => {
+                                      var my = s.answers[k];
+                                      if (!hasKey || ak[k] == null) return k + '. ' + my;
+                                      var ok = norm(my) === norm(ak[k]);
+                                      return k + '. ' + my + (ok ? ' (정답)' : ' (오답·정답' + ak[k] + ')');
+                                    }).join(' / ')}
+                                    {hasKey && <span style={{ marginLeft:'8px', fontWeight:'800', color:'#E60012' }}>자동채점: {correct}/{akKeys.length}</span>}
+                                  </div>
+                                );
+                              })()}
                               {(() => {
                                 var ta = s.text_answers && typeof s.text_answers === 'object' ? s.text_answers : null;
                                 var hasMulti = ta && Object.keys(ta).length > 0;
@@ -2263,6 +2305,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                                 }
                                 return null;
                               })()}
+                              {/* AI 약점 분석 (시험 문항 분석이 된 경우만) */}
+                              {ex.analysis && (
+                                <div style={{ marginTop:'8px' }}>
+                                  <button onClick={() => runStudentAnalysis(s.id)} disabled={analyzingStudentId === s.id} style={{ background: analyzingStudentId === s.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === s.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' }}>{analyzingStudentId === s.id ? 'AI 분석 중... (수십 초)' : (s.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석')}</button>
+                                </div>
+                              )}
+                              {s.ai_analysis && renderStudentAnalysis(s.ai_analysis)}
                               {/* 채점 폼 */}
                               {window.GradingForm && React.createElement(window.GradingForm, { exam: ex, submission: s, onSave: async (sid, payload) => {
                                 payload.graded_at = new Date().toISOString();

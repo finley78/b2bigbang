@@ -4561,13 +4561,14 @@ tab==='leveltest' && (function(){
                   var ak = (t.answer_key && typeof t.answer_key === 'object') ? t.answer_key : {};
                   var akKeys = Object.keys(ak);
                   var hasKey = akKeys.length > 0;
+                  var norm = function(v){ return String(v == null ? '' : v).split(',').map(function(x){ return x.trim(); }).filter(Boolean).sort().join(','); };
                   var correct = 0;
-                  if (hasKey) akKeys.forEach(function(k){ if (String(matched.answers[k] || '') === String(ak[k])) correct++; });
+                  if (hasKey) akKeys.forEach(function(k){ var na = norm(matched.answers[k]); if (na && na === norm(ak[k])) correct++; });
                   return React.createElement('div', { style:{ marginTop:'4px', color:'#374151', fontSize:'11px' } },
                     '객관식: ' + Object.keys(matched.answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){
                       var my = matched.answers[k];
                       if (!hasKey || ak[k] == null) return k + '. ' + my;
-                      var ok = String(my) === String(ak[k]);
+                      var ok = norm(my) === norm(ak[k]);
                       return k + '. ' + my + (ok ? ' (정답)' : ' (오답·정답' + ak[k] + ')');
                     }).join(' / '),
                     hasKey && React.createElement('span', { style:{ marginLeft:'8px', fontWeight:'800', color:'#E60012' } }, '자동채점: ' + correct + '/' + akKeys.length)
@@ -5296,15 +5297,16 @@ function GradingForm({ exam, submission, onSave }) {
   const [feedback, setFeedback] = React.useState(submission.feedback || '');
   const [saving, setSaving] = React.useState(false);
 
-  // 객관식 자동 채점 점수
+  // 객관식 자동 채점 점수 (복수 정답 문항 정규화 비교)
   const ak = (exam.answer_key && typeof exam.answer_key === 'object') ? exam.answer_key : {};
   const akKeys = Object.keys(ak);
   const hasKey = akKeys.length > 0;
   const qc = hasKey ? akKeys.length : (exam.question_count || 0);
+  const normA = function(v){ return String(v == null ? '' : v).split(',').map(function(x){ return x.trim(); }).filter(Boolean).sort().join(','); };
   let objAuto = null;
   if (hasKey) {
     let c = 0;
-    akKeys.forEach(function(k){ if (String((submission.answers && submission.answers[k]) || '') === String(ak[k])) c++; });
+    akKeys.forEach(function(k){ var na = normA(submission.answers && submission.answers[k]); if (na && na === normA(ak[k])) c++; });
     objAuto = c;
   }
 

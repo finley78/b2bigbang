@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v59-omr-fullscreen';
+const CACHE_VERSION = 'b2-bigbang-20260511v60-multi-answer';
 const OFFLINE_URLS = [
   './',
   './index.html',
