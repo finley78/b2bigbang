@@ -134,6 +134,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], existing_paths:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
   const [editingExamId, setEditingExamId] = React.useState(null); // null=새 발행, id=기존 시험/숙제 수정
   const [examUploading, setExamUploading] = React.useState(false);
+  const [analyzingExamId, setAnalyzingExamId] = React.useState(null);
+  const [analysisOpenId, setAnalysisOpenId] = React.useState(null);
   const [examSubmissionsByExam, setExamSubmissionsByExam] = React.useState({}); // { exam_id: [submissions] }
 
   // 학원 일정 (강의일정 변경 + 학사일정)
@@ -1390,6 +1392,49 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       setExamUploading(false);
     }
   }
+  async function runExamAnalysis(exam) {
+    var hasFiles = (Array.isArray(exam.image_paths) && exam.image_paths.length > 0) || (Array.isArray(exam.answer_paths) && exam.answer_paths.length > 0);
+    if (!hasFiles) { alert('먼저 시험지 또는 답안지 파일을 업로드한 뒤(시험 수정에서) 분석해 주세요.'); return; }
+    if (exam.analysis && !confirm('이미 분석된 시험입니다. 다시 분석할까요?\n(Claude API 요금이 다시 발생합니다)')) return;
+    setAnalyzingExamId(exam.id);
+    try {
+      var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: exam.id });
+      if (!r.ok || (r.data && r.data.error)) { alert('문항 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); return; }
+      await loadClassExams(selectedClass && selectedClass.id);
+      setAnalysisOpenId(exam.id);
+      var u = (r.data && r.data.usage) || {};
+      alert('문항 분석이 완료되었습니다.' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' 토큰 / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
+    } catch (e) { alert('문항 분석 실패: ' + (e.message || e)); }
+    finally { setAnalyzingExamId(null); }
+  }
+  function renderExamAnalysis(a) {
+    if (!a) return null;
+    var qs = Array.isArray(a.questions) ? a.questions : [];
+    var diffColor = function(d){ return d==='상' ? '#c82014' : (d==='중' ? '#c87000' : '#16a34a'); };
+    return (
+      <div style={{ marginTop:'10px', background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'12px' }}>
+        <div style={{ fontSize:'12px', fontWeight:'800', color:'#111827', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>
+          Claude 문항 분석 — 총 {a.total_questions != null ? a.total_questions : qs.length}문항{a.subject_guess ? ' · ' + a.subject_guess : ''}{a.page_count ? ' · ' + a.page_count + '페이지' : ''}{a.analyzed_at ? ' (' + String(a.analyzed_at).slice(0,16).replace('T',' ') + ')' : ''}
+        </div>
+        {a.summary && <div style={{ fontSize:'12px', color:'#374151', marginBottom:'8px', whiteSpace:'pre-line', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' }}>{a.summary}</div>}
+        <div style={{ display:'flex', flexDirection:'column', gap:'4px', maxHeight:'400px', overflowY:'auto' }}>
+          {qs.map((q, i) => (
+            <div key={i} style={{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'7px 10px', fontSize:'11px', fontFamily:'Manrope, sans-serif' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap', marginBottom:'2px' }}>
+                <span style={{ fontWeight:'800', color:'#111827' }}>{q.number != null ? q.number : (i+1)}번</span>
+                <span style={{ fontSize:'10px', fontWeight:'700', background: q.type==='mc' ? '#dbeafe' : '#fef3c7', color: q.type==='mc' ? '#1d4ed8' : '#92400e', borderRadius:'3px', padding:'1px 5px' }}>{q.type==='mc' ? ('객관식' + (q.choices_count ? (' ' + q.choices_count + '지') : '')) : '서술형'}</span>
+                {q.difficulty && <span style={{ fontSize:'10px', fontWeight:'700', color: diffColor(q.difficulty) }}>난이도 {q.difficulty}</span>}
+                {q.page != null && <span style={{ fontSize:'10px', color:'#9ca3af' }}>{q.page}p</span>}
+                <span style={{ fontWeight:'700', color:'#E60012' }}>정답: {q.answer || '-'}</span>
+              </div>
+              {(q.topic || q.subtopic) && <div style={{ color:'#374151', marginBottom:'1px' }}>{[q.topic, q.subtopic].filter(Boolean).join(' · ')}</div>}
+              {q.intent && <div style={{ color:'#6b7280' }}>{q.intent}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   async function toggleExamStatus(exam) {
     var nextStatus = exam.status === 'open' ? 'closed' : 'open';
     if (!confirm(nextStatus === 'closed' ? '응시를 마감하시겠습니까?' : '다시 응시 가능 상태로 변경하시겠습니까?')) return;
@@ -2122,10 +2167,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       </div>
                       <div style={{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 }}>
                         <button onClick={() => openExamFormForEdit(ex)} style={smallPrimaryButtonStyle}>수정</button>
+                        <button onClick={() => runExamAnalysis(ex)} disabled={analyzingExamId===ex.id} style={{ background: analyzingExamId===ex.id ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor: analyzingExamId===ex.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' }}>{analyzingExamId===ex.id ? '분석 중...' : (ex.analysis ? '재분석' : '문항 분석')}</button>
+                        {ex.analysis && <button onClick={() => setAnalysisOpenId(analysisOpenId===ex.id ? null : ex.id)} style={{ background:'#fff', color:'#0f766e', border:'1px solid #0f766e', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>{analysisOpenId===ex.id ? '분석 닫기' : '분석 보기'}</button>}
                         <button onClick={() => toggleExamStatus(ex)} style={smallLightButtonStyle}>{ex.status==='open' ? '마감' : '재오픈'}</button>
                         <button onClick={() => deleteExam(ex)} style={smallDangerButtonStyle}>삭제</button>
                       </div>
                     </div>
+                    {analysisOpenId===ex.id && ex.analysis && renderExamAnalysis(ex.analysis)}
                     {subs.length > 0 && (
                       <details style={{ marginTop:'10px' }}>
                         <summary style={{ cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' }}>제출자 보기 ({subs.length}명)</summary>

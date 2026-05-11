@@ -177,6 +177,8 @@ const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); 
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
 const [adminLtFormOpen, setAdminLtFormOpen] = React.useState(false);
+const [analyzingExamId, setAnalyzingExamId] = React.useState(null);
+const [analysisOpenId, setAnalysisOpenId] = React.useState(null);
 
 // ── 모바일 뒤로가기: 관리자 탭/모달 단계별 복귀 (PWA 종료 방지) ──
 React.useEffect(function(){
@@ -648,6 +650,49 @@ async function adminSaveGrading(submissionId, payload) {
     alert('채점이 저장되었습니다.');
     await loadAdminLevelTests();
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+}
+
+async function runExamAnalysis(t) {
+  var hasFiles = (Array.isArray(t.image_paths) && t.image_paths.length > 0) || (Array.isArray(t.answer_paths) && t.answer_paths.length > 0);
+  if (!hasFiles) { alert('먼저 시험지 또는 답안지 파일을 업로드한 뒤(시험 수정에서) 분석해 주세요.'); return; }
+  if (t.analysis && !confirm('이미 분석된 시험입니다. 다시 분석할까요?\n(Claude API 요금이 다시 발생합니다)')) return;
+  setAnalyzingExamId(t.id);
+  try {
+    var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: t.id });
+    if (!r.ok || (r.data && r.data.error)) { alert('문항 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); return; }
+    await loadAdminLevelTests();
+    setAnalysisOpenId(t.id);
+    var u = (r.data && r.data.usage) || {};
+    alert('문항 분석이 완료되었습니다.' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' 토큰 / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
+  } catch (e) { alert('문항 분석 실패: ' + (e.message || e)); }
+  finally { setAnalyzingExamId(null); }
+}
+
+function renderExamAnalysis(a) {
+  if (!a) return null;
+  var qs = Array.isArray(a.questions) ? a.questions : [];
+  function diffColor(d){ return d==='상' ? '#c82014' : (d==='중' ? '#c87000' : '#16a34a'); }
+  return React.createElement('div', { style:{ marginTop:'10px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'12px' } },
+    React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#111827', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } },
+      'Claude 문항 분석 — 총 ' + (a.total_questions != null ? a.total_questions : qs.length) + '문항' + (a.subject_guess ? ' · ' + a.subject_guess : '') + (a.page_count ? ' · ' + a.page_count + '페이지' : '') + (a.analyzed_at ? ' (' + String(a.analyzed_at).slice(0,16).replace('T',' ') + ')' : '')
+    ),
+    a.summary && React.createElement('div', { style:{ fontSize:'12px', color:'#374151', marginBottom:'8px', whiteSpace:'pre-line', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } }, a.summary),
+    React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px', maxHeight:'400px', overflowY:'auto' } },
+      qs.map(function(q, i){
+        return React.createElement('div', { key:i, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'7px 10px', fontSize:'11px', fontFamily:'Manrope, sans-serif' } },
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap', marginBottom:'2px' } },
+            React.createElement('span', { style:{ fontWeight:'800', color:'#111827' } }, (q.number != null ? q.number : (i+1)) + '번'),
+            React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background: q.type==='mc' ? '#dbeafe' : '#fef3c7', color: q.type==='mc' ? '#1d4ed8' : '#92400e', borderRadius:'3px', padding:'1px 5px' } }, q.type==='mc' ? ('객관식' + (q.choices_count ? (' ' + q.choices_count + '지') : '')) : '서술형'),
+            q.difficulty && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', color: diffColor(q.difficulty) } }, '난이도 ' + q.difficulty),
+            (q.page != null) && React.createElement('span', { style:{ fontSize:'10px', color:'#9ca3af' } }, q.page + 'p'),
+            React.createElement('span', { style:{ fontWeight:'700', color:'#E60012' } }, '정답: ' + (q.answer || '-'))
+          ),
+          (q.topic || q.subtopic) && React.createElement('div', { style:{ color:'#374151', marginBottom:'1px' } }, [q.topic, q.subtopic].filter(Boolean).join(' · ')),
+          q.intent && React.createElement('div', { style:{ color:'#6b7280' } }, q.intent)
+        );
+      })
+    )
+  );
 }
 
 async function adminDeleteLevelTest(t) {
@@ -4395,10 +4440,13 @@ tab==='leveltest' && (function(){
           ),
           React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 } },
             React.createElement('button', { onClick:function(){ adminOpenLtEditForm(t); }, style:{ background:'#1d4ed8', color:'#fff', border:'1px solid #1d4ed8', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '수정'),
+            React.createElement('button', { onClick:function(){ runExamAnalysis(t); }, disabled: analyzingExamId===t.id, style:{ background: analyzingExamId===t.id ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor: analyzingExamId===t.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' } }, analyzingExamId===t.id ? '분석 중...' : (t.analysis ? '재분석' : '문항 분석')),
+            t.analysis && React.createElement('button', { onClick:function(){ setAnalysisOpenId(analysisOpenId===t.id ? null : t.id); }, style:{ background:'#fff', color:'#0f766e', border:'1px solid #0f766e', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, analysisOpenId===t.id ? '분석 닫기' : '분석 보기'),
             React.createElement('button', { onClick:function(){ adminToggleLtStatus(t); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, t.status==='open' ? '마감' : '재오픈'),
             React.createElement('button', { onClick:function(){ adminDeleteLevelTest(t); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
           )
         ),
+        analysisOpenId===t.id && t.analysis && renderExamAnalysis(t.analysis),
         (reqs.length > 0 || subs.length > 0) && React.createElement('details', { style:{ marginTop:'10px' } },
           React.createElement('summary', { style:{ cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, '신청자 / 응시자 보기'),
           React.createElement('div', { style:{ marginTop:'8px', display:'flex', flexDirection:'column', gap:'6px' } },

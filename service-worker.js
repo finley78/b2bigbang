@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v43-pdf-answer';
+const CACHE_VERSION = 'b2-bigbang-20260511v44-analyze-exam';
 const OFFLINE_URLS = [
   './',
   './index.html',
