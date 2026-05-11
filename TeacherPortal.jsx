@@ -1289,7 +1289,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var k = presetKind === 'homework' ? 'homework' : 'class';
     var subs = (teacherInfo && Array.isArray(teacherInfo.subjects)) ? teacherInfo.subjects.filter(Boolean) : [];
     setEditingExamId(null);
-    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], answer_files:[], answer_existing_paths:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'', precise:false });
+    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], answer_files:[], answer_existing_paths:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'', precise:false, hide_paper:false });
     setExamFormOpen(true);
   }
   function openExamFormForEdit(exam) {
@@ -1314,6 +1314,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       selected_questions_text: Array.isArray(exam.selected_questions) ? exam.selected_questions.join(',') : '',
       analysis: exam.analysis || null,
       precise: exam.analyze_model === 'opus',
+      hide_paper: !!exam.hide_paper_for_students,
     });
     setExamFormOpen(true);
   }
@@ -1403,6 +1404,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         analyze_page_range: (d.analyze_page_range || '').trim() || null,
         selected_questions: window.B2Utils.parseNumberRange(d.selected_questions_text),
         analyze_model: d.precise ? 'opus' : 'sonnet',
+        hide_paper_for_students: !!d.hide_paper,
         question_count: qc,
         choices_per_question: cpq,
         text_question_count: tqc,
@@ -2369,6 +2371,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     고3 전용
                   </label>
                 </div>
+                <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginBottom:'14px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'#374151', fontWeight:'700' }}>
+                  <input type="checkbox" checked={!!examDraft.hide_paper} onChange={e => setExamDraft({ ...examDraft, hide_paper: e.target.checked })} style={{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#E60012' }} />
+                  <span>종이 시험지로 진행 — 학생 화면엔 OMR 답안만 표시 (시험지는 종이로 나눠줌)</span>
+                </label>
                 <button onClick={() => submitExam(true)} disabled={examUploading || !!analyzingExamId} style={{ width:'100%', background: (examUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:(examUploading||analyzingExamId)?'not-allowed':'pointer', marginBottom:'16px', fontFamily:'Manrope, sans-serif' }}>{analyzingExamId ? '문항 분석 중... (1~2분 소요)' : (examUploading ? '저장 중...' : '저장 및 문항 분석')}</button>
                 {examDraft.analysis && renderExamAnalysis(examDraft.analysis)}
 

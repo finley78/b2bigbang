@@ -2141,8 +2141,14 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           activeExam.description && React.createElement('div', { style:{ fontSize:'13px', color:'#374151', marginTop:'8px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' } }, activeExam.description)
         ),
 
+        /* 종이 시험지 안내 (hide_paper_for_students 일 때) */
+        activeExam.hide_paper_for_students && React.createElement('div', { style:{ background:'#fef3c7', border:'1px solid #F8B500', borderRadius:'12px', padding:'14px 16px', marginBottom:'16px', fontFamily:'Manrope, sans-serif' } },
+          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#92400e', marginBottom:'4px' } }, '종이 시험지로 진행하는 시험입니다'),
+          React.createElement('div', { style:{ fontSize:'12px', color:'#92400e', lineHeight:'1.6' } }, '나눠 받은 종이 시험지를 보고 문제를 풀어주세요. 아래 OMR 답안란에 답을 표시하면 됩니다.')
+        ),
+
         /* 시험지 이미지 뷰어 */
-        imgs.length > 0 && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', marginBottom:'16px' } },
+        imgs.length > 0 && !activeExam.hide_paper_for_students && React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'16px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', marginBottom:'16px' } },
           React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
             React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, '시험지 (' + (examImgIdx+1) + '/' + imgs.length + ')'),
             imgs.length > 1 && React.createElement('div', { style:{ display:'flex', gap:'6px' } },

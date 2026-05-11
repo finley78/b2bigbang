@@ -517,7 +517,7 @@ async function loadAdminLevelTests() {
   }
 }
 function adminOpenLtForm() {
-  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'', precise:false });
+  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'', precise:false, hide_paper:false });
   setAdminLtFormOpen(true);
 }
 function adminOpenLtEditForm(t) {
@@ -546,6 +546,7 @@ function adminOpenLtEditForm(t) {
     selected_questions_text: Array.isArray(t.selected_questions) ? t.selected_questions.join(',') : '',
     analysis: t.analysis || null,
     precise: t.analyze_model === 'opus',
+    hide_paper: !!t.hide_paper_for_students,
   });
   setAdminLtFormOpen(true);
 }
@@ -647,6 +648,7 @@ async function adminSubmitLevelTest(thenAnalyze) {
       analyze_page_range: (d.analyze_page_range || '').trim() || null,
       selected_questions: window.B2Utils.parseNumberRange(d.selected_questions_text),
       analyze_model: d.precise ? 'opus' : 'sonnet',
+      hide_paper_for_students: !!d.hide_paper,
       question_count: qc,
       choices_per_question: cpq,
       text_question_count: tqc,
@@ -4686,6 +4688,10 @@ tab==='leveltest' && (function(){
           React.createElement('input', { type:'checkbox', checked:!!adminLtDraft.precise, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { precise:e.target.checked })); }, style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' } }),
           '고3 전용'
         )
+      ),
+      React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginBottom:'14px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'#374151', fontWeight:'700' } },
+        React.createElement('input', { type:'checkbox', checked:!!adminLtDraft.hide_paper, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { hide_paper:e.target.checked })); }, style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#E60012' } }),
+        React.createElement('span', null, '종이 시험지로 진행 — 학생 화면엔 OMR 답안만 표시 (시험지는 종이로 나눠줌)')
       ),
       // 저장 및 문항 분석 버튼 — 파일·범위 선택 바로 아래
       React.createElement('button', { onClick:function(){ adminSubmitLevelTest(true); }, disabled: adminLtUploading || !!analyzingExamId, style:{ width:'100%', background: (adminLtUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:(adminLtUploading||analyzingExamId)?'not-allowed':'pointer', marginBottom:'16px', fontFamily:'Manrope, sans-serif' } }, analyzingExamId ? '문항 분석 중... (1~2분 소요)' : (adminLtUploading ? '저장 중...' : '저장 및 문항 분석')),
