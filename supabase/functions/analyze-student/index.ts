@@ -1,5 +1,5 @@
 // analyze-student — 학생 한 명의 시험 제출(exam_submissions)을 채점·분석. 객관식은 서버에서 정확 채점, 서술형은 Claude가 채점.
-// exams.analysis(analyze-exam 결과)가 선행 필요. 모델은 항상 Sonnet(env ANALYZE_STUDENT_MODEL).
+// exams.analysis(analyze-exam 결과)가 선행 필요. 모델: exams.analyze_student_model==='opus'면 Opus, 아니면 Sonnet(발행 폼의 "학생 분석도 정밀하게" 체크박스). env: ANALYZE_STUDENT_MODEL / ANALYZE_STUDENT_MODEL_OPUS.
 // 배포: Supabase Studio / MCP. 이 파일은 버전관리용 사본 — 실제 배포본과 어긋나면 deployed 쪽이 진실.
 // 입력: { submission_id }. 출력: exam_submissions.ai_analysis = { score,total,percentage, mc_*, text_*, wrong_questions, wrong_details:[{number,topic,subtopic,student_answer,correct_answer,role,why,correct_why,intent}], diagnosis:{pattern:'trap'|'concept'|'careless'|'mixed',label,text,trap_count,concept_count,careless_count}, by_topic, weak_topics, strengths, mistake_pattern, summary, recommendation, text_feedback, text_results, analyzed_at, model } (+ text_scores)
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -8,7 +8,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const MODEL = Deno.env.get("ANALYZE_STUDENT_MODEL") || "claude-sonnet-4-6";
+const SONNET_MODEL = Deno.env.get("ANALYZE_STUDENT_MODEL") || "claude-sonnet-4-6";
+const OPUS_MODEL = Deno.env.get("ANALYZE_STUDENT_MODEL_OPUS") || "claude-opus-4-7";
 
 const cors: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -75,6 +76,7 @@ Deno.serve(async (req: Request) => {
     if (sErr || !sub) return json({ error: "제출 기록을 찾을 수 없습니다." }, 404);
     const { data: exam, error: eErr } = await sb.from("exams").select("*").eq("id", sub.exam_id).single();
     if (eErr || !exam) return json({ error: "시험을 찾을 수 없습니다." }, 404);
+    const MODEL = (exam.analyze_student_model === "opus") ? OPUS_MODEL : SONNET_MODEL;
     const analysis = exam.analysis;
     if (!analysis || !Array.isArray(analysis.questions) || analysis.questions.length === 0) {
       return json({ error: "이 시험은 아직 문항 분석이 안 되어 있습니다. 먼저 '저장 및 문항 분석'을 실행해 주세요." }, 400);
