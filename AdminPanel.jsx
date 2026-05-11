@@ -4514,7 +4514,7 @@ tab==='leveltest' && (function(){
       adminLtDraft.files && adminLtDraft.files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' } }, adminLtDraft.files.length + '장 선택됨'),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '답안지·해설 이미지 (선택 — 자동 문항 분석 정확도 향상)' + (adminLtDraft.id ? ' — 수정 시: 새 파일 선택하면 기존 답안 교체, 비워두면 기존 유지' : '')),
       adminLtDraft.id && adminLtDraft.answer_existing_paths && adminLtDraft.answer_existing_paths.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#1d4ed8', fontWeight:'700', marginBottom:'4px' } }, '기존 답안지 ' + adminLtDraft.answer_existing_paths.length + '장 등록됨'),
-      React.createElement('input', { type:'file', accept:'image/*', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { answer_files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
+      React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { answer_files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
       adminLtDraft.answer_files && adminLtDraft.answer_files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' } }, adminLtDraft.answer_files.length + '장 선택됨'),
       /* 일반 시험: 기존 입력 그대로 */
       adminLtDraft.kind !== 'homework' && React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'10px' } },

@@ -2225,7 +2225,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 )}
 
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>답안지·해설 이미지 (선택 — 자동 문항 분석 정확도 향상)</label>
-                <input type="file" accept="image/*" multiple onChange={e => setExamDraft({ ...examDraft, answer_files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setExamDraft({ ...examDraft, answer_files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
                 {editingExamId && (examDraft.answer_existing_paths || []).length > 0 && (!examDraft.answer_files || examDraft.answer_files.length === 0) && (
                   <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>기존 답안지 {(examDraft.answer_existing_paths || []).length}장 유지 — 새로 올리면 교체됩니다.</div>
                 )}
