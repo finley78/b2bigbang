@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v53-archive-filter';
+const CACHE_VERSION = 'b2-bigbang-20260511v54-g3-label';
 const OFFLINE_URLS = [
   './',
   './index.html',

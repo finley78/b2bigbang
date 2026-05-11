@@ -4655,7 +4655,7 @@ tab==='leveltest' && (function(){
         React.createElement('div', { style:{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' } }, '페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (시험지가 PDF·여러 장일 때만 적용). 쓰려는 문항이 든 페이지를 포함하세요. 답안지·해설은 항상 전체를 보냅니다.'),
         React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', color:'#0f766e', fontWeight:'700' } },
           React.createElement('input', { type:'checkbox', checked:!!adminLtDraft.precise, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { precise:e.target.checked })); }, style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' } }),
-          '고3 전용 (정밀 분석 — 비용 약 5배, 어려운 모의고사용)'
+          '고3 전용'
         )
       ),
       // 저장 및 문항 분석 버튼 — 파일·범위 선택 바로 아래
