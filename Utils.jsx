@@ -268,13 +268,14 @@
         + '</tr>';
     }).join('');
     function chips(arr, bg, fg) { return arr.map(function (x) { return '<span style="display:inline-block;background:' + bg + ';color:' + fg + ';border-radius:14px;padding:3px 10px;font-size:12px;font-weight:700;margin:2px 4px 2px 0;">' + _esc(x) + '</span>'; }).join(''); }
-    function _roleCol(r) { var x = String(r || '').split(',')[0].trim(); if (x === '정답') return '#15803d'; if (x === '매력적인 함정' || x === '지엽적' || x === '포괄적') return '#c87000'; if (x === '본문 무관' || x === '반대 내용') return '#c82014'; return '#6b7280'; }
+    function _roleCol(r) { var x = String(r || '').split(',')[0].trim(); if (x === '정답') return '#15803d'; if (x === '매력적인 오답' || x === '부분만 맞음' || x === '범위·정도 오류' || x === '매력적인 함정' || x === '지엽적' || x === '포괄적') return '#c87000'; if (x === '계산·적용 실수') return '#7c3aed'; if (x === '흔한 오개념' || x === '반대·모순' || x === '무관·엉뚱' || x === '본문 무관' || x === '반대 내용') return '#c82014'; return '#6b7280'; }
     var dx = a && a.diagnosis;
     var dxBox = '';
     if (dx) {
-      var dxBg = dx.pattern === 'trap' ? '#fff7ed' : (dx.pattern === 'comprehension' ? '#fef2f2' : '#f3f4f6');
-      var dxBd = dx.pattern === 'trap' ? '#fed7aa' : (dx.pattern === 'comprehension' ? '#fecaca' : '#e5e7eb');
-      var dxFg = dx.pattern === 'trap' ? '#9a3412' : (dx.pattern === 'comprehension' ? '#991b1b' : '#374151');
+      var _dxC = (dx.pattern === 'concept' || dx.pattern === 'comprehension');
+      var dxBg = dx.pattern === 'trap' ? '#fff7ed' : (_dxC ? '#fef2f2' : (dx.pattern === 'careless' ? '#f5f3ff' : '#f3f4f6'));
+      var dxBd = dx.pattern === 'trap' ? '#fed7aa' : (_dxC ? '#fecaca' : (dx.pattern === 'careless' ? '#ddd6fe' : '#e5e7eb'));
+      var dxFg = dx.pattern === 'trap' ? '#9a3412' : (_dxC ? '#991b1b' : (dx.pattern === 'careless' ? '#6d28d9' : '#374151'));
       dxBox = '<div style="background:' + dxBg + ';border:1px solid ' + dxBd + ';border-radius:10px;padding:12px 14px;margin-bottom:20px;"><div style="font-size:13px;font-weight:800;color:' + dxFg + ';margin-bottom:4px;">학습 유형 진단 — ' + _esc(dx.label || '') + '</div><div style="font-size:13px;color:' + dxFg + ';line-height:1.6;">' + _esc(dx.text || '') + '</div></div>';
     }
     var wd = (a && Array.isArray(a.wrong_details)) ? a.wrong_details : [];

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v64-distractor-feedback';
+const CACHE_VERSION = 'b2-bigbang-20260512v65-allsubject-analysis';
 const OFFLINE_URLS = [
   './',
   './index.html',

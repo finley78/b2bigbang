@@ -1,7 +1,7 @@
 // analyze-student — 학생 한 명의 시험 제출(exam_submissions)을 채점·분석. 객관식은 서버에서 정확 채점, 서술형은 Claude가 채점.
 // exams.analysis(analyze-exam 결과)가 선행 필요. 모델은 항상 Sonnet(env ANALYZE_STUDENT_MODEL).
 // 배포: Supabase Studio / MCP. 이 파일은 버전관리용 사본 — 실제 배포본과 어긋나면 deployed 쪽이 진실.
-// 입력: { submission_id }. 출력: exam_submissions.ai_analysis = { score,total,percentage, mc_*, text_*, wrong_questions, wrong_details:[{number,topic,subtopic,student_answer,correct_answer,role,why,correct_why,intent}], diagnosis:{pattern:'trap'|'comprehension'|'mixed',label,text,trap_count,comp_count}, by_topic, weak_topics, strengths, mistake_pattern, summary, recommendation, text_feedback, text_results, analyzed_at, model } (+ text_scores)
+// 입력: { submission_id }. 출력: exam_submissions.ai_analysis = { score,total,percentage, mc_*, text_*, wrong_questions, wrong_details:[{number,topic,subtopic,student_answer,correct_answer,role,why,correct_why,intent}], diagnosis:{pattern:'trap'|'concept'|'careless'|'mixed',label,text,trap_count,concept_count,careless_count}, by_topic, weak_topics, strengths, mistake_pattern, summary, recommendation, text_feedback, text_results, analyzed_at, model } (+ text_scores)
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -22,8 +22,16 @@ function normAns(v: unknown): string {
   return String(v == null ? "" : v).split(",").map((x) => x.trim()).filter(Boolean).sort().join(",");
 }
 
-const TRAP_ROLES = ["매력적인 함정", "지엽적", "포괄적"];
-const COMP_ROLES = ["본문 무관", "반대 내용", "기타 오답"];
+// choice role(전 과목 공용) → 학생 진단 분류
+const TRAP_ROLES = ["매력적인 오답", "부분만 맞음", "범위·정도 오류"];        // 함정형 — 핵심에 근접
+const CONCEPT_ROLES = ["흔한 오개념", "반대·모순", "무관·엉뚱", "기타 오답"];  // 개념부족형
+const CARELESS_ROLES = ["계산·적용 실수"];                                    // 실수형
+const DIAG_TEXT: Record<string, { label: string; text: string }> = {
+  trap: { label: "함정형 — 핵심에 근접", text: "틀린 문항 대부분이 매력적인 오답에 걸린 것입니다. 개념·내용의 큰 줄기는 잡았으나 마지막 변별에서 실점하고 있습니다. 오답 선지를 정답과 비교하며 '왜 이건 안 되는가'를 따지는 훈련이 효과적입니다." },
+  concept: { label: "개념부족형 — 기본기 보강 필요", text: "틀린 문항 대부분이 개념·내용을 잘못 알고 있거나 문제와 무관한 선지를 고른 것입니다. 변별 훈련보다 해당 단원·개념의 기본기를 다지는 게 먼저입니다." },
+  careless: { label: "실수형 — 개념은 알지만 실행 실수", text: "틀린 문항 대부분이 계산·부호·단위·조건 적용 등 실행 단계의 실수입니다. 개념 자체는 잡혀 있으니, 풀이 과정을 또박또박 쓰고 검산하는 습관이 핵심입니다." },
+  mixed: { label: "혼합형", text: "함정에 걸린 문항, 개념이 부족한 문항, 실수한 문항이 골고루 섞여 있습니다. 원인이 문항마다 다르니 아래 문항별 해설을 참고하세요." },
+};
 
 const STUDENT_TOOL = {
   name: "report_student_analysis",
@@ -45,9 +53,9 @@ const STUDENT_TOOL = {
       },
       weak_topics: { type: "array", description: "약한 단원/개념. 한국어.", items: { type: "string" } },
       strengths: { type: "array", description: "잘한 단원/개념. 한국어.", items: { type: "string" } },
-      mistake_pattern: { type: "string", description: "실수 패턴. 오답 선지 분석을 반영해 구체적으로. 한국어 1~3문장. 없으면 빈 문자열." },
-      summary: { type: "string", description: "종합 평 (선생님 톤). 오답 선지 분석과 자동 진단을 반영해, 이 학생이 함정에 주로 걸리는지 기초가 부족한지 등을 구체적으로. 한국어 2~4문장." },
-      recommendation: { type: "string", description: "추천 학습 방향. 오답 유형에 맞춰 (함정 변별 훈련 vs 기본 독해·개념 다지기 등). 한국어 2~3문장." },
+      mistake_pattern: { type: "string", description: "실수 패턴. 오답 선지 분석(매력적인 오답·흔한 오개념·계산 실수 등)을 반영해 구체적으로. 한국어 1~3문장. 없으면 빈 문자열." },
+      summary: { type: "string", description: "종합 평 (선생님 톤). 오답 선지 분석과 자동 진단을 반영해, 이 학생이 함정에 주로 걸리는지·개념 자체가 부족한지·실행 실수가 잦은지 등을 구체적으로. 한국어 2~4문장." },
+      recommendation: { type: "string", description: "추천 학습 방향. 오답 유형에 맞춰 (함정 변별 훈련 / 개념·기본기 다지기 / 풀이·검산 습관 등). 한국어 2~3문장." },
       text_feedback: { type: "string", description: "서술형 답안 종합 평가 (문항별 간략히). 서술형이 없으면 빈 문자열. 한국어." },
     },
     required: ["text_results", "weak_topics", "strengths", "mistake_pattern", "summary", "recommendation", "text_feedback"],
@@ -109,7 +117,7 @@ Deno.serve(async (req: Request) => {
 
     // === 오답 선지 분석 (exam.analysis.questions[].choice_explanations 기반) ===
     const wrongDetails: any[] = [];
-    let trapCnt = 0, compCnt = 0;
+    let trapCnt = 0, conceptCnt = 0, carelessCnt = 0;
     qs.forEach((q) => {
       if (!q || q.type !== "mc") return;
       const num = (q.number != null && !isNaN(Number(q.number))) ? Number(q.number) : null;
@@ -125,8 +133,10 @@ Deno.serve(async (req: Request) => {
         role = picked.map((c) => c.role).filter(Boolean).join(", ");
         why = picked.map((c) => (c.why || "")).filter(Boolean).join(" ");
         picked.forEach((c) => {
-          if (TRAP_ROLES.indexOf(String(c.role)) >= 0) trapCnt++;
-          else if (COMP_ROLES.indexOf(String(c.role)) >= 0) compCnt++;
+          const r = String(c.role);
+          if (TRAP_ROLES.indexOf(r) >= 0) trapCnt++;
+          else if (CARELESS_ROLES.indexOf(r) >= 0) carelessCnt++;
+          else if (CONCEPT_ROLES.indexOf(r) >= 0) conceptCnt++;
         });
       }
       // 정답 선지의 해설도 함께 (매칭 안 되면 q.intent 로 대체)
@@ -144,12 +154,13 @@ Deno.serve(async (req: Request) => {
     });
     wrongDetails.sort((a, b) => (Number(a.number) || 0) - (Number(b.number) || 0));
     let diagnosis: any = null;
-    const clsTotal = trapCnt + compCnt;
+    const clsTotal = trapCnt + conceptCnt + carelessCnt;
     if (clsTotal > 0) {
-      if (trapCnt >= compCnt * 1.5) diagnosis = { pattern: "trap", label: "함정형 — 핵심에 근접", text: "틀린 문항 대부분이 매력적인 오답(함정)에 걸린 것입니다. 지문·개념의 큰 줄기는 잡았으나 함정 선지를 변별하는 데서 실점하고 있습니다. 오답 선지를 정답과 비교하며 '왜 이건 안 되는가'를 따지는 훈련이 효과적입니다." };
-      else if (compCnt >= trapCnt * 1.5) diagnosis = { pattern: "comprehension", label: "이해부족형 — 기본기 보강 필요", text: "틀린 문항 대부분이 본문과 무관하거나 반대되는 선지를 고른 것입니다. 지문·개념 자체에 대한 이해가 충분하지 않습니다. 함정 변별보다 기본 독해·개념 다지기가 먼저입니다." };
-      else diagnosis = { pattern: "mixed", label: "혼합형", text: "매력적인 함정에 걸린 문항과 지문 이해가 부족해 보이는 문항이 섞여 있습니다. 문항별로 원인이 다르니 아래 문항별 해설을 참고하세요." };
-      diagnosis.trap_count = trapCnt; diagnosis.comp_count = compCnt;
+      const buckets: Array<[string, number]> = [["trap", trapCnt], ["concept", conceptCnt], ["careless", carelessCnt]];
+      buckets.sort((a, b) => b[1] - a[1]);
+      const topKey = (buckets[0][1] >= clsTotal * 0.6) ? buckets[0][0] : "mixed";
+      const dt = DIAG_TEXT[topKey] || DIAG_TEXT.mixed;
+      diagnosis = { pattern: topKey, label: dt.label, text: dt.text, trap_count: trapCnt, concept_count: conceptCnt, careless_count: carelessCnt };
     }
 
     // === 서술형: Claude에게 채점 요청 ===
@@ -171,12 +182,12 @@ Deno.serve(async (req: Request) => {
       ``,
       wrongDetails.length ? `=== 오답 선지 분석 (이 학생이 틀린 객관식 — 시험 문항 분석 기반) ===` : `(오답 선지 세부 정보 없음)`,
       ...wrongDetailLines,
-      diagnosis ? `→ 자동 진단: ${diagnosis.label} (함정형 오답 ${trapCnt}건 / 이해부족형 오답 ${compCnt}건). ${diagnosis.text}` : ``,
+      diagnosis ? `→ 자동 진단: ${diagnosis.label} (함정형 ${trapCnt} / 개념부족형 ${conceptCnt} / 실수형 ${carelessCnt} 건). ${diagnosis.text}` : ``,
       ``,
       textQs.length ? `=== 서술형 문항 (네가 채점해야 한다) ===` : `=== 서술형 문항 없음 ===`,
       ...textLines,
       ``,
-      `위는 한 학생의 시험 채점 결과이다. 객관식은 이미 정확히 채점되었으니 다시 계산하지 말라. 서술형 문항은 모범답안과 학생 답안을 비교해 핵심이 맞으면 정답(correct=true), 절반만 맞거나 틀리면 오답(false)로 text_results에 문항별로 판정하라(표현이 달라도 핵심이 먼저이면 정답으로 인정). 그리고 위 '오답 선지 분석'과 자동 진단을 참고해, 이 학생이 매력적인 함정에 주로 걸리는지(핵심에 근접) 아니면 지문·개념 이해 자체가 부족한지를 summary·mistake_pattern·recommendation에 구체적으로 반영하라. 이 전체 결과를 바탕으로 약점(weak_topics)·강점(strengths)·실수패턴(mistake_pattern)·종합평(summary)·추천학습(recommendation)·서술형종합평가(text_feedback)를 작성하라. 모든 텍스트는 한국어. 반드시 report_student_analysis 도구를 호출해서만 답하라.`,
+      `위는 한 학생의 시험 채점 결과이다. 객관식은 이미 정확히 채점되었으니 다시 계산하지 말라. 서술형 문항은 모범답안과 학생 답안을 비교해 핵심이 맞으면 정답(correct=true), 절반만 맞거나 틀리면 오답(false)로 text_results에 문항별로 판정하라(표현이 달라도 핵심이 먼저이면 정답으로 인정). 그리고 위 '오답 선지 분석'과 자동 진단을 참고해, 이 학생이 매력적인 오답·함정에 주로 걸리는지(핵심에 근접)·해당 개념 자체가 부족한지·계산이나 조건 적용 등 실행 실수가 잦은지를 판단해 summary·mistake_pattern·recommendation에 구체적으로 반영하라. 이 전체 결과를 바탕으로 약점(weak_topics)·강점(strengths)·실수패턴(mistake_pattern)·종합평(summary)·추천학습(recommendation)·서술형종합평가(text_feedback)를 작성하라. 모든 텍스트는 한국어. 반드시 report_student_analysis 도구를 호출해서만 답하라.`,
     ].join("\n");
 
     const aResp = await fetch("https://api.anthropic.com/v1/messages", {

@@ -1490,6 +1490,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   function _roleColorTP(r) {
     var x = String(r || '').split(',')[0].trim();
     if (x === '정답') return '#15803d';
+    if (x === '매력적인 오답' || x === '부분만 맞음' || x === '범위·정도 오류') return '#c87000';
+    if (x === '계산·적용 실수') return '#7c3aed';
+    if (x === '흔한 오개념' || x === '반대·모순' || x === '무관·엉뚱') return '#c82014';
+    // 옛 형식 폴백
     if (x === '매력적인 함정' || x === '지엽적' || x === '포괄적') return '#c87000';
     if (x === '본문 무관' || x === '반대 내용') return '#c82014';
     return '#6b7280';
@@ -1497,7 +1501,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   function renderStudentAnalysis(a) {
     if (!a) return null;
     var dx = a.diagnosis;
-    var dxC = dx ? (dx.pattern === 'trap' ? { bg:'#fff7ed', bd:'#fed7aa', fg:'#9a3412' } : dx.pattern === 'comprehension' ? { bg:'#fef2f2', bd:'#fecaca', fg:'#991b1b' } : { bg:'#f3f4f6', bd:'#e5e7eb', fg:'#374151' }) : null;
+    var dxC = !dx ? null : (
+      dx.pattern === 'trap' ? { bg:'#fff7ed', bd:'#fed7aa', fg:'#9a3412' } :
+      (dx.pattern === 'concept' || dx.pattern === 'comprehension') ? { bg:'#fef2f2', bd:'#fecaca', fg:'#991b1b' } :
+      dx.pattern === 'careless' ? { bg:'#f5f3ff', bd:'#ddd6fe', fg:'#6d28d9' } :
+      { bg:'#f3f4f6', bd:'#e5e7eb', fg:'#374151' }
+    );
     var wd = Array.isArray(a.wrong_details) ? a.wrong_details : [];
     return (
       <div style={{ marginTop:'6px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'8px', padding:'10px', fontSize:'11px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' }}>
