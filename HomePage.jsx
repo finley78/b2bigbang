@@ -913,7 +913,6 @@ function LevelTestPage({ user, onLoginClick, setPage }) {
 /* ── 사이트 푸터 (모든 페이지 하단) ─────────── */
 function SiteFooter({ setPage }) {
   const isMobile = useIsMobile();
-  const sb = window.supabase;
   const [f, setF] = React.useState(null);
   React.useEffect(() => {
     (async () => {
@@ -924,18 +923,24 @@ function SiteFooter({ setPage }) {
     })();
   }, []);
   function go(p) { try { (setPage || window.b2Navigate)(p); } catch {} }
-  const linkS = { color:'rgba(255,255,255,0.85)', fontWeight:'700', cursor:'pointer', textDecoration:'none', background:'none', border:'none', padding:0, fontFamily:'inherit', fontSize:'12px' };
-  const sepS = { color:'rgba(255,255,255,0.25)', margin:'0 10px' };
-  const links = React.createElement('div', { style:{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid rgba(255,255,255,0.1)', display:'flex', flexWrap:'wrap', alignItems:'center', gap: isMobile ? '4px 0' : '0' } },
-    React.createElement('button', { onClick: function(){ go('privacy'); }, style:linkS }, '개인정보처리방침'),
-    React.createElement('span', { style:sepS }, '|'),
-    React.createElement('button', { onClick: function(){ go('terms'); }, style:linkS }, '이용약관')
+
+  const brandName = (f && f.company_name && f.company_name.trim()) || 'B2빅뱅학원';
+
+  // 상단 행: 학원명(좌) + 정책 링크(우) — 일반 사이트 푸터 패턴
+  const linkS = { color:'rgba(255,255,255,0.8)', fontWeight:'700', cursor:'pointer', textDecoration:'none', background:'none', border:'none', padding:0, fontFamily:'inherit', fontSize:'13px' };
+  const topRow = React.createElement('div', {
+    style:{ display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent:'space-between', gap: isMobile ? '12px' : '16px', paddingBottom:'16px', borderBottom:'1px solid rgba(255,255,255,0.12)' }
+  },
+    React.createElement('div', { style:{ fontSize: isMobile ? '15px' : '16px', fontWeight:'800', color:'#fff', letterSpacing:'-0.01em' } }, brandName),
+    React.createElement('div', { style:{ display:'flex', alignItems:'center' } },
+      React.createElement('button', { onClick: function(){ go('privacy'); }, style:linkS }, '개인정보처리방침'),
+      React.createElement('span', { style:{ color:'rgba(255,255,255,0.25)', margin:'0 12px' } }, '|'),
+      React.createElement('button', { onClick: function(){ go('terms'); }, style:linkS }, '이용약관')
+    )
   );
-  if (!f) return React.createElement('footer', { style:{ background:'#1A1A1A', padding: isMobile ? '24px 16px' : '32px 40px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif' } },
-    React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } }, links)
-  );
-  const items = [
-    f.company_name && { l:'학원명', v:f.company_name },
+
+  // 회사 정보: 라벨+값 한 묶음씩 가운데점(·)으로 구분, 한 줄에 흐르다가 자연스럽게 줄바꿈
+  const items = !f ? [] : [
     f.ceo && { l:'대표자', v:f.ceo },
     f.biz_no && { l:'사업자등록번호', v:f.biz_no },
     f.address && { l:'주소', v:f.address },
@@ -943,33 +948,26 @@ function SiteFooter({ setPage }) {
     f.email && { l:'이메일', v:f.email },
     f.hours && { l:'운영시간', v:f.hours },
   ].filter(Boolean);
-  // PC: 항목들을 어두운 카드로 묶고 좌측 정렬 flex-wrap (양끝이 멀리 벌어지지 않게)
-  // 모바일/PWA: 1열 stack 그대로 유지
-  var infoBlock = isMobile
-    ? React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr', gap:'8px', marginBottom:'18px' } },
-        items.map(function(it, i){
-          return React.createElement('div', { key:i, style:{ fontSize:'12px', lineHeight:'1.7' } },
-            React.createElement('span', { style:{ color:'rgba(255,255,255,0.4)', marginRight:'8px' } }, it.l),
-            React.createElement('span', { style:{ color:'rgba(255,255,255,0.85)', fontWeight:'600' } }, it.v)
-          );
-        })
-      )
-    : React.createElement('div', {
-        style:{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'18px 22px', marginBottom:'18px', display:'flex', flexWrap:'wrap', columnGap:'28px', rowGap:'8px' }
-      },
-        items.map(function(it, i){
-          return React.createElement('div', { key:i, style:{ fontSize:'12px', lineHeight:'1.6', display:'flex', alignItems:'baseline', gap:'8px' } },
-            React.createElement('span', { style:{ color:'rgba(255,255,255,0.4)', fontWeight:'700' } }, it.l),
-            React.createElement('span', { style:{ color:'rgba(255,255,255,0.92)', fontWeight:'600' } }, it.v)
-          );
-        })
+  const infoRow = items.length > 0 && React.createElement('div', {
+    style:{ marginTop:'14px', display:'flex', flexWrap:'wrap', alignItems:'center', rowGap:'4px', fontSize:'12px', lineHeight:'1.7' }
+  },
+    items.map(function(it, i){
+      return React.createElement('span', { key:i, style:{ display:'inline-flex', alignItems:'baseline' } },
+        i > 0 && React.createElement('span', { style:{ color:'rgba(255,255,255,0.2)', margin:'0 12px' } }, '·'),
+        React.createElement('span', { style:{ color:'rgba(255,255,255,0.4)', marginRight:'6px' } }, it.l),
+        React.createElement('span', { style:{ color:'rgba(255,255,255,0.72)', fontWeight:'600' } }, it.v)
       );
+    })
+  );
 
-  return React.createElement('footer', { style:{ background:'#1A1A1A', padding: isMobile ? '32px 16px' : '48px 40px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif' } },
+  const copyrightText = (f && f.copyright && f.copyright.trim()) || ('© ' + new Date().getFullYear() + ' ' + brandName + '. All rights reserved.');
+  const copyrightRow = React.createElement('div', { style:{ marginTop:'18px', fontSize:'11px', color:'rgba(255,255,255,0.3)' } }, copyrightText);
+
+  return React.createElement('footer', { style:{ background:'#1A1A1A', padding: isMobile ? '30px 16px' : '40px 40px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif' } },
     React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } },
-      infoBlock,
-      links,
-      f.copyright && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.35)', marginTop:'14px' } }, f.copyright)
+      topRow,
+      infoRow,
+      copyrightRow
     )
   );
 }
