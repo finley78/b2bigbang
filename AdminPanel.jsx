@@ -4579,8 +4579,9 @@ tab==='leveltest' && (function(){
                   return React.createElement('div', { key:k, style:{ marginTop:'4px', color:'#374151', fontSize:'11px', whiteSpace:'pre-line' } }, '서술형 ' + k + '. ' + matched.text_answers[k]);
                 }),
                 /* AI 약점 분석 (시험 문항 분석이 된 경우만) */
-                matched && t.analysis && React.createElement('div', { style:{ marginTop:'8px' } },
-                  React.createElement('button', { onClick:function(){ runStudentAnalysis(matched.id, !!matched.ai_analysis); }, disabled: analyzingStudentId === matched.id, style:{ background: analyzingStudentId === matched.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === matched.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' } }, analyzingStudentId === matched.id ? 'AI 분석 중... (수십 초 소요)' : (matched.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석'))
+                matched && t.analysis && React.createElement('div', { style:{ marginTop:'8px', display:'flex', gap:'6px', flexWrap:'wrap' } },
+                  React.createElement('button', { onClick:function(){ runStudentAnalysis(matched.id, !!matched.ai_analysis); }, disabled: analyzingStudentId === matched.id, style:{ background: analyzingStudentId === matched.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === matched.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' } }, analyzingStudentId === matched.id ? 'AI 분석 중... (수십 초 소요)' : (matched.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석')),
+                  matched.ai_analysis && React.createElement('button', { onClick:function(){ window.B2Utils.printStudentReport(matched.ai_analysis, matched.student_name, t.title); }, style:{ background:'#fff', color:'#15803d', border:'1px solid #15803d', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '리포트 인쇄·PDF')
                 ),
                 matched && matched.ai_analysis && renderStudentAnalysis(matched.ai_analysis),
                 /* 채점 폼 */

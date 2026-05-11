@@ -2308,8 +2308,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                               })()}
                               {/* AI 약점 분석 (시험 문항 분석이 된 경우만) */}
                               {ex.analysis && (
-                                <div style={{ marginTop:'8px' }}>
+                                <div style={{ marginTop:'8px', display:'flex', gap:'6px', flexWrap:'wrap' }}>
                                   <button onClick={() => runStudentAnalysis(s.id, !!s.ai_analysis)} disabled={analyzingStudentId === s.id} style={{ background: analyzingStudentId === s.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === s.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' }}>{analyzingStudentId === s.id ? 'AI 분석 중... (수십 초)' : (s.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석')}</button>
+                                  {s.ai_analysis && <button onClick={() => window.B2Utils.printStudentReport(s.ai_analysis, s.student_name, ex.title)} style={{ background:'#fff', color:'#15803d', border:'1px solid #15803d', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>리포트 인쇄·PDF</button>}
                                 </div>
                               )}
                               {s.ai_analysis && renderStudentAnalysis(s.ai_analysis)}

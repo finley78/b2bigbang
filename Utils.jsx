@@ -239,6 +239,66 @@
     return out.length ? Array.from(new Set(out)).sort(function(a,b){ return a-b; }) : null;
   }
 
+  // ── 학생 약점 분석 리포트 HTML (인쇄/PDF용) ─────────────────────────────
+  function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function buildStudentReportHtml(a, studentName, examTitle, opts) {
+    opts = opts || {};
+    var academy = opts.academy || 'B2빅뱅학원';
+    var dateStr = (a && a.analyzed_at) ? String(a.analyzed_at).slice(0, 10) : new Date().toISOString().slice(0, 10);
+    var score = (a && a.score != null) ? a.score : '';
+    var total = (a && a.total != null) ? a.total : '';
+    var pct = (a && a.percentage != null) ? a.percentage : (total ? Math.round((Number(score) / Number(total)) * 100) : '');
+    var pctNum = Number(pct) || 0;
+    var R = 50, CIRC = 2 * Math.PI * R;
+    var dash = (Math.max(0, Math.min(100, pctNum)) / 100) * CIRC;
+    var pctColor = pctNum >= 80 ? '#16a34a' : pctNum >= 60 ? '#c87000' : '#c82014';
+    var byTopic = (a && Array.isArray(a.by_topic)) ? a.by_topic : [];
+    var weak = (a && Array.isArray(a.weak_topics)) ? a.weak_topics : [];
+    var strengths = (a && Array.isArray(a.strengths)) ? a.strengths : [];
+    var wrongs = (a && Array.isArray(a.wrong_questions)) ? a.wrong_questions : [];
+    var topicRows = byTopic.map(function (t) {
+      var c = Number(t.correct) || 0, tt = Number(t.total) || 0;
+      var r = tt ? Math.round((c / tt) * 100) : 0;
+      var col = r >= 80 ? '#16a34a' : (r >= 50 ? '#c87000' : '#c82014');
+      return '<tr>'
+        + '<td style="padding:6px 8px;font-size:13px;color:#374151;border-bottom:1px solid #f0f0f0;">' + _esc(t.topic) + '</td>'
+        + '<td style="padding:6px 8px;font-size:13px;color:#374151;white-space:nowrap;text-align:right;border-bottom:1px solid #f0f0f0;">' + c + ' / ' + tt + '</td>'
+        + '<td style="padding:6px 8px;width:42%;border-bottom:1px solid #f0f0f0;"><div style="background:#e5e7eb;border-radius:4px;height:12px;overflow:hidden;"><div style="background:' + col + ';width:' + r + '%;height:12px;"></div></div></td>'
+        + '<td style="padding:6px 8px;font-size:12px;color:' + col + ';font-weight:700;text-align:right;white-space:nowrap;border-bottom:1px solid #f0f0f0;">' + r + '%</td>'
+        + '</tr>';
+    }).join('');
+    function chips(arr, bg, fg) { return arr.map(function (x) { return '<span style="display:inline-block;background:' + bg + ';color:' + fg + ';border-radius:14px;padding:3px 10px;font-size:12px;font-weight:700;margin:2px 4px 2px 0;">' + _esc(x) + '</span>'; }).join(''); }
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>학습 분석 리포트 - ' + _esc(studentName) + '</title>'
+      + '<style>@page{margin:14mm;}body{font-family:"Manrope","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#1A1A1A;margin:0;padding:28px;}@media print{body{padding:0;}.noprint{display:none;}}.noprint button{font-family:inherit;}</style></head><body>'
+      + '<div class="noprint" style="max-width:760px;margin:0 auto 14px;text-align:right;"><button onclick="window.print()" style="background:#1A1A1A;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;">인쇄 / PDF로 저장</button></div>'
+      + '<div style="max-width:760px;margin:0 auto;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1A1A1A;padding-bottom:12px;margin-bottom:20px;">'
+        + '<div><div style="font-size:12px;color:#6b7280;font-weight:700;letter-spacing:0.1em;">' + _esc(academy) + '</div><div style="font-size:22px;font-weight:800;margin-top:4px;">학습 분석 리포트</div></div>'
+        + '<div style="text-align:right;font-size:13px;color:#374151;"><div style="font-size:15px;"><strong>' + _esc(studentName || '-') + '</strong></div><div>' + _esc(examTitle || '') + '</div><div style="color:#9ca3af;">' + _esc(dateStr) + '</div></div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:28px;margin-bottom:22px;">'
+        + '<svg width="120" height="120" viewBox="0 0 120 120"><circle cx="60" cy="60" r="' + R + '" fill="none" stroke="#e5e7eb" stroke-width="14"/><circle cx="60" cy="60" r="' + R + '" fill="none" stroke="' + pctColor + '" stroke-width="14" stroke-dasharray="' + dash.toFixed(1) + ' ' + CIRC.toFixed(1) + '" transform="rotate(-90 60 60)" stroke-linecap="round"/><text x="60" y="68" text-anchor="middle" font-size="24" font-weight="800" fill="#1A1A1A">' + (pct !== '' ? pct + '%' : '-') + '</text></svg>'
+        + '<div><div style="font-size:13px;color:#6b7280;">객관식 자동 채점</div><div style="font-size:34px;font-weight:800;color:' + pctColor + ';margin-top:2px;">' + (score !== '' ? score : '-') + (total !== '' ? ' / ' + total : '') + '</div>' + (wrongs.length ? '<div style="font-size:12px;color:#6b7280;margin-top:6px;">틀린 문항: ' + wrongs.join(', ') + '번</div>' : '') + '</div>'
+      + '</div>'
+      + (a && a.summary ? '<div style="background:#f8fafc;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:14px;line-height:1.7;color:#374151;white-space:pre-line;">' + _esc(a.summary) + '</div>' : '')
+      + (topicRows ? '<div style="font-size:15px;font-weight:800;margin-bottom:8px;">단원·개념별 성취</div><table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' + topicRows + '</table>' : '')
+      + ((weak.length || strengths.length) ? '<div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;">'
+          + (weak.length ? '<div style="flex:1;min-width:240px;"><div style="font-size:13px;font-weight:800;color:#c82014;margin-bottom:6px;">보완이 필요한 부분</div>' + chips(weak, '#fee2e2', '#991b1b') + '</div>' : '')
+          + (strengths.length ? '<div style="flex:1;min-width:240px;"><div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:6px;">잘하고 있는 부분</div>' + chips(strengths, '#dcfce7', '#166534') + '</div>' : '')
+        + '</div>' : '')
+      + (a && a.mistake_pattern ? '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px 14px;margin-bottom:20px;"><div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:4px;">실수 패턴</div><div style="font-size:13px;color:#92400e;line-height:1.6;white-space:pre-line;">' + _esc(a.mistake_pattern) + '</div></div>' : '')
+      + (a && a.recommendation ? '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:20px;"><div style="font-size:14px;font-weight:800;color:#1e40af;margin-bottom:6px;">추천 학습 방향</div><div style="font-size:14px;color:#1e3a8a;line-height:1.7;white-space:pre-line;">' + _esc(a.recommendation) + '</div></div>' : '')
+      + '<div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px;">본 리포트는 AI가 학생의 답안과 시험 문항 분석을 바탕으로 자동 생성한 참고 자료입니다. · ' + _esc(academy) + '</div>'
+      + '</div></body></html>';
+  }
+  function printStudentReport(a, studentName, examTitle, opts) {
+    if (!a) { alert('분석 결과가 없습니다. 먼저 AI 약점 분석을 실행해 주세요.'); return; }
+    var html = buildStudentReportHtml(a, studentName, examTitle, opts);
+    var w = window.open('', '_blank');
+    if (!w) { alert('팝업이 차단되었습니다. 브라우저에서 팝업을 허용한 뒤 다시 눌러주세요.'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  }
+
   // ── 인증 스토리지 정리 ─────────────────────────────────────────
   // 로그아웃·탈퇴·세션 만료 등에서 동일하게 호출. b2_page는 페이지 상태라 sessionStorage 유지
   // 새 인증 키가 추가되면 여기 한 곳만 갱신하면 됨 (stale 세션 방지)
@@ -326,5 +386,5 @@
     return String(v);
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
 })();
