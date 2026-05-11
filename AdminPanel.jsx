@@ -515,7 +515,7 @@ async function loadAdminLevelTests() {
   }
 }
 function adminOpenLtForm() {
-  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'' });
+  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'', precise:false });
   setAdminLtFormOpen(true);
 }
 function adminOpenLtEditForm(t) {
@@ -543,6 +543,7 @@ function adminOpenLtEditForm(t) {
     analyze_page_range: t.analyze_page_range || '',
     selected_questions_text: Array.isArray(t.selected_questions) ? t.selected_questions.join(',') : '',
     analysis: t.analysis || null,
+    precise: t.analyze_model === 'opus',
   });
   setAdminLtFormOpen(true);
 }
@@ -643,6 +644,7 @@ async function adminSubmitLevelTest(thenAnalyze) {
       answer_paths: answerPaths,
       analyze_page_range: (d.analyze_page_range || '').trim() || null,
       selected_questions: window.B2Utils.parseNumberRange(d.selected_questions_text),
+      analyze_model: d.precise ? 'opus' : 'sonnet',
       question_count: qc,
       choices_per_question: cpq,
       text_question_count: tqc,
@@ -4476,6 +4478,7 @@ tab==='leveltest' && (function(){
             React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
               React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: KIND_COLORS[t.kind||'level']||'#E60012', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, KIND_LABELS[t.kind||'level']||'레벨테스트'),
               React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: t.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, t.status==='open' ? (t.kind==='level' ? '신청 가능' : (t.kind==='homework' ? '제출 가능' : '응시 가능')) : '마감'),
+              t.analysis && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, '분석 완료'),
               t.subject && React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, t.subject),
               (t.school_level || t.target_grade) && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#1d4ed8', fontFamily:'Manrope, sans-serif' } }, '대상: ' + [t.school_level, t.target_grade ? t.target_grade + '학년' : null, t.target_semester ? t.target_semester + '학기' : null].filter(Boolean).join(' ')),
               (t.min_score != null && t.max_score != null) && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#c87000', fontFamily:'Manrope, sans-serif' } }, t.min_score + '~' + t.max_score + '점'),
@@ -4643,7 +4646,11 @@ tab==='leveltest' && (function(){
             React.createElement('input', { type:'text', value: adminLtDraft.selected_questions_text || '', onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { selected_questions_text: e.target.value })); }, placeholder:'비워두면 분석된 전체', style:Object.assign({}, inputS, { width:'100%' }) })
           )
         ),
-        React.createElement('div', { style:{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' } }, '페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (시험지가 PDF·여러 장일 때만 적용). 쓰려는 문항이 든 페이지를 포함하세요. 답안지·해설은 항상 전체를 보냅니다.')
+        React.createElement('div', { style:{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' } }, '페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (시험지가 PDF·여러 장일 때만 적용). 쓰려는 문항이 든 페이지를 포함하세요. 답안지·해설은 항상 전체를 보냅니다.'),
+        React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', color:'#0f766e', fontWeight:'700' } },
+          React.createElement('input', { type:'checkbox', checked:!!adminLtDraft.precise, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { precise:e.target.checked })); }, style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' } }),
+          '고3 전용 (정밀 분석 — 비용 약 5배, 어려운 모의고사용)'
+        )
       ),
       // 저장 및 문항 분석 버튼 — 파일·범위 선택 바로 아래
       React.createElement('button', { onClick:function(){ adminSubmitLevelTest(true); }, disabled: adminLtUploading || !!analyzingExamId, style:{ width:'100%', background: (adminLtUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:(adminLtUploading||analyzingExamId)?'not-allowed':'pointer', marginBottom:'16px', fontFamily:'Manrope, sans-serif' } }, analyzingExamId ? '문항 분석 중... (1~2분 소요)' : (adminLtUploading ? '저장 중...' : '저장 및 문항 분석')),
