@@ -1474,8 +1474,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     } catch (e) { alert('문항 분석 실패: ' + (e.message || e)); }
     finally { setAnalyzingExamId(null); }
   }
-  async function runStudentAnalysis(submissionId) {
+  async function runStudentAnalysis(submissionId, hasExisting) {
     if (!submissionId) return;
+    if (hasExisting && !confirm('이 학생은 이미 AI 약점 분석이 되어 있습니다.\n다시 분석하면 Claude 요금이 다시 발생합니다 (약 50원).\n다시 분석할까요?')) return;
     setAnalyzingStudentId(submissionId);
     try {
       var r = await window.B2Utils.callEdgeFn('analyze-student', { submission_id: submissionId });
@@ -2308,7 +2309,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                               {/* AI 약점 분석 (시험 문항 분석이 된 경우만) */}
                               {ex.analysis && (
                                 <div style={{ marginTop:'8px' }}>
-                                  <button onClick={() => runStudentAnalysis(s.id)} disabled={analyzingStudentId === s.id} style={{ background: analyzingStudentId === s.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === s.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' }}>{analyzingStudentId === s.id ? 'AI 분석 중... (수십 초)' : (s.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석')}</button>
+                                  <button onClick={() => runStudentAnalysis(s.id, !!s.ai_analysis)} disabled={analyzingStudentId === s.id} style={{ background: analyzingStudentId === s.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === s.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' }}>{analyzingStudentId === s.id ? 'AI 분석 중... (수십 초)' : (s.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석')}</button>
                                 </div>
                               )}
                               {s.ai_analysis && renderStudentAnalysis(s.ai_analysis)}

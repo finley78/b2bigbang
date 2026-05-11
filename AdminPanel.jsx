@@ -733,8 +733,9 @@ async function runExamAnalysis(t) {
   finally { setAnalyzingExamId(null); }
 }
 
-async function runStudentAnalysis(submissionId) {
+async function runStudentAnalysis(submissionId, hasExisting) {
   if (!submissionId) return;
+  if (hasExisting && !confirm('이 학생은 이미 AI 약점 분석이 되어 있습니다.\n다시 분석하면 Claude 요금이 다시 발생합니다 (약 50원).\n다시 분석할까요?')) return;
   setAnalyzingStudentId(submissionId);
   try {
     var r = await window.B2Utils.callEdgeFn('analyze-student', { submission_id: submissionId });
@@ -4579,7 +4580,7 @@ tab==='leveltest' && (function(){
                 }),
                 /* AI 약점 분석 (시험 문항 분석이 된 경우만) */
                 matched && t.analysis && React.createElement('div', { style:{ marginTop:'8px' } },
-                  React.createElement('button', { onClick:function(){ runStudentAnalysis(matched.id); }, disabled: analyzingStudentId === matched.id, style:{ background: analyzingStudentId === matched.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === matched.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' } }, analyzingStudentId === matched.id ? 'AI 분석 중... (수십 초 소요)' : (matched.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석'))
+                  React.createElement('button', { onClick:function(){ runStudentAnalysis(matched.id, !!matched.ai_analysis); }, disabled: analyzingStudentId === matched.id, style:{ background: analyzingStudentId === matched.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === matched.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' } }, analyzingStudentId === matched.id ? 'AI 분석 중... (수십 초 소요)' : (matched.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석'))
                 ),
                 matched && matched.ai_analysis && renderStudentAnalysis(matched.ai_analysis),
                 /* 채점 폼 */
