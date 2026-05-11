@@ -164,6 +164,7 @@ const [adminTestKindFilter, setAdminTestKindFilter] = React.useState('all');
 const [adminTestSubjectFilter, setAdminTestSubjectFilter] = React.useState('all');
 const [adminTestLevelFilter, setAdminTestLevelFilter] = React.useState('all');
 const [adminTestSearch, setAdminTestSearch] = React.useState('');
+const [adminTestAnalyzedOnly, setAdminTestAnalyzedOnly] = React.useState(false);
 const [aboutDraft, setAboutDraft] = React.useState(null);
 const [aboutSaving, setAboutSaving] = React.useState(false);
 const [programsDraft, setProgramsDraft] = React.useState(null);
@@ -4405,6 +4406,7 @@ tab==='leveltest' && (function(){
   // 단계적 필터: 종류 → 과목 → 학교급 → 학년 → 검색
   var afterKind = adminTestKindFilter === 'all' ? adminLevelTests : adminLevelTests.filter(function(t){ return (t.kind||'level') === adminTestKindFilter; });
   var visibleTests = afterKind.filter(function(t){
+    if (adminTestAnalyzedOnly && !t.analysis) return false;
     if (adminTestSubjectFilter !== 'all' && (t.subject||'') !== adminTestSubjectFilter) return false;
     if (adminTestLevelFilter !== 'all' && (t.school_level||'') !== adminTestLevelFilter) return false;
     var q = adminTestSearch.trim().toLowerCase();
@@ -4458,6 +4460,10 @@ tab==='leveltest' && (function(){
       placeholder: '시험 제목·내용 검색',
       style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', minWidth:'180px', flex:1 }
     }),
+    React.createElement('button', {
+      onClick: function(){ setAdminTestAnalyzedOnly(function(v){ return !v; }); },
+      style:{ border:'1px solid ' + (adminTestAnalyzedOnly ? '#15803d' : '#d6dbde'), background: adminTestAnalyzedOnly ? '#dcfce7' : '#fff', borderRadius:'8px', padding:'7px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', color: adminTestAnalyzedOnly ? '#15803d' : '#6b7280', fontFamily:'Manrope, sans-serif' }
+    }, '분석 완료만 보기 (자료실)'),
     hasAnySubFilter && React.createElement('button', {
       onClick: function(){ setAdminTestSubjectFilter('all'); setAdminTestLevelFilter('all'); setAdminTestSearch(''); },
       style:{ border:'1px solid #d6dbde', background:'#fff', borderRadius:'8px', padding:'7px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', color:'#6b7280', fontFamily:'Manrope, sans-serif' }

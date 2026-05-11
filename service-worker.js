@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v52-analyzed-badge';
+const CACHE_VERSION = 'b2-bigbang-20260511v53-archive-filter';
 const OFFLINE_URLS = [
   './',
   './index.html',
