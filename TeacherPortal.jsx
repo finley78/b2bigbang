@@ -1267,20 +1267,19 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var { data } = sb.storage.from('attachments').getPublicUrl(path);
     return data?.publicUrl || '';
   }
-  function renderFileList(paths, label) {
+  function renderFileList(paths, label, unitWord) {
     if (!paths || paths.length === 0) return null;
+    var w = unitWord || '페이지';
     return (
-      <div style={{ display:'flex', flexDirection:'column', gap:'4px', marginTop:'6px' }}>
+      <div style={{ display:'flex', flexWrap:'wrap', gap:'6px', marginTop:'6px' }}>
         {paths.map((p, i) => {
           var url = examPublicUrl(p);
-          var name = (String(p).split('/').pop() || String(p));
           var ext = (String(p).split('.').pop() || '').toLowerCase();
           return (
-            <div key={i} style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'11px', fontFamily:'Manrope, sans-serif' }}>
-              <span style={{ fontWeight:'700', color:'#1e3a8a', flexShrink:0 }}>{label} {i+1}{ext ? ' (.' + ext + ')' : ''}</span>
-              <span style={{ color:'#94a3b8', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{name}</span>
-              <a href={url} target="_blank" rel="noopener noreferrer" style={{ color:'#0f766e', fontWeight:'700', textDecoration:'underline', flexShrink:0 }}>열기</a>
-            </div>
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:'5px', fontSize:'11px', fontFamily:'Manrope, sans-serif', background:'#fff', border:'1px solid #bfdbfe', borderRadius:'6px', padding:'4px 9px', color:'#1d4ed8', fontWeight:'700', textDecoration:'none' }}>
+              {label} {i+1}{w}{ext ? ' (.' + ext + ')' : ''}
+              <span style={{ color:'#0f766e', textDecoration:'underline' }}>열기</span>
+            </a>
           );
         })}
       </div>
@@ -1290,7 +1289,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var k = presetKind === 'homework' ? 'homework' : 'class';
     var subs = (teacherInfo && Array.isArray(teacherInfo.subjects)) ? teacherInfo.subjects.filter(Boolean) : [];
     setEditingExamId(null);
-    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], answer_files:[], answer_existing_paths:[], question_count: k==='homework' ? '0' : '10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'' });
+    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], answer_files:[], answer_existing_paths:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'' });
     setExamFormOpen(true);
   }
   function openExamFormForEdit(exam) {
@@ -2324,12 +2323,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                       <span style={{ fontSize:'12px', fontWeight:'700', color:(examDraft.existing_paths||[]).length>0?'#1e3a8a':'#9ca3af' }}>시험지 {(examDraft.existing_paths||[]).length}장{(examDraft.existing_paths||[]).length===0?' (없음)':''}</span>
                       {(examDraft.existing_paths||[]).length>0 && <button onClick={() => removeExamFilesTeacher('exam')} style={{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>시험지 모두 삭제</button>}
                     </div>
-                    {renderFileList(examDraft.existing_paths, '시험지')}
+                    {renderFileList(examDraft.existing_paths, '시험지', '페이지')}
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', marginTop:'12px' }}>
                       <span style={{ fontSize:'12px', fontWeight:'700', color:(examDraft.answer_existing_paths||[]).length>0?'#1e3a8a':'#9ca3af' }}>답안지·해설 {(examDraft.answer_existing_paths||[]).length}개{(examDraft.answer_existing_paths||[]).length===0?' (없음)':''}</span>
                       {(examDraft.answer_existing_paths||[]).length>0 && <button onClick={() => removeExamFilesTeacher('answer')} style={{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>답안지 모두 삭제</button>}
                     </div>
-                    {renderFileList(examDraft.answer_existing_paths, '답안지·해설')}
+                    {renderFileList(examDraft.answer_existing_paths, '답안지·해설', '')}
                   </div>
                 )}
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 이미지{editingExamId ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' (선택 — 여러 장 가능, 페이지 순서대로)'}</label>

@@ -357,17 +357,16 @@ function adminAttachmentPublicUrl(path) {
   var { data } = sb.storage.from('attachments').getPublicUrl(path);
   return data.publicUrl;
 }
-function renderFileList(paths, label) {
+function renderFileList(paths, label, unitWord) {
   if (!paths || paths.length === 0) return null;
-  return React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px', marginTop:'6px' } },
+  var w = unitWord || '페이지';
+  return React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'6px', marginTop:'6px' } },
     paths.map(function(p, i){
       var url = adminAttachmentPublicUrl(p);
-      var name = (String(p).split('/').pop() || String(p));
       var ext = (String(p).split('.').pop() || '').toLowerCase();
-      return React.createElement('div', { key:i, style:{ display:'flex', alignItems:'center', gap:'8px', fontSize:'11px', fontFamily:'Manrope, sans-serif' } },
-        React.createElement('span', { style:{ fontWeight:'700', color:'#1e3a8a', flexShrink:0 } }, label + ' ' + (i+1) + (ext ? ' (.' + ext + ')' : '')),
-        React.createElement('span', { style:{ color:'#94a3b8', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 } }, name),
-        React.createElement('a', { href:url, target:'_blank', rel:'noopener noreferrer', style:{ color:'#0f766e', fontWeight:'700', textDecoration:'underline', flexShrink:0 } }, '열기')
+      return React.createElement('a', { key:i, href:url, target:'_blank', rel:'noopener noreferrer', style:{ display:'inline-flex', alignItems:'center', gap:'5px', fontSize:'11px', fontFamily:'Manrope, sans-serif', background:'#fff', border:'1px solid #bfdbfe', borderRadius:'6px', padding:'4px 9px', color:'#1d4ed8', fontWeight:'700', textDecoration:'none' } },
+        label + ' ' + (i+1) + w + (ext ? ' (.' + ext + ')' : ''),
+        React.createElement('span', { style:{ color:'#0f766e', textDecoration:'underline' } }, '열기')
       );
     })
   );
@@ -516,7 +515,7 @@ async function loadAdminLevelTests() {
   }
 }
 function adminOpenLtForm() {
-  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'' });
+  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'' });
   setAdminLtFormOpen(true);
 }
 function adminOpenLtEditForm(t) {
@@ -4614,12 +4613,12 @@ tab==='leveltest' && (function(){
           React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color: (adminLtDraft.existing_paths||[]).length > 0 ? '#1e3a8a' : '#9ca3af' } }, '시험지 ' + ((adminLtDraft.existing_paths||[]).length) + '장' + ((adminLtDraft.existing_paths||[]).length === 0 ? ' (없음)' : '')),
           (adminLtDraft.existing_paths||[]).length > 0 && React.createElement('button', { onClick:function(){ removeExamFilesAdmin('exam'); }, style:{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '시험지 모두 삭제')
         ),
-        renderFileList(adminLtDraft.existing_paths, '시험지'),
+        renderFileList(adminLtDraft.existing_paths, '시험지', '페이지'),
         React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', marginTop:'12px' } },
           React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color: (adminLtDraft.answer_existing_paths||[]).length > 0 ? '#1e3a8a' : '#9ca3af' } }, '답안지·해설 ' + ((adminLtDraft.answer_existing_paths||[]).length) + '개' + ((adminLtDraft.answer_existing_paths||[]).length === 0 ? ' (없음)' : '')),
           (adminLtDraft.answer_existing_paths||[]).length > 0 && React.createElement('button', { onClick:function(){ removeExamFilesAdmin('answer'); }, style:{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '답안지 모두 삭제')
         ),
-        renderFileList(adminLtDraft.answer_existing_paths, '답안지·해설')
+        renderFileList(adminLtDraft.answer_existing_paths, '답안지·해설', '')
       ),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시험지 이미지' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' * (여러 장 가능, 페이지 순서대로)')),
       React.createElement('input', { type:'file', accept:'image/*', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
