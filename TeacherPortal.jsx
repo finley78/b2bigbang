@@ -1340,6 +1340,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!teacherInfo) { alert('선생님 정보가 없습니다.'); return; }
     if (!selectedClass) { alert('반을 먼저 선택해 주세요.'); return; }
     var d = examDraft;
+    var doAnalyze = thenAnalyze === true;
+    if (doAnalyze && editingExamId && d.analysis) {
+      doAnalyze = confirm('이미 문항 분석이 된 시험입니다.\n[확인] = 저장하고 다시 분석 (Claude 요금 다시 발생)\n[취소] = 저장만');
+    }
     if (!d.title.trim()) { alert('시험 제목을 입력해 주세요.'); return; }
     var qc = parseInt(d.question_count, 10);
     if (isNaN(qc) || qc < 0) qc = 0;
@@ -1411,7 +1415,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         var u = await sb.from('exams').update(row).eq('id', editingExamId);
         if (u.error) throw u.error;
         savedId = editingExamId;
-        if (thenAnalyze !== true) alert('수정되었습니다.');
+        if (!doAnalyze) alert('수정되었습니다.');
       } else {
         var insertRow = Object.assign({
           kind: kindVal,
@@ -1424,11 +1428,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         if (ins.error) throw ins.error;
         savedId = ins.data && ins.data.id;
         var kindLabel = kindVal === 'weekly' ? '주간 테스트' : (kindVal === 'monthly' ? '월말 테스트' : (kindVal === 'homework' ? '숙제' : '시험지'));
-        if (thenAnalyze !== true) alert(kindLabel + '이(가) 발행되었습니다.');
+        if (!doAnalyze) alert(kindLabel + '이(가) 발행되었습니다.');
       }
       closeExamForm();
       await loadClassExams(selectedClass.id);
-      if (thenAnalyze === true && savedId) {
+      if (doAnalyze && savedId) {
         setAnalyzingExamId(savedId);
         try {
           var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: savedId });
@@ -1437,7 +1441,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             await loadClassExams(selectedClass.id);
             setAnalysisOpenId(savedId);
             var us = (r.data && r.data.usage) || {};
-            alert('저장 + 문항 분석 완료!\n시험 카드에서 "분석 보기"로 결과를 확인하세요.' + (us.input_tokens ? '\n(입력 ' + us.input_tokens + ' 토큰 / 출력 ' + (us.output_tokens||0) + ' 토큰)' : ''));
+            alert('저장 및 문항 분석 완료!\n시험 카드의 "수정·분석"을 다시 열면 결과를 볼 수 있습니다.' + (us.input_tokens ? '\n(입력 ' + us.input_tokens + ' 토큰 / 출력 ' + (us.output_tokens||0) + ' 토큰)' : ''));
           }
         } catch (ee) { alert('저장은 됐지만 문항 분석 실패: ' + (ee.message || ee)); }
         finally { setAnalyzingExamId(null); }
@@ -2356,10 +2360,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   </div>
                   <div style={{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' }}>페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (시험지가 PDF·여러 장일 때만 적용). 쓰려는 문항이 든 페이지를 포함하세요. 답안지·해설은 항상 전체를 보냅니다.</div>
                 </div>
-                <div style={{ display:'flex', gap:'8px', marginBottom:'16px' }}>
-                  <button onClick={() => submitExam(false)} disabled={examUploading || !!analyzingExamId} style={{ flex:1, background: (examUploading||analyzingExamId) ? '#9ca3af' : '#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:(examUploading||analyzingExamId)?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' }}>{examUploading ? '저장 중...' : '저장'}</button>
-                  <button onClick={() => submitExam(true)} disabled={examUploading || !!analyzingExamId} style={{ flex:1, background: (examUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:(examUploading||analyzingExamId)?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' }}>{analyzingExamId ? '문항 분석 중...' : (examUploading ? '저장 중...' : '문항 분석')}</button>
-                </div>
+                <button onClick={() => submitExam(true)} disabled={examUploading || !!analyzingExamId} style={{ width:'100%', background: (examUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:(examUploading||analyzingExamId)?'not-allowed':'pointer', marginBottom:'16px', fontFamily:'Manrope, sans-serif' }}>{analyzingExamId ? '문항 분석 중... (1~2분 소요)' : (examUploading ? '저장 중...' : '저장 및 문항 분석')}</button>
                 {examDraft.analysis && renderExamAnalysis(examDraft.analysis)}
 
                 {/* 일반 시험: 기존 입력 그대로 */}
@@ -2477,7 +2478,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 )}
 
                 <div style={{ marginTop:'8px' }}>
-                  <button onClick={closeExamForm} disabled={examUploading || !!analyzingExamId} style={{ ...lightButtonStyle, width:'100%', cursor: (examUploading||analyzingExamId) ? 'not-allowed' : 'pointer' }}>닫기</button>
+                  <button onClick={closeExamForm} disabled={examUploading || !!analyzingExamId} style={{ ...lightButtonStyle, width:'100%', padding:'10px', fontSize:'13px', cursor: (examUploading||analyzingExamId) ? 'not-allowed' : 'pointer' }}>닫기</button>
                 </div>
               </div>
             </div>

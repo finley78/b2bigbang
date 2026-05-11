@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v50-exam-pdf';
+const CACHE_VERSION = 'b2-bigbang-20260511v51-merge-button';
 const OFFLINE_URLS = [
   './',
   './index.html',

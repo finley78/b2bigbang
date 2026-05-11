@@ -568,6 +568,10 @@ async function adminSubmitLevelTest(thenAnalyze) {
   var sb = window.supabase;
   var d = adminLtDraft;
   var isEdit = !!d.id;
+  var doAnalyze = thenAnalyze === true;
+  if (doAnalyze && isEdit && d.analysis) {
+    doAnalyze = confirm('이미 문항 분석이 된 시험입니다.\n[확인] = 저장하고 다시 분석 (Claude 요금 다시 발생)\n[취소] = 저장만');
+  }
   if (!d.title.trim()) { alert('제목을 입력해 주세요.'); return; }
   var existingPaths = Array.isArray(d.existing_paths) ? d.existing_paths : [];
   if (!isEdit && (!d.files || d.files.length === 0)) { alert('시험지 이미지를 1장 이상 업로드해 주세요.'); return; }
@@ -652,7 +656,7 @@ async function adminSubmitLevelTest(thenAnalyze) {
       var { error } = await sb.from('exams').update(row).eq('id', d.id);
       if (error) throw error;
       savedId = d.id;
-      if (thenAnalyze !== true) alert(kindLabel + '이(가) 수정되었습니다.');
+      if (!doAnalyze) alert(kindLabel + '이(가) 수정되었습니다.');
     } else {
       row.class_id = null;
       row.teacher_id = null;
@@ -661,11 +665,11 @@ async function adminSubmitLevelTest(thenAnalyze) {
       var ins = await sb.from('exams').insert(row).select('id').single();
       if (ins.error) throw ins.error;
       savedId = ins.data && ins.data.id;
-      if (thenAnalyze !== true) alert(kindLabel + '이(가) 발행되었습니다.');
+      if (!doAnalyze) alert(kindLabel + '이(가) 발행되었습니다.');
     }
     adminCloseLtForm();
     await loadAdminLevelTests();
-    if (thenAnalyze === true && savedId) {
+    if (doAnalyze && savedId) {
       setAnalyzingExamId(savedId);
       try {
         var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: savedId });
@@ -674,7 +678,7 @@ async function adminSubmitLevelTest(thenAnalyze) {
           await loadAdminLevelTests();
           setAnalysisOpenId(savedId);
           var u = (r.data && r.data.usage) || {};
-          alert('저장 + 문항 분석 완료!\n시험 목록에서 "분석 보기"로 결과를 확인하세요.' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' 토큰 / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
+          alert('저장 및 문항 분석 완료!\n시험 카드의 "수정·분석"을 다시 열면 결과를 볼 수 있습니다.' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' 토큰 / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
         }
       } catch (ee) { alert('저장은 됐지만 문항 분석 실패: ' + (ee.message || ee)); }
       finally { setAnalyzingExamId(null); }
@@ -4641,11 +4645,8 @@ tab==='leveltest' && (function(){
         ),
         React.createElement('div', { style:{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' } }, '페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (시험지가 PDF·여러 장일 때만 적용). 쓰려는 문항이 든 페이지를 포함하세요. 답안지·해설은 항상 전체를 보냅니다.')
       ),
-      // 저장 / 문항 분석 버튼 — 파일·범위 선택 바로 아래
-      React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'16px' } },
-        React.createElement('button', { onClick:function(){ adminSubmitLevelTest(false); }, disabled: adminLtUploading || !!analyzingExamId, style:{ flex:1, background: (adminLtUploading||analyzingExamId) ? '#9ca3af' : '#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:(adminLtUploading||analyzingExamId)?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, adminLtUploading ? '저장 중...' : '저장'),
-        React.createElement('button', { onClick:function(){ adminSubmitLevelTest(true); }, disabled: adminLtUploading || !!analyzingExamId, style:{ flex:1, background: (adminLtUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:(adminLtUploading||analyzingExamId)?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, analyzingExamId ? '문항 분석 중...' : (adminLtUploading ? '저장 중...' : '문항 분석'))
-      ),
+      // 저장 및 문항 분석 버튼 — 파일·범위 선택 바로 아래
+      React.createElement('button', { onClick:function(){ adminSubmitLevelTest(true); }, disabled: adminLtUploading || !!analyzingExamId, style:{ width:'100%', background: (adminLtUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:(adminLtUploading||analyzingExamId)?'not-allowed':'pointer', marginBottom:'16px', fontFamily:'Manrope, sans-serif' } }, analyzingExamId ? '문항 분석 중... (1~2분 소요)' : (adminLtUploading ? '저장 중...' : '저장 및 문항 분석')),
       // 분석 결과 (이미 분석된 경우 폼 안에 표시)
       adminLtDraft.analysis && renderExamAnalysis(adminLtDraft.analysis),
       /* 일반 시험: 기존 입력 그대로 */
@@ -4749,7 +4750,7 @@ tab==='leveltest' && (function(){
         );
       })(),
       React.createElement('div', { style:{ marginTop:'8px' } },
-        React.createElement('button', { onClick:adminCloseLtForm, disabled: adminLtUploading || !!analyzingExamId, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'700', cursor: (adminLtUploading||analyzingExamId)?'not-allowed':'pointer' } }, '닫기')
+        React.createElement('button', { onClick:adminCloseLtForm, disabled: adminLtUploading || !!analyzingExamId, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'700', cursor: (adminLtUploading||analyzingExamId)?'not-allowed':'pointer' } }, '닫기')
       )
     )
   )
