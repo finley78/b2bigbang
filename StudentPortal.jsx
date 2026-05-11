@@ -2116,9 +2116,9 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
 
     var answerPanelWidth = 420;
     var pcAnswerSidePadding = (!portalIsMobile && answerPanelOpen) ? (answerPanelWidth + 32) : 0;
-    // 모바일 시트 높이 (답안지 시트가 차지하는 화면 비율)
-    var mobileSheetHeightVh = sheetMode === 'large' ? 75 : (sheetMode === 'small' ? 35 : 0);
-    var mobileBottomPadding = portalIsMobile && sheetMode !== 'closed' ? ('calc(' + mobileSheetHeightVh + 'vh + 24px)') : '24px';
+    // 모바일 시트 높이 (답안지 시트가 차지하는 화면 비율). full = 전체화면
+    var mobileSheetHeightVh = sheetMode === 'full' ? 100 : (sheetMode === 'large' ? 75 : (sheetMode === 'small' ? 35 : 0));
+    var mobileBottomPadding = portalIsMobile && sheetMode !== 'closed' ? ('calc(' + Math.min(mobileSheetHeightVh, 80) + 'vh + 24px)') : '24px';
     return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
       renderHeader(true),
       React.createElement('div', { style:{ maxWidth: portalIsMobile ? '960px' : '1400px', margin:'0 auto', padding:'24px 16px', paddingRight: portalIsMobile ? '16px' : (pcAnswerSidePadding + 16) + 'px', paddingBottom: mobileBottomPadding } },
@@ -2176,8 +2176,12 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           )
         ),
 
-        /* 답안지 (OMR 형태) — PC: 우측 fixed 팝업 / 모바일: 하단 시트 */
-        React.createElement('div', { style: portalIsMobile ? (sheetMode === 'closed' ? { display:'none' } : {
+        /* 답안지 (OMR 형태) — PC: 우측 fixed 팝업 / 모바일: 하단 시트 (full=전체화면) */
+        React.createElement('div', { style: portalIsMobile ? (sheetMode === 'closed' ? { display:'none' } : (sheetMode === 'full' ? {
+          position:'fixed', inset:0, width:'100%', height:'100dvh',
+          background:'#fff', padding:'8px 14px 16px',
+          overflowY:'auto', overflowX:'hidden', zIndex: 80
+        } : {
           position:'fixed', left:0, right:0, bottom:0,
           height: mobileSheetHeightVh + 'vh',
           background:'#fff',
@@ -2187,7 +2191,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           padding:'0 18px 16px',
           overflowY:'auto', overflowX:'hidden',
           zIndex: 60, transition:'height 0.2s ease'
-        }) : (answerPanelOpen ? {
+        })) : (answerPanelOpen ? {
           position:'fixed', top:'90px', right:'24px', width: answerPanelWidth + 'px', maxHeight:'calc(100vh - 110px)', overflowY:'auto',
           background:'#fff', borderRadius:'14px', padding:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.18)', border:'2px solid #1A1A1A', zIndex: 50
         } : { display:'none' }) },
@@ -2198,8 +2202,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
             paddingTop:'4px',
             display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px'
           } : { borderBottom:'2px solid #1A1A1A', paddingBottom:'12px', marginBottom:'18px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px' } },
-            /* 모바일 시트 핸들 */
-            portalIsMobile && React.createElement('button', { onClick:function(){ setSheetMode(sheetMode === 'small' ? 'large' : 'small'); }, style:{ background:'none', border:'none', padding:'4px 0 6px', cursor:'pointer', width:'100%', display:'flex', alignItems:'center', justifyContent:'center', order:-1 } },
+            /* 모바일 시트 핸들 (전체화면 모드에선 숨김) */
+            portalIsMobile && sheetMode !== 'full' && React.createElement('button', { onClick:function(){ setSheetMode(sheetMode === 'small' ? 'large' : 'small'); }, style:{ background:'none', border:'none', padding:'4px 0 6px', cursor:'pointer', width:'100%', display:'flex', alignItems:'center', justifyContent:'center', order:-1 } },
               React.createElement('div', { style:{ width:'48px', height:'4px', borderRadius:'2px', background:'#9ca3af' } })
             ),
             React.createElement('div', null,
@@ -2211,7 +2215,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
                 React.createElement('div', null, React.createElement('span', { style:{ color:'#6b7280' } }, '응시자: '), React.createElement('strong', null, user.name || '-')),
                 activeExam.test_date && React.createElement('div', null, React.createElement('span', { style:{ color:'#6b7280' } }, '시험일: '), React.createElement('strong', null, activeExam.test_date))
               ),
-              portalIsMobile && React.createElement('button', { onClick:function(){ setSheetMode(sheetMode === 'small' ? 'large' : 'small'); }, title: sheetMode === 'small' ? '펼치기' : '줄이기', style:{ background:'none', border:'1px solid #d1d5db', borderRadius:'6px', cursor:'pointer', color:'#374151', fontSize:'14px', fontWeight:'800', width:'30px', height:'30px', padding:0, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } }, sheetMode === 'small' ? '⌃' : '⌄'),
+              portalIsMobile && sheetMode !== 'full' && React.createElement('button', { onClick:function(){ setSheetMode(sheetMode === 'small' ? 'large' : 'small'); }, title: sheetMode === 'small' ? '펼치기' : '줄이기', style:{ background:'none', border:'1px solid #d1d5db', borderRadius:'6px', cursor:'pointer', color:'#374151', fontSize:'14px', fontWeight:'800', width:'30px', height:'30px', padding:0, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } }, sheetMode === 'small' ? '⌃' : '⌄'),
+              portalIsMobile && React.createElement('button', { onClick:function(){ setSheetMode(sheetMode === 'full' ? 'large' : 'full'); }, title: sheetMode === 'full' ? '전체화면 나가기' : '전체화면 (가로 권장)', style:{ background: sheetMode === 'full' ? '#1A1A1A' : 'none', border:'1px solid ' + (sheetMode === 'full' ? '#1A1A1A' : '#d1d5db'), borderRadius:'6px', cursor:'pointer', color: sheetMode === 'full' ? '#fff' : '#374151', fontSize:'10px', fontWeight:'800', minWidth:'34px', height:'30px', padding:'0 5px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'Manrope, sans-serif' } }, sheetMode === 'full' ? '축소' : '전체'),
               portalIsMobile && React.createElement('button', { onClick:function(){ setSheetMode('closed'); }, title:'닫기', style:{ background:'none', border:'1px solid #d1d5db', borderRadius:'6px', cursor:'pointer', color:'#6b7280', fontSize:'16px', fontWeight:'800', width:'30px', height:'30px', padding:0, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } }, '✕'),
               !portalIsMobile && React.createElement('button', { onClick:function(){ setAnswerPanelOpen(false); }, title:'답안지 접기', style:{ background:'none', border:'1px solid #d1d5db', borderRadius:'6px', cursor:'pointer', color:'#6b7280', fontSize:'14px', fontWeight:'800', width:'26px', height:'26px', padding:0, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } }, '−')
             )
