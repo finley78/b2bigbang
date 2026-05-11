@@ -516,7 +516,7 @@ async function loadAdminLevelTests() {
   }
 }
 function adminOpenLtForm() {
-  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
+  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'' });
   setAdminLtFormOpen(true);
 }
 function adminOpenLtEditForm(t) {
@@ -541,6 +541,8 @@ function adminOpenLtEditForm(t) {
     time_limit_minutes: t.time_limit_minutes != null ? String(t.time_limit_minutes) : '0',
     answer_key: (t.answer_key && typeof t.answer_key === 'object') ? Object.assign({}, t.answer_key) : {},
     allow_audio_answer: !!t.allow_audio_answer,
+    analyze_page_range: t.analyze_page_range || '',
+    selected_questions_text: Array.isArray(t.selected_questions) ? t.selected_questions.join(',') : '',
   });
   setAdminLtFormOpen(true);
 }
@@ -635,6 +637,8 @@ async function adminSubmitLevelTest(thenAnalyze) {
       description: d.description.trim() || null,
       image_paths: paths,
       answer_paths: answerPaths,
+      analyze_page_range: (d.analyze_page_range || '').trim() || null,
+      selected_questions: window.B2Utils.parseNumberRange(d.selected_questions_text),
       question_count: qc,
       choices_per_question: cpq,
       text_question_count: tqc,
@@ -4625,6 +4629,21 @@ tab==='leveltest' && (function(){
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '답안지·해설 (선택 — 자동 문항 분석 정확도 향상, PDF 가능)' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 답안 전체가 교체됩니다' : '')),
       React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { answer_files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
       adminLtDraft.answer_files && adminLtDraft.answer_files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'10px' } }, '새 답안지 ' + adminLtDraft.answer_files.length + '개 선택됨 (저장 시 교체)'),
+      // 분석 범위 입력
+      React.createElement('div', { style:{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:'8px', padding:'12px', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#0f766e', marginBottom:'8px' } }, '분석 범위 (선택 — 비워두면 시험지 전체 분석)'),
+        React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap' } },
+          React.createElement('div', { style:{ flex:1, minWidth:'140px' } },
+            React.createElement('label', { style:{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' } }, '분석할 페이지 (예: 3-5)'),
+            React.createElement('input', { type:'text', value: adminLtDraft.analyze_page_range || '', onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { analyze_page_range: e.target.value })); }, placeholder:'비워두면 전체', style:Object.assign({}, inputS, { width:'100%' }) })
+          ),
+          React.createElement('div', { style:{ flex:1, minWidth:'140px' } },
+            React.createElement('label', { style:{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' } }, '학생에게 낼 문항 번호 (예: 11-30)'),
+            React.createElement('input', { type:'text', value: adminLtDraft.selected_questions_text || '', onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { selected_questions_text: e.target.value })); }, placeholder:'비워두면 분석된 전체', style:Object.assign({}, inputS, { width:'100%' }) })
+          )
+        ),
+        React.createElement('div', { style:{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' } }, '페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (시험지가 PDF·여러 장일 때만 적용). 쓰려는 문항이 든 페이지를 포함하세요. 답안지·해설은 항상 전체를 보냅니다.')
+      ),
       // 문항 분석 버튼 — 파일 선택 바로 아래
       React.createElement('button', { onClick:function(){ adminSubmitLevelTest(true); }, disabled: adminLtUploading || !!analyzingExamId, style:{ width:'100%', background: (adminLtUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:(adminLtUploading||analyzingExamId)?'not-allowed':'pointer', marginBottom:'16px', fontFamily:'Manrope, sans-serif' } }, analyzingExamId ? 'Claude 문항 분석 중... (1~2분 소요)' : (adminLtUploading ? '저장 중...' : '저장하고 Claude 문항 분석 →')),
       /* 일반 시험: 기존 입력 그대로 */

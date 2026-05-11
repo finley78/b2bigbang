@@ -220,6 +220,25 @@
     return { ok: res.ok, status: res.status, data: data || {} };
   }
 
+  // ── 번호 범위 파싱: "3-5,8" -> [3,4,5,8]. 빈 문자열/잘못된 입력 -> null ──
+  function parseNumberRange(str) {
+    if (str == null) return null;
+    if (Array.isArray(str)) {
+      var arr0 = str.map(function(x){ return parseInt(String(x), 10); }).filter(function(n){ return !isNaN(n) && n > 0; });
+      return arr0.length ? Array.from(new Set(arr0)).sort(function(a,b){ return a-b; }) : null;
+    }
+    var s = String(str).trim();
+    if (!s) return null;
+    var out = [];
+    s.split(',').forEach(function(part){
+      part = part.trim();
+      var m = part.match(/^(\d+)\s*-\s*(\d+)$/);
+      if (m) { var a = parseInt(m[1],10), b = parseInt(m[2],10); if (a <= b && (b - a) < 1000) for (var i=a;i<=b;i++) out.push(i); }
+      else if (/^\d+$/.test(part)) out.push(parseInt(part,10));
+    });
+    return out.length ? Array.from(new Set(out)).sort(function(a,b){ return a-b; }) : null;
+  }
+
   // ── 인증 스토리지 정리 ─────────────────────────────────────────
   // 로그아웃·탈퇴·세션 만료 등에서 동일하게 호출. b2_page는 페이지 상태라 sessionStorage 유지
   // 새 인증 키가 추가되면 여기 한 곳만 갱신하면 됨 (stale 세션 방지)
@@ -307,5 +326,5 @@
     return String(v);
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
 })();

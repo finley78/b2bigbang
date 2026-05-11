@@ -123,7 +123,7 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-11 기준, 최신 ?v=20260511v46-exam-form2)
+## 현재 진행 (2026-05-11 기준, 최신 ?v=20260511v47-page-range)
 
 ### ★ 자동 문항 분석 시스템 (진행 중) ★
 **목표**: 선생님 시험지 파일 업로드 → 답안지·해설 업로드 → Claude가 문항 수·정답·개념 분석 → 학생 응시 → 학생별 약점 분석표.
@@ -131,7 +131,8 @@ DDL은 `apply_migration` 사용.
   - **필요 설정**: Supabase Edge Function Secrets 에 `ANTHROPIC_API_KEY` 추가해야 작동함 (없으면 함수가 에러 메시지 반환).
   - 비용: sonnet 기준 시험지+해설지 1세트 약 300~800원 (해설 분량에 비례).
 - **v45~v46**: 시험 발행/수정 폼에 "현재 등록된 파일" 박스(시험지/답안지 개수 + 각각 "모두 삭제" 버튼 — `removeExamFilesAdmin`/`removeExamFilesTeacher`: storage.remove + DB 컬럼 빈 배열) + **썸네일 그리드**(`renderFileThumbs`: 이미지=58×76 썸네일, PDF/기타=확장자 박스, 클릭 시 새 탭 public URL). 폼 안 **답안지 파일 선택 바로 아래에** "저장하고 Claude 문항 분석 →" 버튼(`adminSubmitLevelTest(true)`/`submitExam(true)`: 저장 후 insert면 새 id 받아 바로 `analyze-exam` 호출, 끝나면 시험 카드에 분석 결과 펼침). 새 파일 선택 시 "새 시험지 N장 선택됨 (저장 시 교체)" 초록 안내.
-- **Phase B 예정**: 분석 결과로 `answer_key` 자동 채움 + 문항 번호/페이지 범위 선택해서 그 부분만 숙제로 발행.
+- **Phase B-1 완료** (v47): `exams.analyze_page_range text`(분석할 페이지 "3-5" 등), `exams.selected_questions jsonb`(학생에게 낼 문항 번호 배열) 마이그레이션. `B2Utils.parseNumberRange("3-5,8")` → `[3,4,5,8]`. 발행 폼(AdminPanel/TeacherPortal)에 답안지 칸 아래·분석버튼 위에 "분석할 페이지"/"학생에게 낼 문항 번호" 입력칸 추가. Edge Function `analyze-exam` v3: `pdf-lib`로 시험지가 PDF·여러장이면 지정 페이지만 추출해 Claude에 전송(답안지는 항상 전체), `selected_questions`/`page_range`를 분석 지시문에 반영, `analysis`에 `requested_pages`·`requested_questions` 기록.
+- **Phase B 남은 것**: 분석 결과로 시험 `answer_key`·`question_count`·`text_question_count` 자동 채움. `selected_questions`를 학생 응시 화면·자동 채점에 반영(그 번호만 OMR에 노출). 분석 결과 표시 시 selected 문항 강조.
 - **Phase C 예정**: 학생 응답 + 문항 분석 → 학생별 약점 단원·개선 방향 분석표(`ai_comments` 또는 별 테이블) → 선생님 화면.
 
 > **★ 이 블록이 최신입니다. 아래 옛날 섹션들(2026-05-08~09 등)은 참고용 — 일부는 롤백되어 현재 코드에 없음. ★**
@@ -139,7 +140,7 @@ DDL은 `apply_migration` 사용.
 ### 어디까지 했나 (2026-05-09 ~ 2026-05-11 세션)
 - 2026-05-09~10에 관리자/선생님 페이지·수강신청 승인 흐름·숙제시험 발행 폼 등 대규모 작업 → 그 중 "앱 단순화 리팩토링"(관리자/선생님 탭 통폐합 4단계)은 **사용자 요청으로 전부 revert함** (커밋 `e66c527`). 다시 살리려면 `git revert e66c527`. **롤백 기준점 = `380afef`(?v=20260510v16-exam-form)**.
 - DB 마이그레이션(video_views FK 3개, enrollments.status+RLS, link_my_auth_account 확장, **courses.teacher_id 컬럼 추가**)은 코드 revert와 무관하게 그대로 적용됨. `migrations/2026-05-10*.sql` 참고.
-- 2026-05-10~11 추가 작업 (전부 push·배포 완료, ?v 순서 v25→v46):
+- 2026-05-10~11 추가 작업 (전부 push·배포 완료, ?v 순서 v25→v47):
   - 단어장: 시험 탭 유닛을 그리드로 + "유닛 전체 시험 만들기" 버튼(`VocabManager` `createTestsForAllUnits`). 단어 시험 '학년으로 배포' 추가, 유닛에 시험 있으면 '시험 추가' 카드 숨김.
   - 선생님 페이지 버튼 크기 표준화(`buttonStyle`/`lightButtonStyle`에 fontSize·fontFamily·반응형, `smallButtonStyle` 계열 신설). 선생님 홈 메뉴 카드 11개를 같은 너비 그리드로.
   - 학사일정: 분류 '시험'→'시험기간'(TeacherPortal/AdminPanel `academicCategoryLabel`), 학교 칸 자유입력→드롭다운(`TP_NEARBY_SCHOOLS`).

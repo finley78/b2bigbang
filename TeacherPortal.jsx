@@ -1290,7 +1290,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var k = presetKind === 'homework' ? 'homework' : 'class';
     var subs = (teacherInfo && Array.isArray(teacherInfo.subjects)) ? teacherInfo.subjects.filter(Boolean) : [];
     setEditingExamId(null);
-    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], answer_files:[], answer_existing_paths:[], question_count: k==='homework' ? '0' : '10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
+    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], answer_files:[], answer_existing_paths:[], question_count: k==='homework' ? '0' : '10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'' });
     setExamFormOpen(true);
   }
   function openExamFormForEdit(exam) {
@@ -1311,6 +1311,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       time_limit_minutes: String(exam.time_limit_minutes || 0),
       answer_key: exam.answer_key || {},
       allow_audio_answer: !!exam.allow_audio_answer,
+      analyze_page_range: exam.analyze_page_range || '',
+      selected_questions_text: Array.isArray(exam.selected_questions) ? exam.selected_questions.join(',') : '',
     });
     setExamFormOpen(true);
   }
@@ -1393,6 +1395,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         description: (d.description||'').trim() || null,
         image_paths: paths,
         answer_paths: answerPaths,
+        analyze_page_range: (d.analyze_page_range || '').trim() || null,
+        selected_questions: window.B2Utils.parseNumberRange(d.selected_questions_text),
         question_count: qc,
         choices_per_question: cpq,
         text_question_count: tqc,
@@ -2341,6 +2345,20 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 {examDraft.answer_files && examDraft.answer_files.length > 0 && (
                   <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'10px' }}>새 답안지 {examDraft.answer_files.length}개 선택됨 (저장 시 교체)</div>
                 )}
+                <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:'8px', padding:'12px', marginBottom:'12px', fontFamily:'Manrope, sans-serif' }}>
+                  <div style={{ fontSize:'12px', fontWeight:'800', color:'#0f766e', marginBottom:'8px' }}>분석 범위 (선택 — 비워두면 시험지 전체 분석)</div>
+                  <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
+                    <div style={{ flex:1, minWidth:'140px' }}>
+                      <label style={{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' }}>분석할 페이지 (예: 3-5)</label>
+                      <input type="text" value={examDraft.analyze_page_range || ''} onChange={e => setExamDraft({ ...examDraft, analyze_page_range: e.target.value })} placeholder="비워두면 전체" style={{ ...inputStyle, width:'100%' }} />
+                    </div>
+                    <div style={{ flex:1, minWidth:'140px' }}>
+                      <label style={{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' }}>학생에게 낼 문항 번호 (예: 11-30)</label>
+                      <input type="text" value={examDraft.selected_questions_text || ''} onChange={e => setExamDraft({ ...examDraft, selected_questions_text: e.target.value })} placeholder="비워두면 분석된 전체" style={{ ...inputStyle, width:'100%' }} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' }}>페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (시험지가 PDF·여러 장일 때만 적용). 쓰려는 문항이 든 페이지를 포함하세요. 답안지·해설은 항상 전체를 보냅니다.</div>
+                </div>
                 <button onClick={() => submitExam(true)} disabled={examUploading || !!analyzingExamId} style={{ width:'100%', background: (examUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:(examUploading||analyzingExamId)?'not-allowed':'pointer', marginBottom:'16px', fontFamily:'Manrope, sans-serif' }}>{analyzingExamId ? 'Claude 문항 분석 중... (1~2분 소요)' : (examUploading ? '저장 중...' : '저장하고 Claude 문항 분석 →')}</button>
 
                 {/* 일반 시험: 기존 입력 그대로 */}
