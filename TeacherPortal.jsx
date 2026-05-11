@@ -1487,17 +1487,49 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     } catch (e) { alert('학생 약점 분석 실패: ' + (e.message || e)); }
     finally { setAnalyzingStudentId(null); }
   }
+  function _roleColorTP(r) {
+    var x = String(r || '').split(',')[0].trim();
+    if (x === '정답') return '#15803d';
+    if (x === '매력적인 함정' || x === '지엽적' || x === '포괄적') return '#c87000';
+    if (x === '본문 무관' || x === '반대 내용') return '#c82014';
+    return '#6b7280';
+  }
   function renderStudentAnalysis(a) {
     if (!a) return null;
+    var dx = a.diagnosis;
+    var dxC = dx ? (dx.pattern === 'trap' ? { bg:'#fff7ed', bd:'#fed7aa', fg:'#9a3412' } : dx.pattern === 'comprehension' ? { bg:'#fef2f2', bd:'#fecaca', fg:'#991b1b' } : { bg:'#f3f4f6', bd:'#e5e7eb', fg:'#374151' }) : null;
+    var wd = Array.isArray(a.wrong_details) ? a.wrong_details : [];
     return (
       <div style={{ marginTop:'6px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'8px', padding:'10px', fontSize:'11px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' }}>
         <div style={{ fontWeight:'800', color:'#15803d', marginBottom:'4px' }}>AI 약점 분석{a.score != null ? ' — ' + a.score + '/' + (a.total != null ? a.total : '?') + (a.percentage != null ? ' (' + a.percentage + '%)' : '') : ''}</div>
         {a.summary && <div style={{ color:'#374151', marginBottom:'4px', whiteSpace:'pre-line' }}>{a.summary}</div>}
+        {dx && (
+          <div style={{ background:dxC.bg, border:'1px solid '+dxC.bd, borderRadius:'6px', padding:'6px 8px', marginBottom:'4px' }}>
+            <span style={{ fontWeight:'800', color:dxC.fg }}>진단: {dx.label}</span>{dx.text ? <span style={{ color:dxC.fg }}> {dx.text}</span> : null}
+          </div>
+        )}
         {Array.isArray(a.weak_topics) && a.weak_topics.length > 0 && <div style={{ color:'#c82014', marginBottom:'2px', fontWeight:'700' }}>약점: {a.weak_topics.join(', ')}</div>}
         {Array.isArray(a.strengths) && a.strengths.length > 0 && <div style={{ color:'#15803d', marginBottom:'2px' }}>강점: {a.strengths.join(', ')}</div>}
         {a.mistake_pattern && <div style={{ color:'#c87000', marginBottom:'2px' }}>실수 패턴: {a.mistake_pattern}</div>}
-        {Array.isArray(a.wrong_questions) && a.wrong_questions.length > 0 && <div style={{ color:'#6b7280', marginBottom:'2px' }}>틀린 문항: {a.wrong_questions.join(', ')}번</div>}
-        {Array.isArray(a.by_topic) && a.by_topic.length > 0 && <div style={{ color:'#374151', marginBottom:'2px' }}>단원별: {a.by_topic.map(function(t){ return t.topic + ' ' + t.correct + '/' + t.total; }).join(' · ')}</div>}
+        {wd.length > 0 ? (
+          <div style={{ marginTop:'4px' }}>
+            <div style={{ fontWeight:'700', color:'#374151', marginBottom:'2px' }}>틀린 문항 해설</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:'3px' }}>
+              {wd.map(function(w, i){ return (
+                <div key={i} style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'5px', padding:'4px 7px' }}>
+                  <span style={{ fontWeight:'800', color:'#111827' }}>{w.number}번</span>
+                  {(w.topic || w.subtopic) && <span style={{ color:'#6b7280' }}> · {[w.topic, w.subtopic].filter(Boolean).join(' / ')}</span>}
+                  <span style={{ color:'#15803d', fontWeight:'700' }}> · 정답 {w.correct_answer || '-'}</span>
+                  <span style={{ color:'#c82014', fontWeight:'700' }}> · 학생답 {w.student_answer}</span>
+                  {w.role && <span style={{ color:_roleColorTP(w.role), fontWeight:'700' }}> [{w.role}]</span>}
+                  {w.why ? <div style={{ color:'#374151', marginTop:'1px' }}>{w.why}</div> : (w.intent ? <div style={{ color:'#6b7280', marginTop:'1px' }}>{w.intent}</div> : null)}
+                  {w.correct_why && <div style={{ color:'#166534', marginTop:'1px' }}>정답 해설: {w.correct_why}</div>}
+                </div>
+              ); })}
+            </div>
+          </div>
+        ) : (Array.isArray(a.wrong_questions) && a.wrong_questions.length > 0 && <div style={{ color:'#6b7280', marginBottom:'2px' }}>틀린 문항: {a.wrong_questions.join(', ')}번</div>)}
+        {Array.isArray(a.by_topic) && a.by_topic.length > 0 && <div style={{ color:'#374151', marginBottom:'2px', marginTop:'2px' }}>단원별: {a.by_topic.map(function(t){ return t.topic + ' ' + t.correct + '/' + t.total; }).join(' · ')}</div>}
         {a.text_feedback && <div style={{ color:'#7c3aed', marginTop:'4px', whiteSpace:'pre-line' }}>서술형 평가: {a.text_feedback}</div>}
         {a.recommendation && <div style={{ color:'#1d4ed8', marginTop:'4px', whiteSpace:'pre-line', fontWeight:'600' }}>추천 학습: {a.recommendation}</div>}
       </div>
@@ -1525,6 +1557,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               </div>
               {(q.topic || q.subtopic) && <div style={{ color:'#374151', marginBottom:'1px' }}>{[q.topic, q.subtopic].filter(Boolean).join(' · ')}</div>}
               {q.intent && <div style={{ color:'#6b7280' }}>{q.intent}</div>}
+              {Array.isArray(q.choice_explanations) && q.choice_explanations.length > 0 && (
+                <div style={{ marginTop:'3px', paddingTop:'3px', borderTop:'1px dashed #e5e7eb', display:'flex', flexDirection:'column', gap:'1px' }}>
+                  {q.choice_explanations.map(function(c, j){ return (
+                    <div key={j}><span style={{ fontWeight:'800', color:_roleColorTP(c.role) }}>{c.choice}번 [{c.role}]</span> <span style={{ color:'#4b5563' }}>{c.why}</span></div>
+                  ); })}
+                </div>
+              )}
             </div>
           ))}
         </div>

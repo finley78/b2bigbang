@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v63-exact-grading';
+const CACHE_VERSION = 'b2-bigbang-20260512v64-distractor-feedback';
 const OFFLINE_URLS = [
   './',
   './index.html',

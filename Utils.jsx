@@ -268,6 +268,28 @@
         + '</tr>';
     }).join('');
     function chips(arr, bg, fg) { return arr.map(function (x) { return '<span style="display:inline-block;background:' + bg + ';color:' + fg + ';border-radius:14px;padding:3px 10px;font-size:12px;font-weight:700;margin:2px 4px 2px 0;">' + _esc(x) + '</span>'; }).join(''); }
+    function _roleCol(r) { var x = String(r || '').split(',')[0].trim(); if (x === '정답') return '#15803d'; if (x === '매력적인 함정' || x === '지엽적' || x === '포괄적') return '#c87000'; if (x === '본문 무관' || x === '반대 내용') return '#c82014'; return '#6b7280'; }
+    var dx = a && a.diagnosis;
+    var dxBox = '';
+    if (dx) {
+      var dxBg = dx.pattern === 'trap' ? '#fff7ed' : (dx.pattern === 'comprehension' ? '#fef2f2' : '#f3f4f6');
+      var dxBd = dx.pattern === 'trap' ? '#fed7aa' : (dx.pattern === 'comprehension' ? '#fecaca' : '#e5e7eb');
+      var dxFg = dx.pattern === 'trap' ? '#9a3412' : (dx.pattern === 'comprehension' ? '#991b1b' : '#374151');
+      dxBox = '<div style="background:' + dxBg + ';border:1px solid ' + dxBd + ';border-radius:10px;padding:12px 14px;margin-bottom:20px;"><div style="font-size:13px;font-weight:800;color:' + dxFg + ';margin-bottom:4px;">학습 유형 진단 — ' + _esc(dx.label || '') + '</div><div style="font-size:13px;color:' + dxFg + ';line-height:1.6;">' + _esc(dx.text || '') + '</div></div>';
+    }
+    var wd = (a && Array.isArray(a.wrong_details)) ? a.wrong_details : [];
+    var wdRows = wd.map(function (w) {
+      var roleSpan = w.role ? '<span style="font-weight:700;color:' + _roleCol(w.role) + ';">[' + _esc(w.role) + ']</span> ' : '';
+      return '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px;page-break-inside:avoid;">'
+        + '<div style="font-weight:800;color:#1A1A1A;">' + _esc(w.number) + '번'
+        + ((w.topic || w.subtopic) ? ' <span style="font-weight:500;color:#6b7280;">· ' + _esc([w.topic, w.subtopic].filter(Boolean).join(' / ')) + '</span>' : '')
+        + ' <span style="color:#15803d;">· 정답 ' + _esc(w.correct_answer || '-') + '</span>'
+        + ' <span style="color:#c82014;">· 학생 답 ' + _esc(w.student_answer || '-') + '</span></div>'
+        + (w.why ? '<div style="color:#374151;line-height:1.6;margin-top:3px;">' + roleSpan + _esc(w.why) + '</div>' : (w.intent ? '<div style="color:#6b7280;line-height:1.6;margin-top:3px;">' + _esc(w.intent) + '</div>' : ''))
+        + (w.correct_why ? '<div style="color:#166534;line-height:1.6;margin-top:2px;">정답 해설: ' + _esc(w.correct_why) + '</div>' : '')
+        + '</div>';
+    }).join('');
+    var wdSection = wdRows ? '<div style="font-size:15px;font-weight:800;margin-bottom:8px;">틀린 문항 해설</div><div style="margin-bottom:20px;">' + wdRows + '</div>' : '';
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>학습 분석 리포트 - ' + _esc(studentName) + '</title>'
       + '<style>@page{margin:14mm;}body{font-family:"Manrope","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#1A1A1A;margin:0;padding:28px;}@media print{body{padding:0;}.noprint{display:none;}}.noprint button{font-family:inherit;}</style></head><body>'
       + '<div class="noprint" style="max-width:760px;margin:0 auto 14px;text-align:right;"><button onclick="window.print()" style="background:#1A1A1A;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;">인쇄 / PDF로 저장</button></div>'
@@ -281,12 +303,14 @@
         + '<div><div style="font-size:13px;color:#6b7280;">객관식 자동 채점</div><div style="font-size:34px;font-weight:800;color:' + pctColor + ';margin-top:2px;">' + (score !== '' ? score : '-') + (total !== '' ? ' / ' + total : '') + '</div>' + (wrongs.length ? '<div style="font-size:12px;color:#6b7280;margin-top:6px;">틀린 문항: ' + wrongs.join(', ') + '번</div>' : '') + '</div>'
       + '</div>'
       + (a && a.summary ? '<div style="background:#f8fafc;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:14px;line-height:1.7;color:#374151;white-space:pre-line;">' + _esc(a.summary) + '</div>' : '')
+      + dxBox
       + (topicRows ? '<div style="font-size:15px;font-weight:800;margin-bottom:8px;">단원·개념별 성취</div><table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' + topicRows + '</table>' : '')
       + ((weak.length || strengths.length) ? '<div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;">'
           + (weak.length ? '<div style="flex:1;min-width:240px;"><div style="font-size:13px;font-weight:800;color:#c82014;margin-bottom:6px;">보완이 필요한 부분</div>' + chips(weak, '#fee2e2', '#991b1b') + '</div>' : '')
           + (strengths.length ? '<div style="flex:1;min-width:240px;"><div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:6px;">잘하고 있는 부분</div>' + chips(strengths, '#dcfce7', '#166534') + '</div>' : '')
         + '</div>' : '')
       + (a && a.mistake_pattern ? '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px 14px;margin-bottom:20px;"><div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:4px;">실수 패턴</div><div style="font-size:13px;color:#92400e;line-height:1.6;white-space:pre-line;">' + _esc(a.mistake_pattern) + '</div></div>' : '')
+      + wdSection
       + (a && a.text_feedback ? '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:12px 14px;margin-bottom:20px;"><div style="font-size:13px;font-weight:800;color:#6d28d9;margin-bottom:4px;">서술형 답안 평가</div><div style="font-size:13px;color:#5b21b6;line-height:1.6;white-space:pre-line;">' + _esc(a.text_feedback) + '</div></div>' : '')
       + (a && a.recommendation ? '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:20px;"><div style="font-size:14px;font-weight:800;color:#1e40af;margin-bottom:6px;">추천 학습 방향</div><div style="font-size:14px;color:#1e3a8a;line-height:1.7;white-space:pre-line;">' + _esc(a.recommendation) + '</div></div>' : '')
       + '<div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px;">본 리포트는 AI가 학생의 답안과 시험 문항 분석을 바탕으로 자동 생성한 참고 자료입니다. · ' + _esc(academy) + '</div>'
