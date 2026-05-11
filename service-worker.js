@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v56-auto-omr';
+const CACHE_VERSION = 'b2-bigbang-20260511v57-student-analysis';
 const OFFLINE_URLS = [
   './',
   './index.html',

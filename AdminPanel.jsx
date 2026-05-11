@@ -180,6 +180,7 @@ const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
 const [adminLtFormOpen, setAdminLtFormOpen] = React.useState(false);
 const [analyzingExamId, setAnalyzingExamId] = React.useState(null);
 const [analysisOpenId, setAnalysisOpenId] = React.useState(null);
+const [analyzingStudentId, setAnalyzingStudentId] = React.useState(null);
 
 // ── 모바일 뒤로가기: 관리자 탭/모달 단계별 복귀 (PWA 종료 방지) ──
 React.useEffect(function(){
@@ -730,6 +731,31 @@ async function runExamAnalysis(t) {
   finally { setAnalyzingExamId(null); }
 }
 
+async function runStudentAnalysis(submissionId) {
+  if (!submissionId) return;
+  setAnalyzingStudentId(submissionId);
+  try {
+    var r = await window.B2Utils.callEdgeFn('analyze-student', { submission_id: submissionId });
+    if (!r.ok || (r.data && r.data.error)) { alert('학생 약점 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); return; }
+    await loadAdminLevelTests();
+    var u = (r.data && r.data.usage) || {};
+    alert('학생 약점 분석 완료!' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
+  } catch (e) { alert('학생 약점 분석 실패: ' + (e.message || e)); }
+  finally { setAnalyzingStudentId(null); }
+}
+function renderStudentAnalysis(a) {
+  if (!a) return null;
+  return React.createElement('div', { style:{ marginTop:'6px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'8px', padding:'10px', fontSize:'11px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } },
+    React.createElement('div', { style:{ fontWeight:'800', color:'#15803d', marginBottom:'4px' } }, 'AI 약점 분석' + (a.score != null ? ' — ' + a.score + '/' + (a.total != null ? a.total : '?') + (a.percentage != null ? ' (' + a.percentage + '%)' : '') : '') + (a.analyzed_at ? ' · ' + String(a.analyzed_at).slice(0,16).replace('T',' ') : '')),
+    a.summary && React.createElement('div', { style:{ color:'#374151', marginBottom:'4px', whiteSpace:'pre-line' } }, a.summary),
+    Array.isArray(a.weak_topics) && a.weak_topics.length > 0 && React.createElement('div', { style:{ color:'#c82014', marginBottom:'2px', fontWeight:'700' } }, '약점: ' + a.weak_topics.join(', ')),
+    Array.isArray(a.strengths) && a.strengths.length > 0 && React.createElement('div', { style:{ color:'#15803d', marginBottom:'2px' } }, '강점: ' + a.strengths.join(', ')),
+    a.mistake_pattern && React.createElement('div', { style:{ color:'#c87000', marginBottom:'2px' } }, '실수 패턴: ' + a.mistake_pattern),
+    Array.isArray(a.wrong_questions) && a.wrong_questions.length > 0 && React.createElement('div', { style:{ color:'#6b7280', marginBottom:'2px' } }, '틀린 문항: ' + a.wrong_questions.join(', ') + '번'),
+    Array.isArray(a.by_topic) && a.by_topic.length > 0 && React.createElement('div', { style:{ color:'#374151', marginBottom:'2px' } }, '단원별: ' + a.by_topic.map(function(t){ return t.topic + ' ' + t.correct + '/' + t.total; }).join(' · ')),
+    a.recommendation && React.createElement('div', { style:{ color:'#1d4ed8', marginTop:'4px', whiteSpace:'pre-line', fontWeight:'600' } }, '추천 학습: ' + a.recommendation)
+  );
+}
 function renderExamAnalysis(a) {
   if (!a) return null;
   var qs = Array.isArray(a.questions) ? a.questions : [];
@@ -4548,6 +4574,11 @@ tab==='leveltest' && (function(){
                 matched && matched.text_answers && Object.keys(matched.text_answers).length > 0 && Object.keys(matched.text_answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){
                   return React.createElement('div', { key:k, style:{ marginTop:'4px', color:'#374151', fontSize:'11px', whiteSpace:'pre-line' } }, '서술형 ' + k + '. ' + matched.text_answers[k]);
                 }),
+                /* AI 약점 분석 (시험 문항 분석이 된 경우만) */
+                matched && t.analysis && React.createElement('div', { style:{ marginTop:'8px' } },
+                  React.createElement('button', { onClick:function(){ runStudentAnalysis(matched.id); }, disabled: analyzingStudentId === matched.id, style:{ background: analyzingStudentId === matched.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === matched.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' } }, analyzingStudentId === matched.id ? 'AI 분석 중... (수십 초 소요)' : (matched.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석'))
+                ),
+                matched && matched.ai_analysis && renderStudentAnalysis(matched.ai_analysis),
                 /* 채점 폼 */
                 matched && React.createElement(GradingForm, { exam: t, submission: matched, onSave: adminSaveGrading })
               );
