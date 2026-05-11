@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v47-page-range';
+const CACHE_VERSION = 'b2-bigbang-20260511v48-analysis-in-form';
 const OFFLINE_URLS = [
   './',
   './index.html',
