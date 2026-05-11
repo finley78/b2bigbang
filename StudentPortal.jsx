@@ -2150,7 +2150,19 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
               React.createElement('button', { onClick:function(){ setExamImgIdx(Math.min(imgs.length-1, examImgIdx+1)); }, disabled: examImgIdx===imgs.length-1, style:{ background: examImgIdx===imgs.length-1?'#f3f4f6':'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', padding:'5px 10px', fontSize:'12px', fontWeight:'700', cursor: examImgIdx===imgs.length-1?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, '다음 ›')
             )
           ),
-          React.createElement('img', { src: examPublicUrl(imgs[examImgIdx]), alt:'시험지 ' + (examImgIdx+1), style:{ width:'100%', display:'block', borderRadius:'8px', border:'1px solid #e5e7eb' } }),
+          (function(){
+            var cur = imgs[examImgIdx];
+            var url = examPublicUrl(cur);
+            var isPdf = (String(cur).split('.').pop() || '').toLowerCase() === 'pdf';
+            if (isPdf) {
+              return React.createElement('div', null,
+                React.createElement('a', { href:url, target:'_blank', rel:'noopener noreferrer', style:{ display:'inline-block', background:'#1A1A1A', color:'#fff', borderRadius:'8px', padding:'8px 14px', fontSize:'13px', fontWeight:'700', textDecoration:'none', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '시험지 PDF 새 탭에서 열기'),
+                React.createElement('iframe', { src:url, title:'시험지 PDF', style:{ width:'100%', height:'72vh', border:'1px solid #e5e7eb', borderRadius:'8px' } }),
+                React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'6px', fontFamily:'Manrope, sans-serif' } }, '시험지가 안 보이면 위의 "새 탭에서 열기"를 눌러주세요.')
+              );
+            }
+            return React.createElement('img', { src: url, alt:'시험지 ' + (examImgIdx+1), style:{ width:'100%', display:'block', borderRadius:'8px', border:'1px solid #e5e7eb' } });
+          })(),
           imgs.length > 1 && React.createElement('div', { style:{ display:'flex', gap:'6px', marginTop:'10px', flexWrap:'wrap' } },
             imgs.map(function(_, i){
               return React.createElement('button', { key:i, onClick:function(){ setExamImgIdx(i); }, style:{ background: i===examImgIdx?'#E60012':'#fff', color: i===examImgIdx?'#fff':'#374151', border: '1px solid ' + (i===examImgIdx?'#E60012':'#d1d5db'), borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, String(i+1));

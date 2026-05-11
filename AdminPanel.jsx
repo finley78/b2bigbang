@@ -4620,8 +4620,8 @@ tab==='leveltest' && (function(){
         ),
         renderFileList(adminLtDraft.answer_existing_paths, '답안지·해설', '')
       ),
-      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시험지 이미지' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' * (여러 장 가능, 페이지 순서대로)')),
-      React.createElement('input', { type:'file', accept:'image/*', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시험지 (이미지 또는 PDF)' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' * (여러 장 가능, 페이지 순서대로)')),
+      React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
       adminLtDraft.files && adminLtDraft.files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' } }, '새 시험지 ' + adminLtDraft.files.length + '장 선택됨 (저장 시 교체)'),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '답안지·해설 (선택 — 자동 문항 분석 정확도 향상, PDF 가능)' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 답안 전체가 교체됩니다' : '')),
       React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { answer_files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),

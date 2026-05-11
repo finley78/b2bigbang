@@ -2331,8 +2331,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     {renderFileList(examDraft.answer_existing_paths, '답안지·해설', '')}
                   </div>
                 )}
-                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 이미지{editingExamId ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' (선택 — 여러 장 가능, 페이지 순서대로)'}</label>
-                <input type="file" accept="image/*" multiple onChange={e => setExamDraft({ ...examDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 (이미지 또는 PDF){editingExamId ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' (선택 — 여러 장 가능, 페이지 순서대로)'}</label>
+                <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setExamDraft({ ...examDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
                 {examDraft.files && examDraft.files.length > 0 && (
                   <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' }}>새 시험지 {examDraft.files.length}장 선택됨 (저장 시 교체)</div>
                 )}
