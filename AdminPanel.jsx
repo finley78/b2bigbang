@@ -4531,22 +4531,18 @@ tab==='leveltest' && (function(){
                 (r.school_level || r.grade || r.semester || r.subject || r.score != null) && React.createElement('div', { style:{ marginTop:'4px', color:'#1d4ed8', fontWeight:'700', fontSize:'11px' } }, '응시 정보: ' + [r.school_level, r.grade ? r.grade + '학년' : null, r.semester ? r.semester + '학기' : null, r.subject, r.score != null ? r.score + '점' : null].filter(Boolean).join(' / ')),
                 matched && (t.question_count||0) > 0 && matched.answers && Object.keys(matched.answers).length > 0 && (function(){
                   var ak = (t.answer_key && typeof t.answer_key === 'object') ? t.answer_key : {};
-                  var hasKey = Object.keys(ak).length > 0;
-                  var qc = t.question_count || 0;
+                  var akKeys = Object.keys(ak);
+                  var hasKey = akKeys.length > 0;
                   var correct = 0;
-                  if (hasKey) {
-                    for (var i = 1; i <= qc; i++) {
-                      if (ak[i] != null && String(matched.answers[i] || '') === String(ak[i])) correct++;
-                    }
-                  }
+                  if (hasKey) akKeys.forEach(function(k){ if (String(matched.answers[k] || '') === String(ak[k])) correct++; });
                   return React.createElement('div', { style:{ marginTop:'4px', color:'#374151', fontSize:'11px' } },
                     '객관식: ' + Object.keys(matched.answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){
                       var my = matched.answers[k];
-                      if (!hasKey) return k + '. ' + my;
+                      if (!hasKey || ak[k] == null) return k + '. ' + my;
                       var ok = String(my) === String(ak[k]);
-                      return k + '. ' + my + (ok ? ' ✓' : ' ✗(' + ak[k] + ')');
+                      return k + '. ' + my + (ok ? ' (정답)' : ' (오답·정답' + ak[k] + ')');
                     }).join(' / '),
-                    hasKey && React.createElement('span', { style:{ marginLeft:'8px', fontWeight:'800', color:'#E60012' } }, '자동채점: ' + correct + '/' + qc)
+                    hasKey && React.createElement('span', { style:{ marginLeft:'8px', fontWeight:'800', color:'#E60012' } }, '자동채점: ' + correct + '/' + akKeys.length)
                   );
                 })(),
                 matched && matched.text_answers && Object.keys(matched.text_answers).length > 0 && Object.keys(matched.text_answers).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){
@@ -4740,15 +4736,17 @@ tab==='leveltest' && (function(){
         )
       ),
 
-      /* 객관식 정답 입력 (직접 기입) */
+      /* 객관식 정답 입력 (분석으로 자동 채워짐, 수정 가능) */
       (function(){
         var qc = parseInt(adminLtDraft.question_count, 10) || 0;
-        if (qc <= 0) return null;
+        var ak0 = adminLtDraft.answer_key || {};
+        var akNums = Object.keys(ak0).map(Number).filter(function(n){ return !isNaN(n) && n > 0; }).sort(function(a,b){ return a-b; });
+        var nums = (akNums.length === qc && akNums.length > 0) ? akNums : Array.from({ length: qc }, function(_, i){ return i + 1; });
+        if (nums.length === 0) return null;
         return React.createElement('div', { style:{ marginBottom:'14px' } },
-          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 정답 (직접 기입, 비워두면 자동 채점 X)'),
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 정답 (문항 분석하면 자동으로 채워집니다 · 직접 수정 가능)'),
           React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(90px, 1fr))', gap:'6px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' } },
-            Array.from({ length: qc }).map(function(_, i){
-              var num = i + 1;
+            nums.map(function(num){
               return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'4px' } },
                 React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#6b7280', minWidth:'22px', textAlign:'right' } }, num + '.'),
                 React.createElement('input', { type:'text', value:(adminLtDraft.answer_key && adminLtDraft.answer_key[num]) || '', onChange:function(e){
@@ -5263,14 +5261,13 @@ function GradingForm({ exam, submission, onSave }) {
 
   // 객관식 자동 채점 점수
   const ak = (exam.answer_key && typeof exam.answer_key === 'object') ? exam.answer_key : {};
-  const hasKey = Object.keys(ak).length > 0;
-  const qc = exam.question_count || 0;
+  const akKeys = Object.keys(ak);
+  const hasKey = akKeys.length > 0;
+  const qc = hasKey ? akKeys.length : (exam.question_count || 0);
   let objAuto = null;
-  if (hasKey && qc > 0) {
+  if (hasKey) {
     let c = 0;
-    for (let i = 1; i <= qc; i++) {
-      if (ak[i] != null && String((submission.answers && submission.answers[i]) || '') === String(ak[i])) c++;
-    }
+    akKeys.forEach(function(k){ if (String((submission.answers && submission.answers[k]) || '') === String(ak[k])) c++; });
     objAuto = c;
   }
 

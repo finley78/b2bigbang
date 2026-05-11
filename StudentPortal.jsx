@@ -2215,14 +2215,16 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           qc > 0 && (function(){
             var cpq = activeExam.choices_per_question || 5;
             var circles = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+            var ak = (activeExam.answer_key && typeof activeExam.answer_key === 'object') ? activeExam.answer_key : {};
+            var akNums = Object.keys(ak).map(Number).filter(function(n){ return !isNaN(n) && n > 0; }).sort(function(a,b){ return a-b; });
+            var qNums = (akNums.length === qc) ? akNums : Array.from({ length: qc }, function(_, i){ return i + 1; });
             return React.createElement('div', { style:{ marginBottom: activeExam.allow_text_answer ? '24px' : 0 } },
               React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' } },
                 React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, '객관식 (' + qc + '문항 · ' + cpq + '지선다)'),
                 React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '※ 보기를 클릭해 답을 선택하세요')
               ),
               React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'6px', border:'1px solid #1A1A1A', borderRadius:'6px', padding:'10px' } },
-                Array.from({ length: qc }).map(function(_, i){
-                  var num = i + 1;
+                qNums.map(function(num){
                   var current = examAnswers[num];
                   return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 4px', borderBottom:'1px dashed #e5e7eb' } },
                     React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', minWidth:'28px', fontFamily:'Manrope, sans-serif', textAlign:'right' } }, num + '.'),

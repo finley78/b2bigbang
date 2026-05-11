@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v55-keep-form-open';
+const CACHE_VERSION = 'b2-bigbang-20260511v56-auto-omr';
 const OFFLINE_URLS = [
   './',
   './index.html',
