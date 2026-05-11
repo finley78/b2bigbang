@@ -499,7 +499,7 @@ async function loadAdminLevelTests() {
   }
 }
 function adminOpenLtForm() {
-  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
+  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
   setAdminLtFormOpen(true);
 }
 function adminOpenLtEditForm(t) {
@@ -507,6 +507,8 @@ function adminOpenLtEditForm(t) {
     id: t.id,
     kind: t.kind || 'level',
     existing_paths: Array.isArray(t.image_paths) ? t.image_paths : [],
+    answer_existing_paths: Array.isArray(t.answer_paths) ? t.answer_paths : [],
+    answer_files: [],
     title: t.title || '',
     subject: t.subject || '',
     school_level: t.school_level || '중',
@@ -567,6 +569,23 @@ async function adminSubmitLevelTest() {
         paths.push(path);
       }
     }
+    // 답안지(해설 포함) 업로드 — 시험지와 동일한 패턴
+    var answerExisting = Array.isArray(d.answer_existing_paths) ? d.answer_existing_paths : [];
+    var answerPaths = answerExisting.slice();
+    if (d.answer_files && d.answer_files.length > 0) {
+      if (isEdit && answerExisting.length > 0) {
+        try { await sb.storage.from('attachments').remove(answerExisting); } catch(e) {}
+      }
+      answerPaths = [];
+      for (var ai = 0; ai < d.answer_files.length; ai++) {
+        var af = d.answer_files[ai];
+        var aext = (af.name.split('.').pop() || 'png').toLowerCase();
+        var apath = 'exams/level/answers/' + Date.now() + '_' + ai + '_' + Math.random().toString(36).slice(2,8) + '.' + aext;
+        var aup = await sb.storage.from('attachments').upload(apath, af, { cacheControl:'3600', upsert:false });
+        if (aup.error) throw aup.error;
+        answerPaths.push(apath);
+      }
+    }
     var kindVal = (d.kind === 'weekly' || d.kind === 'monthly' || d.kind === 'homework') ? d.kind : 'level';
     var row = {
       kind: kindVal,
@@ -581,6 +600,7 @@ async function adminSubmitLevelTest() {
       objective_total: qc,
       description: d.description.trim() || null,
       image_paths: paths,
+      answer_paths: answerPaths,
       question_count: qc,
       choices_per_question: cpq,
       text_question_count: tqc,
@@ -636,7 +656,9 @@ async function adminDeleteLevelTest(t) {
   var sb = window.supabase;
   try {
     var paths = Array.isArray(t.image_paths) ? t.image_paths : [];
-    if (paths.length > 0) { try { await sb.storage.from('attachments').remove(paths); } catch(e) {} }
+    var ansPaths = Array.isArray(t.answer_paths) ? t.answer_paths : [];
+    var allPaths = paths.concat(ansPaths);
+    if (allPaths.length > 0) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e) {} }
     await sb.from('exams').delete().eq('id', t.id);
     await loadAdminLevelTests();
   } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
@@ -4490,6 +4512,10 @@ tab==='leveltest' && (function(){
       adminLtDraft.id && adminLtDraft.existing_paths && adminLtDraft.existing_paths.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#1d4ed8', fontWeight:'700', marginBottom:'4px' } }, '기존 이미지 ' + adminLtDraft.existing_paths.length + '장 등록됨'),
       React.createElement('input', { type:'file', accept:'image/*', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
       adminLtDraft.files && adminLtDraft.files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' } }, adminLtDraft.files.length + '장 선택됨'),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '답안지·해설 이미지 (선택 — 자동 문항 분석 정확도 향상)' + (adminLtDraft.id ? ' — 수정 시: 새 파일 선택하면 기존 답안 교체, 비워두면 기존 유지' : '')),
+      adminLtDraft.id && adminLtDraft.answer_existing_paths && adminLtDraft.answer_existing_paths.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#1d4ed8', fontWeight:'700', marginBottom:'4px' } }, '기존 답안지 ' + adminLtDraft.answer_existing_paths.length + '장 등록됨'),
+      React.createElement('input', { type:'file', accept:'image/*', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { answer_files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
+      adminLtDraft.answer_files && adminLtDraft.answer_files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' } }, adminLtDraft.answer_files.length + '장 선택됨'),
       /* 일반 시험: 기존 입력 그대로 */
       adminLtDraft.kind !== 'homework' && React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'10px' } },
         React.createElement('div', { style:{ flex:1 } },

@@ -1269,7 +1269,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var k = presetKind === 'homework' ? 'homework' : 'class';
     var subs = (teacherInfo && Array.isArray(teacherInfo.subjects)) ? teacherInfo.subjects.filter(Boolean) : [];
     setEditingExamId(null);
-    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], question_count: k==='homework' ? '0' : '10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
+    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], answer_files:[], answer_existing_paths:[], question_count: k==='homework' ? '0' : '10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false });
     setExamFormOpen(true);
   }
   function openExamFormForEdit(exam) {
@@ -1282,6 +1282,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       description: exam.description || '',
       files: [],
       existing_paths: Array.isArray(exam.image_paths) ? exam.image_paths : [],
+      answer_files: [],
+      answer_existing_paths: Array.isArray(exam.answer_paths) ? exam.answer_paths : [],
       question_count: String(exam.question_count || 0),
       choices_per_question: String(exam.choices_per_question || 5),
       text_question_count: String(exam.text_question_count || (exam.allow_text_answer ? 1 : 0)),
@@ -1329,6 +1331,23 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           paths.push(path);
         }
       }
+      // 답안지(해설) 업로드 — 시험지와 동일 패턴
+      var ansExisting = (d.answer_existing_paths && d.answer_existing_paths.length) ? d.answer_existing_paths.slice() : [];
+      var answerPaths = ansExisting.slice();
+      if (d.answer_files && d.answer_files.length > 0) {
+        if (editingExamId && ansExisting.length > 0) {
+          try { await sb.storage.from('attachments').remove(ansExisting); } catch(e) {}
+        }
+        answerPaths = [];
+        for (var ai = 0; ai < d.answer_files.length; ai++) {
+          var af = d.answer_files[ai];
+          var aext = (af.name.split('.').pop() || 'png').toLowerCase();
+          var apath = 'exams/' + selectedClass.id + '/answers/' + Date.now() + '_' + ai + '_' + Math.random().toString(36).slice(2,8) + '.' + aext;
+          var aup = await sb.storage.from('attachments').upload(apath, af, { cacheControl:'3600', upsert:false });
+          if (aup.error) throw aup.error;
+          answerPaths.push(apath);
+        }
+      }
       var kindVal = (d.kind === 'weekly' || d.kind === 'monthly' || d.kind === 'homework') ? d.kind : 'class';
       var row = {
         title: d.title.trim(),
@@ -1336,6 +1355,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         test_date: d.test_date || null,
         description: (d.description||'').trim() || null,
         image_paths: paths,
+        answer_paths: answerPaths,
         question_count: qc,
         choices_per_question: cpq,
         text_question_count: tqc,
@@ -1382,7 +1402,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (!confirm('이 시험지를 삭제하시겠습니까? 학생 답안도 함께 삭제됩니다.')) return;
     try {
       var paths = Array.isArray(exam.image_paths) ? exam.image_paths : [];
-      if (paths.length > 0) { try { await sb.storage.from('attachments').remove(paths); } catch(e) {} }
+      var ansPaths = Array.isArray(exam.answer_paths) ? exam.answer_paths : [];
+      var allPaths = paths.concat(ansPaths);
+      if (allPaths.length > 0) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e) {} }
       await sb.from('exams').delete().eq('id', exam.id);
       await loadClassExams(selectedClass?.id);
     } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
@@ -2200,6 +2222,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 )}
                 {examDraft.files && examDraft.files.length > 0 && (
                   <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>{examDraft.files.length}장 선택됨 — {examDraft.files.map(f => f.name).join(', ')}</div>
+                )}
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>답안지·해설 이미지 (선택 — 자동 문항 분석 정확도 향상)</label>
+                <input type="file" accept="image/*" multiple onChange={e => setExamDraft({ ...examDraft, answer_files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                {editingExamId && (examDraft.answer_existing_paths || []).length > 0 && (!examDraft.answer_files || examDraft.answer_files.length === 0) && (
+                  <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>기존 답안지 {(examDraft.answer_existing_paths || []).length}장 유지 — 새로 올리면 교체됩니다.</div>
+                )}
+                {examDraft.answer_files && examDraft.answer_files.length > 0 && (
+                  <div style={{ fontSize:'11px', color:'#6b7280', marginBottom:'14px' }}>{examDraft.answer_files.length}장 선택됨 — {examDraft.answer_files.map(f => f.name).join(', ')}</div>
                 )}
 
                 {/* 일반 시험: 기존 입력 그대로 */}

@@ -943,16 +943,31 @@ function SiteFooter({ setPage }) {
     f.email && { l:'이메일', v:f.email },
     f.hours && { l:'운영시간', v:f.hours },
   ].filter(Boolean);
-  return React.createElement('footer', { style:{ background:'#1A1A1A', padding: isMobile ? '32px 16px' : '48px 40px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif' } },
-    React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } },
-      React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: isMobile ? '8px' : '14px', marginBottom:'18px' } },
+  // PC: 항목들을 어두운 카드로 묶고 좌측 정렬 flex-wrap (양끝이 멀리 벌어지지 않게)
+  // 모바일/PWA: 1열 stack 그대로 유지
+  var infoBlock = isMobile
+    ? React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr', gap:'8px', marginBottom:'18px' } },
         items.map(function(it, i){
           return React.createElement('div', { key:i, style:{ fontSize:'12px', lineHeight:'1.7' } },
             React.createElement('span', { style:{ color:'rgba(255,255,255,0.4)', marginRight:'8px' } }, it.l),
             React.createElement('span', { style:{ color:'rgba(255,255,255,0.85)', fontWeight:'600' } }, it.v)
           );
         })
-      ),
+      )
+    : React.createElement('div', {
+        style:{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'18px 22px', marginBottom:'18px', display:'flex', flexWrap:'wrap', columnGap:'28px', rowGap:'8px' }
+      },
+        items.map(function(it, i){
+          return React.createElement('div', { key:i, style:{ fontSize:'12px', lineHeight:'1.6', display:'flex', alignItems:'baseline', gap:'8px' } },
+            React.createElement('span', { style:{ color:'rgba(255,255,255,0.4)', fontWeight:'700' } }, it.l),
+            React.createElement('span', { style:{ color:'rgba(255,255,255,0.92)', fontWeight:'600' } }, it.v)
+          );
+        })
+      );
+
+  return React.createElement('footer', { style:{ background:'#1A1A1A', padding: isMobile ? '32px 16px' : '48px 40px', color:'rgba(255,255,255,0.7)', fontFamily:'Manrope, sans-serif' } },
+    React.createElement('div', { style:{ maxWidth:'1280px', margin:'0 auto' } },
+      infoBlock,
       links,
       f.copyright && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(255,255,255,0.35)', marginTop:'14px' } }, f.copyright)
     )

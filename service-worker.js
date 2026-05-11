@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v40-attendance';
+const CACHE_VERSION = 'b2-bigbang-20260511v41-answer-upload';
 const OFFLINE_URLS = [
   './',
   './index.html',
