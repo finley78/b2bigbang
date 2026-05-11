@@ -756,6 +756,7 @@ function renderStudentAnalysis(a) {
     a.mistake_pattern && React.createElement('div', { style:{ color:'#c87000', marginBottom:'2px' } }, '실수 패턴: ' + a.mistake_pattern),
     Array.isArray(a.wrong_questions) && a.wrong_questions.length > 0 && React.createElement('div', { style:{ color:'#6b7280', marginBottom:'2px' } }, '틀린 문항: ' + a.wrong_questions.join(', ') + '번'),
     Array.isArray(a.by_topic) && a.by_topic.length > 0 && React.createElement('div', { style:{ color:'#374151', marginBottom:'2px' } }, '단원별: ' + a.by_topic.map(function(t){ return t.topic + ' ' + t.correct + '/' + t.total; }).join(' · ')),
+    a.text_feedback && React.createElement('div', { style:{ color:'#7c3aed', marginTop:'4px', whiteSpace:'pre-line' } }, '서술형 평가: ' + a.text_feedback),
     a.recommendation && React.createElement('div', { style:{ color:'#1d4ed8', marginTop:'4px', whiteSpace:'pre-line', fontWeight:'600' } }, '추천 학습: ' + a.recommendation)
   );
 }

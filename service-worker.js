@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260511v62-report-print';
+const CACHE_VERSION = 'b2-bigbang-20260511v63-exact-grading';
 const OFFLINE_URLS = [
   './',
   './index.html',
