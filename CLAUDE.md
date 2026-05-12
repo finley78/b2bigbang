@@ -123,7 +123,8 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v83-scores-pick-fix)
+## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v84-academic-fk-fix)
+> v84: 학사일정 추가 FK 에러 수정 — `academic_schedules.created_by` 는 students(id) 참조인데 `teacherInfo.id`는 teachers 테이블 id라 FK 위반. → `created_by: null`로 (작성자는 `creator_name`으로 표시). ⚠️ 비슷하게 `exams.teacher_id`도 students(id) 가정인데 `user.id`를 넣음 — exams는 FK가 없어서 안 터지지만, 향후 FK 추가 시 주의.
 > v83: (1) 성적 보기 학생 목록 행을 "점수 요약"(N회·최근·평균) → 그냥 이름·학년·반 + "성적 보기 ›" 로 (학생 누르면 그 학생 성적 보이게). 필터 위에 "필터 (선택)" 라벨 + "필터 초기화" 버튼, 목록 위 "학생 N명 — 누르면 성적 보임" 안내. 학생 반 이름 중복 제거. (2) 학사일정 추가 폼: 제목 입력칸을 분류='기타'일 때만 표시·필수. 방학/시험기간이면 제목 자동 = '방학'/'시험기간', 별도 안내문 표시. `submitAcademicSchedule`도 cat==='other'일 때만 제목 필수.
 
 ### ★ 진행 중: 성적 탭 재설계 (2026-05-12) — 시행착오 예상, 롤백 기준점 = git 태그 `rollback-before-scores-redesign` (= `?v=20260512v80-test-results-to-scores`) ★

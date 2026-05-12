@@ -1940,11 +1940,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       var { error } = await sb.from('academic_schedules').insert({
         title: titleVal,
         school: d.school.trim() || null,
-        category: d.category || 'other',
+        category: cat,
         start_date: d.start_date,
         end_date: d.end_date,
         description: d.description.trim() || null,
-        created_by: teacherInfo?.id || null,
+        // created_by 는 students(id) 참조 — teacherInfo.id(teachers 테이블)와 id 공간이 달라 넣지 않음. 작성자는 creator_name 으로.
+        created_by: null,
         creator_name: teacherInfo?.name || user?.name || '선생님',
       });
       if (error) throw error;

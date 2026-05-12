@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v83-scores-pick-fix';
+const CACHE_VERSION = 'b2-bigbang-20260512v84-academic-fk-fix';
 const OFFLINE_URLS = [
   './',
   './index.html',
