@@ -1769,10 +1769,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     var diffColor = function(d){ return d==='상' ? '#c82014' : (d==='중' ? '#c87000' : '#16a34a'); };
     return (
       <div style={{ marginTop:'10px', background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'12px' }}>
-        <div style={{ fontSize:'12px', fontWeight:'800', color:'#111827', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>
-          Claude 문항 분석 — 총 {a.total_questions != null ? a.total_questions : qs.length}문항{a.subject_guess ? ' · ' + a.subject_guess : ''}{a.page_count ? ' · ' + a.page_count + '페이지' : ''}{a.analyzed_at ? ' (' + String(a.analyzed_at).slice(0,16).replace('T',' ') + ')' : ''}
-        </div>
-        {a.summary && <div style={{ fontSize:'12px', color:'#374151', marginBottom:'8px', whiteSpace:'pre-line', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' }}>{a.summary}</div>}
+        <div style={{ fontSize:'12px', fontWeight:'800', color:'#111827', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>분석 내용</div>
         <div style={{ display:'flex', flexDirection:'column', gap:'4px', maxHeight:'400px', overflowY:'auto' }}>
           {qs.map((q, i) => (
             <div key={i} style={{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'7px 10px', fontSize:'11px', fontFamily:'Manrope, sans-serif' }}>
