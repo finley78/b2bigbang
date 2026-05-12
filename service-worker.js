@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v88-calendar-date-offfix';
+const CACHE_VERSION = 'b2-bigbang-20260512v89-academic-edit-school';
 const OFFLINE_URLS = [
   './',
   './index.html',

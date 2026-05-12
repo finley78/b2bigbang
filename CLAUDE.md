@@ -89,7 +89,7 @@ import는 `pickField()`로 다양한 헤더 변형 인식:
 
 ### 학교 / 학교급 데이터 (AdminPanel.jsx 상단)
 - 초등: 은지초·검암초·간재울초
-- 중등: 검암중·간재울중·백석중·서곶중
+- 중등: 검암중·간재울중·백석중·서곶중·마전중
 - 고등: 대인고·서인천고·백석고
 - + `+ 직접 입력`으로 사용자 입력 학교 허용 (그 외 지역 학교 등록 시)
 
@@ -123,7 +123,8 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v88-calendar-date-offfix)
+## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v89-academic-edit-school)
+> v89: (1) 학사일정 **수정** 가능 — `openAcademicEditForm(item)`(`academicDraft.id` 세팅), `submitAcademicSchedule`가 `d.id` 있으면 update 아니면 insert. 폼 제목/버튼도 수정/등록 분기. 날짜 팝업·목록 항목에 [수정][삭제] 버튼. (2) **마전중** 학교 추가 — `TP_NEARBY_SCHOOLS`(TeacherPortal), `SCHOOLS`·`SCHOOL_LEVELS['중등'].schools`(AdminPanel)에 '마전중' 추가.
 > v88 (버그픽스): 학사일정 달력이 하루 밀려 표시되던 버그 — `acByDate` 만들 때 `dt.toISOString().slice(0,10)`(UTC 변환)을 써서 KST에서 하루 빠르게 찍혔음(7/21 시작 일정이 7/20 칸에). → 로컬 날짜 컴포넌트(`dt.getFullYear()/getMonth()+1/getDate()`)로 계산하는 `_localDS()` 사용. `todayStr`(오늘 강조)도 동일 수정. (날짜 팝업의 `dayItems`는 문자열 비교라 원래 정상이었음 → 그래서 달력 셀과 팝업이 안 맞았던 것.) ⚠️ 다른 곳의 `new Date().toISOString().slice(0,10)`(날짜 기본값들)도 KST 새벽엔 하루 밀릴 수 있음 — 추후 정리 대상.
 > v87: 학사일정 표시에서 제목이 분류 라벨('방학'/'시험기간')과 같으면 중복 안 보이게(`a.title !== academicCategoryLabel(a.category)`일 때만 제목 표시) — 날짜 팝업·목록·달력 셀 뱃지 모두. 항목 한 줄로 압축(분류뱃지 · 학교 · (제목) · 날짜범위). 달력 셀 뱃지는 학교명 우선, 없으면 제목/분류.
 > v86: (1) **한국 공휴일 달력 표시** — `B2Utils.holidayName(dateStr)` (Utils.jsx): 고정 공휴일(`_KR_FIXED_HOLIDAYS` MM-DD 키 — 어느 해든)+ 음력/대체공휴일/선거(`_KR_VAR_HOLIDAYS` YYYY-MM-DD 키 — 2025·2026·2027 하드코딩, **매년 연초 갱신 필요**). 학원 일정 달력 셀에 공휴일이면 날짜 빨강·연빨강 배경·공휴일명 빨강 뱃지. 날짜별 팝업에도 "공휴일 — 이름" 표시. (2) **학원 일정 검색** — 모드 토글 아래 검색칸(`scheduleSearch`). 'change' 모드: 달력 아래 신청 목록 details(검색=teacher_name·reason·target_date, 검색어 있으면 펼침). 'academic' 모드: 기존 목록 details가 검색어 있으면 `academicList` 전체에서, 없으면 `academicInMonth`에서 필터(검색=title·school·description·분류·날짜).

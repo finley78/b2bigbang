@@ -1,5 +1,5 @@
 // 학원 주변 학교 목록 (학사일정 학교 선택용)
-const TP_NEARBY_SCHOOLS = ['은지초','검암초','간재울초','검암중','간재울중','백석중','서곶중','대인고','서인천고','백석고'];
+const TP_NEARBY_SCHOOLS = ['은지초','검암초','간재울초','검암중','간재울중','백석중','서곶중','마전중','대인고','서인천고','백석고'];
 
 function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [teacherInfo, setTeacherInfo] = React.useState(null);
@@ -1922,12 +1922,17 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     }
   }
   function openAcademicForm(prefilledDate) {
-    setAcademicDraft({ title:'', school:'', category:'vacation', start_date: prefilledDate || '', end_date: prefilledDate || '', description:'' });
+    setAcademicDraft({ id:null, title:'', school:'', category:'vacation', start_date: prefilledDate || '', end_date: prefilledDate || '', description:'' });
+    setAcademicFormOpen(true);
+  }
+  function openAcademicEditForm(item) {
+    setAcademicDayOpen(null);
+    setAcademicDraft({ id: item.id, title: item.title || '', school: item.school || '', category: item.category || 'vacation', start_date: item.start_date || '', end_date: item.end_date || '', description: item.description || '' });
     setAcademicFormOpen(true);
   }
   function closeAcademicForm() {
     setAcademicFormOpen(false);
-    setAcademicDraft({ title:'', school:'', category:'vacation', start_date:'', end_date:'', description:'' });
+    setAcademicDraft({ id:null, title:'', school:'', category:'vacation', start_date:'', end_date:'', description:'' });
   }
   async function submitAcademicSchedule() {
     var d = academicDraft;
@@ -1939,23 +1944,29 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     if (d.end_date < d.start_date) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
     setAcademicSubmitting(true);
     try {
-      var { error } = await sb.from('academic_schedules').insert({
+      var row = {
         title: titleVal,
         school: d.school.trim() || null,
         category: cat,
         start_date: d.start_date,
         end_date: d.end_date,
         description: d.description.trim() || null,
+      };
+      if (d.id) {
+        var { error: upErr } = await sb.from('academic_schedules').update(row).eq('id', d.id);
+        if (upErr) throw upErr;
+        alert('학사일정이 수정되었습니다.');
+      } else {
         // created_by 는 students(id) 참조 — teacherInfo.id(teachers 테이블)와 id 공간이 달라 넣지 않음. 작성자는 creator_name 으로.
-        created_by: null,
-        creator_name: teacherInfo?.name || user?.name || '선생님',
-      });
-      if (error) throw error;
-      alert('학사일정이 등록되었습니다.');
+        var ins = Object.assign({ created_by: null, creator_name: teacherInfo?.name || user?.name || '선생님' }, row);
+        var { error: insErr } = await sb.from('academic_schedules').insert(ins);
+        if (insErr) throw insErr;
+        alert('학사일정이 등록되었습니다.');
+      }
       closeAcademicForm();
       await loadAcademicSchedules();
     } catch (e) {
-      alert('등록 실패: ' + (e.message || e));
+      alert((d.id ? '수정' : '등록') + ' 실패: ' + (e.message || e));
     } finally {
       setAcademicSubmitting(false);
     }
@@ -4409,7 +4420,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                             {a.description && <div style={{ fontSize:'13px', color:'#374151', marginTop:'2px', whiteSpace:'pre-line' }}>{a.description}</div>}
                             <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px' }}>{a.creator_name} · {String(a.created_at||'').slice(0,10)}</div>
                           </div>
-                          <button onClick={() => deleteAcademicSchedule(a)} style={smallDangerButtonStyle}>삭제</button>
+                          <div style={{ display:'flex', flexDirection:'column', gap:'5px', flexShrink:0 }}>
+                            <button onClick={() => openAcademicEditForm(a)} style={smallPrimaryButtonStyle}>수정</button>
+                            <button onClick={() => deleteAcademicSchedule(a)} style={smallDangerButtonStyle}>삭제</button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -4446,7 +4460,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                               {a.description && <div style={{ fontSize:'13px', color:'#374151', marginTop:'2px', whiteSpace:'pre-line' }}>{a.description}</div>}
                               <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px' }}>{a.creator_name} · {String(a.created_at||'').slice(0,10)}</div>
                             </div>
-                            <button onClick={() => deleteAcademicSchedule(a)} style={smallDangerButtonStyle}>삭제</button>
+                            <div style={{ display:'flex', flexDirection:'column', gap:'5px', flexShrink:0 }}>
+                              <button onClick={() => openAcademicEditForm(a)} style={smallPrimaryButtonStyle}>수정</button>
+                              <button onClick={() => deleteAcademicSchedule(a)} style={smallDangerButtonStyle}>삭제</button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -4488,7 +4505,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               <div onClick={closeAcademicForm} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
                 <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'480px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' }}>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }}>
-                    <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>학사일정 추가</h3>
+                    <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>{academicDraft.id ? '학사일정 수정' : '학사일정 추가'}</h3>
                     <button onClick={closeAcademicForm} style={{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' }}>×</button>
                   </div>
 
@@ -4533,7 +4550,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                   <div style={{ display:'flex', gap:'8px', marginTop:'12px' }}>
                     <button onClick={closeAcademicForm} style={{ ...lightButtonStyle, flex:1 }}>취소</button>
-                    <button onClick={submitAcademicSchedule} disabled={academicSubmitting} style={{ ...buttonStyle, flex:1, opacity: academicSubmitting ? 0.6 : 1, cursor: academicSubmitting ? 'not-allowed' : 'pointer' }}>{academicSubmitting ? '등록 중...' : '등록'}</button>
+                    <button onClick={submitAcademicSchedule} disabled={academicSubmitting} style={{ ...buttonStyle, flex:1, opacity: academicSubmitting ? 0.6 : 1, cursor: academicSubmitting ? 'not-allowed' : 'pointer' }}>{academicSubmitting ? (academicDraft.id ? '수정 중...' : '등록 중...') : (academicDraft.id ? '수정' : '등록')}</button>
                   </div>
                 </div>
               </div>
