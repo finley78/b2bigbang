@@ -1442,7 +1442,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setMaterialPickerOpen(false);
   }
   function unlinkMaterialFromExam() {
-    setExamDraft(function(p){ return Object.assign({}, p, { material_id: null, material_title: '' }); });
+    setExamDraft(function(p){ return Object.assign({}, p, { material_id: null, material_title: '', existing_paths: [], answer_existing_paths: [] }); });
   }
 
   // ── 시험지 발행 ──

@@ -181,11 +181,35 @@ const [adminLtFormOpen, setAdminLtFormOpen] = React.useState(false);
 const [analyzingExamId, setAnalyzingExamId] = React.useState(null);
 const [analysisOpenId, setAnalysisOpenId] = React.useState(null);
 const [analyzingStudentId, setAnalyzingStudentId] = React.useState(null);
+// 자료실 — 분석 자료 도서관 (시험·숙제 만들기용; kind='material' exams)
+const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null };
+const [materials, setMaterials] = React.useState([]);
+const [materialLoading, setMaterialLoading] = React.useState(false);
+const [materialUploading, setMaterialUploading] = React.useState(false);
+const [materialDraft, setMaterialDraft] = React.useState(MATERIAL_DRAFT_INIT);
+const [materialEditId, setMaterialEditId] = React.useState(null);
+const [analyzingMaterialId, setAnalyzingMaterialId] = React.useState(null);
+const [materialAnalysisOpenId, setMaterialAnalysisOpenId] = React.useState(null);
+const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'' });
+const [materialFormOpen, setMaterialFormOpen] = React.useState(false);
+const [materialPickerOpen, setMaterialPickerOpen] = React.useState(false);
 
 // ── 모바일 뒤로가기: 관리자 탭/모달 단계별 복귀 (PWA 종료 방지) ──
 React.useEffect(function(){
   if (typeof window === 'undefined') return;
   function onPop(e) {
+    if (materialPickerOpen) {
+      e.stopImmediatePropagation();
+      setMaterialPickerOpen(false);
+      try { window.history.pushState({ page:'admin', b2Inner:true }, ''); } catch (err) {}
+      return;
+    }
+    if (materialFormOpen) {
+      e.stopImmediatePropagation();
+      setMaterialFormOpen(false); setMaterialEditId(null);
+      try { window.history.pushState({ page:'admin', b2Inner:true }, ''); } catch (err) {}
+      return;
+    }
     if (adminLtFormOpen) {
       e.stopImmediatePropagation();
       setAdminLtFormOpen(false);
@@ -202,18 +226,18 @@ React.useEffect(function(){
   }
   window.addEventListener('popstate', onPop, true);
   return function(){ window.removeEventListener('popstate', onPop, true); };
-}, [tab, adminLtFormOpen]);
+}, [tab, adminLtFormOpen, materialFormOpen, materialPickerOpen]);
 
 // 관리자 탭/모달 진입 시 history에 한 단계 push
 React.useEffect(function(){
   if (typeof window === 'undefined') return;
-  var deep = (tab !== 'home') || adminLtFormOpen;
+  var deep = (tab !== 'home') || adminLtFormOpen || materialFormOpen || materialPickerOpen;
   if (!deep) return;
   var st = window.history.state || {};
   if (!st.b2Inner) {
     try { window.history.pushState({ page:'admin', b2Inner:true }, ''); } catch (err) {}
   }
-}, [tab, adminLtFormOpen]);
+}, [tab, adminLtFormOpen, materialFormOpen, materialPickerOpen]);
 const [adminLtDraft, setAdminLtDraft] = React.useState({ title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
 const [adminLtUploading, setAdminLtUploading] = React.useState(false);
 const [adminScrMode, setAdminScrMode] = React.useState('change'); // 'change' | 'academic'
@@ -517,10 +541,12 @@ async function loadAdminLevelTests() {
   }
 }
 function adminOpenLtForm() {
-  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'', precise:false, hide_paper:false });
+  if (!materials.length) loadMaterials();
+  setAdminLtDraft({ id:null, kind:'level', existing_paths:[], answer_existing_paths:[], answer_files:[], title:'', subject:'', school_level:'중', target_grade:'', target_semester:'', min_score:'0', max_score:'100', description:'', files:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, hide_paper:false, material_id:null, material_title:'', analysis:null });
   setAdminLtFormOpen(true);
 }
 function adminOpenLtEditForm(t) {
+  if (!materials.length) loadMaterials();
   setAdminLtDraft({
     id: t.id,
     kind: t.kind || 'level',
@@ -546,7 +572,10 @@ function adminOpenLtEditForm(t) {
     selected_questions_text: Array.isArray(t.selected_questions) ? t.selected_questions.join(',') : '',
     analysis: t.analysis || null,
     precise: t.analyze_model === 'opus',
+    precise_student: t.analyze_student_model === 'opus',
     hide_paper: !!t.hide_paper_for_students,
+    material_id: t.material_id || null,
+    material_title: t.material_id ? (((materials || []).find(function(m){ return String(m.id) === String(t.material_id); }) || {}).title || '') : '',
   });
   setAdminLtFormOpen(true);
 }
@@ -578,8 +607,7 @@ async function adminSubmitLevelTest(thenAnalyze) {
   }
   if (!d.title.trim()) { alert('제목을 입력해 주세요.'); return; }
   var existingPaths = Array.isArray(d.existing_paths) ? d.existing_paths : [];
-  if (!isEdit && (!d.files || d.files.length === 0)) { alert('시험지 이미지를 1장 이상 업로드해 주세요.'); return; }
-  if (isEdit && (!d.files || d.files.length === 0) && existingPaths.length === 0) { alert('시험지 이미지를 1장 이상 업로드해 주세요.'); return; }
+  if ((!d.files || d.files.length === 0) && existingPaths.length === 0) { alert('시험지 이미지를 1장 이상 올리거나 자료실에서 불러와 주세요.'); return; }
   var qc = parseInt(d.question_count, 10); if (isNaN(qc) || qc < 0) qc = 0;
   var cpq = parseInt(d.choices_per_question, 10); if (isNaN(cpq) || cpq < 2) cpq = 5; if (cpq > 9) cpq = 9;
   var tqc = parseInt(d.text_question_count, 10); if (isNaN(tqc) || tqc < 0) tqc = 0;
@@ -645,9 +673,12 @@ async function adminSubmitLevelTest(thenAnalyze) {
       description: d.description.trim() || null,
       image_paths: paths,
       answer_paths: answerPaths,
+      analysis: d.analysis || null,
+      material_id: d.material_id || null,
       analyze_page_range: (d.analyze_page_range || '').trim() || null,
       selected_questions: window.B2Utils.parseNumberRange(d.selected_questions_text),
       analyze_model: d.precise ? 'opus' : 'sonnet',
+      analyze_student_model: d.precise_student ? 'opus' : 'sonnet',
       hide_paper_for_students: !!d.hide_paper,
       question_count: qc,
       choices_per_question: cpq,
@@ -792,13 +823,195 @@ async function adminDeleteLevelTest(t) {
   if (!confirm('이 ' + label + '을(를) 삭제하시겠습니까? 제출 내역과 답안도 함께 삭제됩니다.')) return;
   var sb = window.supabase;
   try {
-    var paths = Array.isArray(t.image_paths) ? t.image_paths : [];
-    var ansPaths = Array.isArray(t.answer_paths) ? t.answer_paths : [];
-    var allPaths = paths.concat(ansPaths);
-    if (allPaths.length > 0) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e) {} }
+    // 자료실 자료에서 만든 시험이면 시험지 파일은 자료가 계속 쓰므로 지우지 않음
+    if (!t.material_id) {
+      var paths = Array.isArray(t.image_paths) ? t.image_paths : [];
+      var ansPaths = Array.isArray(t.answer_paths) ? t.answer_paths : [];
+      var allPaths = paths.concat(ansPaths);
+      if (allPaths.length > 0) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e) {} }
+    }
     await sb.from('exams').delete().eq('id', t.id);
     await loadAdminLevelTests();
   } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+}
+
+// ── 자료실: 분석 자료 도서관 (시험·숙제 만들기용) ──
+async function loadMaterials() {
+  setMaterialLoading(true);
+  var sb = window.supabase;
+  try {
+    var { data } = await sb.from('exams').select('*').eq('kind', 'material').order('created_at', { ascending:false });
+    setMaterials(data || []);
+  } catch (e) { setMaterials([]); }
+  finally { setMaterialLoading(false); }
+}
+function openMaterialForm() {
+  setMaterialEditId(null);
+  setMaterialDraft(Object.assign({}, MATERIAL_DRAFT_INIT));
+  setMaterialFormOpen(true);
+}
+function openMaterialFormForEdit(m) {
+  setMaterialEditId(m.id);
+  setMaterialDraft({
+    title: m.title || '', subject: m.subject || '', school_level: m.school_level || '', target_grade: m.target_grade || '', target_semester: m.target_semester || '',
+    description: m.description || '',
+    files: [], answer_files: [],
+    existing_paths: Array.isArray(m.image_paths) ? m.image_paths : [],
+    answer_existing_paths: Array.isArray(m.answer_paths) ? m.answer_paths : [],
+    analyze_page_range: m.analyze_page_range || '',
+    selected_questions_text: Array.isArray(m.selected_questions) ? m.selected_questions.join(',') : '',
+    precise: m.analyze_model === 'opus',
+    precise_student: m.analyze_student_model === 'opus',
+    analysis: m.analysis || null,
+  });
+  setMaterialFormOpen(true);
+}
+function closeMaterialForm() { setMaterialFormOpen(false); setMaterialEditId(null); }
+async function submitMaterial(thenAnalyze) {
+  var sb = window.supabase;
+  var d = materialDraft;
+  if (!d.title.trim()) { alert('자료 제목을 입력해 주세요.'); return; }
+  var hasNewFiles = (d.files && d.files.length) || (d.answer_files && d.answer_files.length);
+  var hasExisting = ((d.existing_paths||[]).length) || ((d.answer_existing_paths||[]).length);
+  if (!hasNewFiles && !hasExisting) { alert('시험지 또는 답안지·해설 파일을 1개 이상 올려주세요.'); return; }
+  var doAnalyze = thenAnalyze === true;
+  if (doAnalyze && materialEditId && d.analysis) {
+    doAnalyze = confirm('이미 문항 분석이 된 자료입니다.\n[확인] = 저장하고 다시 분석 (Claude 요금 다시 발생)\n[취소] = 저장만');
+  }
+  setMaterialUploading(true);
+  try {
+    var prefix = 'materials/' + ((user && user.id) ? user.id : 'admin');
+    var paths = (d.existing_paths && d.existing_paths.length) ? d.existing_paths.slice() : [];
+    if (d.files && d.files.length > 0) {
+      paths = [];
+      for (var i = 0; i < d.files.length; i++) {
+        var f = d.files[i]; var ext = (f.name.split('.').pop() || 'png').toLowerCase();
+        var p = prefix + '/' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+        var up = await sb.storage.from('attachments').upload(p, f, { cacheControl:'3600', upsert:false });
+        if (up.error) throw up.error; paths.push(p);
+      }
+    }
+    var ansPaths = (d.answer_existing_paths && d.answer_existing_paths.length) ? d.answer_existing_paths.slice() : [];
+    if (d.answer_files && d.answer_files.length > 0) {
+      ansPaths = [];
+      for (var ai = 0; ai < d.answer_files.length; ai++) {
+        var af = d.answer_files[ai]; var aext = (af.name.split('.').pop() || 'png').toLowerCase();
+        var ap = prefix + '/answers/' + Date.now() + '_' + ai + '_' + Math.random().toString(36).slice(2,8) + '.' + aext;
+        var aup = await sb.storage.from('attachments').upload(ap, af, { cacheControl:'3600', upsert:false });
+        if (aup.error) throw aup.error; ansPaths.push(ap);
+      }
+    }
+    var row = {
+      title: d.title.trim(),
+      subject: (d.subject||'').trim() || null,
+      school_level: (d.school_level||'').trim() || null,
+      target_grade: (d.target_grade||'').trim() || null,
+      target_semester: (d.target_semester||'').trim() || null,
+      description: (d.description||'').trim() || null,
+      image_paths: paths,
+      answer_paths: ansPaths,
+      analyze_page_range: (d.analyze_page_range || '').trim() || null,
+      selected_questions: window.B2Utils.parseNumberRange(d.selected_questions_text),
+      analyze_model: d.precise ? 'opus' : 'sonnet',
+      analyze_student_model: d.precise_student ? 'opus' : 'sonnet',
+    };
+    var savedId = null;
+    if (materialEditId) {
+      var u = await sb.from('exams').update(row).eq('id', materialEditId);
+      if (u.error) throw u.error; savedId = materialEditId;
+      if (!doAnalyze) alert('자료가 수정되었습니다.');
+    } else {
+      var insertRow = Object.assign({
+        kind: 'material', class_id: null, teacher_id: null, teacher_name: '관리자',
+        status: 'open', question_count: 0, text_question_count: 0, allow_text_answer: false, answer_key: {},
+      }, row);
+      var ins = await sb.from('exams').insert(insertRow).select('id').single();
+      if (ins.error) throw ins.error; savedId = ins.data && ins.data.id;
+      if (!doAnalyze) alert('자료가 저장되었습니다.');
+    }
+    await loadMaterials();
+    if (!doAnalyze) { closeMaterialForm(); }
+    if (doAnalyze && savedId) {
+      setMaterialEditId(savedId);
+      setMaterialDraft(function(p){ return Object.assign({}, p, { existing_paths: row.image_paths, answer_existing_paths: row.answer_paths, files:[], answer_files:[] }); });
+      setAnalyzingMaterialId(savedId);
+      try {
+        var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: savedId });
+        if (!r.ok || (r.data && r.data.error)) { alert('저장은 됐지만 문항 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); }
+        else {
+          await loadMaterials();
+          setMaterialAnalysisOpenId(savedId);
+          var us = (r.data && r.data.usage) || {};
+          setMaterialDraft(function(p){ return Object.assign({}, p, { analysis: (r.data && r.data.analysis) || p.analysis }); });
+          alert('문항 분석 완료!' + (us.input_tokens ? '\n(입력 ' + us.input_tokens + ' / 출력 ' + (us.output_tokens||0) + ' 토큰)' : ''));
+        }
+      } catch (ee) { alert('저장은 됐지만 문항 분석 실패: ' + (ee.message || ee)); }
+      finally { setAnalyzingMaterialId(null); }
+    }
+  } catch (e) {
+    alert((materialEditId ? '수정' : '저장') + ' 실패: ' + (e.message || e));
+  } finally {
+    setMaterialUploading(false);
+  }
+}
+async function reanalyzeMaterial(m) {
+  var hasFiles = (Array.isArray(m.image_paths) && m.image_paths.length) || (Array.isArray(m.answer_paths) && m.answer_paths.length);
+  if (!hasFiles) { alert('이 자료에 시험지/답안지 파일이 없습니다. "수정"에서 파일을 올린 뒤 분석해 주세요.'); return; }
+  if (m.analysis && !confirm('이미 분석된 자료입니다. 다시 분석할까요?\n(Claude API 요금이 다시 발생합니다)')) return;
+  setAnalyzingMaterialId(m.id);
+  try {
+    var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: m.id });
+    if (!r.ok || (r.data && r.data.error)) { alert('문항 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); return; }
+    await loadMaterials();
+    setMaterialAnalysisOpenId(m.id);
+    var u = (r.data && r.data.usage) || {};
+    alert('문항 분석 완료!' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
+  } catch (e) { alert('문항 분석 실패: ' + (e.message || e)); }
+  finally { setAnalyzingMaterialId(null); }
+}
+async function deleteMaterial(m) {
+  var sb = window.supabase;
+  var dependents = [];
+  try { var { data: dep } = await sb.from('exams').select('id').eq('material_id', m.id); dependents = dep || []; } catch (e) {}
+  var n = dependents.length;
+  var msg = n > 0
+    ? '이 자료로 만든 시험·숙제가 ' + n + '개 있습니다.\n자료 기록만 지우고, 그 시험·숙제들과 시험지 파일은 그대로 둡니다. 계속할까요?'
+    : '이 자료를 삭제하시겠습니까?';
+  if (!confirm(msg)) return;
+  try {
+    if (n === 0) {
+      var allPaths = (Array.isArray(m.image_paths)?m.image_paths:[]).concat(Array.isArray(m.answer_paths)?m.answer_paths:[]);
+      if (allPaths.length) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e){} }
+    }
+    await sb.from('exams').delete().eq('id', m.id);
+    await loadMaterials();
+  } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+}
+// 시험 발행 폼에 자료 불러오기
+function loadMaterialIntoExam(m) {
+  setAdminLtDraft(function(p){
+    return Object.assign({}, p, {
+      subject: m.subject || p.subject || '',
+      files: [], answer_files: [],
+      existing_paths: Array.isArray(m.image_paths) ? m.image_paths.slice() : [],
+      answer_existing_paths: Array.isArray(m.answer_paths) ? m.answer_paths.slice() : [],
+      analysis: m.analysis || null,
+      answer_key: (m.answer_key && typeof m.answer_key === 'object') ? Object.assign({}, m.answer_key) : {},
+      question_count: String(m.question_count || 0),
+      choices_per_question: String(m.choices_per_question || 5),
+      text_question_count: String(m.text_question_count || 0),
+      analyze_page_range: m.analyze_page_range || '',
+      selected_questions_text: Array.isArray(m.selected_questions) ? m.selected_questions.join(',') : '',
+      precise: m.analyze_model === 'opus',
+      precise_student: m.analyze_student_model === 'opus',
+      material_id: m.id,
+      material_title: m.title || '',
+    });
+  });
+  setMaterialPickerOpen(false);
+}
+function unlinkMaterialFromExam() {
+  setAdminLtDraft(function(p){ return Object.assign({}, p, { material_id: null, material_title: '', existing_paths: [], answer_existing_paths: [] }); });
 }
 
 async function loadAdminScheduleRequests() {
@@ -1562,7 +1775,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'16px 18px', fontSize:'15px', display:'inline-flex', alignItems:'center', minHeight:'52px' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadAdminAttachments(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') loadAdminLevelTests(); if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') { loadAdminAttachments(); loadMaterials(); } if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') { loadAdminLevelTests(); loadMaterials(); } if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -4325,6 +4538,138 @@ React.createElement('input', {
 /* ── 자료실 TAB ── */
 tab==='files' && React.createElement('div', null,
   React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '자료실'),
+  /* 1) 시험·숙제용 분석 자료 (도서관) */
+  React.createElement('div', { style:Object.assign({}, cardS, { marginBottom:'24px' }) },
+    React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px', marginBottom:'4px' } },
+      React.createElement('h3', { style:{ fontSize:'16px', fontWeight:'800', color:'#111827', margin:0, fontFamily:'Manrope, sans-serif' } }, '시험·숙제용 분석 자료'),
+      React.createElement('button', { onClick:openMaterialForm, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 새 자료 분석')
+    ),
+    React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', marginTop:0, marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '시험지·문제집을 올려 Claude로 문항 분석을 해두면, 시험·숙제를 만들 때 여기서 불러와서 바로 출제할 수 있습니다. (모든 선생님이 함께 쓰는 자료 도서관)'),
+    React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'14px' } },
+      React.createElement('input', { value:materialFilters.search, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { search:e.target.value })); }, placeholder:'제목·설명 검색', style:Object.assign({}, inputS, { flex:1, minWidth:'160px' }) }),
+      React.createElement('select', { value:materialFilters.subject, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { subject:e.target.value })); }, style:Object.assign({}, inputS, { width:'120px' }) },
+        React.createElement('option', { value:'' }, '전체 과목'),
+        ['국어','영어','수학','과학','사회','한국사','기타'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+      ),
+      React.createElement('select', { value:materialFilters.level, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { level:e.target.value })); }, style:Object.assign({}, inputS, { width:'110px' }) },
+        React.createElement('option', { value:'' }, '전체 학교급'),
+        ['초등','중등','고등'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+      )
+    ),
+    materialLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px' } }, '불러오는 중...') : (function(){
+      var list = (materials || []).filter(function(m){
+        if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
+        if (materialFilters.level && m.school_level !== materialFilters.level) return false;
+        if (materialFilters.search) { var q = materialFilters.search.toLowerCase(); if (((m.title||'')+' '+(m.description||'')).toLowerCase().indexOf(q) < 0) return false; }
+        return true;
+      });
+      if (list.length === 0) return React.createElement('div', { style:{ padding:'20px', textAlign:'center', color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' } }, (materials||[]).length === 0 ? '아직 등록된 분석 자료가 없습니다. "+ 새 자료 분석"으로 시험지를 올려보세요.' : '검색 결과가 없습니다.');
+      return React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
+        list.map(function(m){
+          var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
+          var imgs = Array.isArray(m.image_paths) ? m.image_paths : []; var ans = Array.isArray(m.answer_paths) ? m.answer_paths : [];
+          var open = materialAnalysisOpenId === m.id; var busy = analyzingMaterialId === m.id;
+          return React.createElement('div', { key:m.id, style:{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px' } },
+            React.createElement('div', { style:{ display:'flex', alignItems:'flex-start', gap:'12px' } },
+              React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
+                  m.analysis ? React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, '분석 완료') : React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, '분석 전'),
+                  m.subject && React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, m.subject),
+                  (m.school_level || m.target_grade) && React.createElement('span', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, [m.school_level, m.target_grade].filter(Boolean).join(' ')),
+                  React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, m.title)
+                ),
+                React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '시험지 ' + imgs.length + '개' + (ans.length ? (' · 답안·해설 ' + ans.length + '개') : '') + (m.analysis ? (' · 객관식 ' + qc + '문항' + (tqc>0 ? (' · 서술형 ' + tqc + '문항') : '')) : '') + (m.teacher_name ? (' · ' + m.teacher_name) : '') + (m.created_at ? (' · ' + String(m.created_at).slice(0,10)) : '')),
+                m.description && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' } }, m.description)
+              ),
+              React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 } },
+                m.analysis && React.createElement('button', { onClick:function(){ setMaterialAnalysisOpenId(open ? null : m.id); }, style:{ background:'#f3f4f6', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, open ? '분석 닫기' : '분석 보기'),
+                React.createElement('button', { onClick:function(){ openMaterialFormForEdit(m); }, style:{ background:'#fff', color:'#E60012', border:'1px solid #E60012', borderRadius:'8px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '수정'),
+                React.createElement('button', { onClick:function(){ reanalyzeMaterial(m); }, disabled:busy, style:{ background: busy ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'8px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: busy ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, busy ? '분석 중...' : (m.analysis ? '재분석' : 'Claude 분석')),
+                React.createElement('button', { onClick:function(){ deleteMaterial(m); }, style:{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'8px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '삭제')
+              )
+            ),
+            (open && m.analysis) && renderExamAnalysis(m.analysis)
+          );
+        })
+      );
+    })()
+  ),
+  /* 자료 분석 폼 모달 */
+  materialFormOpen && React.createElement('div', { onClick:closeMaterialForm, style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' } },
+    React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'520px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' } },
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' } },
+        React.createElement('h3', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 } }, materialEditId ? '분석 자료 수정' : '새 분석 자료'),
+        React.createElement('button', { onClick:closeMaterialForm, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' } }, '×')
+      ),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '자료 제목 *'),
+      React.createElement('input', { value:materialDraft.title, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { title:e.target.value })); }, placeholder:'예: 2024 9월 고2 영어 모의고사 / 능률 영어1 3과', style:Object.assign({}, inputS, { marginBottom:'14px', width:'100%' }) }),
+      React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px' } },
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '과목'),
+          React.createElement('select', { value:materialDraft.subject, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { subject:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) },
+            React.createElement('option', { value:'' }, '선택'),
+            ['국어','영어','수학','과학','사회','한국사','기타'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+          )
+        ),
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '학교급'),
+          React.createElement('select', { value:materialDraft.school_level, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { school_level:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) },
+            React.createElement('option', { value:'' }, '선택'),
+            ['초등','중등','고등'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+          )
+        ),
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '학년 (선택)'),
+          React.createElement('input', { value:materialDraft.target_grade, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { target_grade:e.target.value })); }, placeholder:'예: 고2', style:Object.assign({}, inputS, { width:'100%' }) })
+        )
+      ),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '설명·출처 (선택)'),
+      React.createElement('textarea', { value:materialDraft.description, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { description:e.target.value })); }, rows:2, placeholder:'예: 어법·빈칸 위주, 21~40번만', style:Object.assign({}, inputS, { width:'100%', resize:'vertical', marginBottom:'14px' }) }),
+      (materialEditId || (materialDraft.existing_paths||[]).length > 0 || (materialDraft.answer_existing_paths||[]).length > 0) && React.createElement('div', { style:{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1e40af', marginBottom:'6px' } }, '현재 등록된 파일 (클릭하면 새 탭에서 보기)'),
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color: (materialDraft.existing_paths||[]).length > 0 ? '#1e3a8a' : '#9ca3af' } }, '시험지 ' + ((materialDraft.existing_paths||[]).length) + '개' + ((materialDraft.existing_paths||[]).length === 0 ? ' (없음)' : '')),
+        renderFileList(materialDraft.existing_paths, '시험지', ''),
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color: (materialDraft.answer_existing_paths||[]).length > 0 ? '#1e3a8a' : '#9ca3af', marginTop:'8px' } }, '답안지·해설 ' + ((materialDraft.answer_existing_paths||[]).length) + '개' + ((materialDraft.answer_existing_paths||[]).length === 0 ? ' (없음)' : '')),
+        renderFileList(materialDraft.answer_existing_paths, '답안지·해설', '')
+      ),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시험지·문제집 (이미지 또는 PDF, 여러 장 가능)' + (materialEditId ? ' — 새 파일 선택하면 기존 시험지를 교체합니다' : '')),
+      React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
+      materialDraft.files && materialDraft.files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'12px' } }, '새 시험지 ' + materialDraft.files.length + '개 선택됨'),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '답안지·해설 (선택 — 정답·해설 정확도 향상, PDF 가능)' + (materialEditId ? ' — 새 파일 선택하면 기존 답안을 교체합니다' : '')),
+      React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { answer_files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
+      materialDraft.answer_files && materialDraft.answer_files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'12px' } }, '새 답안지 ' + materialDraft.answer_files.length + '개 선택됨'),
+      React.createElement('div', { style:{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#0f766e', marginBottom:'8px' } }, '분석 범위 (선택 — 비워두면 전체 분석)'),
+        React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap' } },
+          React.createElement('div', { style:{ flex:1, minWidth:'140px' } },
+            React.createElement('label', { style:{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' } }, '분석할 페이지 (예: 3-5)'),
+            React.createElement('input', { type:'text', value: materialDraft.analyze_page_range || '', onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { analyze_page_range: e.target.value })); }, placeholder:'비워두면 전체', style:Object.assign({}, inputS, { width:'100%' }) })
+          ),
+          React.createElement('div', { style:{ flex:1, minWidth:'140px' } },
+            React.createElement('label', { style:{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' } }, '이 자료에서 쓸 문항 번호 (예: 21-40)'),
+            React.createElement('input', { type:'text', value: materialDraft.selected_questions_text || '', onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { selected_questions_text: e.target.value })); }, placeholder:'비워두면 전체', style:Object.assign({}, inputS, { width:'100%' }) })
+          )
+        ),
+        React.createElement('div', { style:{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' } }, '페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (PDF·여러 장일 때). 답안지·해설은 항상 전체를 보냅니다.'),
+        React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', fontSize:'12px', color:'#0f766e', fontWeight:'700' } },
+          React.createElement('input', { type:'checkbox', checked:!!materialDraft.precise, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { precise:e.target.checked })); }, style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' } }),
+          '문항 분석을 정밀하게 (고난도 모의고사 등 — 비용 약 5배)'
+        ),
+        React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'8px', fontSize:'12px', color:'#0f766e', fontWeight:'700' } },
+          React.createElement('input', { type:'checkbox', checked:!!materialDraft.precise_student, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { precise_student:e.target.checked })); }, style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' } }),
+          '이 자료로 만든 시험의 학생 답안 분석도 정밀하게'
+        )
+      ),
+      React.createElement('button', { onClick:function(){ submitMaterial(true); }, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:(materialUploading||analyzingMaterialId)?'#9ca3af':'#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'11px', fontSize:'14px', fontWeight:'800', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, analyzingMaterialId ? '문항 분석 중... (1~2분)' : (materialUploading ? '저장 중...' : '저장하고 Claude 문항 분석')),
+      React.createElement('button', { onClick:function(){ submitMaterial(false); }, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'9px', fontSize:'13px', fontWeight:'700', marginBottom:'10px', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer' } }, '분석 없이 저장만'),
+      materialDraft.analysis && renderExamAnalysis(materialDraft.analysis),
+      React.createElement('div', { style:{ marginTop:'10px' } },
+        React.createElement('button', { onClick:closeMaterialForm, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'9px', fontSize:'13px', fontWeight:'700', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer' } }, '닫기')
+      )
+    )
+  ),
+  /* 2) 학생에게 보낼 자료 */
+  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px', marginTop:'24px' } }, '학생에게 보낼 자료'),
   React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '선생님들이 업로드한 학습 자료 전체를 확인하고 필요 시 삭제할 수 있습니다.'),
   adminAttachLoading ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
   adminAttachments.length === 0 ? React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '업로드된 자료가 없습니다.') :
@@ -4537,7 +4882,7 @@ tab==='leveltest' && (function(){
             t.description && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' } }, t.description)
           ),
           React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 } },
-            React.createElement('button', { onClick:function(){ adminOpenLtEditForm(t); }, style:{ background:'#1d4ed8', color:'#fff', border:'1px solid #1d4ed8', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, t.analysis ? '수정·분석(분석됨)' : '수정·분석'),
+            React.createElement('button', { onClick:function(){ adminOpenLtEditForm(t); }, style:{ background:'#1d4ed8', color:'#fff', border:'1px solid #1d4ed8', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '수정'),
             React.createElement('button', { onClick:function(){ adminToggleLtStatus(t); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, t.status==='open' ? '마감' : '재오픈'),
             React.createElement('button', { onClick:function(){ adminDeleteLevelTest(t); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
           )
@@ -4654,51 +4999,33 @@ tab==='leveltest' && (function(){
       ),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '안내사항 (선택)'),
       React.createElement('textarea', { value:adminLtDraft.description, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { description:e.target.value })); }, rows:2, placeholder:'예: 시험 시간 50분, 객관식 + 서술형', style:Object.assign({}, inputS, { width:'100%', resize:'vertical', marginBottom:'14px' }) }),
-      // 등록 현황 박스 (수정 모드)
-      adminLtDraft.id && React.createElement('div', { style:{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } },
-        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1e40af', marginBottom:'8px' } }, '현재 등록된 파일 (클릭하면 새 탭에서 크게 보기)'),
+      // 자료실에서 불러오기
+      adminLtDraft.material_id
+        ? React.createElement('div', { style:{ background:'#ecfdf5', border:'1px solid #a7f3d0', borderRadius:'8px', padding:'10px 12px', marginBottom:'14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', flexWrap:'wrap', fontFamily:'Manrope, sans-serif' } },
+            React.createElement('div', { style:{ fontSize:'12px', color:'#065f46' } }, adminLtDraft.material_title ? ('자료실 자료 "' + adminLtDraft.material_title + '" 에서 불러옴 — 시험지·정답이 자동으로 채워졌습니다.') : '자료실 자료에서 만든 시험입니다 — 시험지·정답은 그 자료를 따릅니다.'),
+            React.createElement('button', { onClick:unlinkMaterialFromExam, style:{ background:'#fff', color:'#065f46', border:'1px solid #065f46', borderRadius:'6px', padding:'3px 9px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '연결 해제')
+          )
+        : React.createElement('button', { onClick:function(){ if (!materials.length) loadMaterials(); setMaterialPickerOpen(true); }, style:{ width:'100%', background:'#fff', color:'#0f766e', border:'1px dashed #0f766e', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:'pointer', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '자료실에서 불러오기 (분석해 둔 시험지·정답 가져오기)'),
+      // 등록된 시험지 파일
+      (adminLtDraft.id || adminLtDraft.material_id || (adminLtDraft.existing_paths||[]).length > 0 || (adminLtDraft.answer_existing_paths||[]).length > 0) && React.createElement('div', { style:{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1e40af', marginBottom:'8px' } }, '등록된 시험지 파일 (클릭하면 새 탭에서 크게 보기)'),
         React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' } },
           React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color: (adminLtDraft.existing_paths||[]).length > 0 ? '#1e3a8a' : '#9ca3af' } }, '시험지 ' + ((adminLtDraft.existing_paths||[]).length) + '장' + ((adminLtDraft.existing_paths||[]).length === 0 ? ' (없음)' : '')),
-          (adminLtDraft.existing_paths||[]).length > 0 && React.createElement('button', { onClick:function(){ removeExamFilesAdmin('exam'); }, style:{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '시험지 모두 삭제')
+          (adminLtDraft.id && !adminLtDraft.material_id && (adminLtDraft.existing_paths||[]).length > 0) && React.createElement('button', { onClick:function(){ removeExamFilesAdmin('exam'); }, style:{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '시험지 모두 삭제')
         ),
         renderFileList(adminLtDraft.existing_paths, '시험지', '페이지'),
-        React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', marginTop:'12px' } },
-          React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color: (adminLtDraft.answer_existing_paths||[]).length > 0 ? '#1e3a8a' : '#9ca3af' } }, '답안지·해설 ' + ((adminLtDraft.answer_existing_paths||[]).length) + '개' + ((adminLtDraft.answer_existing_paths||[]).length === 0 ? ' (없음)' : '')),
-          (adminLtDraft.answer_existing_paths||[]).length > 0 && React.createElement('button', { onClick:function(){ removeExamFilesAdmin('answer'); }, style:{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '답안지 모두 삭제')
-        ),
-        renderFileList(adminLtDraft.answer_existing_paths, '답안지·해설', '')
-      ),
-      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시험지 (이미지 또는 PDF)' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' * (여러 장 가능, 페이지 순서대로)')),
-      React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
-      adminLtDraft.files && adminLtDraft.files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' } }, '새 시험지 ' + adminLtDraft.files.length + '장 선택됨 (저장 시 교체)'),
-      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '답안지·해설 (선택 — 자동 문항 분석 정확도 향상, PDF 가능)' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 답안 전체가 교체됩니다' : '')),
-      React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { answer_files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
-      adminLtDraft.answer_files && adminLtDraft.answer_files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'10px' } }, '새 답안지 ' + adminLtDraft.answer_files.length + '개 선택됨 (저장 시 교체)'),
-      // 분석 범위 입력
-      React.createElement('div', { style:{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:'8px', padding:'12px', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } },
-        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#0f766e', marginBottom:'8px' } }, '분석 범위 (선택 — 비워두면 시험지 전체 분석)'),
-        React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap' } },
-          React.createElement('div', { style:{ flex:1, minWidth:'140px' } },
-            React.createElement('label', { style:{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' } }, '분석할 페이지 (예: 3-5)'),
-            React.createElement('input', { type:'text', value: adminLtDraft.analyze_page_range || '', onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { analyze_page_range: e.target.value })); }, placeholder:'비워두면 전체', style:Object.assign({}, inputS, { width:'100%' }) })
-          ),
-          React.createElement('div', { style:{ flex:1, minWidth:'140px' } },
-            React.createElement('label', { style:{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' } }, '학생에게 낼 문항 번호 (예: 11-30)'),
-            React.createElement('input', { type:'text', value: adminLtDraft.selected_questions_text || '', onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { selected_questions_text: e.target.value })); }, placeholder:'비워두면 분석된 전체', style:Object.assign({}, inputS, { width:'100%' }) })
-          )
-        ),
-        React.createElement('div', { style:{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' } }, '페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (시험지가 PDF·여러 장일 때만 적용). 쓰려는 문항이 든 페이지를 포함하세요. 답안지·해설은 항상 전체를 보냅니다.'),
-        React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', color:'#0f766e', fontWeight:'700' } },
-          React.createElement('input', { type:'checkbox', checked:!!adminLtDraft.precise, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { precise:e.target.checked })); }, style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' } }),
-          '고3 전용'
+        (adminLtDraft.answer_existing_paths||[]).length > 0 && React.createElement('div', { style:{ marginTop:'10px' } },
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'#1e3a8a' } }, '답안지·해설 ' + ((adminLtDraft.answer_existing_paths||[]).length) + '개'),
+          renderFileList(adminLtDraft.answer_existing_paths, '답안지·해설', '')
         )
       ),
-      React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginBottom:'14px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'#374151', fontWeight:'700' } },
+      !adminLtDraft.material_id && React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시험지 직접 올리기 (이미지 또는 PDF)' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' (선택 — 자료실에서 안 불러올 때만)')),
+      !adminLtDraft.material_id && React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
+      (!adminLtDraft.material_id && adminLtDraft.files && adminLtDraft.files.length > 0) && React.createElement('div', { style:{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' } }, '새 시험지 ' + adminLtDraft.files.length + '장 선택됨 (저장 시 교체)'),
+      React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', marginBottom:'14px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'#374151', fontWeight:'700' } },
         React.createElement('input', { type:'checkbox', checked:!!adminLtDraft.hide_paper, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { hide_paper:e.target.checked })); }, style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#E60012' } }),
         React.createElement('span', null, '종이 시험지로 진행 — 학생 화면엔 OMR 답안만 표시 (시험지는 종이로 나눠줌)')
       ),
-      // 저장 및 문항 분석 버튼 — 파일·범위 선택 바로 아래
-      React.createElement('button', { onClick:function(){ adminSubmitLevelTest(true); }, disabled: adminLtUploading || !!analyzingExamId, style:{ width:'100%', background: (adminLtUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:(adminLtUploading||analyzingExamId)?'not-allowed':'pointer', marginBottom:'16px', fontFamily:'Manrope, sans-serif' } }, analyzingExamId ? '문항 분석 중... (1~2분 소요)' : (adminLtUploading ? '저장 중...' : '저장 및 문항 분석')),
       // 분석 결과 (이미 분석된 경우 폼 안에 표시)
       adminLtDraft.analysis && renderExamAnalysis(adminLtDraft.analysis),
       /* 일반 시험: 기존 입력 그대로 */
@@ -4785,7 +5112,7 @@ tab==='leveltest' && (function(){
         var nums = (akNums.length === qc && akNums.length > 0) ? akNums : Array.from({ length: qc }, function(_, i){ return i + 1; });
         if (nums.length === 0) return null;
         return React.createElement('div', { style:{ marginBottom:'14px' } },
-          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 정답 (문항 분석하면 자동으로 채워집니다 · 직접 수정 가능)'),
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '객관식 정답' + (adminLtDraft.material_id ? ' (자료실에서 불러옴 · 필요하면 수정)' : ' (직접 기입, 비워두면 자동 채점 X)')),
           React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(90px, 1fr))', gap:'6px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' } },
             nums.map(function(num){
               return React.createElement('div', { key:num, style:{ display:'flex', alignItems:'center', gap:'4px' } },
@@ -4803,9 +5130,50 @@ tab==='leveltest' && (function(){
           )
         );
       })(),
+      React.createElement('button', { onClick:function(){ adminSubmitLevelTest(false); }, disabled: adminLtUploading, style:{ width:'100%', background: adminLtUploading ? '#9ca3af' : '#E60012', color:'#fff', border:'none', borderRadius:'9px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: adminLtUploading ? 'not-allowed' : 'pointer', marginTop:'4px', fontFamily:'Manrope, sans-serif' } }, adminLtUploading ? '저장 중...' : (adminLtDraft.id ? '수정 저장' : (adminLtDraft.kind === 'homework' ? '숙제 발행' : (adminLtDraft.kind === 'weekly' ? '주간 테스트 발행' : (adminLtDraft.kind === 'monthly' ? '월말 테스트 발행' : '레벨테스트 발행'))))),
       React.createElement('div', { style:{ marginTop:'8px' } },
-        React.createElement('button', { onClick:adminCloseLtForm, disabled: adminLtUploading || !!analyzingExamId, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'700', cursor: (adminLtUploading||analyzingExamId)?'not-allowed':'pointer' } }, '닫기')
+        React.createElement('button', { onClick:adminCloseLtForm, disabled: adminLtUploading, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'700', cursor: adminLtUploading ? 'not-allowed' : 'pointer' } }, '닫기')
       )
+    )
+  ),
+  // 자료실에서 자료 고르기 (시험 발행 폼에서)
+  materialPickerOpen && React.createElement('div', { onClick:function(){ setMaterialPickerOpen(false); }, style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' } },
+    React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'16px', padding:'24px', width:'100%', maxWidth:'560px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'88vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' } },
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' } },
+        React.createElement('h3', { style:{ fontSize:'16px', fontWeight:'800', color:'#111827', margin:0 } }, '자료실에서 불러오기'),
+        React.createElement('button', { onClick:function(){ setMaterialPickerOpen(false); }, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' } }, '×')
+      ),
+      React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginTop:0, marginBottom:'12px' } }, '분석해 둔 시험지를 고르면 시험지·정답·문항 수가 자동으로 채워집니다. 자료가 없으면 "자료실" 탭에서 먼저 만들어 주세요.'),
+      React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' } },
+        React.createElement('input', { value:materialFilters.search, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { search:e.target.value })); }, placeholder:'제목·설명 검색', style:Object.assign({}, inputS, { flex:1, minWidth:'140px' }) }),
+        React.createElement('select', { value:materialFilters.subject, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { subject:e.target.value })); }, style:Object.assign({}, inputS, { width:'110px' }) },
+          React.createElement('option', { value:'' }, '전체 과목'),
+          ['국어','영어','수학','과학','사회','한국사','기타'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+        )
+      ),
+      materialLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px' } }, '불러오는 중...') : (function(){
+        var list = (materials || []).filter(function(m){
+          if (!m.analysis) return false;
+          if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
+          if (materialFilters.search) { var q = materialFilters.search.toLowerCase(); if (((m.title||'')+' '+(m.description||'')).toLowerCase().indexOf(q) < 0) return false; }
+          return true;
+        });
+        if (list.length === 0) return React.createElement('div', { style:{ padding:'18px', textAlign:'center', color:'#9ca3af', fontSize:'13px' } }, '불러올 수 있는 분석 자료가 없습니다.');
+        return React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+          list.map(function(m){
+            var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
+            return React.createElement('button', { key:m.id, onClick:function(){ loadMaterialIntoExam(m); }, style:{ textAlign:'left', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+                m.subject && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151' } }, m.subject),
+                (m.school_level || m.target_grade) && React.createElement('span', { style:{ fontSize:'11px', color:'#6b7280' } }, [m.school_level, m.target_grade].filter(Boolean).join(' ')),
+                React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, m.title)
+              ),
+              React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginTop:'2px' } }, '객관식 ' + qc + '문항' + (tqc>0?(' · 서술형 '+tqc+'문항'):'') + (m.teacher_name?(' · '+m.teacher_name):'') + (m.created_at?(' · '+String(m.created_at).slice(0,10)):'')),
+              m.description && React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'2px', whiteSpace:'pre-line' } }, m.description)
+            );
+          })
+        );
+      })()
     )
   )
 );
