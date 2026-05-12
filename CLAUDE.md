@@ -123,7 +123,8 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v86-holidays-schedule-search)
+## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v87-academic-dedup-title)
+> v87: 학사일정 표시에서 제목이 분류 라벨('방학'/'시험기간')과 같으면 중복 안 보이게(`a.title !== academicCategoryLabel(a.category)`일 때만 제목 표시) — 날짜 팝업·목록·달력 셀 뱃지 모두. 항목 한 줄로 압축(분류뱃지 · 학교 · (제목) · 날짜범위). 달력 셀 뱃지는 학교명 우선, 없으면 제목/분류.
 > v86: (1) **한국 공휴일 달력 표시** — `B2Utils.holidayName(dateStr)` (Utils.jsx): 고정 공휴일(`_KR_FIXED_HOLIDAYS` MM-DD 키 — 어느 해든)+ 음력/대체공휴일/선거(`_KR_VAR_HOLIDAYS` YYYY-MM-DD 키 — 2025·2026·2027 하드코딩, **매년 연초 갱신 필요**). 학원 일정 달력 셀에 공휴일이면 날짜 빨강·연빨강 배경·공휴일명 빨강 뱃지. 날짜별 팝업에도 "공휴일 — 이름" 표시. (2) **학원 일정 검색** — 모드 토글 아래 검색칸(`scheduleSearch`). 'change' 모드: 달력 아래 신청 목록 details(검색=teacher_name·reason·target_date, 검색어 있으면 펼침). 'academic' 모드: 기존 목록 details가 검색어 있으면 `academicList` 전체에서, 없으면 `academicInMonth`에서 필터(검색=title·school·description·분류·날짜).
 > v85: 학사일정(TeacherPortal 학원 일정 탭, `scrMode==='academic'`) — 달력에서 날짜 클릭 시 추가폼이 아니라 **그 날 일정 보기 팝업**(`academicDayOpen` state, 그 날짜를 포함하는 academic_schedules 표시 + 삭제 버튼 + "+ 이 날 학사일정 추가" 버튼). 하단의 "이 달 학사일정 N건" 긴 목록은 `<details>`로 접음(기본 닫힘) + 안내문. 삭제 버튼은 created_by가 null이라 작성자 체크 빼고 항상 노출.
 > v84: 학사일정 추가 FK 에러 수정 — `academic_schedules.created_by` 는 students(id) 참조인데 `teacherInfo.id`는 teachers 테이블 id라 FK 위반. → `created_by: null`로 (작성자는 `creator_name`으로 표시). ⚠️ 비슷하게 `exams.teacher_id`도 students(id) 가정인데 `user.id`를 넣음 — exams는 FK가 없어서 안 터지지만, 향후 FK 추가 시 주의.

@@ -4343,7 +4343,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                               background: academicCategoryColor(a.category),
                               color:'#fff', borderRadius:'4px', padding:'2px 5px',
                               whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
-                            }}>{a.school ? a.school + ' ' : ''}{a.title}</span>
+                            }}>{a.school || ((a.title && a.title !== academicCategoryLabel(a.category)) ? a.title : academicCategoryLabel(a.category))}</span>
                           ))}
                           {acs.length > 3 && <span style={{ fontSize:'10px', color:'#6b7280' }}>+{acs.length-3}건</span>}
                         </>
@@ -4396,16 +4396,16 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     <summary style={{ cursor:'pointer', fontSize:'13px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' }}>{q ? ('검색 결과 (' + sorted.length + '건)') : ('이 달 학사일정 목록 펼치기 (' + sorted.length + '건)')}</summary>
                     <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginTop:'10px' }}>
                       {sorted.length === 0 ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>{q ? '검색 결과가 없습니다.' : '이 달에 등록된 학사일정이 없습니다.'}</div> : sorted.map(a => (
-                        <div key={a.id} style={{ display:'flex', alignItems:'flex-start', gap:'12px', padding:'12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px' }}>
+                        <div key={a.id} style={{ display:'flex', alignItems:'flex-start', gap:'12px', padding:'10px 12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', fontFamily:'Manrope, sans-serif' }}>
                           <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'2px' }}>
-                              <span style={{ fontSize:'11px', fontWeight:'800', background: academicCategoryColor(a.category), color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' }}>{academicCategoryLabel(a.category)}</span>
-                              {a.school && <span style={{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' }}>{a.school}</span>}
-                              <span style={{ fontSize:'13px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{a.title}</span>
+                            <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }}>
+                              <span style={{ fontSize:'11px', fontWeight:'800', background: academicCategoryColor(a.category), color:'#fff', borderRadius:'4px', padding:'2px 7px' }}>{academicCategoryLabel(a.category)}</span>
+                              {a.school && <span style={{ fontSize:'13px', fontWeight:'700', color:'#111827' }}>{a.school}</span>}
+                              {a.title && a.title !== academicCategoryLabel(a.category) && <span style={{ fontSize:'13px', fontWeight:'800', color:'#111827' }}>{a.title}</span>}
+                              <span style={{ fontSize:'12px', color:'#6b7280' }}>{a.start_date} ~ {a.end_date}</span>
                             </div>
-                            <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>{a.start_date} ~ {a.end_date}</div>
-                            {a.description && <div style={{ fontSize:'13px', color:'#374151', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' }}>{a.description}</div>}
-                            <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>{a.creator_name} · {String(a.created_at||'').slice(0,10)}</div>
+                            {a.description && <div style={{ fontSize:'13px', color:'#374151', marginTop:'2px', whiteSpace:'pre-line' }}>{a.description}</div>}
+                            <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px' }}>{a.creator_name} · {String(a.created_at||'').slice(0,10)}</div>
                           </div>
                           <button onClick={() => deleteAcademicSchedule(a)} style={smallDangerButtonStyle}>삭제</button>
                         </div>
@@ -4433,16 +4433,16 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     ) : (
                       <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'14px' }}>
                         {dayItems.map(a => (
-                          <div key={a.id} style={{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'10px 12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px' }}>
+                          <div key={a.id} style={{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'9px 12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px' }}>
                             <div style={{ flex:1, minWidth:0 }}>
-                              <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'2px' }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }}>
                                 <span style={{ fontSize:'11px', fontWeight:'800', background: academicCategoryColor(a.category), color:'#fff', borderRadius:'4px', padding:'2px 7px' }}>{academicCategoryLabel(a.category)}</span>
-                                {a.school && <span style={{ fontSize:'12px', fontWeight:'700', color:'#374151' }}>{a.school}</span>}
-                                <span style={{ fontSize:'13px', fontWeight:'800', color:'#111827' }}>{a.title}</span>
+                                {a.school && <span style={{ fontSize:'13px', fontWeight:'700', color:'#111827' }}>{a.school}</span>}
+                                {a.title && a.title !== academicCategoryLabel(a.category) && <span style={{ fontSize:'13px', fontWeight:'800', color:'#111827' }}>{a.title}</span>}
+                                <span style={{ fontSize:'12px', color:'#6b7280' }}>{a.start_date} ~ {a.end_date}</span>
                               </div>
-                              <div style={{ fontSize:'12px', color:'#6b7280' }}>{a.start_date} ~ {a.end_date}</div>
-                              {a.description && <div style={{ fontSize:'13px', color:'#374151', marginTop:'4px', whiteSpace:'pre-line' }}>{a.description}</div>}
-                              <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' }}>{a.creator_name} · {String(a.created_at||'').slice(0,10)}</div>
+                              {a.description && <div style={{ fontSize:'13px', color:'#374151', marginTop:'2px', whiteSpace:'pre-line' }}>{a.description}</div>}
+                              <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px' }}>{a.creator_name} · {String(a.created_at||'').slice(0,10)}</div>
                             </div>
                             <button onClick={() => deleteAcademicSchedule(a)} style={smallDangerButtonStyle}>삭제</button>
                           </div>

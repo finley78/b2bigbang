@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v86-holidays-schedule-search';
+const CACHE_VERSION = 'b2-bigbang-20260512v87-academic-dedup-title';
 const OFFLINE_URLS = [
   './',
   './index.html',
