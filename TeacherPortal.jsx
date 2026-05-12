@@ -2521,40 +2521,33 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           ) : examList.length === 0 ? (
             <div style={{ color:'#9ca3af', fontSize:'13px' }}>아직 발행된 테스트가 없습니다.</div>
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+            <div style={{ borderTop:'1px solid #eef2f7' }}>
               {examList.map(ex => {
                 const subs = examSubmissionsByExam[ex.id] || [];
                 const totalStudents = students.length;
                 const submittedCount = subs.length;
                 const imgs = Array.isArray(ex.image_paths) ? ex.image_paths : [];
+                const ebS = { fontSize:'11px', fontWeight:'700', borderRadius:'6px', padding:'3px 8px', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap', border:'1px solid' };
                 return (
-                  <div key={ex.id} style={{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px' }}>
-                    <div style={{ display:'flex', alignItems:'flex-start', gap:'12px' }}>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' }}>
-                          <span style={examKindBadgeStyle(ex.kind || 'class')}>{examKindLabel(ex.kind || 'class')}</span>
-                          <span style={{ fontSize:'11px', fontWeight:'800', background: ex.status==='open' ? '#16a34a' : '#6b7280', color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' }}>{ex.status==='open' ? '응시 가능' : '마감'}</span>
-                          {ex.analysis && <span style={{ fontSize:'11px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' }}>분석 완료</span>}
-                          {ex.subject && <span style={{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' }}>{ex.subject}</span>}
-                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{ex.title}</span>
-                        </div>
-                        <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>
-                          {ex.test_date && <span>시험일 {ex.test_date} · </span>}
-                          이미지 {imgs.length}장 · 객관식 {ex.question_count}문항({ex.choices_per_question || 5}지선다){(ex.text_question_count || 0) > 0 ? ' · 서술형 ' + ex.text_question_count + '문항' : (ex.allow_text_answer ? ' · 서술형 1문항' : '')}{ex.time_limit_minutes > 0 ? ' · 제한 ' + ex.time_limit_minutes + '분' : ''}
-                        </div>
-                        <div style={{ fontSize:'12px', color:'#374151', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>
-                          제출: <strong style={{ color: submittedCount > 0 ? '#E60012' : '#6b7280' }}>{submittedCount}</strong> / {totalStudents}명
-                        </div>
-                        {ex.description && <div style={{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' }}>{ex.description}</div>}
-                      </div>
-                      <div style={{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 }}>
-                        <button onClick={() => openExamFormForEdit(ex)} style={smallPrimaryButtonStyle}>수정</button>
-                        <button onClick={() => toggleExamStatus(ex)} style={smallLightButtonStyle}>{ex.status==='open' ? '마감' : '재오픈'}</button>
-                        <button onClick={() => deleteExam(ex)} style={smallDangerButtonStyle}>삭제</button>
-                      </div>
+                  <div key={ex.id} style={{ borderBottom:'1px solid #eef2f7', padding:'8px 2px', fontFamily:'Manrope, sans-serif' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                      <span style={examKindBadgeStyle(ex.kind || 'class')}>{examKindLabel(ex.kind || 'class')}</span>
+                      <span style={{ fontSize:'10px', fontWeight:'800', background: ex.status==='open' ? '#dcfce7' : '#e5e7eb', color: ex.status==='open' ? '#15803d' : '#6b7280', borderRadius:'4px', padding:'1px 6px' }}>{ex.status==='open' ? '응시가능' : '마감'}</span>
+                      {ex.analysis && <span style={{ fontSize:'10px', fontWeight:'800', background:'#dbeafe', color:'#1d4ed8', borderRadius:'4px', padding:'1px 6px' }}>분석</span>}
+                      {ex.subject && <span style={{ fontSize:'11px', fontWeight:'700', color:'#374151' }}>{ex.subject}</span>}
+                      <span style={{ fontSize:'13px', fontWeight:'700', color:'#111827', flex:1, minWidth:'110px' }}>{ex.title}</span>
+                      <span style={{ fontSize:'11px', color:'#9ca3af', whiteSpace:'nowrap' }}>제출 <strong style={{ color: submittedCount>0 ? '#E60012' : '#9ca3af' }}>{submittedCount}</strong>/{totalStudents}</span>
+                      <span style={{ display:'flex', gap:'4px', flexShrink:0 }}>
+                        <button onClick={() => openExamFormForEdit(ex)} style={{ ...ebS, color:'#E60012', borderColor:'#E60012', background:'#fff' }}>수정</button>
+                        <button onClick={() => toggleExamStatus(ex)} style={{ ...ebS, color:'#374151', borderColor:'#d1d5db', background:'#fff' }}>{ex.status==='open' ? '마감' : '재오픈'}</button>
+                        <button onClick={() => deleteExam(ex)} style={{ ...ebS, color:'#c82014', borderColor:'#f3c5c0', background:'#fff' }}>삭제</button>
+                      </span>
+                    </div>
+                    <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px' }}>
+                      {ex.test_date ? '시험일 ' + ex.test_date + ' · ' : ''}객관식 {ex.question_count}문항{(ex.text_question_count || 0) > 0 ? ' · 서술형 ' + ex.text_question_count : (ex.allow_text_answer ? ' · 서술형 1' : '')}{ex.allow_audio_answer ? ' · 녹음' : ''}{ex.time_limit_minutes > 0 ? ' · 제한 ' + ex.time_limit_minutes + '분' : ''}{imgs.length ? ' · 이미지 ' + imgs.length + '장' : ''}{ex.description ? ' · ' + String(ex.description).replace(/\n/g, ' ') : ''}
                     </div>
                     {subs.length > 0 && (
-                      <details style={{ marginTop:'10px' }}>
+                      <details style={{ marginTop:'6px' }}>
                         <summary style={{ cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' }}>제출자 보기 ({subs.length}명)</summary>
                         <div style={{ marginTop:'8px', display:'flex', flexDirection:'column', gap:'6px' }}>
                           {subs.map(s => (
