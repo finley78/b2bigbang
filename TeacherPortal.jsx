@@ -194,7 +194,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [academicSubmitting, setAcademicSubmitting] = React.useState(false);
 
   const [testInfo, setTestInfo] = React.useState({
-    testType: "주간평가",
+    testType: "1학기 중간고사",
     testName: "",
     subject: "",
     testRange: "",
@@ -3334,7 +3334,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       {/* ── 성적 탭 서브 토글 ── */}
       {teacherView === "scores" && (
         <div style={{ display:'flex', gap:0, borderBottom:'1px solid #e5e7eb', marginBottom:'18px', flexWrap:'wrap' }}>
-          {[{ id:'browse', label:'성적 보기' }, { id:'register', label:'종이 시험 성적 입력' }, { id:'analysis', label:'성적 분석' }].map(sm => (
+          {[{ id:'browse', label:'성적 보기' }, { id:'register', label:'내신 성적 입력' }, { id:'analysis', label:'성적 분석' }].map(sm => (
             <button key={sm.id} onClick={() => setScoreSubMode(sm.id)} style={{
               padding:'12px 16px', background:'none', border:'none',
               borderBottom: scoreSubMode===sm.id ? '2px solid #E60012' : '2px solid transparent',
@@ -3353,14 +3353,16 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           { v:'주간평가', l:'주간테스트', kk:'weekly' },
           { v:'월말평가', l:'월말테스트', kk:'monthly' },
           { v:'레벨테스트', l:'레벨테스트', kk:'level' },
+          { v:'__naesin__', l:'내신', kk:'class' },
         ];
         var kindLabelOf = function(v){ var f = KINDS.find(function(k){ return k.v === v; }); return f ? f.l : v; };
+        var matchKind = function(r){ return scoreBrowseKind === '__naesin__' ? (r.exam_id == null) : ((r.test_type || '') === scoreBrowseKind); };
         var scColor = function(v){ return (v == null || isNaN(v)) ? '#9ca3af' : (v >= 80 ? '#16a34a' : v >= 60 ? '#c87000' : '#c82014'); };
         var classNamesOf = function(sid){ var out = []; (availableClassCards || []).forEach(function(cls){ if (((analysisClassStudents[cls.id] || []).map(String)).indexOf(String(sid)) >= 0) out.push(cls.name); }); return out; };
         var inClass = function(sid, cid){ if (!cid) return true; return ((analysisClassStudents[cid] || []).map(String)).indexOf(String(sid)) >= 0; };
         var rows = (scoreAnalysis || []).filter(function(r){
           if (!scoreBrowseKind) return false;
-          if ((r.test_type || '') !== scoreBrowseKind) return false;
+          if (!matchKind(r)) return false;
           if (scoreBrowseFilters.subject && (r.subject || '') !== scoreBrowseFilters.subject) return false;
           var std = analysisAllStudents[r.student_id] || {};
           var g = (r.students && r.students.grade) || std.grade || '';
@@ -3381,7 +3383,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           return { sid:sid, name:nm, grade:gd, classes:classNamesOf(sid), n:sr.length, last:Number(sr[0].score), avg:av, scores:sr };
         }).sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
         var gradeOpts = scoreBrowseFilters.level === '초등' ? ['1학년','2학년','3학년','4학년','5학년','6학년'] : scoreBrowseFilters.level === '중등' ? ['중1','중2','중3'] : scoreBrowseFilters.level === '고등' ? ['고1','고2','고3'] : ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'];
-        var subjectOpts = Array.from(new Set((scoreAnalysis||[]).filter(function(r){ return (r.test_type||'') === scoreBrowseKind; }).map(function(r){ return r.subject; }).filter(Boolean)));
+        var subjectOpts = Array.from(new Set((scoreAnalysis||[]).filter(matchKind).map(function(r){ return r.subject; }).filter(Boolean)));
         return (
         <div style={{ ...cardStyle, marginBottom:'24px' }}>
           <h2 style={{ marginTop:0, marginBottom:'4px' }}>성적 보기</h2>
@@ -3438,7 +3440,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 </select>
               </div>
               {analysisLoading ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div> : studentList.length === 0 ? (
-                <div style={{ padding:'18px', textAlign:'center', color:'#9ca3af', fontSize:'13px' }}>조건에 맞는 학생이 없습니다.{(scoreAnalysis||[]).filter(function(r){ return (r.test_type||'')===scoreBrowseKind; }).length === 0 ? ' (이 종류의 성적이 아직 없습니다.)' : ''}</div>
+                <div style={{ padding:'18px', textAlign:'center', color:'#9ca3af', fontSize:'13px' }}>조건에 맞는 학생이 없습니다.{(scoreAnalysis||[]).filter(matchKind).length === 0 ? ' (이 종류의 성적이 아직 없습니다.)' : ''}</div>
               ) : (
                 <div>
                   <div style={{ fontSize:'11px', color:'#9ca3af', marginBottom:'6px' }}>학생 {studentList.length}명</div>
@@ -3464,10 +3466,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       {/* ── 탭4: 성적 등록 ── */}
       {teacherView === "scores" && scoreSubMode === "register" && (
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
-          <h2 style={{ marginBottom: "4px" }}>종이 시험 성적 입력</h2>
-          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "10px" }}>학원에서 종이로 본 시험(주간평가·월말평가·중간·기말 등) 점수를 입력하는 곳입니다. 대상 반을 선택하면 학생이 자동으로 표시됩니다.</p>
+          <h2 style={{ marginBottom: "4px" }}>내신 성적 입력</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "10px" }}>학교 중간고사·기말고사·모의고사 등 학생들의 내신 시험 점수를 기록하는 곳입니다. 대상 반을 선택하면 학생이 자동으로 표시됩니다.</p>
           <div style={{ background:"#FFF7ED", border:"1px solid #fed7aa", borderRadius:"8px", padding:"9px 12px", marginBottom:"16px", fontSize:"12px", color:"#9a3412", fontFamily:"Manrope, sans-serif", lineHeight:1.6 }}>
-            앱에서 학생이 직접 푸는 <strong>단어 시험</strong>과 <strong>객관식 시험</strong>은 자동으로 채점됩니다 — 여기에 다시 입력하지 않아도 돼요. 결과는 "성적 분석" 탭에서 볼 수 있습니다.
+            앱에서 OMR로 본 테스트(숙제·주간·월말·레벨)와 단어 시험은 자동으로 채점되니 여기 입력하지 않아도 돼요. 이 칸은 <strong>학교 내신 시험</strong>처럼 앱 밖에서 본 시험 점수를 기록하는 곳입니다. (입력한 점수는 "성적 보기"의 "내신"에서 볼 수 있어요.)
           </div>
 
           <div style={{ marginBottom: "16px" }}>
@@ -3497,7 +3499,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "10px" }}>
                 <select style={inputStyle} value={testInfo.testType} onChange={e => setTestInfo(p => ({...p, testType: e.target.value}))}>
-                  {["주간평가","월말평가","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(t => <option key={t} value={t}>{t}</option>)}
+                  {["1학기 중간고사","1학기 기말고사","2학기 중간고사","2학기 기말고사","모의고사","수행평가","기타 시험"].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <input style={inputStyle} type="date" value={testInfo.testDate} onChange={e => setTestInfo(p => ({...p, testDate: e.target.value}))} />
                 <select style={inputStyle} value={testInfo.subject} onChange={e => setTestInfo(p => ({...p, subject: e.target.value}))}>
@@ -3549,7 +3551,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             </select>
             <select style={{ ...inputStyle, maxWidth: "200px" }} value={analysisTestName} onChange={e => setAnalysisTestName(e.target.value)}>
               <option value="전체">시험 전체</option>
-              {["주간평가","월말평가","1학기 중간","1학기 기말","2학기 중간","2학기 기말"].map(n => <option key={n} value={n}>{n}</option>)}
+              {Array.from(new Set((scoreAnalysis||[]).map(r => r.test_name).filter(Boolean))).sort().map(n => <option key={n} value={n}>{n}</option>)}
             </select>
             <input style={{ ...inputStyle, minWidth: "180px", flex: 1 }} placeholder="학생명 검색" value={analysisSearch} onChange={e => setAnalysisSearch(e.target.value)} />
             <button style={lightButtonStyle} onClick={loadScoreAnalysis}>{analysisLoading ? "로딩 중..." : "새로고침"}</button>

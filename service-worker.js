@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v81-scores-browse';
+const CACHE_VERSION = 'b2-bigbang-20260512v82-naesin-input';
 const OFFLINE_URLS = [
   './',
   './index.html',
