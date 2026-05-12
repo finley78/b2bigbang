@@ -121,6 +121,37 @@
     return '';
   }
 
+  // ── 한국 공휴일 ────────────────────────────────────────────────
+  // 매년 같은 날(고정): MM-DD 키 — 어느 해든 표시됨
+  var _KR_FIXED_HOLIDAYS = { '01-01':'신정', '03-01':'삼일절', '05-05':'어린이날', '06-06':'현충일', '08-15':'광복절', '10-03':'개천절', '10-09':'한글날', '12-25':'크리스마스' };
+  // 음력 기반·대체공휴일·선거 등 해마다 다른 것: YYYY-MM-DD 키 — 매년 연초에 갱신 필요
+  var _KR_VAR_HOLIDAYS = {
+    // 2025
+    '2025-01-27':'임시공휴일','2025-01-28':'설날 전날','2025-01-29':'설날','2025-01-30':'설날 다음날',
+    '2025-03-03':'대체공휴일(삼일절)','2025-05-05':'부처님오신날','2025-05-06':'대체공휴일(어린이날)',
+    '2025-10-05':'추석 전날','2025-10-06':'추석','2025-10-07':'추석 다음날','2025-10-08':'대체공휴일(추석)',
+    // 2026
+    '2026-02-16':'설날 전날','2026-02-17':'설날','2026-02-18':'설날 다음날',
+    '2026-03-02':'대체공휴일(삼일절)','2026-05-24':'부처님오신날','2026-05-25':'대체공휴일(부처님오신날)',
+    '2026-06-03':'지방선거일','2026-08-17':'대체공휴일(광복절)',
+    '2026-09-24':'추석 전날','2026-09-25':'추석','2026-09-26':'추석 다음날','2026-09-28':'대체공휴일(추석)',
+    '2026-10-05':'대체공휴일(개천절)',
+    // 2027
+    '2027-02-06':'설날 전날','2027-02-07':'설날','2027-02-08':'설날 다음날','2027-02-09':'대체공휴일(설날)',
+    '2027-05-13':'부처님오신날','2027-08-16':'대체공휴일(광복절)',
+    '2027-09-14':'추석 전날','2027-09-15':'추석','2027-09-16':'추석 다음날',
+    '2027-10-04':'대체공휴일(개천절)','2027-10-11':'대체공휴일(한글날)','2027-12-27':'대체공휴일(크리스마스)',
+  };
+  // 'YYYY-MM-DD' → 공휴일 이름(없으면 null)
+  function holidayName(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    var s = dateStr.slice(0, 10);
+    if (_KR_VAR_HOLIDAYS[s]) return _KR_VAR_HOLIDAYS[s];
+    var md = s.slice(5, 10);
+    if (_KR_FIXED_HOLIDAYS[md]) return _KR_FIXED_HOLIDAYS[md];
+    return null;
+  }
+
   // ── 성적 분석 헬퍼 ────────────────────────────────────────────
   // 관리자/선생님이 동일한 색상·등급·구간 규칙을 사용
   function scoreGradeBucket(score) {
@@ -467,5 +498,5 @@
     return String(v);
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
 })();
