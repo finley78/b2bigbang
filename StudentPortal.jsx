@@ -1421,18 +1421,18 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     (async function(){
       var sb = window.supabase;
       try {
-        // 반 단위 시험·숙제 (반 시험 + 선생님 발행 주간/월말/숙제)
+        // 반 단위 테스트 (반 시험 + 선생님 발행 주간/월말/숙제/레벨 — 반에 직접 배포된 것)
         var classExams = [];
         if (user.classIds && user.classIds.length > 0) {
-          var { data: ce } = await sb.from('exams').select('*').in('kind', ['class','weekly','monthly','homework']).in('class_id', user.classIds).eq('status', 'open').order('created_at', { ascending: false });
+          var { data: ce } = await sb.from('exams').select('*').in('kind', ['class','weekly','monthly','homework','level']).in('class_id', user.classIds).eq('status', 'open').order('created_at', { ascending: false });
           classExams = ce || [];
         }
         // 학원 전체 발행 (관리자가 class_id 없이 발행한 주간/월말/숙제 모두 응시 가능)
         var { data: globalExams } = await sb.from('exams').select('*').in('kind', ['weekly','monthly','homework']).is('class_id', null).eq('status', 'open').order('created_at', { ascending: false });
         var combinedClassExams = classExams.concat(globalExams || []);
         setAvailableExams(combinedClassExams);
-        // 레벨테스트 (자동 응시 진입용으로만 fetch)
-        var { data: lt } = await sb.from('exams').select('*').eq('kind','level').eq('status', 'open').order('created_at', { ascending: false });
+        // 레벨테스트 신청용 — 관리자가 반 없이 발행한 것만 (반에 배포된 레벨테스트는 위 classExams로 바로 응시)
+        var { data: lt } = await sb.from('exams').select('*').eq('kind','level').is('class_id', null).eq('status', 'open').order('created_at', { ascending: false });
         setLevelTests(lt || []);
         // 본인 신청·답안
         var allIds = combinedClassExams.map(function(e){ return e.id; }).concat((lt || []).map(function(e){ return e.id; }));
@@ -1660,7 +1660,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       if (onLoginClick) onLoginClick();
       return;
     }
-    if (exam.kind === 'level' && !myLevelRequests[exam.id]) {
+    if (exam.kind === 'level' && !exam.class_id && !myLevelRequests[exam.id]) {
       alert('레벨테스트는 신청 후 응시할 수 있습니다.');
       return;
     }
@@ -1679,7 +1679,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     setPortalView('exam');
   }
   function closeExam() {
-    var wasLevelTest = !!(activeExam && activeExam.kind === 'level');
+    var wasLevelTest = !!(activeExam && activeExam.kind === 'level' && !activeExam.class_id);
     setActiveExam(null);
     setExamAnswers({});
     setExamTextAnswer('');
@@ -1703,7 +1703,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   }
   async function startExamSession() {
     if (!user || !activeExam) return;
-    if (activeExam.kind === 'level' && !myLevelRequests[activeExam.id]) {
+    if (activeExam.kind === 'level' && !activeExam.class_id && !myLevelRequests[activeExam.id]) {
       alert('레벨테스트는 신청 후 응시할 수 있습니다.');
       closeExam();
       return;
@@ -1781,7 +1781,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   }
   async function submitExamAnswer() {
     if (!user || !activeExam) return;
-    if (activeExam.kind === 'level' && !myLevelRequests[activeExam.id]) {
+    if (activeExam.kind === 'level' && !activeExam.class_id && !myLevelRequests[activeExam.id]) {
       alert('레벨테스트는 신청 후 응시할 수 있습니다.');
       closeExam();
       return;
