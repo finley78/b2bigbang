@@ -749,6 +749,7 @@ async function adminSaveGrading(submissionId, payload) {
     payload.graded_at = new Date().toISOString();
     var { error } = await sb.from('exam_submissions').update(payload).eq('id', submissionId);
     if (error) throw error;
+    try { var sr = await sb.from('exam_submissions').select('exam_id').eq('id', submissionId).single(); if (sr && sr.data && sr.data.exam_id) await window.B2Utils.syncExamScore(sr.data.exam_id, submissionId); } catch (e2) {}
     alert('채점이 저장되었습니다.');
     await loadAdminLevelTests();
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
@@ -777,6 +778,7 @@ async function runStudentAnalysis(submissionId, hasExisting) {
   try {
     var r = await window.B2Utils.callEdgeFn('analyze-student', { submission_id: submissionId });
     if (!r.ok || (r.data && r.data.error)) { alert('학생 약점 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); return; }
+    try { var sr = await window.supabase.from('exam_submissions').select('exam_id').eq('id', submissionId).single(); if (sr && sr.data && sr.data.exam_id) await window.B2Utils.syncExamScore(sr.data.exam_id, submissionId); } catch (e2) {}
     await loadAdminLevelTests();
     var u = (r.data && r.data.usage) || {};
     alert('학생 약점 분석 완료!' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
@@ -833,6 +835,7 @@ async function adminDeleteLevelTest(t) {
       var allPaths = paths.concat(ansPaths);
       if (allPaths.length > 0) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e) {} }
     }
+    try { await window.B2Utils.removeExamScores(t.id); } catch (e2) {}
     await sb.from('exams').delete().eq('id', t.id);
     await loadAdminLevelTests();
   } catch (e) { alert('삭제 실패: ' + (e.message || e)); }

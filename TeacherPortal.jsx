@@ -1700,6 +1700,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     try {
       var r = await window.B2Utils.callEdgeFn('analyze-student', { submission_id: submissionId });
       if (!r.ok || (r.data && r.data.error)) { alert('학생 약점 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); return; }
+      try { var sr = await sb.from('exam_submissions').select('exam_id').eq('id', submissionId).single(); if (sr && sr.data && sr.data.exam_id) await window.B2Utils.syncExamScore(sr.data.exam_id, submissionId); } catch (e2) {}
       await loadClassExams(selectedClass && selectedClass.id);
       var u = (r.data && r.data.usage) || {};
       alert('학생 약점 분석 완료!' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
@@ -1813,6 +1814,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         var allPaths = paths.concat(ansPaths);
         if (allPaths.length > 0) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e) {} }
       }
+      try { await window.B2Utils.removeExamScores(exam.id); } catch (e2) {}
       await sb.from('exams').delete().eq('id', exam.id);
       await loadClassExams(selectedClass?.id);
     } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
@@ -2596,7 +2598,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                               {/* 채점 폼 */}
                               {window.GradingForm && React.createElement(window.GradingForm, { exam: ex, submission: s, onSave: async (sid, payload) => {
                                 payload.graded_at = new Date().toISOString();
-                                try { await sb.from('exam_submissions').update(payload).eq('id', sid); alert('채점이 저장되었습니다.'); await loadClassExams(selectedClass?.id); } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+                                try { await sb.from('exam_submissions').update(payload).eq('id', sid); try { await window.B2Utils.syncExamScore(ex.id, sid); } catch (e2) {} alert('채점이 저장되었습니다.'); await loadClassExams(selectedClass?.id); } catch (e) { alert('저장 실패: ' + (e.message || e)); }
                               } })}
                             </div>
                           ))}

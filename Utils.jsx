@@ -239,6 +239,61 @@
     return out.length ? Array.from(new Set(out)).sort(function(a,b){ return a-b; }) : null;
   }
 
+  // ── 앱 테스트(exam_submissions) 결과를 성적(test_scores)으로 동기화 ──
+  // 채점 가능한 문항(객관식 answer_key + 서술형 text_scores)을 백분율로 환산해 test_scores에 upsert.
+  // 서술형이 있는데 아직 채점 전(text_scores 비어있음)이면 쓰지 않음. 채점 가능한 문항이 0개면 쓰지 않음.
+  function _examKindTypeLabel(k) {
+    return k === 'homework' ? '숙제' : k === 'weekly' ? '주간평가' : k === 'monthly' ? '월말평가' : k === 'level' ? '레벨테스트' : '시험';
+  }
+  function _normAns(v) { return String(v == null ? '' : v).split(',').map(function(x){ return x.trim(); }).filter(Boolean).sort().join(','); }
+  async function syncExamScore(examId, submissionId) {
+    try {
+      if (!examId || !submissionId) return;
+      var sb = window.supabase;
+      var er = await sb.from('exams').select('*').eq('id', examId).single();
+      var exam = er && er.data; if (!exam) return;
+      if (exam.kind === 'material') return; // 자료실 자료는 성적과 무관
+      var sr = await sb.from('exam_submissions').select('*').eq('id', submissionId).single();
+      var sub = sr && sr.data; if (!sub || !sub.student_id) return;
+      var ak = (exam.answer_key && typeof exam.answer_key === 'object') ? exam.answer_key : {};
+      var akKeys = Object.keys(ak);
+      var ans = (sub.answers && typeof sub.answers === 'object') ? sub.answers : {};
+      // 객관식: answer_key가 있으면 자동 채점 가능, 없으면 채점 불가(성적 미반영)
+      var mcGradable = akKeys.length > 0;
+      var mcTotal = mcGradable ? akKeys.length : 0;
+      var mcCorrect = 0;
+      if (mcGradable) akKeys.forEach(function(k){ var na = _normAns(ans[k]); if (na && na === _normAns(ak[k])) mcCorrect++; });
+      // 서술형: text_scores(1/0)가 다 채워졌으면 채점 완료로 봄 (선생님 채점 또는 AI 분석이 채움)
+      var txtTotal = Number(exam.text_question_count) || 0;
+      var tscores = (sub.text_scores && typeof sub.text_scores === 'object') ? sub.text_scores : {};
+      var tsKeys = Object.keys(tscores);
+      if (txtTotal > 0 && tsKeys.length < txtTotal) return; // 서술형 아직 미채점 — 성적은 채점 후 반영
+      var txtCorrect = 0;
+      tsKeys.forEach(function(k){ var v = tscores[k]; if (v === 1 || v === '1' || v === true) txtCorrect++; });
+      var total = mcTotal + txtTotal;
+      if (total <= 0) return; // 채점 가능한 문항 없음 (녹음만 받는 숙제, 정답 미입력 객관식 등)
+      var correct = Math.max(0, Math.min(mcCorrect, mcTotal)) + Math.max(0, Math.min(txtCorrect, txtTotal));
+      var pct = Math.round(correct / total * 100);
+      var row = {
+        exam_id: exam.id,
+        student_id: sub.student_id,
+        teacher_id: null, // test_scores.teacher_id 는 teachers(id) 참조 — exams.teacher_id(students.id)와 id 공간이 달라 안 넣음
+        test_type: _examKindTypeLabel(exam.kind),
+        test_name: exam.title || '테스트',
+        subject: exam.subject || null,
+        test_date: exam.test_date || (new Date().toISOString().slice(0,10)),
+        score: pct,
+        total: 100,
+        test_range: exam.description || null,
+      };
+      await sb.from('test_scores').upsert(row, { onConflict: 'exam_id,student_id' });
+    } catch (e) { /* 성적 동기화 실패는 무시 (테스트 제출/채점 자체는 성공) */ }
+  }
+  // 시험 삭제 시 그 시험에서 자동 생성된 성적도 정리
+  async function removeExamScores(examId) {
+    try { if (examId) await window.supabase.from('test_scores').delete().eq('exam_id', examId); } catch (e) {}
+  }
+
   // ── 학생 약점 분석 리포트 HTML (인쇄/PDF용) ─────────────────────────────
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function buildStudentReportHtml(a, studentName, examTitle, opts) {
@@ -412,5 +467,5 @@
     return String(v);
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
 })();

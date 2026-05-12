@@ -1841,6 +1841,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       var map = Object.assign({}, mySubmissions);
       (subs || []).forEach(function(s){ map[s.exam_id] = s; });
       setMySubmissions(map);
+      // 객관식 자동채점이 끝났으면 성적(test_scores)에도 반영 (서술형 있으면 선생님 채점 후 반영됨)
+      try { if (subs && subs[0] && subs[0].id) window.B2Utils.syncExamScore(activeExam.id, subs[0].id); } catch (e) {}
       alert(existing ? '답안이 수정되었습니다.' : '답안이 제출되었습니다.');
       closeExam();
     } catch (e) {
