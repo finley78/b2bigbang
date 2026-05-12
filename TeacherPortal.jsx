@@ -87,6 +87,20 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [attachUploading, setAttachUploading] = React.useState(false);
   const [attachDraft, setAttachDraft] = React.useState({ title:'', description:'', scope:'class', class_id:'', student_ids:[], course_id:'', video_id:'', file:null });
 
+  // 자료실 — 분석 자료 도서관 (시험·숙제 만들기용; kind='material' exams)
+  const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null };
+  const [materials, setMaterials] = React.useState([]);
+  const [materialLoading, setMaterialLoading] = React.useState(false);
+  const [materialUploading, setMaterialUploading] = React.useState(false);
+  const [materialDraft, setMaterialDraft] = React.useState(MATERIAL_DRAFT_INIT);
+  const [materialEditId, setMaterialEditId] = React.useState(null);
+  const [analyzingMaterialId, setAnalyzingMaterialId] = React.useState(null);
+  const [materialAnalysisOpenId, setMaterialAnalysisOpenId] = React.useState(null);
+  const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'' });
+  const [materialFormOpen, setMaterialFormOpen] = React.useState(false);
+  // 시험·숙제 발행 폼에서 자료 불러오기
+  const [materialPickerOpen, setMaterialPickerOpen] = React.useState(false);
+
   // 마이페이지
   const [profileDraft, setProfileDraft] = React.useState(null);
   const [savingProfile, setSavingProfile] = React.useState(false);
@@ -104,6 +118,18 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     function onPop(e) {
+      if (materialPickerOpen) {
+        e.stopImmediatePropagation();
+        setMaterialPickerOpen(false);
+        try { window.history.pushState({ page:'teacher', b2Inner:true }, ''); } catch (err) {}
+        return;
+      }
+      if (materialFormOpen) {
+        e.stopImmediatePropagation();
+        setMaterialFormOpen(false); setMaterialEditId(null);
+        try { window.history.pushState({ page:'teacher', b2Inner:true }, ''); } catch (err) {}
+        return;
+      }
       if (examFormOpen) {
         e.stopImmediatePropagation();
         setExamFormOpen(false);
@@ -120,17 +146,17 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     }
     window.addEventListener('popstate', onPop, true);
     return () => window.removeEventListener('popstate', onPop, true);
-  }, [selectedClass, examFormOpen]);
+  }, [selectedClass, examFormOpen, materialFormOpen, materialPickerOpen]);
 
   // 깊은 화면 진입 시 history에 한 단계 push
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!selectedClass && !examFormOpen) return;
+    if (!selectedClass && !examFormOpen && !materialFormOpen && !materialPickerOpen) return;
     const st = window.history.state || {};
     if (!st.b2Inner) {
       try { window.history.pushState({ page:'teacher', b2Inner:true }, ''); } catch (err) {}
     }
-  }, [selectedClass, examFormOpen]);
+  }, [selectedClass, examFormOpen, materialFormOpen, materialPickerOpen]);
   const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], existing_paths:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
   const [editingExamId, setEditingExamId] = React.useState(null); // null=새 발행, id=기존 시험/숙제 수정
   const [examUploading, setExamUploading] = React.useState(false);
@@ -1240,6 +1266,185 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
   }
 
+  // ── 자료실: 분석 자료 도서관 (시험·숙제 만들기용) ──
+  async function loadMaterials() {
+    setMaterialLoading(true);
+    try {
+      var { data } = await sb.from('exams').select('*').eq('kind', 'material').order('created_at', { ascending:false });
+      setMaterials(data || []);
+    } catch (e) { setMaterials([]); }
+    finally { setMaterialLoading(false); }
+  }
+  function openMaterialForm() {
+    setMaterialEditId(null);
+    var subs = (teacherInfo && Array.isArray(teacherInfo.subjects)) ? teacherInfo.subjects.filter(Boolean) : [];
+    setMaterialDraft(Object.assign({}, MATERIAL_DRAFT_INIT, { subject: subs.length === 1 ? subs[0] : '' }));
+    setMaterialFormOpen(true);
+  }
+  function openMaterialFormForEdit(m) {
+    setMaterialEditId(m.id);
+    setMaterialDraft({
+      title: m.title || '', subject: m.subject || '', school_level: m.school_level || '', target_grade: m.target_grade || '', target_semester: m.target_semester || '',
+      description: m.description || '',
+      files: [], answer_files: [],
+      existing_paths: Array.isArray(m.image_paths) ? m.image_paths : [],
+      answer_existing_paths: Array.isArray(m.answer_paths) ? m.answer_paths : [],
+      analyze_page_range: m.analyze_page_range || '',
+      selected_questions_text: Array.isArray(m.selected_questions) ? m.selected_questions.join(',') : '',
+      precise: m.analyze_model === 'opus',
+      precise_student: m.analyze_student_model === 'opus',
+      analysis: m.analysis || null,
+    });
+    setMaterialFormOpen(true);
+  }
+  function closeMaterialForm() { setMaterialFormOpen(false); setMaterialEditId(null); }
+  async function submitMaterial(thenAnalyze) {
+    if (!teacherInfo) { alert('선생님 정보가 없습니다.'); return; }
+    var d = materialDraft;
+    if (!d.title.trim()) { alert('자료 제목을 입력해 주세요.'); return; }
+    var hasNewFiles = (d.files && d.files.length) || (d.answer_files && d.answer_files.length);
+    var hasExisting = ((d.existing_paths||[]).length) || ((d.answer_existing_paths||[]).length);
+    if (!hasNewFiles && !hasExisting) { alert('시험지 또는 답안지·해설 파일을 1개 이상 올려주세요.'); return; }
+    var doAnalyze = thenAnalyze === true;
+    if (doAnalyze && materialEditId && d.analysis) {
+      doAnalyze = confirm('이미 문항 분석이 된 자료입니다.\n[확인] = 저장하고 다시 분석 (Claude 요금 다시 발생)\n[취소] = 저장만');
+    }
+    setMaterialUploading(true);
+    try {
+      var prefix = 'materials/' + (teacherInfo.id || 'tx');
+      var paths = (d.existing_paths && d.existing_paths.length) ? d.existing_paths.slice() : [];
+      if (d.files && d.files.length > 0) {
+        paths = [];
+        for (var i = 0; i < d.files.length; i++) {
+          var f = d.files[i]; var ext = (f.name.split('.').pop() || 'png').toLowerCase();
+          var p = prefix + '/' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+          var up = await sb.storage.from('attachments').upload(p, f, { cacheControl:'3600', upsert:false });
+          if (up.error) throw up.error; paths.push(p);
+        }
+      }
+      var ansPaths = (d.answer_existing_paths && d.answer_existing_paths.length) ? d.answer_existing_paths.slice() : [];
+      if (d.answer_files && d.answer_files.length > 0) {
+        ansPaths = [];
+        for (var ai = 0; ai < d.answer_files.length; ai++) {
+          var af = d.answer_files[ai]; var aext = (af.name.split('.').pop() || 'png').toLowerCase();
+          var ap = prefix + '/answers/' + Date.now() + '_' + ai + '_' + Math.random().toString(36).slice(2,8) + '.' + aext;
+          var aup = await sb.storage.from('attachments').upload(ap, af, { cacheControl:'3600', upsert:false });
+          if (aup.error) throw aup.error; ansPaths.push(ap);
+        }
+      }
+      var row = {
+        title: d.title.trim(),
+        subject: (d.subject||'').trim() || null,
+        school_level: (d.school_level||'').trim() || null,
+        target_grade: (d.target_grade||'').trim() || null,
+        target_semester: (d.target_semester||'').trim() || null,
+        description: (d.description||'').trim() || null,
+        image_paths: paths,
+        answer_paths: ansPaths,
+        analyze_page_range: (d.analyze_page_range || '').trim() || null,
+        selected_questions: window.B2Utils.parseNumberRange(d.selected_questions_text),
+        analyze_model: d.precise ? 'opus' : 'sonnet',
+        analyze_student_model: d.precise_student ? 'opus' : 'sonnet',
+      };
+      var savedId = null;
+      if (materialEditId) {
+        var u = await sb.from('exams').update(row).eq('id', materialEditId);
+        if (u.error) throw u.error; savedId = materialEditId;
+        if (!doAnalyze) alert('자료가 수정되었습니다.');
+      } else {
+        var insertRow = Object.assign({
+          kind: 'material', class_id: null,
+          teacher_id: (user && user.id) || null,
+          teacher_name: teacherInfo.name || user?.name || '선생님',
+          status: 'open', question_count: 0, text_question_count: 0, allow_text_answer: false, answer_key: {},
+        }, row);
+        var ins = await sb.from('exams').insert(insertRow).select('id').single();
+        if (ins.error) throw ins.error; savedId = ins.data && ins.data.id;
+        if (!doAnalyze) alert('자료가 저장되었습니다.');
+      }
+      await loadMaterials();
+      if (!doAnalyze) { closeMaterialForm(); }
+      if (doAnalyze && savedId) {
+        setMaterialEditId(savedId);
+        setMaterialDraft(function(p){ return Object.assign({}, p, { existing_paths: row.image_paths, answer_existing_paths: row.answer_paths, files:[], answer_files:[] }); });
+        setAnalyzingMaterialId(savedId);
+        try {
+          var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: savedId });
+          if (!r.ok || (r.data && r.data.error)) { alert('저장은 됐지만 문항 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); }
+          else {
+            await loadMaterials();
+            setMaterialAnalysisOpenId(savedId);
+            var us = (r.data && r.data.usage) || {};
+            setMaterialDraft(function(p){ return Object.assign({}, p, { analysis: (r.data && r.data.analysis) || p.analysis }); });
+            alert('문항 분석 완료!' + (us.input_tokens ? '\n(입력 ' + us.input_tokens + ' / 출력 ' + (us.output_tokens||0) + ' 토큰)' : ''));
+          }
+        } catch (ee) { alert('저장은 됐지만 문항 분석 실패: ' + (ee.message || ee)); }
+        finally { setAnalyzingMaterialId(null); }
+      }
+    } catch (e) {
+      alert((materialEditId ? '수정' : '저장') + ' 실패: ' + (e.message || e));
+    } finally {
+      setMaterialUploading(false);
+    }
+  }
+  async function reanalyzeMaterial(m) {
+    var hasFiles = (Array.isArray(m.image_paths) && m.image_paths.length) || (Array.isArray(m.answer_paths) && m.answer_paths.length);
+    if (!hasFiles) { alert('이 자료에 시험지/답안지 파일이 없습니다. "수정"에서 파일을 올린 뒤 분석해 주세요.'); return; }
+    if (m.analysis && !confirm('이미 분석된 자료입니다. 다시 분석할까요?\n(Claude API 요금이 다시 발생합니다)')) return;
+    setAnalyzingMaterialId(m.id);
+    try {
+      var r = await window.B2Utils.callEdgeFn('analyze-exam', { exam_id: m.id });
+      if (!r.ok || (r.data && r.data.error)) { alert('문항 분석 실패: ' + ((r.data && r.data.error) || ('HTTP ' + r.status))); return; }
+      await loadMaterials();
+      setMaterialAnalysisOpenId(m.id);
+      var u = (r.data && r.data.usage) || {};
+      alert('문항 분석 완료!' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
+    } catch (e) { alert('문항 분석 실패: ' + (e.message || e)); }
+    finally { setAnalyzingMaterialId(null); }
+  }
+  async function deleteMaterial(m) {
+    var dependents = [];
+    try { var { data: dep } = await sb.from('exams').select('id').eq('material_id', m.id); dependents = dep || []; } catch (e) {}
+    var n = dependents.length;
+    var msg = n > 0
+      ? '이 자료로 만든 시험·숙제가 ' + n + '개 있습니다.\n자료 기록만 지우고, 그 시험·숙제들과 시험지 파일은 그대로 둡니다. 계속할까요?'
+      : '이 자료를 삭제하시겠습니까?';
+    if (!confirm(msg)) return;
+    try {
+      if (n === 0) {
+        var allPaths = (Array.isArray(m.image_paths)?m.image_paths:[]).concat(Array.isArray(m.answer_paths)?m.answer_paths:[]);
+        if (allPaths.length) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e){} }
+      }
+      await sb.from('exams').delete().eq('id', m.id);
+      await loadMaterials();
+    } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+  }
+  // 시험·숙제 발행 폼에 자료 불러오기
+  function loadMaterialIntoExam(m) {
+    setExamDraft(function(p){
+      return Object.assign({}, p, {
+        subject: m.subject || p.subject || '',
+        files: [], answer_files: [],
+        existing_paths: Array.isArray(m.image_paths) ? m.image_paths.slice() : [],
+        answer_existing_paths: Array.isArray(m.answer_paths) ? m.answer_paths.slice() : [],
+        analysis: m.analysis || null,
+        answer_key: (m.answer_key && typeof m.answer_key === 'object') ? Object.assign({}, m.answer_key) : {},
+        question_count: String(m.question_count || 0),
+        choices_per_question: String(m.choices_per_question || 5),
+        text_question_count: String(m.text_question_count || 0),
+        analyze_page_range: m.analyze_page_range || '',
+        selected_questions_text: Array.isArray(m.selected_questions) ? m.selected_questions.join(',') : '',
+        precise_student: m.analyze_student_model === 'opus',
+        material_id: m.id,
+        material_title: m.title || '',
+      });
+    });
+    setMaterialPickerOpen(false);
+  }
+  function unlinkMaterialFromExam() {
+    setExamDraft(function(p){ return Object.assign({}, p, { material_id: null, material_title: '' }); });
+  }
+
   // ── 시험지 발행 ──
   async function loadClassExams(classId) {
     if (!classId) { setExamList([]); setExamSubmissionsByExam({}); return; }
@@ -1289,11 +1494,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   function openExamForm(presetKind) {
     var k = presetKind === 'homework' ? 'homework' : 'class';
     var subs = (teacherInfo && Array.isArray(teacherInfo.subjects)) ? teacherInfo.subjects.filter(Boolean) : [];
+    if (!materials.length) loadMaterials();
     setEditingExamId(null);
-    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], answer_files:[], answer_existing_paths:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, hide_paper:false });
+    setExamDraft({ kind:k, title:'', subject: subs.length === 1 ? subs[0] : '', test_date: new Date().toISOString().slice(0,10), description:'', files:[], existing_paths:[], answer_files:[], answer_existing_paths:[], question_count:'0', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{}, allow_audio_answer:false, analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, hide_paper:false, material_id:null, material_title:'', analysis:null });
     setExamFormOpen(true);
   }
   function openExamFormForEdit(exam) {
+    if (!materials.length) loadMaterials();
     setEditingExamId(exam.id);
     setExamDraft({
       kind: exam.kind === 'homework' ? 'homework' : (exam.kind || 'class'),
@@ -1317,6 +1524,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       precise: exam.analyze_model === 'opus',
       precise_student: exam.analyze_student_model === 'opus',
       hide_paper: !!exam.hide_paper_for_students,
+      material_id: exam.material_id || null,
+      material_title: exam.material_id ? (((materials || []).find(function(m){ return String(m.id) === String(exam.material_id); }) || {}).title || '') : '',
     });
     setExamFormOpen(true);
   }
@@ -1403,6 +1612,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         description: (d.description||'').trim() || null,
         image_paths: paths,
         answer_paths: answerPaths,
+        analysis: d.analysis || null,
         analyze_page_range: (d.analyze_page_range || '').trim() || null,
         selected_questions: window.B2Utils.parseNumberRange(d.selected_questions_text),
         analyze_model: d.precise ? 'opus' : 'sonnet',
@@ -1416,6 +1626,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         answer_key: d.answer_key || {},
         objective_total: qc,
         allow_audio_answer: !!d.allow_audio_answer && kindVal === 'homework',
+        material_id: d.material_id || null,
       };
       var savedId = null;
       if (editingExamId) {
@@ -1592,10 +1803,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   async function deleteExam(exam) {
     if (!confirm('이 시험지를 삭제하시겠습니까? 학생 답안도 함께 삭제됩니다.')) return;
     try {
-      var paths = Array.isArray(exam.image_paths) ? exam.image_paths : [];
-      var ansPaths = Array.isArray(exam.answer_paths) ? exam.answer_paths : [];
-      var allPaths = paths.concat(ansPaths);
-      if (allPaths.length > 0) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e) {} }
+      // 자료실 자료에서 만든 시험이면 시험지 파일은 자료가 계속 쓰므로 지우지 않음
+      if (!exam.material_id) {
+        var paths = Array.isArray(exam.image_paths) ? exam.image_paths : [];
+        var ansPaths = Array.isArray(exam.answer_paths) ? exam.answer_paths : [];
+        var allPaths = paths.concat(ansPaths);
+        if (allPaths.length > 0) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e) {} }
+      }
       await sb.from('exams').delete().eq('id', exam.id);
       await loadClassExams(selectedClass?.id);
     } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
@@ -1970,7 +2184,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   function loadOnTabClick(id) {
     if (id === "notes") loadNotes();
     if (id === "scores") loadScoreAnalysis();
-    if (id === "files") loadAttachments();
+    if (id === "files") { loadAttachments(); loadMaterials(); }
     if (id === "schedule") { loadScheduleRequests(); loadAcademicSchedules(); }
     if (id === "mypage") loadMyProfile();
     if (id === "studyviews") loadStudyViews();
@@ -2313,7 +2527,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         {ex.description && <div style={{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' }}>{ex.description}</div>}
                       </div>
                       <div style={{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 }}>
-                        <button onClick={() => openExamFormForEdit(ex)} style={smallPrimaryButtonStyle}>{ex.analysis ? '수정·분석(분석됨)' : '수정·분석'}</button>
+                        <button onClick={() => openExamFormForEdit(ex)} style={smallPrimaryButtonStyle}>수정</button>
                         <button onClick={() => toggleExamStatus(ex)} style={smallLightButtonStyle}>{ex.status==='open' ? '마감' : '재오픈'}</button>
                         <button onClick={() => deleteExam(ex)} style={smallDangerButtonStyle}>삭제</button>
                       </div>
@@ -2429,59 +2643,42 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>안내사항 (선택)</label>
                 <textarea value={examDraft.description} onChange={e => setExamDraft({ ...examDraft, description: e.target.value })} rows={2} placeholder="예: 시험 시간 50분, 객관식 + 서술형" style={{ ...inputStyle, resize:'vertical', marginBottom:'14px' }} />
 
-                {editingExamId && (
-                  <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>
-                    <div style={{ fontSize:'12px', fontWeight:'800', color:'#1e40af', marginBottom:'8px' }}>현재 등록된 파일 (클릭하면 새 탭에서 크게 보기)</div>
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' }}>
-                      <span style={{ fontSize:'12px', fontWeight:'700', color:(examDraft.existing_paths||[]).length>0?'#1e3a8a':'#9ca3af' }}>시험지 {(examDraft.existing_paths||[]).length}장{(examDraft.existing_paths||[]).length===0?' (없음)':''}</span>
-                      {(examDraft.existing_paths||[]).length>0 && <button onClick={() => removeExamFilesTeacher('exam')} style={{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>시험지 모두 삭제</button>}
-                    </div>
-                    {renderFileList(examDraft.existing_paths, '시험지', '페이지')}
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', marginTop:'12px' }}>
-                      <span style={{ fontSize:'12px', fontWeight:'700', color:(examDraft.answer_existing_paths||[]).length>0?'#1e3a8a':'#9ca3af' }}>답안지·해설 {(examDraft.answer_existing_paths||[]).length}개{(examDraft.answer_existing_paths||[]).length===0?' (없음)':''}</span>
-                      {(examDraft.answer_existing_paths||[]).length>0 && <button onClick={() => removeExamFilesTeacher('answer')} style={{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>답안지 모두 삭제</button>}
-                    </div>
-                    {renderFileList(examDraft.answer_existing_paths, '답안지·해설', '')}
+                {/* 자료실에서 불러오기 */}
+                {examDraft.material_id ? (
+                  <div style={{ background:'#ecfdf5', border:'1px solid #a7f3d0', borderRadius:'8px', padding:'10px 12px', marginBottom:'14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', flexWrap:'wrap', fontFamily:'Manrope, sans-serif' }}>
+                    <div style={{ fontSize:'12px', color:'#065f46' }}>{examDraft.material_title ? <>자료실 자료 <strong>{examDraft.material_title}</strong> 에서 불러옴 — 시험지·정답이 자동으로 채워졌습니다.</> : '자료실 자료에서 만든 시험입니다 — 시험지·정답은 그 자료를 따릅니다.'}</div>
+                    <button onClick={unlinkMaterialFromExam} style={{ background:'#fff', color:'#065f46', border:'1px solid #065f46', borderRadius:'6px', padding:'3px 9px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>연결 해제</button>
                   </div>
-                )}
-                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 (이미지 또는 PDF){editingExamId ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' (선택 — 여러 장 가능, 페이지 순서대로)'}</label>
-                <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setExamDraft({ ...examDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
-                {examDraft.files && examDraft.files.length > 0 && (
-                  <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' }}>새 시험지 {examDraft.files.length}장 선택됨 (저장 시 교체)</div>
+                ) : (
+                  <button onClick={() => { if (!materials.length) loadMaterials(); setMaterialPickerOpen(true); }} style={{ width:'100%', background:'#fff', color:'#0f766e', border:'1px dashed #0f766e', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:'pointer', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>자료실에서 불러오기 (분석해 둔 시험지·정답 가져오기)</button>
                 )}
 
-                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>답안지·해설 (선택 — 자동 문항 분석 정확도 향상, PDF 가능){editingExamId ? ' — 새 파일 선택하면 위 기존 답안 전체가 교체됩니다' : ''}</label>
-                <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setExamDraft({ ...examDraft, answer_files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
-                {examDraft.answer_files && examDraft.answer_files.length > 0 && (
-                  <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'10px' }}>새 답안지 {examDraft.answer_files.length}개 선택됨 (저장 시 교체)</div>
-                )}
-                <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:'8px', padding:'12px', marginBottom:'12px', fontFamily:'Manrope, sans-serif' }}>
-                  <div style={{ fontSize:'12px', fontWeight:'800', color:'#0f766e', marginBottom:'8px' }}>분석 범위 (선택 — 비워두면 시험지 전체 분석)</div>
-                  <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
-                    <div style={{ flex:1, minWidth:'140px' }}>
-                      <label style={{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' }}>분석할 페이지 (예: 3-5)</label>
-                      <input type="text" value={examDraft.analyze_page_range || ''} onChange={e => setExamDraft({ ...examDraft, analyze_page_range: e.target.value })} placeholder="비워두면 전체" style={{ ...inputStyle, width:'100%' }} />
+                {(editingExamId || examDraft.material_id || (examDraft.existing_paths||[]).length>0 || (examDraft.answer_existing_paths||[]).length>0) && (
+                  <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>
+                    <div style={{ fontSize:'12px', fontWeight:'800', color:'#1e40af', marginBottom:'8px' }}>등록된 시험지 파일 (클릭하면 새 탭에서 크게 보기)</div>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' }}>
+                      <span style={{ fontSize:'12px', fontWeight:'700', color:(examDraft.existing_paths||[]).length>0?'#1e3a8a':'#9ca3af' }}>시험지 {(examDraft.existing_paths||[]).length}장{(examDraft.existing_paths||[]).length===0?' (없음)':''}</span>
+                      {editingExamId && !examDraft.material_id && (examDraft.existing_paths||[]).length>0 && <button onClick={() => removeExamFilesTeacher('exam')} style={{ background:'#fff', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>시험지 모두 삭제</button>}
                     </div>
-                    <div style={{ flex:1, minWidth:'140px' }}>
-                      <label style={{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' }}>학생에게 낼 문항 번호 (예: 11-30)</label>
-                      <input type="text" value={examDraft.selected_questions_text || ''} onChange={e => setExamDraft({ ...examDraft, selected_questions_text: e.target.value })} placeholder="비워두면 분석된 전체" style={{ ...inputStyle, width:'100%' }} />
-                    </div>
+                    {renderFileList(examDraft.existing_paths, '시험지', '페이지')}
+                    {(examDraft.answer_existing_paths||[]).length>0 && (<>
+                      <div style={{ fontSize:'12px', fontWeight:'700', color:'#1e3a8a', marginTop:'10px' }}>답안지·해설 {(examDraft.answer_existing_paths||[]).length}개</div>
+                      {renderFileList(examDraft.answer_existing_paths, '답안지·해설', '')}
+                    </>)}
                   </div>
-                  <div style={{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' }}>페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (시험지가 PDF·여러 장일 때만 적용). 쓰려는 문항이 든 페이지를 포함하세요. 답안지·해설은 항상 전체를 보냅니다.</div>
-                  <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', fontSize:'12px', fontFamily:'Manrope, sans-serif', color:'#0f766e', fontWeight:'700' }}>
-                    <input type="checkbox" checked={!!examDraft.precise} onChange={e => setExamDraft({ ...examDraft, precise: e.target.checked })} style={{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' }} />
-                    고3 전용 (시험 문항 분석을 정밀하게)
-                  </label>
-                  <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', color:'#0f766e', fontWeight:'700' }}>
-                    <input type="checkbox" checked={!!examDraft.precise_student} onChange={e => setExamDraft({ ...examDraft, precise_student: e.target.checked })} style={{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' }} />
-                    학생 답안 분석도 정밀하게 (서술형 채점·종합평)
-                  </label>
-                </div>
-                <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginBottom:'14px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'#374151', fontWeight:'700' }}>
+                )}
+                {!examDraft.material_id && (<>
+                  <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지 직접 올리기 (이미지 또는 PDF){editingExamId ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' (선택 — 자료실에서 안 불러올 때만)'}</label>
+                  <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setExamDraft({ ...examDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                  {examDraft.files && examDraft.files.length > 0 && (
+                    <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' }}>새 시험지 {examDraft.files.length}장 선택됨 (저장 시 교체)</div>
+                  )}
+                </>)}
+
+                <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', marginBottom:'14px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'#374151', fontWeight:'700' }}>
                   <input type="checkbox" checked={!!examDraft.hide_paper} onChange={e => setExamDraft({ ...examDraft, hide_paper: e.target.checked })} style={{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#E60012' }} />
                   <span>종이 시험지로 진행 — 학생 화면엔 OMR 답안만 표시 (시험지는 종이로 나눠줌)</span>
                 </label>
-                <button onClick={() => submitExam(true)} disabled={examUploading || !!analyzingExamId} style={{ width:'100%', background: (examUploading||analyzingExamId) ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor:(examUploading||analyzingExamId)?'not-allowed':'pointer', marginBottom:'16px', fontFamily:'Manrope, sans-serif' }}>{analyzingExamId ? '문항 분석 중... (1~2분 소요)' : (examUploading ? '저장 중...' : '저장 및 문항 분석')}</button>
                 {examDraft.analysis && renderExamAnalysis(examDraft.analysis)}
 
                 {/* 일반 시험: 기존 입력 그대로 */}
@@ -2568,13 +2765,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 })()}
 
                 {/* 객관식 정답 입력 (직접 기입) */}
-                {(parseInt(examDraft.question_count, 10) || 0) > 0 && (
+                {(parseInt(examDraft.question_count, 10) || 0) > 0 && (() => {
+                  const qc = parseInt(examDraft.question_count, 10) || 0;
+                  const akKeys = Object.keys(examDraft.answer_key || {});
+                  const nums = (akKeys.length === qc) ? akKeys.slice().sort((a,b)=>Number(a)-Number(b)) : Array.from({ length: qc }).map((_, i) => String(i + 1));
+                  return (
                   <div style={{ marginBottom:'14px' }}>
-                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>객관식 정답 (직접 기입, 비워두면 자동 채점 X)</label>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>객관식 정답{examDraft.material_id ? ' (자료실에서 불러옴 — 필요하면 수정)' : ' (직접 기입, 비워두면 자동 채점 X)'}</label>
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(90px, 1fr))', gap:'6px', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px' }}>
-                      {Array.from({ length: parseInt(examDraft.question_count, 10) || 0 }).map((_, i) => {
-                        const num = i + 1;
-                        return (
+                      {nums.map((num) => (
                           <div key={num} style={{ display:'flex', alignItems:'center', gap:'4px' }}>
                             <span style={{ fontSize:'12px', fontWeight:'700', color:'#6b7280', minWidth:'22px', textAlign:'right' }}>{num}.</span>
                             <input type="text" value={(examDraft.answer_key && examDraft.answer_key[num]) || ''} onChange={e => {
@@ -2586,11 +2785,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                               });
                             }} placeholder="예: 3" style={{ flex:1, border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 6px', fontSize:'12px', fontFamily:'Manrope, sans-serif', textAlign:'center', boxSizing:'border-box' }} />
                           </div>
-                        );
-                      })}
+                      ))}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {(parseInt(examDraft.text_question_count, 10) || 0) > 0 && (
                   <div style={{ marginBottom:'14px', background:'#f0f9ff', border:'1px solid #bae6fd', borderRadius:'8px', padding:'10px 12px', fontSize:'12px', color:'#0c4a6e', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' }}>
@@ -2598,9 +2797,57 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   </div>
                 )}
 
+                <button onClick={() => submitExam(false)} disabled={examUploading} style={{ width:'100%', background: examUploading ? '#9ca3af' : '#E60012', color:'#fff', border:'none', borderRadius:'9px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: examUploading ? 'not-allowed' : 'pointer', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>{examUploading ? '저장 중...' : (editingExamId ? '수정 저장' : ((examDraft.kind === 'homework' ? '숙제' : '시험') + ' 발행'))}</button>
                 <div style={{ marginTop:'8px' }}>
-                  <button onClick={closeExamForm} disabled={examUploading || !!analyzingExamId} style={{ ...lightButtonStyle, width:'100%', padding:'10px', fontSize:'13px', cursor: (examUploading||analyzingExamId) ? 'not-allowed' : 'pointer' }}>닫기</button>
+                  <button onClick={closeExamForm} disabled={examUploading} style={{ ...lightButtonStyle, width:'100%', padding:'10px', fontSize:'13px', cursor: examUploading ? 'not-allowed' : 'pointer' }}>닫기</button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* 자료실에서 자료 고르기 */}
+          {materialPickerOpen && (
+            <div onClick={() => setMaterialPickerOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px', padding:'24px', width:'100%', maxWidth:'560px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'88vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
+                  <h3 style={{ fontSize:'16px', fontWeight:'800', color:'#111827', margin:0 }}>자료실에서 불러오기</h3>
+                  <button onClick={() => setMaterialPickerOpen(false)} style={{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' }}>×</button>
+                </div>
+                <p style={{ fontSize:'12px', color:'#6b7280', marginTop:0, marginBottom:'12px' }}>분석해 둔 시험지를 고르면 시험지·정답·문항 수가 자동으로 채워집니다. 자료가 없으면 "자료실" 탭에서 먼저 만들어 주세요.</p>
+                <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' }}>
+                  <input value={materialFilters.search} onChange={e => setMaterialFilters({ ...materialFilters, search: e.target.value })} placeholder="제목·설명 검색" style={{ ...inputStyle, flex:1, minWidth:'140px' }} />
+                  <select value={materialFilters.subject} onChange={e => setMaterialFilters({ ...materialFilters, subject: e.target.value })} style={{ ...inputStyle, width:'110px' }}>
+                    <option value="">전체 과목</option>
+                    {["국어","영어","수학","과학","사회","한국사","기타"].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                {materialLoading ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div> : (() => {
+                  var list = (materials || []).filter(function(m){
+                    if (!m.analysis) return false; // 분석된 것만 불러올 수 있음
+                    if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
+                    if (materialFilters.search) { var q = materialFilters.search.toLowerCase(); if (((m.title||'')+' '+(m.description||'')).toLowerCase().indexOf(q) < 0) return false; }
+                    return true;
+                  });
+                  if (list.length === 0) return <div style={{ padding:'18px', textAlign:'center', color:'#9ca3af', fontSize:'13px' }}>불러올 수 있는 분석 자료가 없습니다.</div>;
+                  return (
+                    <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                      {list.map(function(m){
+                        var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
+                        return (
+                          <button key={m.id} onClick={() => loadMaterialIntoExam(m)} style={{ textAlign:'left', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                              {m.subject && <span style={{ fontSize:'11px', fontWeight:'700', color:'#374151' }}>{m.subject}</span>}
+                              {(m.school_level || m.target_grade) && <span style={{ fontSize:'11px', color:'#6b7280' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
+                              <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>{m.title}</span>
+                            </div>
+                            <div style={{ fontSize:'11px', color:'#6b7280', marginTop:'2px' }}>객관식 {qc}문항{tqc>0?' · 서술형 '+tqc+'문항':''}{m.teacher_name?' · '+m.teacher_name:''}{m.created_at?' · '+String(m.created_at).slice(0,10):''}</div>
+                            {m.description && <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px', whiteSpace:'pre-line' }}>{m.description}</div>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -3643,8 +3890,167 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
       {/* ── 탭6: 자료실 ── */}
       {teacherView === "files" && (
+        <>
+        {/* 1) 시험·숙제용 분석 자료 (도서관) */}
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
-          <h2 style={{ marginBottom: "4px" }}>자료실</h2>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px', marginBottom:'4px' }}>
+            <h2 style={{ margin:0 }}>시험·숙제용 분석 자료</h2>
+            <button onClick={openMaterialForm} style={buttonStyle}>+ 새 자료 분석</button>
+          </div>
+          <p style={{ color:'#6b7280', fontSize:'14px', marginTop:0, marginBottom:'16px' }}>시험지·문제집을 올려 Claude로 문항 분석을 해두면, 시험·숙제를 만들 때 여기서 불러와서 바로 출제할 수 있습니다. (모든 선생님이 함께 쓰는 자료 도서관)</p>
+
+          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'14px' }}>
+            <input value={materialFilters.search} onChange={e => setMaterialFilters({ ...materialFilters, search: e.target.value })} placeholder="제목·설명 검색" style={{ ...inputStyle, flex:1, minWidth:'160px' }} />
+            <select value={materialFilters.subject} onChange={e => setMaterialFilters({ ...materialFilters, subject: e.target.value })} style={{ ...inputStyle, width:'120px' }}>
+              <option value="">전체 과목</option>
+              {["국어","영어","수학","과학","사회","한국사","기타"].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={materialFilters.level} onChange={e => setMaterialFilters({ ...materialFilters, level: e.target.value })} style={{ ...inputStyle, width:'110px' }}>
+              <option value="">전체 학교급</option>
+              {["초등","중등","고등"].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          {materialLoading ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div> : (() => {
+            var list = (materials || []).filter(function(m){
+              if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
+              if (materialFilters.level && m.school_level !== materialFilters.level) return false;
+              if (materialFilters.search) {
+                var q = materialFilters.search.toLowerCase();
+                if (((m.title||'') + ' ' + (m.description||'')).toLowerCase().indexOf(q) < 0) return false;
+              }
+              return true;
+            });
+            if (list.length === 0) return <div style={{ padding:'20px', textAlign:'center', color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' }}>{(materials||[]).length === 0 ? '아직 등록된 분석 자료가 없습니다. "+ 새 자료 분석"으로 시험지를 올려보세요.' : '검색 결과가 없습니다.'}</div>;
+            return (
+              <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                {list.map(function(m){
+                  var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
+                  var imgs = Array.isArray(m.image_paths) ? m.image_paths : [];
+                  var ans = Array.isArray(m.answer_paths) ? m.answer_paths : [];
+                  var open = materialAnalysisOpenId === m.id;
+                  var busy = analyzingMaterialId === m.id;
+                  return (
+                    <div key={m.id} style={{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px' }}>
+                      <div style={{ display:'flex', alignItems:'flex-start', gap:'12px' }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' }}>
+                            {m.analysis ? <span style={{ fontSize:'11px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' }}>분석 완료</span> : <span style={{ fontSize:'11px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' }}>분석 전</span>}
+                            {m.subject && <span style={{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' }}>{m.subject}</span>}
+                            {(m.school_level || m.target_grade) && <span style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
+                            <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{m.title}</span>
+                          </div>
+                          <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>
+                            시험지 {imgs.length}개{ans.length ? ' · 답안·해설 ' + ans.length + '개' : ''}{m.analysis ? ' · 객관식 ' + qc + '문항' + (tqc > 0 ? ' · 서술형 ' + tqc + '문항' : '') : ''}{m.teacher_name ? ' · ' + m.teacher_name : ''}{m.created_at ? ' · ' + String(m.created_at).slice(0,10) : ''}
+                          </div>
+                          {m.description && <div style={{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' }}>{m.description}</div>}
+                        </div>
+                        <div style={{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 }}>
+                          {m.analysis && <button onClick={() => setMaterialAnalysisOpenId(open ? null : m.id)} style={smallLightButtonStyle}>{open ? '분석 닫기' : '분석 보기'}</button>}
+                          <button onClick={() => openMaterialFormForEdit(m)} style={smallPrimaryButtonStyle}>수정</button>
+                          <button onClick={() => reanalyzeMaterial(m)} disabled={busy} style={{ ...smallButtonStyle, background: busy ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '분석 중...' : (m.analysis ? '재분석' : 'Claude 분석')}</button>
+                          <button onClick={() => deleteMaterial(m)} style={smallDangerButtonStyle}>삭제</button>
+                        </div>
+                      </div>
+                      {open && m.analysis && renderExamAnalysis(m.analysis)}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* 자료 분석 폼 모달 */}
+          {materialFormOpen && (
+            <div onClick={closeMaterialForm} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'520px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }}>
+                  <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>{materialEditId ? '분석 자료 수정' : '새 분석 자료'}</h3>
+                  <button onClick={closeMaterialForm} style={{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' }}>×</button>
+                </div>
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>자료 제목 *</label>
+                <input value={materialDraft.title} onChange={e => setMaterialDraft({ ...materialDraft, title: e.target.value })} placeholder="예: 2024 9월 고2 영어 모의고사 / 능률 영어1 3과 본문" style={{ ...inputStyle, marginBottom:'14px' }} />
+
+                <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
+                  <div style={{ flex:1 }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>과목</label>
+                    <select value={materialDraft.subject} onChange={e => setMaterialDraft({ ...materialDraft, subject: e.target.value })} style={inputStyle}>
+                      <option value="">선택</option>
+                      {["국어","영어","수학","과학","사회","한국사","기타"].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>학교급</label>
+                    <select value={materialDraft.school_level} onChange={e => setMaterialDraft({ ...materialDraft, school_level: e.target.value })} style={inputStyle}>
+                      <option value="">선택</option>
+                      {["초등","중등","고등"].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>학년 (선택)</label>
+                    <input value={materialDraft.target_grade} onChange={e => setMaterialDraft({ ...materialDraft, target_grade: e.target.value })} placeholder="예: 고2" style={inputStyle} />
+                  </div>
+                </div>
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>설명·출처 (선택)</label>
+                <textarea value={materialDraft.description} onChange={e => setMaterialDraft({ ...materialDraft, description: e.target.value })} rows={2} placeholder="예: 어법·빈칸 위주, 21~40번만" style={{ ...inputStyle, resize:'vertical', marginBottom:'14px' }} />
+
+                {(materialEditId || (materialDraft.existing_paths||[]).length>0 || (materialDraft.answer_existing_paths||[]).length>0) && (
+                  <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>
+                    <div style={{ fontSize:'12px', fontWeight:'800', color:'#1e40af', marginBottom:'6px' }}>현재 등록된 파일 (클릭하면 새 탭에서 보기)</div>
+                    <div style={{ fontSize:'12px', fontWeight:'700', color:(materialDraft.existing_paths||[]).length>0?'#1e3a8a':'#9ca3af' }}>시험지 {(materialDraft.existing_paths||[]).length}개{(materialDraft.existing_paths||[]).length===0?' (없음)':''}</div>
+                    {renderFileList(materialDraft.existing_paths, '시험지', '')}
+                    <div style={{ fontSize:'12px', fontWeight:'700', color:(materialDraft.answer_existing_paths||[]).length>0?'#1e3a8a':'#9ca3af', marginTop:'8px' }}>답안지·해설 {(materialDraft.answer_existing_paths||[]).length}개{(materialDraft.answer_existing_paths||[]).length===0?' (없음)':''}</div>
+                    {renderFileList(materialDraft.answer_existing_paths, '답안지·해설', '')}
+                  </div>
+                )}
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지·문제집 (이미지 또는 PDF, 여러 장 가능){materialEditId ? ' — 새 파일 선택하면 기존 시험지를 교체합니다' : ''}</label>
+                <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setMaterialDraft({ ...materialDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                {materialDraft.files && materialDraft.files.length > 0 && <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'12px' }}>새 시험지 {materialDraft.files.length}개 선택됨</div>}
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>답안지·해설 (선택 — 정답·해설 정확도 향상, PDF 가능){materialEditId ? ' — 새 파일 선택하면 기존 답안을 교체합니다' : ''}</label>
+                <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setMaterialDraft({ ...materialDraft, answer_files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                {materialDraft.answer_files && materialDraft.answer_files.length > 0 && <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'12px' }}>새 답안지 {materialDraft.answer_files.length}개 선택됨</div>}
+
+                <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>
+                  <div style={{ fontSize:'12px', fontWeight:'800', color:'#0f766e', marginBottom:'8px' }}>분석 범위 (선택 — 비워두면 전체 분석)</div>
+                  <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
+                    <div style={{ flex:1, minWidth:'140px' }}>
+                      <label style={{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' }}>분석할 페이지 (예: 3-5)</label>
+                      <input type="text" value={materialDraft.analyze_page_range || ''} onChange={e => setMaterialDraft({ ...materialDraft, analyze_page_range: e.target.value })} placeholder="비워두면 전체" style={{ ...inputStyle, width:'100%' }} />
+                    </div>
+                    <div style={{ flex:1, minWidth:'140px' }}>
+                      <label style={{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' }}>이 자료에서 쓸 문항 번호 (예: 21-40)</label>
+                      <input type="text" value={materialDraft.selected_questions_text || ''} onChange={e => setMaterialDraft({ ...materialDraft, selected_questions_text: e.target.value })} placeholder="비워두면 전체" style={{ ...inputStyle, width:'100%' }} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize:'10px', color:'#64748b', marginTop:'6px', lineHeight:'1.5' }}>페이지를 지정하면 그 페이지만 Claude에 보내 비용을 줄입니다 (PDF·여러 장일 때). 답안지·해설은 항상 전체를 보냅니다.</div>
+                  <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', fontSize:'12px', color:'#0f766e', fontWeight:'700' }}>
+                    <input type="checkbox" checked={!!materialDraft.precise} onChange={e => setMaterialDraft({ ...materialDraft, precise: e.target.checked })} style={{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' }} />
+                    문항 분석을 정밀하게 (고난도 모의고사 등 — 비용 약 5배)
+                  </label>
+                  <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'8px', fontSize:'12px', color:'#0f766e', fontWeight:'700' }}>
+                    <input type="checkbox" checked={!!materialDraft.precise_student} onChange={e => setMaterialDraft({ ...materialDraft, precise_student: e.target.checked })} style={{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#0f766e' }} />
+                    이 자료로 만든 시험의 학생 답안 분석도 정밀하게
+                  </label>
+                </div>
+
+                <button onClick={() => submitMaterial(true)} disabled={materialUploading || !!analyzingMaterialId} style={{ width:'100%', background:(materialUploading||analyzingMaterialId)?'#9ca3af':'#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'11px', fontSize:'14px', fontWeight:'800', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>{analyzingMaterialId ? '문항 분석 중... (1~2분)' : (materialUploading ? '저장 중...' : '저장하고 Claude 문항 분석')}</button>
+                <button onClick={() => submitMaterial(false)} disabled={materialUploading || !!analyzingMaterialId} style={{ ...lightButtonStyle, width:'100%', padding:'9px', fontSize:'13px', marginBottom:'10px', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer' }}>분석 없이 저장만</button>
+                {materialDraft.analysis && renderExamAnalysis(materialDraft.analysis)}
+                <div style={{ marginTop:'10px' }}>
+                  <button onClick={closeMaterialForm} disabled={materialUploading || !!analyzingMaterialId} style={{ ...lightButtonStyle, width:'100%', padding:'9px', fontSize:'13px' }}>닫기</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 2) 학생에게 보낼 자료 (첨부파일) */}
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <h2 style={{ marginBottom: "4px" }}>학생에게 보낼 자료</h2>
           <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>학생들에게 학습 자료를 첨부파일로 전달할 수 있습니다.</p>
 
           <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'16px', marginBottom:'18px' }}>
@@ -3746,6 +4152,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             })
           }
         </div>
+        </>
       )}
 
       {/* ── 탭8: 학원 일정 ── */}

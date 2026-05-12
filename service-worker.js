@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v66-student-opus-toggle';
+const CACHE_VERSION = 'b2-bigbang-20260512v67-material-library';
 const OFFLINE_URLS = [
   './',
   './index.html',
