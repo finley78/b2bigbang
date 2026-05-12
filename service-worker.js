@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v91-vocab-study-modes-and-picker';
+const CACHE_VERSION = 'b2-bigbang-20260513v92-vocab-study-retry-wrong';
 const OFFLINE_URLS = [
   './',
   './index.html',

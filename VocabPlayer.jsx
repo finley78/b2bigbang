@@ -322,15 +322,17 @@
     var [answers, setAnswers] = React.useState({}); // { i: userAnswer }
     var [round, setRound] = React.useState(0); // '다시 풀기' 시 증가 → QuestionCard 리마운트용
 
-    function buildSet() {
+    function buildSetFrom(srcWords) {
       var cfg = { choices_per_question: 4, question_direction: (mode === 'multiple_choice' ? direction : 'mixed'), spelling_blank_ratio: blankRatio };
-      var pool = words.slice();
+      var pool = (srcWords || []).slice();
       for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+      // 객관식 보기는 항상 유닛 전체 단어(words)에서 뽑아 보기가 풍부하게
       return pool.map(function(w){ return buildOne(w, mode, cfg, words); }).filter(Boolean);
     }
-    function begin() {
-      setQs(buildSet()); setIdx(0); setPhase('answering'); setAnswers({}); setRound(function(r){ return r + 1; }); setStage('playing');
+    function beginWith(srcWords) {
+      setQs(buildSetFrom(srcWords)); setIdx(0); setPhase('answering'); setAnswers({}); setRound(function(r){ return r + 1; }); setStage('playing');
     }
+    function begin() { beginWith(words); }
 
     var current = qs[idx];
     var total = qs.length;
@@ -392,6 +394,8 @@
       qs.forEach(function(q, i){ if (isAnswerCorrect(q, answers[i])) correctCount++; });
       var pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
       var wrongs = qs.map(function(q, i){ return { q: q, i: i, ua: answers[i], ok: isAnswerCorrect(q, answers[i]) }; }).filter(function(x){ return !x.ok; });
+      var wrongWords = wrongs.map(function(x){ var wid = x.q.word_id; return words.filter(function(w){ return w.id === wid; })[0]; }).filter(Boolean);
+      function retryWrong() { if (wrongWords.length) beginWith(wrongWords); }
       return React.createElement('div', { style: S.page },
         React.createElement(StudentHeader, { title: '연습 결과 — ' + (MODE_LABEL[mode] || ''), subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
         React.createElement('div', { style: { padding: '20px 16px', maxWidth: '600px', margin: '0 auto' } },
@@ -410,9 +414,12 @@
               })
             )
           ),
-          React.createElement('div', { style: { display: 'flex', gap: '8px' } },
-            React.createElement('button', { onClick: begin, style: Object.assign({}, S.btnPrimary, { flex: 1 }) }, '다시 풀기'),
-            React.createElement('button', { onClick: props.onDone, style: Object.assign({}, S.btnGhost, { flex: 1, padding: '14px 16px' }) }, '모드 선택으로')
+          React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
+            wrongWords.length > 0 && React.createElement('button', { onClick: retryWrong, style: Object.assign({}, S.btnPrimary, { width: '100%' }) }, '틀린 ' + wrongWords.length + '개만 다시 풀기'),
+            React.createElement('div', { style: { display: 'flex', gap: '8px' } },
+              React.createElement('button', { onClick: begin, style: Object.assign({}, (wrongWords.length > 0 ? S.btnGhost : S.btnPrimary), { flex: 1, padding: '14px 16px' }) }, '전체 다시 풀기'),
+              React.createElement('button', { onClick: props.onDone, style: Object.assign({}, S.btnGhost, { flex: 1, padding: '14px 16px' }) }, '모드 선택으로')
+            )
           )
         )
       );
