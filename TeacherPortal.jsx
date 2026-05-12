@@ -164,6 +164,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     }
   }, [selectedClass, examFormOpen, materialFormOpen, materialPickerOpen]);
   const [examDraft, setExamDraft] = React.useState({ title:'', subject:'', test_date:'', description:'', files:[], existing_paths:[], question_count:'10', choices_per_question:'5', text_question_count:'0', time_limit_minutes:'0', answer_key:{} });
+  const [pendingTestKind, setPendingTestKind] = React.useState(null); // 테스트 탭에서 종류 먼저 고른 뒤 반 선택
   const [editingExamId, setEditingExamId] = React.useState(null); // null=새 발행, id=기존 시험/숙제 수정
   const [examUploading, setExamUploading] = React.useState(false);
   const [analyzingExamId, setAnalyzingExamId] = React.useState(null);
@@ -2472,17 +2473,32 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         </div>
       )}
 
+      {/* ── 테스트 탭: 종류 버튼 (항상 맨 위) ── */}
+      {teacherView === "tests" && (
+        <div style={{ ...cardStyle, marginBottom: "16px" }}>
+          <h2 style={{ marginTop:0, marginBottom:'4px' }}>테스트</h2>
+          <p style={{ marginTop:0, marginBottom:'12px', color:'#6b7280', fontSize:'14px' }}>{selectedClass ? (selectedClass.name + ' — 만들 테스트 종류를 골라주세요.') : '만들 테스트 종류를 먼저 골라주세요. 종류를 고르면 어느 반에 발행할지 정합니다.'}</p>
+          <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
+            {[['homework','숙제'],['weekly','주간테스트'],['monthly','월말테스트'],['level','레벨테스트']].map(([k,l]) => {
+              const c = examKindBadgeStyle(k);
+              const active = !selectedClass && pendingTestKind === k;
+              return <button key={k} onClick={() => { if (selectedClass) openExamForm(k); else setPendingTestKind(active ? null : k); }} style={{ flex:'1 1 130px', minWidth:'120px', background: active ? c.color : '#fff', color: active ? '#fff' : c.color, border:'1.5px solid '+c.color, borderRadius:'10px', padding:'13px 14px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>+ {l}</button>;
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── 반 선택 카드 (테스트 탭에서 반 미선택 시) ── */}
       {teacherView === "tests" && !selectedClass && (
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
           <h2 style={{ marginTop: 0 }}>반 선택</h2>
-          <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>테스트(숙제·주간·월말·레벨)를 발행할 반을 먼저 선택해 주세요.</p>
+          <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>{pendingTestKind ? (examKindLabel(pendingTestKind) + '를 발행할 반을 골라주세요.') : '발행된 테스트를 보거나 새 테스트를 발행할 반을 골라주세요. (위에서 종류를 먼저 골라도 됩니다.)'}</p>
           {availableClassCards.length === 0 ? (
             <div style={{ color: "#6b7280" }}>담당 클래스가 없습니다. 관리자에게 배정을 요청해 주세요.</div>
           ) : (
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'12px' }}>
               {availableClassCards.map(cls => (
-                <button key={cls.id} onClick={() => { selectClass(cls); setTimeout(() => loadClassExams(cls.id), 0); }} style={{ textAlign:'left', border:'1px solid #e5e7eb', background:'white', borderRadius:'12px', padding:'16px', cursor:'pointer' }}>
+                <button key={cls.id} onClick={() => { selectClass(cls); setTimeout(() => loadClassExams(cls.id), 0); if (pendingTestKind) { var pk = pendingTestKind; setPendingTestKind(null); setTimeout(() => openExamForm(pk), 10); } }} style={{ textAlign:'left', border:'1px solid #e5e7eb', background:'white', borderRadius:'12px', padding:'16px', cursor:'pointer' }}>
                   <strong style={{ display:'block', fontSize:'15px', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{cls.name}</strong>
                 </button>
               ))}
@@ -2491,20 +2507,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         </div>
       )}
 
-      {/* ── 테스트 발행 (테스트 탭, 반 선택 시) ── */}
+      {/* ── 발행된 테스트 목록 (테스트 탭, 반 선택 시) ── */}
       {teacherView === "tests" && selectedClass && (() => {
         return (
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px', flexWrap:'wrap', gap:'8px' }}>
-            <h2 style={{ margin:0 }}>테스트 발행 — {selectedClass.name}</h2>
-            <button onClick={() => { setSelectedClass(null); setSelectedClassId(""); }} style={smallLightButtonStyle}>다른 반</button>
-          </div>
-          <p style={{ marginTop: 0, marginBottom: "12px", color: "#6b7280", fontSize: "14px" }}>만들 테스트 종류를 골라주세요. 학생들은 자기 포털에서 응시·제출합니다.</p>
-          <div style={{ display:'flex', gap:'10px', flexWrap:'wrap', marginBottom:'18px' }}>
-            {[['homework','숙제'],['weekly','주간테스트'],['monthly','월말테스트'],['level','레벨테스트']].map(([k,l]) => {
-              const c = examKindBadgeStyle(k);
-              return <button key={k} onClick={() => openExamForm(k)} style={{ flex:'1 1 130px', minWidth:'120px', background:'#fff', color:c.color, border:'1.5px solid '+c.color, borderRadius:'10px', padding:'12px 14px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>+ {l}</button>;
-            })}
+            <h2 style={{ margin:0 }}>{selectedClass.name} — 발행된 테스트</h2>
+            <button onClick={() => { setSelectedClass(null); setSelectedClassId(""); setPendingTestKind(null); }} style={smallLightButtonStyle}>다른 반</button>
           </div>
 
           {examLoading ? (

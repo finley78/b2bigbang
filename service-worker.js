@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v77-test-kind-buttons';
+const CACHE_VERSION = 'b2-bigbang-20260512v78-test-kind-first';
 const OFFLINE_URLS = [
   './',
   './index.html',
