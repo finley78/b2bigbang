@@ -190,7 +190,6 @@ const [materialDraft, setMaterialDraft] = React.useState(MATERIAL_DRAFT_INIT);
 const [materialEditId, setMaterialEditId] = React.useState(null);
 const [analyzingMaterialId, setAnalyzingMaterialId] = React.useState(null);
 const [materialAnalysisOpenId, setMaterialAnalysisOpenId] = React.useState(null);
-const [materialFilesOpenId, setMaterialFilesOpenId] = React.useState(null);
 const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'', grade:'', view:'all' });
 function gradeOptsForLevel(lvl) {
   if (lvl === '초등') return ['1학년','2학년','3학년','4학년','5학년','6학년'];
@@ -4587,7 +4586,7 @@ tab==='files' && React.createElement('div', null,
           list.map(function(m){
             var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
             var imgs = Array.isArray(m.image_paths) ? m.image_paths : []; var ans = Array.isArray(m.answer_paths) ? m.answer_paths : [];
-            var openA = materialAnalysisOpenId === m.id; var openF = materialFilesOpenId === m.id; var busy = analyzingMaterialId === m.id;
+            var open = materialAnalysisOpenId === m.id; var busy = analyzingMaterialId === m.id;
             return React.createElement('div', { key:m.id, style:{ borderBottom:'1px solid #eef2f7', padding:'8px 2px', fontFamily:'Manrope, sans-serif' } },
               React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
                 m.analysis ? React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'1px 6px' } }, '분석완료') : React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'1px 6px' } }, '분석전'),
@@ -4596,21 +4595,23 @@ tab==='files' && React.createElement('div', null,
                 React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#111827', flex:1, minWidth:'110px' } }, m.title),
                 React.createElement('span', { style:{ fontSize:'11px', color:'#9ca3af', whiteSpace:'nowrap' } }, (m.analysis ? ('객' + qc + (tqc>0 ? (' 서' + tqc) : '')) : ('시험지 ' + imgs.length)) + (m.teacher_name ? (' · ' + m.teacher_name) : '') + (m.created_at ? (' · ' + String(m.created_at).slice(5,10)) : '')),
                 React.createElement('span', { style:{ display:'flex', gap:'4px', flexShrink:0 } },
-                  React.createElement('button', { onClick:function(){ setMaterialFilesOpenId(openF ? null : m.id); setMaterialAnalysisOpenId(null); }, style:Object.assign({}, btnS, { color:'#1d4ed8', borderColor:'#bfdbfe', background: openF ? '#eff6ff' : '#fff' }) }, '원본'),
-                  m.analysis && React.createElement('button', { onClick:function(){ setMaterialAnalysisOpenId(openA ? null : m.id); setMaterialFilesOpenId(null); }, style:Object.assign({}, btnS, { color:'#15803d', borderColor:'#86efac', background: openA ? '#f0fdf4' : '#fff' }) }, '분석'),
+                  React.createElement('button', { onClick:function(){ setMaterialAnalysisOpenId(open ? null : m.id); }, style:Object.assign({}, btnS, { color:'#1d4ed8', borderColor:'#bfdbfe', background: open ? '#eff6ff' : '#fff' }) }, open ? '접기' : '자세히'),
                   React.createElement('button', { onClick:function(){ openMaterialFormForEdit(m); }, style:Object.assign({}, btnS, { color:'#E60012', borderColor:'#E60012', background:'#fff' }) }, '수정'),
                   React.createElement('button', { onClick:function(){ reanalyzeMaterial(m); }, disabled:busy, style:Object.assign({}, btnS, { color:'#fff', borderColor: busy ? '#9ca3af' : '#0f766e', background: busy ? '#9ca3af' : '#0f766e', cursor: busy ? 'wait' : 'pointer' }) }, busy ? '분석중' : (m.analysis ? '재분석' : '분석')),
                   React.createElement('button', { onClick:function(){ deleteMaterial(m); }, style:Object.assign({}, btnS, { color:'#c82014', borderColor:'#f3c5c0', background:'#fff' }) }, '삭제')
                 )
               ),
               m.description && React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'2px', whiteSpace:'pre-line' } }, m.description),
-              openF && React.createElement('div', { style:{ marginTop:'6px', background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'8px 10px' } },
-                React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'2px' } }, '시험지 ' + imgs.length + '개' + (imgs.length===0?' (없음)':'')),
-                renderFileList(imgs, '시험지', ''),
-                ans.length > 0 && React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginTop:'8px', marginBottom:'2px' } }, '답안지·해설 ' + ans.length + '개'),
-                ans.length > 0 && renderFileList(ans, '답안지·해설', '')
-              ),
-              (openA && m.analysis) && renderExamAnalysis(m.analysis)
+              open && React.createElement('div', { style:{ marginTop:'6px' } },
+                React.createElement('div', { style:{ background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'8px 10px', marginBottom:'8px' } },
+                  React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#1e40af', marginBottom:'4px' } }, '원본 파일 (눌러서 열기)'),
+                  React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'2px' } }, '시험지 ' + imgs.length + '개' + (imgs.length===0?' (없음)':'')),
+                  renderFileList(imgs, '시험지', ''),
+                  ans.length > 0 && React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginTop:'8px', marginBottom:'2px' } }, '답안지·해설 ' + ans.length + '개'),
+                  ans.length > 0 && renderFileList(ans, '답안지·해설', '')
+                ),
+                m.analysis ? renderExamAnalysis(m.analysis) : React.createElement('div', { style:{ fontSize:'11px', color:'#92400e', background:'#fef3c7', borderRadius:'8px', padding:'8px 10px', fontFamily:'Manrope, sans-serif' } }, '아직 Claude 문항 분석이 안 됐어요. 오른쪽 "분석" 버튼을 누르면 분석합니다.')
+              )
             );
           })
         )

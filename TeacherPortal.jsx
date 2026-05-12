@@ -96,7 +96,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [materialEditId, setMaterialEditId] = React.useState(null);
   const [analyzingMaterialId, setAnalyzingMaterialId] = React.useState(null);
   const [materialAnalysisOpenId, setMaterialAnalysisOpenId] = React.useState(null);
-  const [materialFilesOpenId, setMaterialFilesOpenId] = React.useState(null);
   const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'', grade:'', view:'all' });
   function gradeOptsForLevel(lvl) {
     if (lvl === '초등') return ['1학년','2학년','3학년','4학년','5학년','6학년'];
@@ -3947,8 +3946,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
                   var imgs = Array.isArray(m.image_paths) ? m.image_paths : [];
                   var ans = Array.isArray(m.answer_paths) ? m.answer_paths : [];
-                  var openA = materialAnalysisOpenId === m.id;
-                  var openF = materialFilesOpenId === m.id;
+                  var open = materialAnalysisOpenId === m.id;
                   var busy = analyzingMaterialId === m.id;
                   return (
                     <div key={m.id} style={{ borderBottom:'1px solid #eef2f7', padding:'8px 2px', fontFamily:'Manrope, sans-serif' }}>
@@ -3959,22 +3957,24 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         <span style={{ fontSize:'13px', fontWeight:'700', color:'#111827', flex:1, minWidth:'110px' }}>{m.title}</span>
                         <span style={{ fontSize:'11px', color:'#9ca3af', whiteSpace:'nowrap' }}>{m.analysis ? '객'+qc+(tqc>0?(' 서'+tqc):'') : ('시험지 '+imgs.length)}{m.teacher_name ? (' · '+m.teacher_name) : ''}{m.created_at ? (' · '+String(m.created_at).slice(5,10)) : ''}</span>
                         <span style={{ display:'flex', gap:'4px', flexShrink:0 }}>
-                          <button onClick={() => { setMaterialFilesOpenId(openF ? null : m.id); setMaterialAnalysisOpenId(null); }} style={{ ...btnS, color:'#1d4ed8', borderColor:'#bfdbfe', background: openF ? '#eff6ff' : '#fff' }}>원본</button>
-                          {m.analysis && <button onClick={() => { setMaterialAnalysisOpenId(openA ? null : m.id); setMaterialFilesOpenId(null); }} style={{ ...btnS, color:'#15803d', borderColor:'#86efac', background: openA ? '#f0fdf4' : '#fff' }}>분석</button>}
+                          <button onClick={() => setMaterialAnalysisOpenId(open ? null : m.id)} style={{ ...btnS, color:'#1d4ed8', borderColor:'#bfdbfe', background: open ? '#eff6ff' : '#fff' }}>{open ? '접기' : '자세히'}</button>
                           <button onClick={() => openMaterialFormForEdit(m)} style={{ ...btnS, color:'#E60012', borderColor:'#E60012', background:'#fff' }}>수정</button>
                           <button onClick={() => reanalyzeMaterial(m)} disabled={busy} style={{ ...btnS, color:'#fff', borderColor: busy ? '#9ca3af' : '#0f766e', background: busy ? '#9ca3af' : '#0f766e', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '분석중' : (m.analysis ? '재분석' : '분석')}</button>
                           <button onClick={() => deleteMaterial(m)} style={{ ...btnS, color:'#c82014', borderColor:'#f3c5c0', background:'#fff' }}>삭제</button>
                         </span>
                       </div>
                       {m.description && <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px', whiteSpace:'pre-line' }}>{m.description}</div>}
-                      {openF && (
-                        <div style={{ marginTop:'6px', background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'8px 10px' }}>
-                          <div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'2px' }}>시험지 {imgs.length}개{imgs.length===0?' (없음)':''}</div>
-                          {renderFileList(imgs, '시험지', '')}
-                          {ans.length > 0 && <><div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginTop:'8px', marginBottom:'2px' }}>답안지·해설 {ans.length}개</div>{renderFileList(ans, '답안지·해설', '')}</>}
+                      {open && (
+                        <div style={{ marginTop:'6px' }}>
+                          <div style={{ background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'8px 10px', marginBottom:'8px' }}>
+                            <div style={{ fontSize:'11px', fontWeight:'800', color:'#1e40af', marginBottom:'4px' }}>원본 파일 (눌러서 열기)</div>
+                            <div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'2px' }}>시험지 {imgs.length}개{imgs.length===0?' (없음)':''}</div>
+                            {renderFileList(imgs, '시험지', '')}
+                            {ans.length > 0 && <><div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginTop:'8px', marginBottom:'2px' }}>답안지·해설 {ans.length}개</div>{renderFileList(ans, '답안지·해설', '')}</>}
+                          </div>
+                          {m.analysis ? renderExamAnalysis(m.analysis) : <div style={{ fontSize:'11px', color:'#92400e', background:'#fef3c7', borderRadius:'8px', padding:'8px 10px', fontFamily:'Manrope, sans-serif' }}>아직 Claude 문항 분석이 안 됐어요. 오른쪽 "분석" 버튼을 누르면 분석합니다.</div>}
                         </div>
                       )}
-                      {openA && m.analysis && renderExamAnalysis(m.analysis)}
                     </div>
                   );
                 })}

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v70-material-filters';
+const CACHE_VERSION = 'b2-bigbang-20260512v71-material-row-detail';
 const OFFLINE_URLS = [
   './',
   './index.html',
