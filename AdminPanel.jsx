@@ -191,7 +191,13 @@ const [materialEditId, setMaterialEditId] = React.useState(null);
 const [analyzingMaterialId, setAnalyzingMaterialId] = React.useState(null);
 const [materialAnalysisOpenId, setMaterialAnalysisOpenId] = React.useState(null);
 const [materialFilesOpenId, setMaterialFilesOpenId] = React.useState(null);
-const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'', status:'' });
+const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'', grade:'', view:'all' });
+function gradeOptsForLevel(lvl) {
+  if (lvl === '초등') return ['1학년','2학년','3학년','4학년','5학년','6학년'];
+  if (lvl === '중등') return ['중1','중2','중3'];
+  if (lvl === '고등') return ['고1','고2','고3'];
+  return ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'];
+}
 const [materialFormOpen, setMaterialFormOpen] = React.useState(false);
 const [materialPickerOpen, setMaterialPickerOpen] = React.useState(false);
 
@@ -4546,28 +4552,30 @@ tab==='files' && React.createElement('div', null,
       React.createElement('button', { onClick:openMaterialForm, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 새 자료 분석')
     ),
     React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', marginTop:0, marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '시험지·문제집을 올려 Claude로 문항 분석을 해두면, 시험·숙제를 만들 때 여기서 불러와서 바로 출제할 수 있습니다. (모든 선생님이 함께 쓰는 자료 도서관)'),
-    React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' } },
-      React.createElement('input', { value:materialFilters.search, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { search:e.target.value })); }, placeholder:'제목·설명 검색', style:Object.assign({}, inputS, { flex:1, minWidth:'150px' }) }),
-      React.createElement('select', { value:materialFilters.subject, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { subject:e.target.value })); }, style:Object.assign({}, inputS, { width:'110px' }) },
-        React.createElement('option', { value:'' }, '전체 과목'),
+    React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px', alignItems:'center' } },
+      [{ v:'all', l:'원본' }, { v:'analyzed', l:'분석본' }].map(function(o){
+        return React.createElement('button', { key:o.v, onClick:function(){ setMaterialFilters(Object.assign({}, materialFilters, { view:o.v })); }, style:{ fontSize:'12px', fontWeight:'700', borderRadius:'8px', padding:'7px 14px', cursor:'pointer', fontFamily:'Manrope, sans-serif', border:'1px solid ' + (materialFilters.view===o.v ? '#0f766e' : '#d6dbde'), background: materialFilters.view===o.v ? '#0f766e' : '#fff', color: materialFilters.view===o.v ? '#fff' : '#374151' } }, o.l);
+      }),
+      React.createElement('select', { value:materialFilters.subject, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { subject:e.target.value })); }, style:Object.assign({}, inputS, { width:'95px' }) },
+        React.createElement('option', { value:'' }, '과목'),
         ['국어','영어','수학','과학','사회','한국사','기타'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
       ),
-      React.createElement('select', { value:materialFilters.level, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { level:e.target.value })); }, style:Object.assign({}, inputS, { width:'100px' }) },
-        React.createElement('option', { value:'' }, '전체 학교급'),
+      React.createElement('select', { value:materialFilters.level, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { level:e.target.value, grade:'' })); }, style:Object.assign({}, inputS, { width:'85px' }) },
+        React.createElement('option', { value:'' }, '초중고'),
         ['초등','중등','고등'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
       ),
-      React.createElement('select', { value:materialFilters.status, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { status:e.target.value })); }, style:Object.assign({}, inputS, { width:'110px' }) },
-        React.createElement('option', { value:'' }, '분석 상태 전체'),
-        React.createElement('option', { value:'analyzed' }, '분석 완료만'),
-        React.createElement('option', { value:'pending' }, '분석 전만')
-      )
+      React.createElement('select', { value:materialFilters.grade, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { grade:e.target.value })); }, style:Object.assign({}, inputS, { width:'90px' }) },
+        React.createElement('option', { value:'' }, '학년'),
+        gradeOptsForLevel(materialFilters.level).map(function(g){ return React.createElement('option', { key:g, value:g }, g); })
+      ),
+      React.createElement('input', { value:materialFilters.search, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { search:e.target.value })); }, placeholder:'제목·설명 검색', style:Object.assign({}, inputS, { flex:1, minWidth:'130px' }) })
     ),
     materialLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px' } }, '불러오는 중...') : (function(){
       var list = (materials || []).filter(function(m){
         if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
         if (materialFilters.level && m.school_level !== materialFilters.level) return false;
-        if (materialFilters.status === 'analyzed' && !m.analysis) return false;
-        if (materialFilters.status === 'pending' && m.analysis) return false;
+        if (materialFilters.grade && m.target_grade !== materialFilters.grade) return false;
+        if (materialFilters.view === 'analyzed' && !m.analysis) return false;
         if (materialFilters.search) { var q = materialFilters.search.toLowerCase(); if (((m.title||'')+' '+(m.description||'')).toLowerCase().indexOf(q) < 0) return false; }
         return true;
       });
@@ -4627,15 +4635,18 @@ tab==='files' && React.createElement('div', null,
           )
         ),
         React.createElement('div', { style:{ flex:1 } },
-          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '학교급'),
-          React.createElement('select', { value:materialDraft.school_level, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { school_level:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) },
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '초중고'),
+          React.createElement('select', { value:materialDraft.school_level, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { school_level:e.target.value, target_grade:'' })); }, style:Object.assign({}, inputS, { width:'100%' }) },
             React.createElement('option', { value:'' }, '선택'),
             ['초등','중등','고등'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
           )
         ),
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '학년 (선택)'),
-          React.createElement('input', { value:materialDraft.target_grade, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { target_grade:e.target.value })); }, placeholder:'예: 고2', style:Object.assign({}, inputS, { width:'100%' }) })
+          React.createElement('select', { value:materialDraft.target_grade, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { target_grade:e.target.value })); }, disabled:!materialDraft.school_level, style:Object.assign({}, inputS, { width:'100%' }) },
+            React.createElement('option', { value:'' }, materialDraft.school_level ? '학년 선택' : '먼저 초중고 선택'),
+            (materialDraft.school_level==='초등'?['1학년','2학년','3학년','4학년','5학년','6학년']:materialDraft.school_level==='중등'?['중1','중2','중3']:materialDraft.school_level==='고등'?['고1','고2','고3']:[]).map(function(g){ return React.createElement('option', { key:g, value:g }, g); })
+          )
         )
       ),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '설명·출처 (선택)'),
@@ -4684,8 +4695,8 @@ tab==='files' && React.createElement('div', null,
     )
   ),
   /* 2) 학생에게 보낼 자료 */
-  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px', marginTop:'24px' } }, '학생에게 보낼 자료'),
-  React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '선생님들이 업로드한 학습 자료 전체를 확인하고 필요 시 삭제할 수 있습니다.'),
+  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px', marginTop:'24px' } }, '학생에게 나눠줄 자료'),
+  React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '선생님·관리자가 학생 앱에 올린 학습 자료(프린트·노트 등) 전체입니다. (시험·숙제는 위 "시험·숙제용 분석 자료"에서 만듭니다.)'),
   adminAttachLoading ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
   adminAttachments.length === 0 ? React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '업로드된 자료가 없습니다.') :
   adminAttachments.map(function(att){

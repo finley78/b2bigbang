@@ -97,7 +97,13 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [analyzingMaterialId, setAnalyzingMaterialId] = React.useState(null);
   const [materialAnalysisOpenId, setMaterialAnalysisOpenId] = React.useState(null);
   const [materialFilesOpenId, setMaterialFilesOpenId] = React.useState(null);
-  const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'', status:'' });
+  const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'', grade:'', view:'all' });
+  function gradeOptsForLevel(lvl) {
+    if (lvl === '초등') return ['1학년','2학년','3학년','4학년','5학년','6학년'];
+    if (lvl === '중등') return ['중1','중2','중3'];
+    if (lvl === '고등') return ['고1','고2','고3'];
+    return ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'];
+  }
   const [materialFormOpen, setMaterialFormOpen] = React.useState(false);
   // 시험·숙제 발행 폼에서 자료 불러오기
   const [materialPickerOpen, setMaterialPickerOpen] = React.useState(false);
@@ -3900,29 +3906,31 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           </div>
           <p style={{ color:'#6b7280', fontSize:'14px', marginTop:0, marginBottom:'16px' }}>시험지·문제집을 올려 Claude로 문항 분석을 해두면, 시험·숙제를 만들 때 여기서 불러와서 바로 출제할 수 있습니다. (모든 선생님이 함께 쓰는 자료 도서관)</p>
 
-          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' }}>
-            <input value={materialFilters.search} onChange={e => setMaterialFilters({ ...materialFilters, search: e.target.value })} placeholder="제목·설명 검색" style={{ ...inputStyle, flex:1, minWidth:'150px' }} />
-            <select value={materialFilters.subject} onChange={e => setMaterialFilters({ ...materialFilters, subject: e.target.value })} style={{ ...inputStyle, width:'110px' }}>
-              <option value="">전체 과목</option>
+          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px', alignItems:'center' }}>
+            {[{ v:'all', l:'원본' }, { v:'analyzed', l:'분석본' }].map(o => (
+              <button key={o.v} onClick={() => setMaterialFilters({ ...materialFilters, view: o.v })} style={{ fontSize:'12px', fontWeight:'700', borderRadius:'8px', padding:'7px 14px', cursor:'pointer', fontFamily:'Manrope, sans-serif', border:'1px solid ' + (materialFilters.view===o.v ? '#0f766e' : '#d6dbde'), background: materialFilters.view===o.v ? '#0f766e' : '#fff', color: materialFilters.view===o.v ? '#fff' : '#374151' }}>{o.l}</button>
+            ))}
+            <select value={materialFilters.subject} onChange={e => setMaterialFilters({ ...materialFilters, subject: e.target.value })} style={{ ...inputStyle, width:'95px' }}>
+              <option value="">과목</option>
               {["국어","영어","수학","과학","사회","한국사","기타"].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={materialFilters.level} onChange={e => setMaterialFilters({ ...materialFilters, level: e.target.value })} style={{ ...inputStyle, width:'100px' }}>
-              <option value="">전체 학교급</option>
+            <select value={materialFilters.level} onChange={e => setMaterialFilters({ ...materialFilters, level: e.target.value, grade: '' })} style={{ ...inputStyle, width:'85px' }}>
+              <option value="">초중고</option>
               {["초등","중등","고등"].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={materialFilters.status} onChange={e => setMaterialFilters({ ...materialFilters, status: e.target.value })} style={{ ...inputStyle, width:'110px' }}>
-              <option value="">분석 상태 전체</option>
-              <option value="analyzed">분석 완료만</option>
-              <option value="pending">분석 전만</option>
+            <select value={materialFilters.grade} onChange={e => setMaterialFilters({ ...materialFilters, grade: e.target.value })} style={{ ...inputStyle, width:'90px' }}>
+              <option value="">학년</option>
+              {gradeOptsForLevel(materialFilters.level).map(g => <option key={g} value={g}>{g}</option>)}
             </select>
+            <input value={materialFilters.search} onChange={e => setMaterialFilters({ ...materialFilters, search: e.target.value })} placeholder="제목·설명 검색" style={{ ...inputStyle, flex:1, minWidth:'130px' }} />
           </div>
 
           {materialLoading ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div> : (() => {
             var list = (materials || []).filter(function(m){
               if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
               if (materialFilters.level && m.school_level !== materialFilters.level) return false;
-              if (materialFilters.status === 'analyzed' && !m.analysis) return false;
-              if (materialFilters.status === 'pending' && m.analysis) return false;
+              if (materialFilters.grade && m.target_grade !== materialFilters.grade) return false;
+              if (materialFilters.view === 'analyzed' && !m.analysis) return false;
               if (materialFilters.search) {
                 var q = materialFilters.search.toLowerCase();
                 if (((m.title||'') + ' ' + (m.description||'')).toLowerCase().indexOf(q) < 0) return false;
@@ -3996,15 +4004,18 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     </select>
                   </div>
                   <div style={{ flex:1 }}>
-                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>학교급</label>
-                    <select value={materialDraft.school_level} onChange={e => setMaterialDraft({ ...materialDraft, school_level: e.target.value })} style={inputStyle}>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>초중고</label>
+                    <select value={materialDraft.school_level} onChange={e => setMaterialDraft({ ...materialDraft, school_level: e.target.value, target_grade: '' })} style={inputStyle}>
                       <option value="">선택</option>
                       {["초등","중등","고등"].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div style={{ flex:1 }}>
                     <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>학년 (선택)</label>
-                    <input value={materialDraft.target_grade} onChange={e => setMaterialDraft({ ...materialDraft, target_grade: e.target.value })} placeholder="예: 고2" style={inputStyle} />
+                    <select value={materialDraft.target_grade} onChange={e => setMaterialDraft({ ...materialDraft, target_grade: e.target.value })} disabled={!materialDraft.school_level} style={inputStyle}>
+                      <option value="">{materialDraft.school_level ? '학년 선택' : '먼저 초중고 선택'}</option>
+                      {(materialDraft.school_level==='초등'?['1학년','2학년','3학년','4학년','5학년','6학년']:materialDraft.school_level==='중등'?['중1','중2','중3']:materialDraft.school_level==='고등'?['고1','고2','고3']:[]).map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
                   </div>
                 </div>
 
@@ -4065,8 +4076,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
         {/* 2) 학생에게 보낼 자료 (첨부파일) */}
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
-          <h2 style={{ marginBottom: "4px" }}>학생에게 보낼 자료</h2>
-          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>학생들에게 학습 자료를 첨부파일로 전달할 수 있습니다.</p>
+          <h2 style={{ marginBottom: "4px" }}>학생에게 나눠줄 자료</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>학생 앱에 프린트·정리노트 같은 학습 자료(PDF·이미지 등)를 올려서 반 또는 학생별로 나눠주는 곳입니다. (시험·숙제를 만드는 건 위 "시험·숙제용 분석 자료"에서 합니다.)</p>
 
           <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'16px', marginBottom:'18px' }}>
             <h3 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'10px' }}>새 자료 업로드</h3>
