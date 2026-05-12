@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v89-academic-edit-school';
+const CACHE_VERSION = 'b2-bigbang-20260513v90-vocab-give-test-label';
 const OFFLINE_URLS = [
   './',
   './index.html',

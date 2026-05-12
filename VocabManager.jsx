@@ -239,7 +239,7 @@
     async function createTestsForAllUnits() {
       var missing = unitsArray.filter(function(x){ return x.tests.length === 0 && x.words.length > 0; });
       if (missing.length === 0) { alert('모든 유닛에 이미 시험이 있습니다.'); return; }
-      if (!confirm(missing.length + '개 유닛에 기본 시험을 만들까요?\n\n· 각 시험: 그 유닛 단어 전부, 객관식\n· 상태는 "준비중"으로 생성됩니다 — 각 시험의 "편집"에서 배포 대상(반/학년)과 진행 상태를 정해 주세요.')) return;
+      if (!confirm(missing.length + '개 유닛에 기본 시험을 만들까요?\n\n· 각 시험: 그 유닛 단어 전부, 객관식\n· 상태는 "준비중"으로 생성됩니다 — 각 시험의 "학생에게 내기"를 눌러 배포 대상(반/학년)을 정하고 시작해 주세요.')) return;
       var rows = missing.map(function(x){
         return {
           list_id: props.listId,
@@ -263,7 +263,7 @@
       });
       var ins = await sb.from('vocab_tests').insert(rows);
       if (ins.error) { alert('생성 실패: ' + (ins.error.message || ins.error)); return; }
-      alert(missing.length + '개 유닛 시험을 만들었어요. 각 시험의 "편집"에서 배포 대상과 진행 상태를 정해 주세요.');
+      alert(missing.length + '개 유닛 시험을 만들었어요. 각 시험의 "학생에게 내기"를 눌러 배포 대상을 정하고, 문제 형식(객관식·빈칸·쓰기 등)을 골라 시작해 주세요.');
       load();
     }
 
@@ -369,7 +369,7 @@
                       var statusColor = t.status === 'open' ? '#006241' : t.status === 'closed' ? '#6b7280' : '#92400e';
                       var statusLabel = t.status === 'open' ? '진행중' : t.status === 'closed' ? '마감' : '준비중';
                       var borderColor = t.status === 'open' ? '#006241' : t.status === 'closed' ? '#d1d5db' : '#fbbf24';
-                      return React.createElement('div', { key:t.id, style:{ background:'#fff', border:'1.5px solid ' + borderColor, borderRadius:'8px', padding:'8px', display:'flex', flexDirection:'column', gap:'4px', cursor:'pointer', transition:'transform 0.15s, box-shadow 0.15s', fontFamily:'Manrope, sans-serif' }, onMouseEnter:function(e){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'; }, onMouseLeave:function(e){ e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }, onClick:function(){ setResultsTest(t); } },
+                      return React.createElement('div', { key:t.id, style:{ background:'#fff', border:'1.5px solid ' + borderColor, borderRadius:'8px', padding:'8px', display:'flex', flexDirection:'column', gap:'4px', cursor:'pointer', transition:'transform 0.15s, box-shadow 0.15s', fontFamily:'Manrope, sans-serif' }, onMouseEnter:function(e){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'; }, onMouseLeave:function(e){ e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }, onClick:function(){ if (t.status === 'draft') setEditingTest(t); else setResultsTest(t); } },
                         // 상태 뱃지
                         React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center' } },
                           React.createElement('span', { style:{ fontSize:'9px', fontWeight:'800', background:statusBg, color:statusColor, borderRadius:'3px', padding:'1px 6px', letterSpacing:'0.04em' } }, statusLabel),
@@ -378,15 +378,19 @@
                         // 시험 제목
                         React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, t.title),
                         // 모드 요약
-                        React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.55)', fontWeight:'600', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, modes.join(' · ') || '문제 없음'),
+                        React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.55)', fontWeight:'600', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, modes.join(' · ') || '문제 형식 미설정'),
                         // 액션 버튼
                         React.createElement('div', { style:{ display:'flex', gap:'4px', marginTop:'2px', borderTop:'1px solid rgba(0,0,0,0.06)', paddingTop:'4px' } },
-                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setResultsTest(t); }, style:{ flex:1, background:'#FFEBED', color:'#E60012', border:'none', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '결과'),
-                          React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '편집')
+                          t.status === 'draft'
+                            ? React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'4px', padding:'4px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '학생에게 내기')
+                            : React.createElement(React.Fragment, null,
+                                React.createElement('button', { onClick:function(e){ e.stopPropagation(); setResultsTest(t); }, style:{ flex:1, background:'#FFEBED', color:'#E60012', border:'none', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '결과'),
+                                React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '수정')
+                              )
                         )
                       );
                     }).concat(unit.tests.length > 0 ? [] : [
-                      // + 시험 추가 카드 — 그 유닛에 아직 시험이 없을 때만 (이미 출제했으면 시험 카드의 '편집'으로 수정)
+                      // + 시험 추가 카드 — 그 유닛에 아직 시험이 없을 때만 (이미 만든 시험은 카드의 '학생에게 내기'/'수정'으로)
                       React.createElement('button', { key:'add-' + unit.unit_index, onClick:function(){ setShowTestCreate(unit.unit_index); }, style:{ background:'#fff', border:'1.5px dashed #d6dbde', borderRadius:'8px', padding:'8px', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', cursor:'pointer', transition:'all 0.15s', fontFamily:'Manrope, sans-serif', minHeight:'70px', color:'rgba(0,0,0,0.45)' }, onMouseEnter:function(e){ e.currentTarget.style.borderColor='#E60012'; e.currentTarget.style.color='#E60012'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor='#d6dbde'; e.currentTarget.style.color='rgba(0,0,0,0.45)'; } },
                         React.createElement('div', { style:{ fontSize:'18px', fontWeight:'300', lineHeight:1 } }, '+'),
                         React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700' } }, '시험 추가')
@@ -870,7 +874,7 @@
     return React.createElement('div', { style:STYLES.modalBackdrop },
       React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(640px, calc(100% - 32px))' }) },
         React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
-        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 14px', fontFamily:'Manrope, sans-serif' } }, isEdit ? '시험 편집' : '시험 만들기'),
+        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 14px', fontFamily:'Manrope, sans-serif' } }, isEdit ? '시험 설정 — 배포 대상 · 문제 형식 · 상태' : '새 시험 만들기'),
         React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, 'UNIT ' + props.unitIndex + ' · 단어 ' + props.unitWordCount + '개'),
 
         React.createElement('div', null,
@@ -931,7 +935,14 @@
             React.createElement('input', { type:'text', value:draft.title || '', onChange:function(e){ set('title', e.target.value); }, style:STYLES.input })
           ),
 
-          React.createElement('div', { style:Object.assign({}, STYLES.label, { marginTop:'14px', marginBottom:'8px' }) }, '모드별 문제 수'),
+          React.createElement('div', { style:Object.assign({}, STYLES.label, { marginTop:'14px', marginBottom:'4px' }) }, '문제 형식 — 학생에게 낼 문제 수'),
+          React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', lineHeight:'1.6', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } },
+            '· 객관식 = 단어 보고 뜻 고르기 (또는 반대) — 아래 "출제 방향"으로 선택',
+            React.createElement('br'),
+            '· 스펠링 채우기 = 뜻 보고 빈칸 채우기 / 뜻 보고 쓰기 = 뜻 보고 단어 전체 쓰기 / 듣고 쓰기 = 발음 듣고 쓰기',
+            React.createElement('br'),
+            '안 낼 형식은 0으로 두세요. (이 유닛 단어 ', props.unitWordCount, '개 안에서 출제)'
+          ),
           React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'10px' } },
             [['multiple_choice_count','객관식'], ['spelling_count','스펠링 채우기'], ['writing_count','뜻 보고 쓰기'], ['listening_count','듣고 쓰기']].map(function(m){
               return React.createElement('div', { key:m[0], style:{ display:'flex', alignItems:'center', gap:'8px' } },
