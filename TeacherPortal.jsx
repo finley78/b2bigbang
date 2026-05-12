@@ -2821,16 +2821,26 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 </div>
                 <p style={{ fontSize:'12px', color:'#6b7280', marginTop:0, marginBottom:'12px' }}>분석해 둔 시험지를 고르면 시험지·정답·문항 수가 자동으로 채워집니다. 자료가 없으면 "자료실" 탭에서 먼저 만들어 주세요.</p>
                 <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' }}>
-                  <input value={materialFilters.search} onChange={e => setMaterialFilters({ ...materialFilters, search: e.target.value })} placeholder="제목·설명 검색" style={{ ...inputStyle, flex:1, minWidth:'140px' }} />
-                  <select value={materialFilters.subject} onChange={e => setMaterialFilters({ ...materialFilters, subject: e.target.value })} style={{ ...inputStyle, width:'110px' }}>
-                    <option value="">전체 과목</option>
+                  <select value={materialFilters.subject} onChange={e => setMaterialFilters({ ...materialFilters, subject: e.target.value })} style={{ ...inputStyle, width:'95px' }}>
+                    <option value="">과목</option>
                     {["국어","영어","수학","과학","사회","한국사","기타"].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
+                  <select value={materialFilters.level} onChange={e => setMaterialFilters({ ...materialFilters, level: e.target.value, grade: '' })} style={{ ...inputStyle, width:'85px' }}>
+                    <option value="">초중고</option>
+                    {["초등","중등","고등"].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select value={materialFilters.grade} onChange={e => setMaterialFilters({ ...materialFilters, grade: e.target.value })} style={{ ...inputStyle, width:'90px' }}>
+                    <option value="">학년</option>
+                    {gradeOptsForLevel(materialFilters.level).map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <input value={materialFilters.search} onChange={e => setMaterialFilters({ ...materialFilters, search: e.target.value })} placeholder="제목·설명 검색" style={{ ...inputStyle, flex:1, minWidth:'120px' }} />
                 </div>
                 {materialLoading ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div> : (() => {
                   var list = (materials || []).filter(function(m){
                     if (!m.analysis) return false; // 분석된 것만 불러올 수 있음
                     if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
+                    if (materialFilters.level && m.school_level !== materialFilters.level) return false;
+                    if (materialFilters.grade && m.target_grade !== materialFilters.grade) return false;
                     if (materialFilters.search) { var q = materialFilters.search.toLowerCase(); if (((m.title||'')+' '+(m.description||'')).toLowerCase().indexOf(q) < 0) return false; }
                     return true;
                   });

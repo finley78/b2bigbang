@@ -5152,16 +5152,26 @@ tab==='leveltest' && (function(){
       ),
       React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginTop:0, marginBottom:'12px' } }, '분석해 둔 시험지를 고르면 시험지·정답·문항 수가 자동으로 채워집니다. 자료가 없으면 "자료실" 탭에서 먼저 만들어 주세요.'),
       React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' } },
-        React.createElement('input', { value:materialFilters.search, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { search:e.target.value })); }, placeholder:'제목·설명 검색', style:Object.assign({}, inputS, { flex:1, minWidth:'140px' }) }),
-        React.createElement('select', { value:materialFilters.subject, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { subject:e.target.value })); }, style:Object.assign({}, inputS, { width:'110px' }) },
-          React.createElement('option', { value:'' }, '전체 과목'),
+        React.createElement('select', { value:materialFilters.subject, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { subject:e.target.value })); }, style:Object.assign({}, inputS, { width:'95px' }) },
+          React.createElement('option', { value:'' }, '과목'),
           ['국어','영어','수학','과학','사회','한국사','기타'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
-        )
+        ),
+        React.createElement('select', { value:materialFilters.level, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { level:e.target.value, grade:'' })); }, style:Object.assign({}, inputS, { width:'85px' }) },
+          React.createElement('option', { value:'' }, '초중고'),
+          ['초등','중등','고등'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+        ),
+        React.createElement('select', { value:materialFilters.grade, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { grade:e.target.value })); }, style:Object.assign({}, inputS, { width:'90px' }) },
+          React.createElement('option', { value:'' }, '학년'),
+          gradeOptsForLevel(materialFilters.level).map(function(g){ return React.createElement('option', { key:g, value:g }, g); })
+        ),
+        React.createElement('input', { value:materialFilters.search, onChange:function(e){ setMaterialFilters(Object.assign({}, materialFilters, { search:e.target.value })); }, placeholder:'제목·설명 검색', style:Object.assign({}, inputS, { flex:1, minWidth:'120px' }) })
       ),
       materialLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px' } }, '불러오는 중...') : (function(){
         var list = (materials || []).filter(function(m){
           if (!m.analysis) return false;
           if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
+          if (materialFilters.level && m.school_level !== materialFilters.level) return false;
+          if (materialFilters.grade && m.target_grade !== materialFilters.grade) return false;
           if (materialFilters.search) { var q = materialFilters.search.toLowerCase(); if (((m.title||'')+' '+(m.description||'')).toLowerCase().indexOf(q) < 0) return false; }
           return true;
         });
