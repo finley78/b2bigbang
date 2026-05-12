@@ -2190,7 +2190,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   function loadOnTabClick(id) {
     if (id === "notes") loadNotes();
     if (id === "scores") loadScoreAnalysis();
-    if (id === "files") { loadAttachments(); loadMaterials(); }
+    if (id === "files") loadMaterials();
     if (id === "schedule") { loadScheduleRequests(); loadAcademicSchedules(); }
     if (id === "mypage") loadMyProfile();
     if (id === "studyviews") loadStudyViews();
@@ -3894,16 +3894,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         </div>
       )}
 
-      {/* ── 탭6: 자료실 ── */}
+      {/* ── 탭6: 자료실 (원본 자료 / 분석본 도서관) ── */}
       {teacherView === "files" && (
         <>
-        {/* 1) 시험·숙제용 분석 자료 (도서관) */}
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px', marginBottom:'4px' }}>
-            <h2 style={{ margin:0 }}>시험·숙제용 분석 자료</h2>
-            <button onClick={openMaterialForm} style={buttonStyle}>+ 새 자료 분석</button>
+            <h2 style={{ margin:0 }}>자료실 — 원본 자료 / 분석본</h2>
+            <button onClick={openMaterialForm} style={buttonStyle}>+ 원본 자료 업로드</button>
           </div>
-          <p style={{ color:'#6b7280', fontSize:'14px', marginTop:0, marginBottom:'16px' }}>시험지·문제집을 올려 Claude로 문항 분석을 해두면, 시험·숙제를 만들 때 여기서 불러와서 바로 출제할 수 있습니다. (모든 선생님이 함께 쓰는 자료 도서관)</p>
+          <p style={{ color:'#6b7280', fontSize:'14px', marginTop:0, marginBottom:'16px' }}>시험지·문제집(원본 자료)을 올리고 "분석" 버튼을 누르면 Claude가 문항별 정답·단원을 분석해 "분석본"으로 저장합니다. 시험·숙제는 [시험]·[숙제] 탭에서 여기 자료를 불러와 만듭니다. (모든 선생님·관리자가 함께 쓰는 도서관)</p>
 
           <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px', alignItems:'center' }}>
             {[{ v:'all', l:'원본' }, { v:'analyzed', l:'분석본' }].map(o => (
@@ -3988,7 +3987,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             <div onClick={closeMaterialForm} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
               <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'520px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }}>
-                  <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>{materialEditId ? '분석 자료 수정' : '새 분석 자료'}</h3>
+                  <h3 style={{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 }}>{materialEditId ? '원본 자료 수정' : '원본 자료 업로드'}</h3>
                   <button onClick={closeMaterialForm} style={{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' }}>×</button>
                 </div>
 
@@ -4063,8 +4062,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   </label>
                 </div>
 
-                <button onClick={() => submitMaterial(true)} disabled={materialUploading || !!analyzingMaterialId} style={{ width:'100%', background:(materialUploading||analyzingMaterialId)?'#9ca3af':'#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'11px', fontSize:'14px', fontWeight:'800', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>{analyzingMaterialId ? '문항 분석 중... (1~2분)' : (materialUploading ? '저장 중...' : '저장하고 Claude 문항 분석')}</button>
-                <button onClick={() => submitMaterial(false)} disabled={materialUploading || !!analyzingMaterialId} style={{ ...lightButtonStyle, width:'100%', padding:'9px', fontSize:'13px', marginBottom:'10px', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer' }}>분석 없이 저장만</button>
+                <button onClick={() => submitMaterial(true)} disabled={materialUploading || !!analyzingMaterialId} style={{ width:'100%', background:(materialUploading||analyzingMaterialId)?'#9ca3af':'#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'11px', fontSize:'14px', fontWeight:'800', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>{analyzingMaterialId ? '분석 중... (1~2분)' : (materialUploading ? '업로드 중...' : '업로드하고 바로 분석')}</button>
+                <button onClick={() => submitMaterial(false)} disabled={materialUploading || !!analyzingMaterialId} style={{ ...lightButtonStyle, width:'100%', padding:'9px', fontSize:'13px', marginBottom:'10px', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer' }}>업로드만 (분석은 나중에)</button>
                 {materialDraft.analysis && renderExamAnalysis(materialDraft.analysis)}
                 <div style={{ marginTop:'10px' }}>
                   <button onClick={closeMaterialForm} disabled={materialUploading || !!analyzingMaterialId} style={{ ...lightButtonStyle, width:'100%', padding:'9px', fontSize:'13px' }}>닫기</button>
@@ -4074,110 +4073,6 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           )}
         </div>
 
-        {/* 2) 학생에게 보낼 자료 (첨부파일) */}
-        <div style={{ ...cardStyle, marginBottom: "24px" }}>
-          <h2 style={{ marginBottom: "4px" }}>학생에게 나눠줄 자료</h2>
-          <p style={{ color: "#6b7280", fontSize: "14px", marginTop: 0, marginBottom: "16px" }}>학생 앱에 프린트·정리노트 같은 학습 자료(PDF·이미지 등)를 올려서 반 또는 학생별로 나눠주는 곳입니다. (시험·숙제를 만드는 건 위 "시험·숙제용 분석 자료"에서 합니다.)</p>
-
-          <div style={{ background:'#f9fafb', borderRadius:'10px', padding:'16px', marginBottom:'18px' }}>
-            <h3 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'10px' }}>새 자료 업로드</h3>
-            <div style={{ marginBottom:'10px' }}>
-              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>제목</label>
-              <input style={inputStyle} value={attachDraft.title} onChange={e => setAttachDraft({ ...attachDraft, title: e.target.value })} placeholder="예: 1주차 영어 단어 정리" />
-            </div>
-            <div style={{ marginBottom:'10px' }}>
-              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>설명 (선택)</label>
-              <textarea style={{ ...inputStyle, minHeight:'60px', resize:'vertical' }} value={attachDraft.description} onChange={e => setAttachDraft({ ...attachDraft, description: e.target.value })} placeholder="자료 내용에 대한 간단한 설명" />
-            </div>
-            <div style={{ marginBottom:'10px' }}>
-              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>받는 대상</label>
-              <div style={{ display:'flex', gap:'12px', marginBottom:'8px', flexWrap:'wrap' }}>
-                <label style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                  <input type="radio" checked={attachDraft.scope === 'class'} onChange={() => setAttachDraft({ ...attachDraft, scope:'class', student_ids:[], course_id:'', video_id:'' })} /> 클래스 전체
-                </label>
-                <label style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                  <input type="radio" checked={attachDraft.scope === 'student'} onChange={() => setAttachDraft({ ...attachDraft, scope:'student', class_id:'', course_id:'', video_id:'' })} /> 개별 학생 선택
-                </label>
-                <label style={{ fontSize:'13px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                  <input type="radio" checked={attachDraft.scope === 'video'} onChange={() => setAttachDraft({ ...attachDraft, scope:'video', class_id:'', student_ids:[] })} /> 특정 강의
-                </label>
-              </div>
-              {attachDraft.scope === 'class' ? (
-                <select style={inputStyle} value={attachDraft.class_id} onChange={e => setAttachDraft({ ...attachDraft, class_id: e.target.value })}>
-                  <option value="">클래스 선택</option>
-                  {(availableClassCards || []).map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
-                </select>
-              ) : attachDraft.scope === 'video' ? (
-                <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-                  <select style={inputStyle} value={attachDraft.course_id} onChange={e => setAttachDraft({ ...attachDraft, course_id: e.target.value, video_id:'' })}>
-                    <option value="">강좌 선택</option>
-                    {(teacherCourses || []).map(c => <option key={c.id} value={c.id}>{c.title || c.name}</option>)}
-                  </select>
-                  <select style={inputStyle} value={attachDraft.video_id} onChange={e => setAttachDraft({ ...attachDraft, video_id: e.target.value })} disabled={!attachDraft.course_id}>
-                    <option value="">{attachDraft.course_id ? '강의 영상 선택' : '먼저 강좌를 선택하세요'}</option>
-                    {(() => {
-                      var c = (teacherCourses || []).find(x => String(x.id) === String(attachDraft.course_id));
-                      var lectures = (c && c.lectures) || [];
-                      return lectures.map(v => <option key={v.id} value={v.id}>{v.title || '제목 없음'}</option>);
-                    })()}
-                  </select>
-                </div>
-              ) : (
-                <div style={{ maxHeight:'160px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px', background:'#fff' }}>
-                  {(students || []).length === 0 ? (
-                    <div style={{ fontSize:'12px', color:'#9ca3af' }}>담당 클래스를 먼저 선택해 학생 목록을 불러와 주세요.</div>
-                  ) : (students || []).map(s => (
-                    <label key={s.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'4px 6px', cursor:'pointer', fontSize:'12px', fontFamily:'Manrope, sans-serif' }}>
-                      <input type="checkbox" checked={attachDraft.student_ids.indexOf(s.id) >= 0} onChange={e => {
-                        var next = e.target.checked ? attachDraft.student_ids.concat([s.id]) : attachDraft.student_ids.filter(id => id !== s.id);
-                        setAttachDraft({ ...attachDraft, student_ids: next });
-                      }} />
-                      <span>{s.name}</span>
-                      {s.grade && <span style={{ color:'#9ca3af' }}>· {s.grade}</span>}
-                    </label>
-                  ))}
-                  <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' }}>{attachDraft.student_ids.length}명 선택됨</div>
-                </div>
-              )}
-            </div>
-            <div style={{ marginBottom:'12px' }}>
-              <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>파일</label>
-              <input type="file" onChange={e => setAttachDraft({ ...attachDraft, file: e.target.files[0] || null })} style={{ fontFamily:'Manrope, sans-serif' }} />
-              {attachDraft.file && <span style={{ fontSize:'12px', color:'#6b7280', marginLeft:'10px' }}>{attachDraft.file.name} · {formatBytes(attachDraft.file.size)}</span>}
-            </div>
-            <button style={buttonStyle} onClick={uploadAttachment} disabled={attachUploading}>{attachUploading ? '업로드 중...' : '업로드'}</button>
-          </div>
-
-          <h3 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'10px' }}>업로드한 자료 · {attachments.length}개</h3>
-          {attachLoading ? <div style={{ color:'#9ca3af' }}>불러오는 중...</div> :
-            attachments.length === 0 ? <div style={{ padding:'20px', textAlign:'center', color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' }}>아직 업로드한 자료가 없습니다.</div> :
-            attachments.map(att => {
-              var clsName = att.class_id ? ((availableClassCards||[]).find(c => String(c.id) === String(att.class_id))||{}).name : '';
-              var videoLabel = '';
-              if (att.video_id) {
-                for (var i = 0; i < (teacherCourses || []).length; i++) {
-                  var found = ((teacherCourses[i].lectures) || []).find(v => String(v.id) === String(att.video_id));
-                  if (found) { videoLabel = (teacherCourses[i].title || teacherCourses[i].name || '강좌') + ' · ' + (found.title || '강의'); break; }
-                }
-                if (!videoLabel) videoLabel = '강의 (삭제됨)';
-              }
-              var scopeText = att.scope === 'class' ? ('클래스: ' + (clsName || '-'))
-                : att.scope === 'video' ? ('강의: ' + videoLabel)
-                : '개별 학생';
-              return (
-                <div key={att.id} style={{ border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', marginBottom:'8px', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap' }}>
-                  <div style={{ flex:1, minWidth:'200px' }}>
-                    <div style={{ fontSize:'13px', fontWeight:'700', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' }}>{att.title}</div>
-                    {att.description && <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>{att.description}</div>}
-                    <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' }}>{[scopeText, att.file_name, formatBytes(att.file_size), String(att.created_at||'').slice(0,10)].filter(Boolean).join(' · ')}</div>
-                  </div>
-                  <a href={attachmentPublicUrl(att.file_path)} target="_blank" rel="noopener" style={{ background:'#fff', color:'#E60012', border:'1px solid #E60012', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' }}>⬇ 다운로드</a>
-                  <button onClick={() => deleteAttachment(att)} style={smallDangerButtonStyle}>삭제</button>
-                </div>
-              );
-            })
-          }
-        </div>
         </>
       )}
 

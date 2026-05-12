@@ -1781,7 +1781,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'16px 18px', fontSize:'15px', display:'inline-flex', alignItems:'center', minHeight:'52px' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') { loadAdminAttachments(); loadMaterials(); } if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') { loadAdminLevelTests(); loadMaterials(); } if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadMaterials(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') { loadAdminLevelTests(); loadMaterials(); } if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -4541,16 +4541,14 @@ React.createElement('input', {
 })()
 ),
 
-/* ── 자료실 TAB ── */
+/* ── 자료실 TAB (원본 자료 / 분석본 도서관) ── */
 tab==='files' && React.createElement('div', null,
-  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px' } }, '자료실'),
-  /* 1) 시험·숙제용 분석 자료 (도서관) */
   React.createElement('div', { style:Object.assign({}, cardS, { marginBottom:'24px' }) },
     React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px', marginBottom:'4px' } },
-      React.createElement('h3', { style:{ fontSize:'16px', fontWeight:'800', color:'#111827', margin:0, fontFamily:'Manrope, sans-serif' } }, '시험·숙제용 분석 자료'),
-      React.createElement('button', { onClick:openMaterialForm, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 새 자료 분석')
+      React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', margin:0, fontFamily:'Manrope, sans-serif' } }, '자료실 — 원본 자료 / 분석본'),
+      React.createElement('button', { onClick:openMaterialForm, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 원본 자료 업로드')
     ),
-    React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', marginTop:0, marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '시험지·문제집을 올려 Claude로 문항 분석을 해두면, 시험·숙제를 만들 때 여기서 불러와서 바로 출제할 수 있습니다. (모든 선생님이 함께 쓰는 자료 도서관)'),
+    React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', marginTop:0, marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '시험지·문제집(원본 자료)을 올리고 "분석" 버튼을 누르면 Claude가 문항별 정답·단원을 분석해 "분석본"으로 저장합니다. 시험·숙제는 [시험]·[숙제] 탭에서 여기 자료를 불러와 만듭니다. (모든 선생님·관리자가 함께 쓰는 도서관)'),
     React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px', alignItems:'center' } },
       [{ v:'all', l:'원본' }, { v:'analyzed', l:'분석본' }].map(function(o){
         return React.createElement('button', { key:o.v, onClick:function(){ setMaterialFilters(Object.assign({}, materialFilters, { view:o.v })); }, style:{ fontSize:'12px', fontWeight:'700', borderRadius:'8px', padding:'7px 14px', cursor:'pointer', fontFamily:'Manrope, sans-serif', border:'1px solid ' + (materialFilters.view===o.v ? '#0f766e' : '#d6dbde'), background: materialFilters.view===o.v ? '#0f766e' : '#fff', color: materialFilters.view===o.v ? '#fff' : '#374151' } }, o.l);
@@ -4622,7 +4620,7 @@ tab==='files' && React.createElement('div', null,
   materialFormOpen && React.createElement('div', { onClick:closeMaterialForm, style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' } },
     React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'520px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' } },
       React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' } },
-        React.createElement('h3', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 } }, materialEditId ? '분석 자료 수정' : '새 분석 자료'),
+        React.createElement('h3', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 } }, materialEditId ? '원본 자료 수정' : '원본 자료 업로드'),
         React.createElement('button', { onClick:closeMaterialForm, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' } }, '×')
       ),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '자료 제목 *'),
@@ -4687,32 +4685,14 @@ tab==='files' && React.createElement('div', null,
           '이 자료로 만든 시험의 학생 답안 분석도 정밀하게'
         )
       ),
-      React.createElement('button', { onClick:function(){ submitMaterial(true); }, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:(materialUploading||analyzingMaterialId)?'#9ca3af':'#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'11px', fontSize:'14px', fontWeight:'800', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, analyzingMaterialId ? '문항 분석 중... (1~2분)' : (materialUploading ? '저장 중...' : '저장하고 Claude 문항 분석')),
-      React.createElement('button', { onClick:function(){ submitMaterial(false); }, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'9px', fontSize:'13px', fontWeight:'700', marginBottom:'10px', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer' } }, '분석 없이 저장만'),
+      React.createElement('button', { onClick:function(){ submitMaterial(true); }, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:(materialUploading||analyzingMaterialId)?'#9ca3af':'#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'11px', fontSize:'14px', fontWeight:'800', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, analyzingMaterialId ? '분석 중... (1~2분)' : (materialUploading ? '업로드 중...' : '업로드하고 바로 분석')),
+      React.createElement('button', { onClick:function(){ submitMaterial(false); }, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'9px', fontSize:'13px', fontWeight:'700', marginBottom:'10px', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer' } }, '업로드만 (분석은 나중에)'),
       materialDraft.analysis && renderExamAnalysis(materialDraft.analysis),
       React.createElement('div', { style:{ marginTop:'10px' } },
         React.createElement('button', { onClick:closeMaterialForm, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'9px', fontSize:'13px', fontWeight:'700', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer' } }, '닫기')
       )
     )
-  ),
-  /* 2) 학생에게 보낼 자료 */
-  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'8px', marginTop:'24px' } }, '학생에게 나눠줄 자료'),
-  React.createElement('p', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginBottom:'20px' } }, '선생님·관리자가 학생 앱에 올린 학습 자료(프린트·노트 등) 전체입니다. (시험·숙제는 위 "시험·숙제용 분석 자료"에서 만듭니다.)'),
-  adminAttachLoading ? React.createElement('div', { style:{ color:'#9ca3af' } }, '불러오는 중...') :
-  adminAttachments.length === 0 ? React.createElement('div', { style:{ ...cardS, textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px', padding:'40px' } }, '업로드된 자료가 없습니다.') :
-  adminAttachments.map(function(att){
-    var clsName = att.class_id ? ((teacherClasses||[]).find(function(c){ return String(c.id) === String(att.class_id); })||{}).name : '';
-    var uploader = (dbTeacherProfiles||[]).find(function(t){ return String(t.id) === String(att.uploaded_by); });
-    return React.createElement('div', { key:att.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px', marginBottom:'8px', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap' } },
-      React.createElement('div', { style:{ flex:1, minWidth:'200px' } },
-        React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, att.title),
-        att.description && React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, att.description),
-        React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, [(uploader && uploader.name ? uploader.name + ' 선생님' : ''), att.scope === 'class' ? '클래스: ' + (clsName || '-') : '개별 학생', att.file_name, adminFormatBytes(att.file_size), String(att.created_at||'').slice(0,10)].filter(Boolean).join(' · '))
-      ),
-      React.createElement('a', { href: adminAttachmentPublicUrl(att.file_path), target:'_blank', rel:'noopener', style:{ background:'#fff', color:'#E60012', border:'1px solid #E60012', textDecoration:'none', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '⬇ 다운로드'),
-      React.createElement('button', { onClick:function(){ deleteAdminAttachment(att); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
-    );
-  })
+  )
 ),
 
 /* ── 학원 일정 TAB ── */
