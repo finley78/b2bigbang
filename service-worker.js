@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v84-academic-fk-fix';
+const CACHE_VERSION = 'b2-bigbang-20260512v85-academic-day-popup';
 const OFFLINE_URLS = [
   './',
   './index.html',
