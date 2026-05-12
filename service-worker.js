@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v90-vocab-give-test-label';
+const CACHE_VERSION = 'b2-bigbang-20260513v91-vocab-study-modes-and-picker';
 const OFFLINE_URLS = [
   './',
   './index.html',

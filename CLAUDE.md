@@ -195,10 +195,13 @@ DDL은 `apply_migration` 사용.
   - **자동 문항 분석을 위한 답안지·해설 업로드 필드 추가** (v41-answer-upload). `exams.answer_paths jsonb DEFAULT '[]'` 마이그레이션. AdminPanel/TeacherPortal 시험 발행·수정 폼에 시험지 이미지 입력 직하에 답안지 입력 추가 (image_paths와 동일 패턴: state/UI/submit/edit/delete 모두). Storage 경로: `exams/<class_id|level>/answers/...`. 다음 단계는 Claude Vision으로 시험지+답안지 분석 → `exam_analyses.question_stats` 저장. **PC 푸터(SiteFooter) 개선** — 학원명/대표자/사업자번호/주소/전화/이메일/운영시간이 PC에서 한 줄로 펼쳐져 너무 띄엄띄엄 보이던 것을 어두운 카드 박스로 묶고 flex-wrap·columnGap 28px·rowGap 8px로 좁게 정렬. 모바일/PWA는 1열 stack 그대로.
 - 상세 작업 로그·커밋 해시 순서·가챠는 메모리 `project_b2bigbang_2026-05_admin_work.md`에도 있음 (이 파일과 메모리 둘 다 봐도 됨).
 
+### ★ 단어 시험 — 2026-05-13 작업 (v90~v91) ★
+- **v90** (`?v=20260513v90-vocab-give-test-label`): VocabManager 시험 카드의 '편집' 버튼이 배포·출제 입구인데 이름이 불명확 → **'준비중' 시험은 빨강 `[학생에게 내기]` 한 버튼**(누르면 배포대상·문제형식 설정창), **'진행중/마감'은 `[결과][수정]`** 두 버튼. 준비중 카드 본문 클릭 시 결과창 대신 설정창. 설정 모달 제목 → "시험 설정 — 배포 대상·문제 형식·상태", '모드별 문제 수' 섹션에 객관식(=단어 보고 뜻 고르기/반대, 출제 방향으로 선택)·스펠링(빈칸)·뜻 보고 쓰기·듣고 쓰기 설명 추가. '유닛 전체 시험 만들기' 안내 문구도 새 버튼명 반영.
+- **v91** (`?v=20260513v91-vocab-study-modes-and-picker`): ① **STUDY(자유 학습) 4모드 구현** — Flash Card 외 객관식/스펠링 채우기/뜻 보고 쓰기/듣고 쓰기가 "곧 만나요" 플레이스홀더였던 걸 실제 동작하게. `VocabPlayer.jsx`에 `StudyQuizPlayer` 추가 — TEST 의 문제 엔진(`buildOne`/`QuestionCard`/`MCQuestion` 등)을 그대로 재사용, **시간 제한·점수 저장 없음**(student-paced: 답→즉시 정답 확인→'다음 문제'). setup 화면에서 객관식=출제 방향(단어→뜻/뜻→단어/섞어서), 스펠링=난이도(Easy 30%/보통 50%/Hard 전체) 선택. 결과 화면에 정답률·틀린 단어 목록·'다시 풀기'. 듣기 모드는 문제 진입 시 발음 자동. `StudyPlayer`가 flashcard 외 모드를 `StudyQuizPlayer`로 라우팅. ② **VocabTestEditModal '개별 학생' 픽커 개편** — 이름 검색만 있던 걸 **초중고(초/중/고/전체) 버튼 + 학년 드롭다운(초중고 선택 시 그 학교급 학년만) + 이름 검색** 3중 필터로. 학교급은 `grade` 문자열에서 파생(`gradeLvl`: '중'→중,'고'→고,나머지→초). '필터 초기화', '보이는 N명 선택/해제' 버튼. 학생 목록을 **세로 1열 → 3열 반응형 그리드**(`repeat(auto-fill,minmax(165px,1fr))`, maxHeight 220px 스크롤), 각 칸 [체크][이름][학년] 컴팩트. (남은 것: STUDY 문제 수 선택 옵션(현재 유닛 단어 전체 고정), Easy/Hard 를 빈칸비율 외 다른 모드에도, STUDY 연습 기록 저장 여부.)
+
 ### ★ 다음에 이어서 할 일 (후보 — 사용자가 우선순위 결정) ★
 1. **단순화 리팩토링** — 했다가 전부 revert함. 다시 하려면 `git revert e66c527`(통째로) 또는 개별 cherry-pick. 또는 처음부터 다시. 남은 후보(render-block 수술 필요해 더 위험): ① 회원정보 탭을 수강생 관리에 흡수(학부모 정보가 회원정보에만 있어 단순 제거 불가), ② 선생님 관리 안의 per-teacher '담당 반 관리' 제거(클래스 관리 탭이 일원화), ③ 성적분석 탭에서 '학생별 분석' 모드 제거(학생 상세로 흡수), 선생님 상세 통합, TeacherPortal 시험/숙제 탭 1개로 병합.
-2. **단어시험 후속**: STUDY 4모드 자유 학습(Flash Card 외 객관식/스펠링/쓰기/듣기), Easy/Hard 난이도 분리.
-3. **TeacherPortal 시험 카드 종류 뱃지**(주간/월말/반시험 kind) — AdminPanel엔 있는데 TeacherPortal엔 없음.
+2. **TeacherPortal 시험 카드 종류 뱃지**(주간/월말/반시험 kind) — AdminPanel엔 있는데 TeacherPortal엔 없음.
 4. **출결 시스템 확장** — AdminPanel 수강생 카드는 오늘 출결 토글·이번 달 통계까지 완료(v40). 다음 단계: 선생님 페이지에서도 출결 입력, 출결 캘린더/월별 상세 보기, 학부모/학생 화면에 출결 표시.
 5. **시험지 분석표** — 자동 채점 결과 기반 문항별 정답률·약점 등. AdminPanel '성적 분석'의 '시험지 분석'(준비 중) 자리. 사용자가 양식 줄 예정.
 6. **Naver OAuth 검수 요청**(현재 '개발 중' — 학생 일반 사용 가능하려면).
@@ -313,8 +316,9 @@ DDL은 `apply_migration` 사용.
 - 마지막 버전: `20260510a` (다음에 b, c, ... z 후 다음 날짜)
 
 ### 다음 할 일 (단어시험 후속)
-- **STUDY 4모드 학습** (Flash Card 외에 객관식/스펠링/쓰기/듣기 자유 연습) — QuizRunner 재사용으로 만들 수 있음
-- **Easy/Hard 난이도 분리** (보카트레인 9단계 식) — 미정, 일단 spelling_blank_ratio로만 구분
+- ~~STUDY 4모드 학습~~ **완료 (v91, `StudyQuizPlayer`)** — Flash Card 외 객관식/스펠링/쓰기/듣기 자유 연습. TEST 문제 엔진 재사용, 시간·점수 저장 없음, student-paced. 위 v91 항목 참고.
+- **Easy/Hard 난이도 분리** (보카트레인 9단계 식) — 현재 spelling_blank_ratio(30/50/100%)로만 구분. 객관식은 보기 수·헷갈리는 보기 우선 등, 쓰기/듣기는 부분점수 등 확장 여지.
+- **STUDY 연습 옵션** — 문제 수 선택(현재 유닛 단어 전체 고정), 틀린 것만 다시 풀기(오답 큐), 연습 기록 저장 여부.
 - **Bingo 모드** — 보류 (B안에서 생략됨)
 - **사용자 직접 작업 (학원에서)**: Google Cloud Console OAuth 동의 화면 앱 이름 "서비스" → "B2빅뱅학원" 변경
 - **세부 정리 옵션**: 성적 탭의 개별 학생 점수 표시는 학생 상세에 통합되었으니 성적 탭은 등록·반별 분석만 좁혀도 됨

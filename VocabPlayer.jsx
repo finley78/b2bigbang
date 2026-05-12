@@ -214,17 +214,7 @@
   // ── STUDY 학습 화면 (모드별 라우팅) ───────────────────
   function StudyPlayer(props) {
     if (props.mode === 'flashcard') return React.createElement(FlashCardPlayer, props);
-    // 다른 모드는 추후 구현 — 일단 안내
-    return React.createElement('div', { style: S.page },
-      React.createElement(StudentHeader, { title: '학습', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
-      React.createElement('div', { style: { padding: '40px 16px', textAlign: 'center', maxWidth: '720px', margin: '0 auto' } },
-        React.createElement('div', { style: Object.assign({}, S.card, { padding: '40px 20px', color: THEME.textMid }) },
-          React.createElement('div', { style: { fontSize: '15px', fontWeight: '700', marginBottom: '6px', color: THEME.dark } }, '곧 만나요'),
-          React.createElement('div', { style: { fontSize: '13px' } }, '이 모드는 다음 업데이트에서 추가됩니다.'),
-          React.createElement('button', { onClick: props.onBack, style: Object.assign({}, S.btnGhost, { marginTop: '20px' }) }, '돌아가기')
-        )
-      )
-    );
+    return React.createElement(StudyQuizPlayer, props);
   }
 
   // ── Flash Card 학습 ─────────────────────────────────
@@ -311,6 +301,149 @@
           idx < total - 1
             ? React.createElement('button', { onClick: next, style: Object.assign({}, S.btnPrimary, { flex: 1, padding: '10px 16px', fontSize: '14px' }) }, '다음 →')
             : React.createElement('button', { onClick: props.onDone, style: Object.assign({}, S.btnPrimary, { flex: 1, padding: '10px 16px', fontSize: '14px' }) }, '완료')
+        )
+      )
+    );
+  }
+
+  // ── STUDY 자유 연습 (객관식 / 스펠링 채우기 / 뜻 보고 쓰기 / 듣고 쓰기) ─────
+  // 시간 제한·점수 저장 없이 한 문제씩 풀고 바로 정답 확인. TEST 의 문제 엔진(buildOne / QuestionCard)을 재사용.
+  function StudyQuizPlayer(props) {
+    var mode = props.mode; // 'multiple_choice' | 'spelling' | 'writing' | 'listening'
+    var words = props.words || [];
+    var MODE_LABEL = { multiple_choice: '객관식 (뜻 고르기)', spelling: '스펠링 채우기', writing: '뜻 보고 쓰기', listening: '듣고 쓰기' };
+
+    var [stage, setStage] = React.useState('setup'); // 'setup' | 'playing' | 'done'
+    var [direction, setDirection] = React.useState('word_to_meaning'); // 객관식 전용
+    var [blankRatio, setBlankRatio] = React.useState(0.5); // 스펠링 전용 (빈칸 비율)
+    var [qs, setQs] = React.useState([]);
+    var [idx, setIdx] = React.useState(0);
+    var [phase, setPhase] = React.useState('answering'); // 'answering' | 'showing'
+    var [answers, setAnswers] = React.useState({}); // { i: userAnswer }
+    var [round, setRound] = React.useState(0); // '다시 풀기' 시 증가 → QuestionCard 리마운트용
+
+    function buildSet() {
+      var cfg = { choices_per_question: 4, question_direction: (mode === 'multiple_choice' ? direction : 'mixed'), spelling_blank_ratio: blankRatio };
+      var pool = words.slice();
+      for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+      return pool.map(function(w){ return buildOne(w, mode, cfg, words); }).filter(Boolean);
+    }
+    function begin() {
+      setQs(buildSet()); setIdx(0); setPhase('answering'); setAnswers({}); setRound(function(r){ return r + 1; }); setStage('playing');
+    }
+
+    var current = qs[idx];
+    var total = qs.length;
+
+    // 듣기 모드: 문제 진입 시 발음 자동 재생
+    React.useEffect(function(){
+      if (stage !== 'playing' || !current) return;
+      if (mode === 'listening' && phase === 'answering') {
+        var t = setTimeout(function(){ speak(current.correct); }, 250);
+        return function(){ clearTimeout(t); };
+      }
+    }, [idx, stage, phase]);
+
+    function handleAnswer(userAns) {
+      if (phase !== 'answering') return;
+      setAnswers(function(a){ var na = Object.assign({}, a); na[idx] = userAns; return na; });
+      setPhase('showing');
+    }
+    function nextQ() {
+      if (idx < total - 1) { setIdx(idx + 1); setPhase('answering'); }
+      else { setStage('done'); }
+    }
+
+    // ─ 설정 화면 ─
+    if (stage === 'setup') {
+      return React.createElement('div', { style: S.page },
+        React.createElement(StudentHeader, { title: '자유 연습 — ' + (MODE_LABEL[mode] || ''), subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
+        React.createElement('div', { style: { padding: '20px 16px', maxWidth: '500px', margin: '0 auto' } },
+          React.createElement('div', { style: Object.assign({}, S.card, { padding: '24px 20px' }) },
+            React.createElement('div', { style: { fontSize: '16px', fontWeight: '800', color: THEME.dark, marginBottom: '6px' } }, '단어 ' + words.length + '개 연습'),
+            React.createElement('div', { style: { fontSize: '13px', color: THEME.textMid, lineHeight: '1.7', marginBottom: '18px' } }, '시간 제한 없이 한 문제씩 풀고 바로 정답을 확인합니다. 점수는 저장되지 않으니 마음껏 반복하세요.'),
+            mode === 'multiple_choice' && React.createElement('div', { style: { marginBottom: '16px' } },
+              React.createElement('div', { style: S.label }, '문제 방향'),
+              React.createElement('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' } },
+                [['word_to_meaning','단어 → 뜻'],['meaning_to_word','뜻 → 단어'],['mixed','섞어서']].map(function(o){
+                  var on = direction === o[0];
+                  return React.createElement('button', { key: o[0], onClick: function(){ setDirection(o[0]); }, style: { background: on ? THEME.primary : '#fff', color: on ? '#fff' : THEME.textMid, border: '1.5px solid ' + (on ? THEME.primary : THEME.border), borderRadius: '999px', padding: '7px 14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font } }, o[1]);
+                })
+              )
+            ),
+            mode === 'spelling' && React.createElement('div', { style: { marginBottom: '16px' } },
+              React.createElement('div', { style: S.label }, '난이도 — 빈칸 비율'),
+              React.createElement('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' } },
+                [[0.3,'Easy (30%)'],[0.5,'보통 (50%)'],[1.0,'Hard (전체)']].map(function(o){
+                  var on = blankRatio === o[0];
+                  return React.createElement('button', { key: String(o[0]), onClick: function(){ setBlankRatio(o[0]); }, style: { background: on ? THEME.primary : '#fff', color: on ? '#fff' : THEME.textMid, border: '1.5px solid ' + (on ? THEME.primary : THEME.border), borderRadius: '999px', padding: '7px 14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font } }, o[1]);
+                })
+              )
+            ),
+            React.createElement('button', { onClick: begin, disabled: words.length === 0, style: Object.assign({}, S.btnPrimary, { width: '100%' }, words.length === 0 ? { background: '#9ca3af', cursor: 'not-allowed' } : null) }, words.length === 0 ? '단어가 없습니다' : '연습 시작')
+          )
+        )
+      );
+    }
+
+    // ─ 결과 화면 ─
+    if (stage === 'done') {
+      var correctCount = 0;
+      qs.forEach(function(q, i){ if (isAnswerCorrect(q, answers[i])) correctCount++; });
+      var pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+      var wrongs = qs.map(function(q, i){ return { q: q, i: i, ua: answers[i], ok: isAnswerCorrect(q, answers[i]) }; }).filter(function(x){ return !x.ok; });
+      return React.createElement('div', { style: S.page },
+        React.createElement(StudentHeader, { title: '연습 결과 — ' + (MODE_LABEL[mode] || ''), subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
+        React.createElement('div', { style: { padding: '20px 16px', maxWidth: '600px', margin: '0 auto' } },
+          React.createElement('div', { style: Object.assign({}, S.card, { padding: '28px 20px', textAlign: 'center', marginBottom: '14px' }) },
+            React.createElement('div', { style: { fontSize: '48px', fontWeight: '800', color: pct >= 80 ? THEME.success : pct >= 60 ? '#c87000' : THEME.fail } }, pct + '점'),
+            React.createElement('div', { style: { fontSize: '14px', color: THEME.textMid, marginTop: '6px' } }, correctCount + ' / ' + total + ' 정답 · 연습 (점수 저장 안 됨)')
+          ),
+          wrongs.length > 0 && React.createElement('div', null,
+            React.createElement('div', { style: { fontSize: '13px', fontWeight: '700', color: THEME.dark, marginBottom: '8px', fontFamily: THEME.font } }, '틀린 단어 ' + wrongs.length + '개'),
+            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' } },
+              wrongs.map(function(x){
+                return React.createElement('div', { key: x.i, style: { padding: '10px 14px', background: THEME.failBg, borderRadius: '8px', borderLeft: '3px solid ' + THEME.fail } },
+                  React.createElement('div', { style: { fontSize: '14px', fontWeight: '700', color: THEME.dark, fontFamily: THEME.font } }, x.q.word + ' — ' + x.q.meaning),
+                  React.createElement('div', { style: { fontSize: '11px', color: THEME.textMid, marginTop: '2px' } }, '내 답: ' + (x.ua == null || x.ua === '' ? '(미응답)' : x.ua) + ' · 정답: ' + x.q.correct)
+                );
+              })
+            )
+          ),
+          React.createElement('div', { style: { display: 'flex', gap: '8px' } },
+            React.createElement('button', { onClick: begin, style: Object.assign({}, S.btnPrimary, { flex: 1 }) }, '다시 풀기'),
+            React.createElement('button', { onClick: props.onDone, style: Object.assign({}, S.btnGhost, { flex: 1, padding: '14px 16px' }) }, '모드 선택으로')
+          )
+        )
+      );
+    }
+
+    // ─ 풀이 화면 ─
+    if (!current) {
+      return React.createElement('div', { style: S.page },
+        React.createElement(StudentHeader, { title: '연습', onBack: props.onBack }),
+        React.createElement('div', { style: { padding: '40px', textAlign: 'center', color: THEME.textMid } }, '연습할 단어가 부족합니다.')
+      );
+    }
+    var qNum = idx + 1;
+    var progressPct = total > 0 ? (qNum / total) * 100 : 0;
+    var ua = answers[idx];
+    var isCorrect = phase === 'showing' ? isAnswerCorrect(current, ua) : null;
+    return React.createElement('div', { style: S.page },
+      React.createElement('div', { style: { background: THEME.cardBg, borderBottom: '1px solid ' + THEME.border, padding: '10px 16px', position: 'sticky', top: 0, zIndex: 10 } },
+        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', maxWidth: '600px', margin: '0 auto' } },
+          React.createElement('button', { onClick: props.onBack, style: { background: 'none', border: 'none', color: THEME.primary, cursor: 'pointer', fontSize: '13px', fontWeight: '800', fontFamily: THEME.font, padding: 0 } }, '나가기'),
+          React.createElement('div', { style: { fontSize: '13px', fontWeight: '700', color: THEME.dark, fontFamily: THEME.font, minWidth: '46px' } }, qNum + '/' + total),
+          React.createElement('div', { style: { flex: 1, height: '8px', background: THEME.border, borderRadius: '4px', overflow: 'hidden' } },
+            React.createElement('div', { style: { width: progressPct + '%', height: '100%', background: THEME.primary, transition: 'width 0.3s' } })
+          )
+        )
+      ),
+      React.createElement('div', { style: { padding: '24px 16px', maxWidth: '600px', margin: '0 auto' } },
+        React.createElement(QuestionCard, { key: 'sq-' + round + '-' + idx, question: current, phase: phase, userAnswer: ua, isCorrect: isCorrect, onAnswer: handleAnswer }),
+        phase === 'showing' && React.createElement('div', { style: { marginTop: '16px' } },
+          React.createElement('div', { style: { textAlign: 'center', fontSize: '15px', fontWeight: '800', marginBottom: '10px', color: isCorrect ? THEME.success : THEME.fail } }, isCorrect ? '정답!' : '아쉬워요'),
+          React.createElement('button', { onClick: nextQ, style: Object.assign({}, S.btnPrimary, { width: '100%' }) }, idx < total - 1 ? '다음 문제 →' : '결과 보기')
         )
       )
     );

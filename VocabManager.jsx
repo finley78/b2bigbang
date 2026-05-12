@@ -711,7 +711,12 @@
     var [selectedStudentIds, setSelectedStudentIds] = React.useState([]);
     var [selectedGrades, setSelectedGrades] = React.useState([]); // 학년으로 배포 — 저장 시 그 학년 학생 전체로 펼쳐서 student_id 배정
     var [studentSearch, setStudentSearch] = React.useState('');
+    var [stuLevel, setStuLevel] = React.useState(''); // 개별 학생 필터: '' | '초' | '중' | '고'
+    var [stuGrade, setStuGrade] = React.useState(''); // 개별 학생 필터: 학년 (예: '중1')
     var [saving, setSaving] = React.useState(false);
+
+    // 학년 문자열 → 학교급 ('중1'→'중', '고2'→'고', 'N학년'·기타→'초')
+    function gradeLvl(g) { g = String(g || '').trim(); if (!g) return ''; if (g[0] === '중') return '중'; if (g[0] === '고') return '고'; return '초'; }
 
     React.useEffect(function() {
       loadClassesStudents();
@@ -866,9 +871,14 @@
       } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
     }
 
-    var filteredStudents = studentSearch
-      ? students.filter(function(s){ return (s.name || '').toLowerCase().indexOf(studentSearch.toLowerCase()) >= 0; })
-      : students;
+    var filteredStudents = students.filter(function(s){
+      if (stuLevel && gradeLvl(s.grade) !== stuLevel) return false;
+      if (stuGrade && s.grade !== stuGrade) return false;
+      if (studentSearch && (s.name || '').toLowerCase().indexOf(studentSearch.toLowerCase()) < 0) return false;
+      return true;
+    });
+    var visibleStudentIds = filteredStudents.map(function(s){ return s.id; });
+    var allVisibleSelected = visibleStudentIds.length > 0 && visibleStudentIds.every(function(id){ return selectedStudentIds.indexOf(id) >= 0; });
 
     // 입력 도중 실수로 배경 클릭 시 작성 내용이 사라지지 않도록 backdrop 클릭 닫기 비활성화 (X/취소 버튼으로만 닫기)
     return React.createElement('div', { style:STYLES.modalBackdrop },
@@ -897,20 +907,46 @@
                     );
                   })
                 ),
-            // 개별 학생 (반과 별개로 추가 배포 가능)
-            React.createElement('div', { style:Object.assign({}, STYLES.label, { marginTop:'14px', marginBottom:'6px' }) }, '👤 개별 학생 (' + selectedStudentIds.length + '명)'),
-            React.createElement('input', { type:'text', value:studentSearch, onChange:function(e){ setStudentSearch(e.target.value); }, placeholder:'학생 이름으로 검색', style:Object.assign({}, STYLES.input, { marginBottom:'6px' }) }),
-            React.createElement('div', { style:{ maxHeight:'160px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px', background:'#fff' } },
+            // 개별 학생 (반과 별개로 추가 배포 가능) — 초중고·학년·이름 필터 + 3열(반응형) 그리드
+            React.createElement('div', { style:Object.assign({}, STYLES.label, { marginTop:'14px', marginBottom:'6px' }) }, '👤 개별 학생 (선택 ' + selectedStudentIds.length + '명 / 검색결과 ' + filteredStudents.length + '명)'),
+            React.createElement('div', { style:{ display:'flex', gap:'5px', flexWrap:'wrap', alignItems:'center', marginBottom:'6px' } },
+              [['','전체'],['초','초'],['중','중'],['고','고']].map(function(o){
+                var on = stuLevel === o[0];
+                return React.createElement('button', { key:o[0]||'all', type:'button', onClick:function(){ setStuLevel(o[0]); setStuGrade(''); }, style:{ background: on ? '#E60012' : '#fff', color: on ? '#fff' : 'rgba(0,0,0,0.62)', border:'1.5px solid ' + (on ? '#E60012' : '#d6dbde'), borderRadius:'999px', padding:'4px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, o[1]);
+              }),
+              React.createElement('select', { value:stuGrade, onChange:function(e){ setStuGrade(e.target.value); }, style:Object.assign({}, STYLES.input, { width:'auto', minWidth:'92px', padding:'5px 8px', marginBottom:0 }) },
+                React.createElement('option', { value:'' }, '학년 전체'),
+                (function(){
+                  var ORDER = ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'];
+                  var present = ORDER.filter(function(g){ return students.some(function(s){ return s.grade === g; }); });
+                  var extras = Array.from(new Set(students.map(function(s){ return s.grade; }).filter(function(g){ return g && ORDER.indexOf(g) < 0; })));
+                  var opts = present.concat(extras);
+                  if (stuLevel) opts = opts.filter(function(g){ return gradeLvl(g) === stuLevel; });
+                  return opts.map(function(g){ return React.createElement('option', { key:g, value:g }, g); });
+                })()
+              ),
+              (stuLevel || stuGrade || studentSearch) && React.createElement('button', { type:'button', onClick:function(){ setStuLevel(''); setStuGrade(''); setStudentSearch(''); }, style:{ background:'transparent', color:'rgba(0,0,0,0.45)', border:'none', fontSize:'11px', fontWeight:'700', cursor:'pointer', textDecoration:'underline', fontFamily:'Manrope, sans-serif' } }, '필터 초기화')
+            ),
+            React.createElement('div', { style:{ display:'flex', gap:'6px', alignItems:'center', marginBottom:'6px' } },
+              React.createElement('input', { type:'text', value:studentSearch, onChange:function(e){ setStudentSearch(e.target.value); }, placeholder:'학생 이름으로 검색', style:Object.assign({}, STYLES.input, { flex:1, marginBottom:0 }) }),
+              filteredStudents.length > 0 && React.createElement('button', { type:'button', onClick:function(){
+                if (allVisibleSelected) { setSelectedStudentIds(selectedStudentIds.filter(function(id){ return visibleStudentIds.indexOf(id) < 0; })); }
+                else { setSelectedStudentIds(Array.from(new Set(selectedStudentIds.concat(visibleStudentIds)))); }
+              }, style:{ whiteSpace:'nowrap', background: allVisibleSelected ? '#FFEBED' : '#fff', color:'#E60012', border:'1.5px solid #E60012', borderRadius:'6px', padding:'7px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, allVisibleSelected ? '보이는 ' + filteredStudents.length + '명 해제' : '보이는 ' + filteredStudents.length + '명 선택')
+            ),
+            React.createElement('div', { style:{ maxHeight:'220px', overflowY:'auto', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px', background:'#fff' } },
               filteredStudents.length === 0
-                ? React.createElement('div', { style:{ padding:'10px', textAlign:'center', color:'#9ca3af', fontSize:'12px', fontFamily:'Manrope, sans-serif' } }, '학생이 없습니다.')
-                : filteredStudents.map(function(s){
-                    var on = selectedStudentIds.indexOf(s.id) >= 0;
-                    return React.createElement('div', { key:s.id, onClick:function(){ toggleStudent(s.id); }, style:{ display:'flex', alignItems:'center', gap:'8px', padding:'5px 8px', cursor:'pointer', borderRadius:'4px', background: on ? '#FFEBED' : 'transparent' } },
-                      React.createElement('div', { style:{ width:'15px', height:'15px', border:'1.5px solid ' + (on ? '#E60012' : '#d6dbde'), background: on ? '#E60012' : '#fff', borderRadius:'3px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } }, on && React.createElement('span', { style:{ color:'#fff', fontSize:'10px', fontWeight:'800' } }, '✓')),
-                      React.createElement('span', { style:{ fontSize:'12px', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', flex:1 } }, s.name),
-                      s.grade && React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif' } }, s.grade)
-                    );
-                  })
+                ? React.createElement('div', { style:{ padding:'10px', textAlign:'center', color:'#9ca3af', fontSize:'12px', fontFamily:'Manrope, sans-serif' } }, '조건에 맞는 학생이 없습니다.')
+                : React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(165px, 1fr))', gap:'4px' } },
+                    filteredStudents.map(function(s){
+                      var on = selectedStudentIds.indexOf(s.id) >= 0;
+                      return React.createElement('div', { key:s.id, onClick:function(){ toggleStudent(s.id); }, title:(s.name || '') + (s.grade ? ' · ' + s.grade : ''), style:{ display:'flex', alignItems:'center', gap:'6px', padding:'5px 7px', cursor:'pointer', borderRadius:'5px', background: on ? '#FFEBED' : '#f8fafc', border:'1px solid ' + (on ? '#E60012' : '#eef0f2') } },
+                        React.createElement('div', { style:{ width:'14px', height:'14px', border:'1.5px solid ' + (on ? '#E60012' : '#cbd1d6'), background: on ? '#E60012' : '#fff', borderRadius:'3px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } }, on && React.createElement('span', { style:{ color:'#fff', fontSize:'9px', fontWeight:'800' } }, '✓')),
+                        React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, s.name),
+                        s.grade && React.createElement('span', { style:{ fontSize:'9px', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', flexShrink:0 } }, s.grade)
+                      );
+                    })
+                  )
             ),
             // 학년으로 배포 — 그 학년 학생 전체에게 (저장 시 student_id로 펼침)
             React.createElement('div', { style:Object.assign({}, STYLES.label, { marginTop:'14px', marginBottom:'6px' }) }, '학년으로 배포 ' + (selectedGrades.length ? '(' + selectedGrades.join(', ') + ' — 해당 학년 학생 전체)' : '(선택 안 함)')),
