@@ -2497,12 +2497,15 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         <div style={{ ...cardStyle, marginBottom: "24px" }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px', flexWrap:'wrap', gap:'8px' }}>
             <h2 style={{ margin:0 }}>테스트 발행 — {selectedClass.name}</h2>
-            <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-              <button onClick={() => { setSelectedClass(null); setSelectedClassId(""); }} style={smallLightButtonStyle}>다른 반</button>
-              <button onClick={() => openExamForm('weekly')} style={buttonStyle}>+ 새 테스트</button>
-            </div>
+            <button onClick={() => { setSelectedClass(null); setSelectedClassId(""); }} style={smallLightButtonStyle}>다른 반</button>
           </div>
-          <p style={{ marginTop: 0, marginBottom: "16px", color: "#6b7280", fontSize: "14px" }}>이 반의 학생들에게 테스트를 발행합니다. "+ 새 테스트"를 누르면 숙제 / 주간테스트 / 월말테스트 / 레벨테스트 중에서 골라 만들 수 있습니다. 학생들은 자기 포털에서 응시·제출합니다.</p>
+          <p style={{ marginTop: 0, marginBottom: "12px", color: "#6b7280", fontSize: "14px" }}>만들 테스트 종류를 골라주세요. 학생들은 자기 포털에서 응시·제출합니다.</p>
+          <div style={{ display:'flex', gap:'10px', flexWrap:'wrap', marginBottom:'18px' }}>
+            {[['homework','숙제'],['weekly','주간테스트'],['monthly','월말테스트'],['level','레벨테스트']].map(([k,l]) => {
+              const c = examKindBadgeStyle(k);
+              return <button key={k} onClick={() => openExamForm(k)} style={{ flex:'1 1 130px', minWidth:'120px', background:'#fff', color:c.color, border:'1.5px solid '+c.color, borderRadius:'10px', padding:'12px 14px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>+ {l}</button>;
+            })}
+          </div>
 
           {examLoading ? (
             <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div>

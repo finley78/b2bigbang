@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v76-merge-tests-tab';
+const CACHE_VERSION = 'b2-bigbang-20260512v77-test-kind-buttons';
 const OFFLINE_URLS = [
   './',
   './index.html',

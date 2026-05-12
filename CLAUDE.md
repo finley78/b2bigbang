@@ -123,7 +123,8 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v76-merge-tests-tab)
+## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v77-test-kind-buttons)
+> v77: TeacherPortal "테스트" 탭(반 선택 후)에 "+ 새 테스트" 한 버튼 대신 종류별 버튼 4개(+숙제 / +주간테스트 / +월말테스트 / +레벨테스트, 각 종류 색 테두리) — 누르면 `openExamForm(kind)`로 그 종류 프리셋. 폼 안 종류 드롭다운은 그대로(변경 가능).
 > v75: `renderExamAnalysis`(TeacherPortal/AdminPanel) 헤더를 "Claude 문항 분석 — 총 N문항 · 영어 · 5페이지 (날짜)" + summary 단락 → 그냥 "분석 내용" 한 줄로. 사용자 요청.
 > v76: **TeacherPortal "시험"+"숙제" 탭 → "테스트" 탭 하나로 병합**. `TABS`에서 'homework' 제거, 'tests' 라벨 '시험'→'테스트', `TAB_GROUPS`의 'class' 그룹 tabs에서 'homework' 제거. `loadOnTabClick`·반선택카드·발행블록 모두 `teacherView === "tests"`만. `examList` 분할(`isHwTab`/`filteredExamList`) 제거 — 전부 한 목록. 발행 폼 종류 드롭다운 = **숙제 / 주간테스트 / 월말테스트 / 레벨테스트** (편집 중 옛 `kind='class'`면 '반 시험 (일반)' 옵션도). 헬퍼 `examKindLabel(k)`/`examKindBadgeStyle(k)` 추가, 시험 카드에 종류 뱃지. `openExamForm` 기본 'weekly'. `loadClassExams`·`submitExam` kindVal에 'level' 포함. **`kind='level'`(반 배포 레벨테스트)**: TeacherPortal 발행 폼은 다른 종류와 동일(점수범위 필드 없음), `class_id` 세팅 → 그 반 학생이 바로 응시(신청 절차 없음). StudentPortal: 반 시험 쿼리 `.in('kind',['class','weekly','monthly','homework','level'])`에 'level' 추가, `levelTests` 쿼리는 `.is('class_id', null)` 추가(신청용 = 관리자 발행 무반 레벨테스트만), `kind === 'level'` 신청-필요 가드 3곳에 `&& !exam.class_id`, `closeExam`의 `wasLevelTest`에 `&& !activeExam.class_id`. AdminPanel은 변경 없음(시험 관리에 teacher발 class-level test도 보임 — 정상).
 
