@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v68-material-library-admin';
+const CACHE_VERSION = 'b2-bigbang-20260512v69-material-list-compact';
 const OFFLINE_URLS = [
   './',
   './index.html',

@@ -96,7 +96,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [materialEditId, setMaterialEditId] = React.useState(null);
   const [analyzingMaterialId, setAnalyzingMaterialId] = React.useState(null);
   const [materialAnalysisOpenId, setMaterialAnalysisOpenId] = React.useState(null);
-  const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'' });
+  const [materialFilesOpenId, setMaterialFilesOpenId] = React.useState(null);
+  const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'', status:'' });
   const [materialFormOpen, setMaterialFormOpen] = React.useState(false);
   // 시험·숙제 발행 폼에서 자료 불러오기
   const [materialPickerOpen, setMaterialPickerOpen] = React.useState(false);
@@ -3899,15 +3900,20 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           </div>
           <p style={{ color:'#6b7280', fontSize:'14px', marginTop:0, marginBottom:'16px' }}>시험지·문제집을 올려 Claude로 문항 분석을 해두면, 시험·숙제를 만들 때 여기서 불러와서 바로 출제할 수 있습니다. (모든 선생님이 함께 쓰는 자료 도서관)</p>
 
-          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'14px' }}>
-            <input value={materialFilters.search} onChange={e => setMaterialFilters({ ...materialFilters, search: e.target.value })} placeholder="제목·설명 검색" style={{ ...inputStyle, flex:1, minWidth:'160px' }} />
-            <select value={materialFilters.subject} onChange={e => setMaterialFilters({ ...materialFilters, subject: e.target.value })} style={{ ...inputStyle, width:'120px' }}>
+          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' }}>
+            <input value={materialFilters.search} onChange={e => setMaterialFilters({ ...materialFilters, search: e.target.value })} placeholder="제목·설명 검색" style={{ ...inputStyle, flex:1, minWidth:'150px' }} />
+            <select value={materialFilters.subject} onChange={e => setMaterialFilters({ ...materialFilters, subject: e.target.value })} style={{ ...inputStyle, width:'110px' }}>
               <option value="">전체 과목</option>
               {["국어","영어","수학","과학","사회","한국사","기타"].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={materialFilters.level} onChange={e => setMaterialFilters({ ...materialFilters, level: e.target.value })} style={{ ...inputStyle, width:'110px' }}>
+            <select value={materialFilters.level} onChange={e => setMaterialFilters({ ...materialFilters, level: e.target.value })} style={{ ...inputStyle, width:'100px' }}>
               <option value="">전체 학교급</option>
               {["초등","중등","고등"].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={materialFilters.status} onChange={e => setMaterialFilters({ ...materialFilters, status: e.target.value })} style={{ ...inputStyle, width:'110px' }}>
+              <option value="">분석 상태 전체</option>
+              <option value="analyzed">분석 완료만</option>
+              <option value="pending">분석 전만</option>
             </select>
           </div>
 
@@ -3915,6 +3921,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             var list = (materials || []).filter(function(m){
               if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
               if (materialFilters.level && m.school_level !== materialFilters.level) return false;
+              if (materialFilters.status === 'analyzed' && !m.analysis) return false;
+              if (materialFilters.status === 'pending' && m.analysis) return false;
               if (materialFilters.search) {
                 var q = materialFilters.search.toLowerCase();
                 if (((m.title||'') + ' ' + (m.description||'')).toLowerCase().indexOf(q) < 0) return false;
@@ -3922,40 +3930,47 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
               return true;
             });
             if (list.length === 0) return <div style={{ padding:'20px', textAlign:'center', color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' }}>{(materials||[]).length === 0 ? '아직 등록된 분석 자료가 없습니다. "+ 새 자료 분석"으로 시험지를 올려보세요.' : '검색 결과가 없습니다.'}</div>;
+            var btnS = { fontSize:'11px', fontWeight:'700', borderRadius:'6px', padding:'3px 8px', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap', border:'1px solid' };
             return (
-              <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+              <div>
+                <div style={{ fontSize:'11px', color:'#9ca3af', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>총 {list.length}개</div>
+                <div style={{ borderTop:'1px solid #eef2f7' }}>
                 {list.map(function(m){
                   var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
                   var imgs = Array.isArray(m.image_paths) ? m.image_paths : [];
                   var ans = Array.isArray(m.answer_paths) ? m.answer_paths : [];
-                  var open = materialAnalysisOpenId === m.id;
+                  var openA = materialAnalysisOpenId === m.id;
+                  var openF = materialFilesOpenId === m.id;
                   var busy = analyzingMaterialId === m.id;
                   return (
-                    <div key={m.id} style={{ background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'12px 14px' }}>
-                      <div style={{ display:'flex', alignItems:'flex-start', gap:'12px' }}>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' }}>
-                            {m.analysis ? <span style={{ fontSize:'11px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' }}>분석 완료</span> : <span style={{ fontSize:'11px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' }}>분석 전</span>}
-                            {m.subject && <span style={{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' }}>{m.subject}</span>}
-                            {(m.school_level || m.target_grade) && <span style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
-                            <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' }}>{m.title}</span>
-                          </div>
-                          <div style={{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' }}>
-                            시험지 {imgs.length}개{ans.length ? ' · 답안·해설 ' + ans.length + '개' : ''}{m.analysis ? ' · 객관식 ' + qc + '문항' + (tqc > 0 ? ' · 서술형 ' + tqc + '문항' : '') : ''}{m.teacher_name ? ' · ' + m.teacher_name : ''}{m.created_at ? ' · ' + String(m.created_at).slice(0,10) : ''}
-                          </div>
-                          {m.description && <div style={{ fontSize:'12px', color:'#6b7280', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' }}>{m.description}</div>}
-                        </div>
-                        <div style={{ display:'flex', flexDirection:'column', gap:'6px', flexShrink:0 }}>
-                          {m.analysis && <button onClick={() => setMaterialAnalysisOpenId(open ? null : m.id)} style={smallLightButtonStyle}>{open ? '분석 닫기' : '분석 보기'}</button>}
-                          <button onClick={() => openMaterialFormForEdit(m)} style={smallPrimaryButtonStyle}>수정</button>
-                          <button onClick={() => reanalyzeMaterial(m)} disabled={busy} style={{ ...smallButtonStyle, background: busy ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '분석 중...' : (m.analysis ? '재분석' : 'Claude 분석')}</button>
-                          <button onClick={() => deleteMaterial(m)} style={smallDangerButtonStyle}>삭제</button>
-                        </div>
+                    <div key={m.id} style={{ borderBottom:'1px solid #eef2f7', padding:'8px 2px', fontFamily:'Manrope, sans-serif' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                        {m.analysis ? <span style={{ fontSize:'10px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'1px 6px' }}>분석완료</span> : <span style={{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'1px 6px' }}>분석전</span>}
+                        {m.subject && <span style={{ fontSize:'11px', fontWeight:'700', color:'#374151' }}>{m.subject}</span>}
+                        {(m.school_level || m.target_grade) && <span style={{ fontSize:'11px', color:'#9ca3af' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
+                        <span style={{ fontSize:'13px', fontWeight:'700', color:'#111827', flex:1, minWidth:'110px' }}>{m.title}</span>
+                        <span style={{ fontSize:'11px', color:'#9ca3af', whiteSpace:'nowrap' }}>{m.analysis ? '객'+qc+(tqc>0?(' 서'+tqc):'') : ('시험지 '+imgs.length)}{m.teacher_name ? (' · '+m.teacher_name) : ''}{m.created_at ? (' · '+String(m.created_at).slice(5,10)) : ''}</span>
+                        <span style={{ display:'flex', gap:'4px', flexShrink:0 }}>
+                          <button onClick={() => { setMaterialFilesOpenId(openF ? null : m.id); setMaterialAnalysisOpenId(null); }} style={{ ...btnS, color:'#1d4ed8', borderColor:'#bfdbfe', background: openF ? '#eff6ff' : '#fff' }}>원본</button>
+                          {m.analysis && <button onClick={() => { setMaterialAnalysisOpenId(openA ? null : m.id); setMaterialFilesOpenId(null); }} style={{ ...btnS, color:'#15803d', borderColor:'#86efac', background: openA ? '#f0fdf4' : '#fff' }}>분석</button>}
+                          <button onClick={() => openMaterialFormForEdit(m)} style={{ ...btnS, color:'#E60012', borderColor:'#E60012', background:'#fff' }}>수정</button>
+                          <button onClick={() => reanalyzeMaterial(m)} disabled={busy} style={{ ...btnS, color:'#fff', borderColor: busy ? '#9ca3af' : '#0f766e', background: busy ? '#9ca3af' : '#0f766e', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '분석중' : (m.analysis ? '재분석' : '분석')}</button>
+                          <button onClick={() => deleteMaterial(m)} style={{ ...btnS, color:'#c82014', borderColor:'#f3c5c0', background:'#fff' }}>삭제</button>
+                        </span>
                       </div>
-                      {open && m.analysis && renderExamAnalysis(m.analysis)}
+                      {m.description && <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px', whiteSpace:'pre-line' }}>{m.description}</div>}
+                      {openF && (
+                        <div style={{ marginTop:'6px', background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'8px 10px' }}>
+                          <div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'2px' }}>시험지 {imgs.length}개{imgs.length===0?' (없음)':''}</div>
+                          {renderFileList(imgs, '시험지', '')}
+                          {ans.length > 0 && <><div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginTop:'8px', marginBottom:'2px' }}>답안지·해설 {ans.length}개</div>{renderFileList(ans, '답안지·해설', '')}</>}
+                        </div>
+                      )}
+                      {openA && m.analysis && renderExamAnalysis(m.analysis)}
                     </div>
                   );
                 })}
+                </div>
               </div>
             );
           })()}
