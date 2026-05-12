@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 
 // ⬇⬇ 배포할 때 여기만 갱신하세요. index.html ?v=... 와 service-worker.js CACHE_VERSION이 자동 동기화됩니다.
-const BUILD_VERSION = '20260512v82-naesin-input';
+const BUILD_VERSION = '20260512v83-scores-pick-fix';
 
 const FILES = [
   'Utils.jsx',

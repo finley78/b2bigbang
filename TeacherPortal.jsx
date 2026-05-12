@@ -1929,14 +1929,16 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   }
   async function submitAcademicSchedule() {
     var d = academicDraft;
-    if (!d.title.trim()) { alert('일정 제목을 입력해 주세요.'); return; }
+    var cat = d.category || 'other';
+    if (cat === 'other' && !d.title.trim()) { alert('제목을 입력해 주세요.'); return; }
+    var titleVal = (cat === 'other') ? d.title.trim() : (d.title.trim() || academicCategoryLabel(cat));
     if (!d.start_date) { alert('시작일을 입력해 주세요.'); return; }
     if (!d.end_date) { alert('종료일을 입력해 주세요.'); return; }
     if (d.end_date < d.start_date) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
     setAcademicSubmitting(true);
     try {
       var { error } = await sb.from('academic_schedules').insert({
-        title: d.title.trim(),
+        title: titleVal,
         school: d.school.trim() || null,
         category: d.category || 'other',
         start_date: d.start_date,
@@ -3425,6 +3427,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           })() : (
             <div>
               <button onClick={() => { setScoreBrowseKind(null); setScoreBrowseStudent(null); }} style={{ ...lightButtonStyle, marginBottom:'12px' }}>← 종류 다시 고르기</button>
+              <div style={{ fontSize:'11px', fontWeight:'800', color:'#6b7280', marginBottom:'6px' }}>필터 (선택)</div>
               <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' }}>
                 <select value={scoreBrowseFilters.level} onChange={e => setScoreBrowseFilters({ ...scoreBrowseFilters, level:e.target.value, grade:'' })} style={{ ...inputStyle, width:'92px' }}>
                   <option value="">초중고</option>{['초등','중등','고등'].map(s => <option key={s} value={s}>{s}</option>)}
@@ -3438,20 +3441,22 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <select value={scoreBrowseFilters.classId} onChange={e => setScoreBrowseFilters({ ...scoreBrowseFilters, classId:e.target.value })} style={{ ...inputStyle, flex:1, minWidth:'130px' }}>
                   <option value="">클래스</option>{(availableClassCards||[]).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+                {(scoreBrowseFilters.level || scoreBrowseFilters.grade || scoreBrowseFilters.subject || scoreBrowseFilters.classId) && <button onClick={() => setScoreBrowseFilters({ level:'', grade:'', subject:'', classId:'' })} style={{ ...lightButtonStyle, padding:'8px 12px', fontSize:'12px' }}>필터 초기화</button>}
               </div>
               {analysisLoading ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div> : studentList.length === 0 ? (
                 <div style={{ padding:'18px', textAlign:'center', color:'#9ca3af', fontSize:'13px' }}>조건에 맞는 학생이 없습니다.{(scoreAnalysis||[]).filter(matchKind).length === 0 ? ' (이 종류의 성적이 아직 없습니다.)' : ''}</div>
               ) : (
                 <div>
-                  <div style={{ fontSize:'11px', color:'#9ca3af', marginBottom:'6px' }}>학생 {studentList.length}명</div>
+                  <div style={{ fontSize:'12px', color:'#6b7280', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>학생 <strong>{studentList.length}명</strong> — 학생을 누르면 그 학생의 성적이 보입니다.</div>
                   <div style={{ borderTop:'1px solid #eef2f7' }}>
                     {studentList.map(function(st){
-                      return <button key={st.sid} onClick={() => setScoreBrowseStudent(st.sid)} style={{ width:'100%', textAlign:'left', borderBottom:'1px solid #eef2f7', borderTop:'none', borderLeft:'none', borderRight:'none', background:'#fff', padding:'9px 2px', cursor:'pointer', display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', fontFamily:'Manrope, sans-serif' }}>
-                        <span style={{ fontSize:'13px', fontWeight:'700', color:'#111827' }}>{st.name}</span>
-                        {st.grade && <span style={{ fontSize:'11px', color:'#9ca3af' }}>{st.grade}</span>}
-                        {st.classes.length > 0 && <span style={{ fontSize:'11px', color:'#9ca3af' }}>{st.classes.join(', ')}</span>}
+                      var clsTxt = st.classes.filter(function(v,i,a){ return a.indexOf(v) === i; }).join(', ');
+                      return <button key={st.sid} onClick={() => setScoreBrowseStudent(st.sid)} style={{ width:'100%', textAlign:'left', borderBottom:'1px solid #eef2f7', borderTop:'none', borderLeft:'none', borderRight:'none', background:'#fff', padding:'10px 2px', cursor:'pointer', display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', fontFamily:'Manrope, sans-serif' }}>
+                        <span style={{ fontSize:'14px', fontWeight:'700', color:'#111827' }}>{st.name}</span>
+                        {st.grade && <span style={{ fontSize:'12px', color:'#6b7280' }}>{st.grade}</span>}
+                        {clsTxt && <span style={{ fontSize:'12px', color:'#9ca3af' }}>{clsTxt}</span>}
                         <span style={{ flex:1 }} />
-                        <span style={{ fontSize:'11px', color:'#9ca3af', whiteSpace:'nowrap' }}>{st.n}회 · 최근 <strong style={{ color: scColor(st.last) }}>{isNaN(st.last) ? '-' : st.last}</strong>{st.avg != null ? ' · 평균 ' + st.avg : ''}</span>
+                        <span style={{ fontSize:'12px', color:'#1d4ed8', fontWeight:'700', whiteSpace:'nowrap' }}>성적 보기 ›</span>
                       </button>;
                     })}
                   </div>
@@ -4417,8 +4422,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     ))}
                   </div>
 
-                  <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>제목 *</label>
-                  <input value={academicDraft.title} onChange={e => setAcademicDraft({ ...academicDraft, title: e.target.value })} placeholder="예: 여름방학, 1학기 중간고사" style={{ ...inputStyle, marginBottom:'14px' }} />
+                  {academicDraft.category === 'other' ? (<>
+                    <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>제목 *</label>
+                    <input value={academicDraft.title} onChange={e => setAcademicDraft({ ...academicDraft, title: e.target.value })} placeholder="예: 학교 행사, 개교기념일" style={{ ...inputStyle, marginBottom:'14px' }} />
+                  </>) : (
+                    <div style={{ fontSize:'12px', color:'#6b7280', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>제목은 자동으로 "{academicCategoryLabel(academicDraft.category)}"으로 표시됩니다. (별도 입력 안 해도 됨)</div>
+                  )}
 
                   <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>학교 (선택)</label>
                   <select value={academicDraft.school} onChange={e => setAcademicDraft({ ...academicDraft, school: e.target.value })} style={{ ...inputStyle, marginBottom:'14px' }}>

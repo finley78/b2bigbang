@@ -123,7 +123,8 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v82-naesin-input)
+## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v83-scores-pick-fix)
+> v83: (1) 성적 보기 학생 목록 행을 "점수 요약"(N회·최근·평균) → 그냥 이름·학년·반 + "성적 보기 ›" 로 (학생 누르면 그 학생 성적 보이게). 필터 위에 "필터 (선택)" 라벨 + "필터 초기화" 버튼, 목록 위 "학생 N명 — 누르면 성적 보임" 안내. 학생 반 이름 중복 제거. (2) 학사일정 추가 폼: 제목 입력칸을 분류='기타'일 때만 표시·필수. 방학/시험기간이면 제목 자동 = '방학'/'시험기간', 별도 안내문 표시. `submitAcademicSchedule`도 cat==='other'일 때만 제목 필수.
 
 ### ★ 진행 중: 성적 탭 재설계 (2026-05-12) — 시행착오 예상, 롤백 기준점 = git 태그 `rollback-before-scores-redesign` (= `?v=20260512v80-test-results-to-scores`) ★
 **사용자 의도**: 선생님 페이지 "성적" 탭에 들어가면 → 종류 선택(숙제 / 주간테스트 / 월말테스트 / 레벨테스트) → 하나 고르면 → 필터(초중고 / 학년 / 과목 / 클래스) → 그 조건에 맞는 학생 목록 → 학생 골라서 성적 보기. (test_scores 의 `test_type`이 종류 — 앱 테스트는 '숙제'/'주간평가'/'월말평가'/'레벨테스트'/'시험', `B2Utils.syncExamScore`가 넣음. 학생 속성(학교급/학년/반)은 students/analysisClassStudents/analysisAllStudents 에서.) 잘못되면 `git reset --hard rollback-before-scores-redesign` 으로 복구.
