@@ -113,7 +113,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [pwDraft, setPwDraft] = React.useState({ current:'', next:'', confirm:'' });
 
   // 성적 탭 서브 모드
-  const [scoreSubMode, setScoreSubMode] = React.useState('register'); // 'register' | 'analysis'
+  const [scoreSubMode, setScoreSubMode] = React.useState('browse'); // 'browse' | 'register' | 'analysis'
+  // 성적 보기: 종류 → 필터 → 학생 → 점수
+  const [scoreBrowseKind, setScoreBrowseKind] = React.useState(null); // null | '숙제' | '주간평가' | '월말평가' | '레벨테스트'
+  const [scoreBrowseFilters, setScoreBrowseFilters] = React.useState({ level:'', grade:'', subject:'', classId:'' });
+  const [scoreBrowseStudent, setScoreBrowseStudent] = React.useState(null); // student_id | null
 
   // 시험지 발행
   const [examList, setExamList] = React.useState([]);
@@ -3329,10 +3333,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
       {/* ── 성적 탭 서브 토글 ── */}
       {teacherView === "scores" && (
-        <div style={{ display:'flex', gap:0, borderBottom:'1px solid #e5e7eb', marginBottom:'18px' }}>
-          {[{ id:'register', label:'종이 시험 성적 입력' }, { id:'analysis', label:'성적 분석' }].map(sm => (
+        <div style={{ display:'flex', gap:0, borderBottom:'1px solid #e5e7eb', marginBottom:'18px', flexWrap:'wrap' }}>
+          {[{ id:'browse', label:'성적 보기' }, { id:'register', label:'종이 시험 성적 입력' }, { id:'analysis', label:'성적 분석' }].map(sm => (
             <button key={sm.id} onClick={() => setScoreSubMode(sm.id)} style={{
-              padding:'12px 20px', background:'none', border:'none',
+              padding:'12px 16px', background:'none', border:'none',
               borderBottom: scoreSubMode===sm.id ? '2px solid #E60012' : '2px solid transparent',
               fontSize:'14px', fontWeight:'700',
               color: scoreSubMode===sm.id ? '#E60012' : 'rgba(0,0,0,0.55)',
@@ -3341,6 +3345,121 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
           ))}
         </div>
       )}
+
+      {/* ── 성적 보기: 종류 → 필터 → 학생 → 점수 ── */}
+      {teacherView === "scores" && scoreSubMode === "browse" && (() => {
+        var KINDS = [
+          { v:'숙제', l:'숙제', kk:'homework' },
+          { v:'주간평가', l:'주간테스트', kk:'weekly' },
+          { v:'월말평가', l:'월말테스트', kk:'monthly' },
+          { v:'레벨테스트', l:'레벨테스트', kk:'level' },
+        ];
+        var kindLabelOf = function(v){ var f = KINDS.find(function(k){ return k.v === v; }); return f ? f.l : v; };
+        var scColor = function(v){ return (v == null || isNaN(v)) ? '#9ca3af' : (v >= 80 ? '#16a34a' : v >= 60 ? '#c87000' : '#c82014'); };
+        var classNamesOf = function(sid){ var out = []; (availableClassCards || []).forEach(function(cls){ if (((analysisClassStudents[cls.id] || []).map(String)).indexOf(String(sid)) >= 0) out.push(cls.name); }); return out; };
+        var inClass = function(sid, cid){ if (!cid) return true; return ((analysisClassStudents[cid] || []).map(String)).indexOf(String(sid)) >= 0; };
+        var rows = (scoreAnalysis || []).filter(function(r){
+          if (!scoreBrowseKind) return false;
+          if ((r.test_type || '') !== scoreBrowseKind) return false;
+          if (scoreBrowseFilters.subject && (r.subject || '') !== scoreBrowseFilters.subject) return false;
+          var std = analysisAllStudents[r.student_id] || {};
+          var g = (r.students && r.students.grade) || std.grade || '';
+          if (scoreBrowseFilters.grade && g !== scoreBrowseFilters.grade) return false;
+          if (scoreBrowseFilters.level && window.B2Utils.levelFromGrade(g) !== scoreBrowseFilters.level) return false;
+          if (scoreBrowseFilters.classId && !inClass(r.student_id, scoreBrowseFilters.classId)) return false;
+          return true;
+        });
+        var byStudent = {};
+        rows.forEach(function(r){ (byStudent[r.student_id] = byStudent[r.student_id] || []).push(r); });
+        var studentList = Object.keys(byStudent).map(function(sid){
+          var sr = byStudent[sid].slice().sort(function(a,b){ return String(b.test_date||'').localeCompare(String(a.test_date||'')); });
+          var std = analysisAllStudents[sid] || {};
+          var nm = (sr[0].students && sr[0].students.name) || std.name || '-';
+          var gd = (sr[0].students && sr[0].students.grade) || std.grade || '';
+          var vals = sr.map(function(r){ return Number(r.score); }).filter(function(v){ return !isNaN(v); });
+          var av = vals.length ? Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length) : null;
+          return { sid:sid, name:nm, grade:gd, classes:classNamesOf(sid), n:sr.length, last:Number(sr[0].score), avg:av, scores:sr };
+        }).sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
+        var gradeOpts = scoreBrowseFilters.level === '초등' ? ['1학년','2학년','3학년','4학년','5학년','6학년'] : scoreBrowseFilters.level === '중등' ? ['중1','중2','중3'] : scoreBrowseFilters.level === '고등' ? ['고1','고2','고3'] : ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'];
+        var subjectOpts = Array.from(new Set((scoreAnalysis||[]).filter(function(r){ return (r.test_type||'') === scoreBrowseKind; }).map(function(r){ return r.subject; }).filter(Boolean)));
+        return (
+        <div style={{ ...cardStyle, marginBottom:'24px' }}>
+          <h2 style={{ marginTop:0, marginBottom:'4px' }}>성적 보기</h2>
+          <p style={{ marginTop:0, marginBottom:'14px', color:'#6b7280', fontSize:'14px' }}>{!scoreBrowseKind ? '어떤 테스트의 성적을 볼지 골라주세요.' : (kindLabelOf(scoreBrowseKind) + ' 성적 — 필터로 학생을 좁히고, 학생을 누르면 점수를 봅니다.')}</p>
+
+          {!scoreBrowseKind ? (
+            <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
+              {KINDS.map(function(k){
+                var c = examKindBadgeStyle(k.kk);
+                return <button key={k.v} onClick={() => { setScoreBrowseKind(k.v); setScoreBrowseFilters({ level:'', grade:'', subject:'', classId:'' }); setScoreBrowseStudent(null); if (!scoreAnalysis || scoreAnalysis.length === 0) loadScoreAnalysis(); }} style={{ flex:'1 1 130px', minWidth:'120px', background:'#fff', color:c.color, border:'1.5px solid '+c.color, borderRadius:'10px', padding:'14px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>{k.l}</button>;
+              })}
+            </div>
+          ) : scoreBrowseStudent ? (() => {
+            var sr0 = byStudent[scoreBrowseStudent] || [];
+            var sr = sr0.slice().sort(function(a,b){ return String(b.test_date||'').localeCompare(String(a.test_date||'')); });
+            var std = analysisAllStudents[scoreBrowseStudent] || {};
+            var nm = (sr[0] && sr[0].students && sr[0].students.name) || std.name || '-';
+            var gd = (sr[0] && sr[0].students && sr[0].students.grade) || std.grade || '';
+            var vals = sr.map(function(r){ return Number(r.score); }).filter(function(v){ return !isNaN(v); });
+            var av = vals.length ? Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length) : null;
+            return (
+              <div>
+                <button onClick={() => setScoreBrowseStudent(null)} style={{ ...lightButtonStyle, marginBottom:'12px' }}>← 학생 목록</button>
+                <h3 style={{ margin:'0 0 10px' }}>{nm}{gd ? <span style={{ fontSize:'13px', color:'#6b7280', fontWeight:'600' }}> · {gd}</span> : null}<span style={{ fontSize:'13px', color:'#6b7280', fontWeight:'600' }}> · {kindLabelOf(scoreBrowseKind)}</span>{av != null ? <span style={{ fontSize:'13px', color:'#6b7280', fontWeight:'600' }}> · 평균 {av}점</span> : null}</h3>
+                {sr.length === 0 ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>점수가 없습니다.</div> : (
+                  <div style={{ borderTop:'1px solid #eef2f7' }}>
+                    {sr.map(function(r){
+                      return <div key={r.id} style={{ borderBottom:'1px solid #eef2f7', padding:'9px 2px', display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', fontFamily:'Manrope, sans-serif' }}>
+                        <span style={{ fontSize:'12px', color:'#9ca3af', whiteSpace:'nowrap' }}>{String(r.test_date||'').slice(0,10)}</span>
+                        {r.subject && <span style={{ fontSize:'12px', fontWeight:'700', color:'#374151' }}>{r.subject}</span>}
+                        <span style={{ fontSize:'13px', color:'#111827', flex:1, minWidth:'120px' }}>{r.test_name || '-'}{r.exam_id ? '' : ' (직접 입력)'}</span>
+                        <span style={{ fontSize:'16px', fontWeight:'800', color: scColor(Number(r.score)) }}>{r.score == null ? '-' : r.score}<span style={{ fontSize:'11px', color:'#9ca3af', fontWeight:'600' }}> / {r.total != null ? r.total : 100}</span></span>
+                      </div>;
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })() : (
+            <div>
+              <button onClick={() => { setScoreBrowseKind(null); setScoreBrowseStudent(null); }} style={{ ...lightButtonStyle, marginBottom:'12px' }}>← 종류 다시 고르기</button>
+              <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' }}>
+                <select value={scoreBrowseFilters.level} onChange={e => setScoreBrowseFilters({ ...scoreBrowseFilters, level:e.target.value, grade:'' })} style={{ ...inputStyle, width:'92px' }}>
+                  <option value="">초중고</option>{['초등','중등','고등'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={scoreBrowseFilters.grade} onChange={e => setScoreBrowseFilters({ ...scoreBrowseFilters, grade:e.target.value })} style={{ ...inputStyle, width:'92px' }}>
+                  <option value="">학년</option>{gradeOpts.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <select value={scoreBrowseFilters.subject} onChange={e => setScoreBrowseFilters({ ...scoreBrowseFilters, subject:e.target.value })} style={{ ...inputStyle, width:'92px' }}>
+                  <option value="">과목</option>{subjectOpts.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={scoreBrowseFilters.classId} onChange={e => setScoreBrowseFilters({ ...scoreBrowseFilters, classId:e.target.value })} style={{ ...inputStyle, flex:1, minWidth:'130px' }}>
+                  <option value="">클래스</option>{(availableClassCards||[]).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              {analysisLoading ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div> : studentList.length === 0 ? (
+                <div style={{ padding:'18px', textAlign:'center', color:'#9ca3af', fontSize:'13px' }}>조건에 맞는 학생이 없습니다.{(scoreAnalysis||[]).filter(function(r){ return (r.test_type||'')===scoreBrowseKind; }).length === 0 ? ' (이 종류의 성적이 아직 없습니다.)' : ''}</div>
+              ) : (
+                <div>
+                  <div style={{ fontSize:'11px', color:'#9ca3af', marginBottom:'6px' }}>학생 {studentList.length}명</div>
+                  <div style={{ borderTop:'1px solid #eef2f7' }}>
+                    {studentList.map(function(st){
+                      return <button key={st.sid} onClick={() => setScoreBrowseStudent(st.sid)} style={{ width:'100%', textAlign:'left', borderBottom:'1px solid #eef2f7', borderTop:'none', borderLeft:'none', borderRight:'none', background:'#fff', padding:'9px 2px', cursor:'pointer', display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', fontFamily:'Manrope, sans-serif' }}>
+                        <span style={{ fontSize:'13px', fontWeight:'700', color:'#111827' }}>{st.name}</span>
+                        {st.grade && <span style={{ fontSize:'11px', color:'#9ca3af' }}>{st.grade}</span>}
+                        {st.classes.length > 0 && <span style={{ fontSize:'11px', color:'#9ca3af' }}>{st.classes.join(', ')}</span>}
+                        <span style={{ flex:1 }} />
+                        <span style={{ fontSize:'11px', color:'#9ca3af', whiteSpace:'nowrap' }}>{st.n}회 · 최근 <strong style={{ color: scColor(st.last) }}>{isNaN(st.last) ? '-' : st.last}</strong>{st.avg != null ? ' · 평균 ' + st.avg : ''}</span>
+                      </button>;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        );
+      })()}
 
       {/* ── 탭4: 성적 등록 ── */}
       {teacherView === "scores" && scoreSubMode === "register" && (

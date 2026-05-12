@@ -123,7 +123,12 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v80-test-results-to-scores)
+## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v81-scores-browse)
+
+### ★ 진행 중: 성적 탭 재설계 (2026-05-12) — 시행착오 예상, 롤백 기준점 = git 태그 `rollback-before-scores-redesign` (= `?v=20260512v80-test-results-to-scores`) ★
+**사용자 의도**: 선생님 페이지 "성적" 탭에 들어가면 → 종류 선택(숙제 / 주간테스트 / 월말테스트 / 레벨테스트) → 하나 고르면 → 필터(초중고 / 학년 / 과목 / 클래스) → 그 조건에 맞는 학생 목록 → 학생 골라서 성적 보기. (test_scores 의 `test_type`이 종류 — 앱 테스트는 '숙제'/'주간평가'/'월말평가'/'레벨테스트'/'시험', `B2Utils.syncExamScore`가 넣음. 학생 속성(학교급/학년/반)은 students/analysisClassStudents/analysisAllStudents 에서.) 잘못되면 `git reset --hard rollback-before-scores-redesign` 으로 복구.
+- **v81 (1차)**: 성적 탭에 서브모드 `browse`('성적 보기') 추가 + **기본값으로 설정**(기존 'register'='종이 시험 성적 입력' / 'analysis'='성적 분석'은 그대로 옆 탭). browse 흐름: `scoreBrowseKind`(null|'숙제'|'주간평가'|'월말평가'|'레벨테스트') → 종류 버튼 4개 → 고르면 `scoreBrowseFilters`{level,grade,subject,classId} 드롭다운 + 그 조건의 학생 목록(이름·학년·반·횟수·최근/평균 점수, 한 줄) → 학생 누르면 `scoreBrowseStudent` → 그 학생의 그 종류 성적 목록(날짜·과목·시험명·점수). `scoreAnalysis`(test_scores)를 `test_type===scoreBrowseKind`로 필터, level은 `B2Utils.levelFromGrade(grade)`로 판정, class는 `analysisClassStudents`로 멤버십 체크. 매핑: 숙제→'숙제', 주간테스트→'주간평가', 월말테스트→'월말평가', 레벨테스트→'레벨테스트'. **TODO/시행착오 예상**: 과목 필터가 학생속성이 아니라 점수속성이라 학생 목록 의미가 애매할 수 있음, 'register' 탭 라벨 길어서 모바일 줄바꿈, test_type='시험'(반 시험)은 picker에 없음.
+
 > v79: TeacherPortal 테스트 탭의 발행된 테스트 목록을 큰 카드 → 한 줄 컴팩트 행(자료실 도서관 목록과 같은 스타일)으로. 한 행: 종류뱃지·상태뱃지·분석뱃지·과목·제목·제출N/N + 작은 버튼[수정][마감/재오픈][삭제], 아래 작은 회색 줄에 시험일·문항수·녹음·제한시간·이미지·설명. 제출자 보기는 그대로 `<details>`(접힘).
 > v80: **앱 테스트 결과 → 성적(test_scores) 자동 연결**. DB: `test_scores.exam_id uuid` + 유니크 인덱스 `(exam_id, student_id)` (migration `2026-05-12_add_test_scores_exam_id.sql`; 종이 시험 직접 입력은 exam_id=NULL, NULL끼리 안 부딪힘). `B2Utils.syncExamScore(examId, submissionId)` — 객관식(answer_key vs answers 정규화 비교) + 서술형(text_scores 1/0, 다 채워졌을 때만) → 백분율로 환산해 `test_scores` upsert(`onConflict:'exam_id,student_id'`). 채점 가능한 문항 0개(녹음만)/서술형 미채점이면 안 씀. `teacher_id`는 NULL(test_scores.teacher_id=teachers(id), exams.teacher_id=students(id)라 id 공간 다름). `B2Utils.removeExamScores(examId)` — 시험 삭제 시 정리. 호출: StudentPortal `submitExamAnswer`(객관식 끝나면) / GradingForm onSave(TeacherPortal·AdminPanel) / `runStudentAnalysis`(AI 채점 후) / `deleteExam`·`adminDeleteLevelTest`(removeExamScores). 기존 객관식 채점 제출 2건은 SQL로 백필 완료. → 이제 "성적" 탭 성적 분석·학부모 리포트·수강생 카드 시험성적에 앱 테스트 점수가 들어감.
 > v77~v78: TeacherPortal "테스트" 탭 진입 시 **종류 버튼 4개가 맨 위**(반 선택보다 먼저). 반 선택 전: 종류 버튼 클릭 → `pendingTestKind` 세팅(하이라이트) → "반 선택" 카드 안내문 갱신 → 반 클릭 → `selectClass` 후 `openExamForm(pendingTestKind)`. 반 선택 후: 종류 버튼 클릭 → 바로 `openExamForm(kind)`. 아래엔 그 반의 발행된 테스트 목록(`다른 반` 버튼). `examFormOpen`/`materialPickerOpen` 모달은 `selectedClass` 있을 때 블록 안에 렌더.
