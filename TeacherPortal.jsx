@@ -4232,18 +4232,20 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         for (let i = 0; i < firstDay; i++) cells.push(null);
         for (let d = 1; d <= daysInMonth; d++) cells.push(d);
         while (cells.length % 7 !== 0) cells.push(null);
-        const todayStr = new Date().toISOString().slice(0,10);
+        const _tNow = new Date();
+        const todayStr = _tNow.getFullYear() + '-' + String(_tNow.getMonth()+1).padStart(2,'0') + '-' + String(_tNow.getDate()).padStart(2,'0');
         function dateStrOf(d) { return y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0'); }
+        function _localDS(dt) { return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0'); }
         const reqsByDate = {};
         scrRequests.forEach(r => { (reqsByDate[r.target_date] = reqsByDate[r.target_date] || []).push(r); });
-        // 날짜별 학사일정 (기간 펼치기)
+        // 날짜별 학사일정 (기간 펼치기) — 로컬 날짜 컴포넌트로 계산(toISOString은 UTC라 KST에서 하루 밀림)
         const acByDate = {};
         academicList.forEach(a => {
-          if (!a.start_date || !a.end_date) return;
+          if (!a.start_date || !a.end_date || a.end_date < a.start_date) return;
           const s = new Date(a.start_date + 'T00:00:00');
           const e = new Date(a.end_date + 'T00:00:00');
           for (let dt = new Date(s); dt <= e; dt.setDate(dt.getDate()+1)) {
-            const ds2 = dt.toISOString().slice(0,10);
+            const ds2 = _localDS(dt);
             (acByDate[ds2] = acByDate[ds2] || []).push(a);
           }
         });

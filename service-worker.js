@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v87-academic-dedup-title';
+const CACHE_VERSION = 'b2-bigbang-20260512v88-calendar-date-offfix';
 const OFFLINE_URLS = [
   './',
   './index.html',
