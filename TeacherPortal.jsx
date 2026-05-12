@@ -649,7 +649,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         // 시험 점수 (test_scores)
         sb.from('test_scores').select('*').eq('student_id', student.id).order('test_date', { ascending: false }),
         // 단어시험 응시 결과
-        sb.from('vocab_test_attempts').select('*, vocab_tests(title, unit_index)').eq('student_id', student.id).order('submitted_at', { ascending: false }),
+        sb.from('vocab_test_attempts').select('*, vocab_tests(title, unit_index, pass_score)').eq('student_id', student.id).order('submitted_at', { ascending: false }),
         // 특이사항 (메모)
         sb.from('teacher_notes').select('*').eq('student_id', student.id).order('note_date', { ascending: false }),
         // 출결 (최근 30일)
@@ -2430,12 +2430,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                           var pct = Math.round(a.percentage || 0);
                           var color = pct >= 80 ? '#16a34a' : pct >= 60 ? '#c87000' : '#c82014';
                           var t = a.vocab_tests || {};
+                          var cut = parseInt(t.pass_score, 10) || 0;
                           return (
                             <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f8fafc", borderRadius: "6px", fontFamily: "Manrope, sans-serif" }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: "13px", fontWeight: "700", color: "#1A1A1A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title || "시험"}</div>
-                                <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>{a.score}/{a.total} · {a.attempt_number}회차 · {String(a.submitted_at || "").slice(0,10)}</div>
+                                <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>{a.score}/{a.total} · {a.attempt_number}회차{cut > 0 ? ` · 커트라인 ${cut}점` : ''} · {String(a.submitted_at || "").slice(0,10)}</div>
                               </div>
+                              {cut > 0 && <span style={{ fontSize: "10px", fontWeight: "800", borderRadius: "999px", padding: "2px 7px", marginLeft: "8px", flexShrink: 0, background: pct >= cut ? "#dcfce7" : "#fff5f5", color: pct >= cut ? "#16a34a" : "#c82014" }}>{pct >= cut ? "합격" : "불합격"}</span>}
                               <div style={{ fontSize: "16px", fontWeight: "800", color: color, marginLeft: "8px", flexShrink: 0 }}>{pct}점</div>
                             </div>
                           );

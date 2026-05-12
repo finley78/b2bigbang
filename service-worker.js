@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v92-vocab-study-retry-wrong';
+const CACHE_VERSION = 'b2-bigbang-20260513v93-vocab-pass-score';
 const OFFLINE_URLS = [
   './',
   './index.html',

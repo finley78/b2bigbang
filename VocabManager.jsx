@@ -701,6 +701,7 @@
       seconds_per_question: 30,
       show_answer_seconds: 2,
       attempts_allowed: 1,
+      pass_score: 0,
       status: 'draft',
       due_at: null,
     };
@@ -809,6 +810,7 @@
           seconds_per_question: parseInt(draft.seconds_per_question, 10) || 30,
           show_answer_seconds: parseInt(draft.show_answer_seconds, 10) || 2,
           attempts_allowed: parseInt(draft.attempts_allowed, 10),
+          pass_score: Math.max(0, Math.min(100, parseInt(draft.pass_score, 10) || 0)),
           status: draft.status || 'draft',
           due_at: draft.due_at || null,
           updated_at: new Date().toISOString(),
@@ -848,6 +850,7 @@
             seconds_per_question: parseInt(draft.seconds_per_question, 10) || 30,
             show_answer_seconds: parseInt(draft.show_answer_seconds, 10) || 2,
             attempts_allowed: parseInt(draft.attempts_allowed, 10),
+            pass_score: Math.max(0, Math.min(100, parseInt(draft.pass_score, 10) || 0)),
           };
           for (var pi = 0; pi < selectedClassIds.length; pi++) {
             try {
@@ -1041,6 +1044,15 @@
             '⏱ 예상 시험 시간: 약 ' + (minutes > 0 ? minutes + '분 ' : '') + secs + '초'
           ),
 
+          // 커트라인(합격) 점수 — 0이면 없음
+          React.createElement('div', { style:{ marginBottom:'14px' } },
+            React.createElement('div', { style:STYLES.label }, '커트라인(합격) 점수 — 0이면 없음'),
+            React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+              React.createElement('input', { type:'number', min:0, max:100, value:draft.pass_score || 0, onChange:function(e){ var v = window.B2Utils.stripLeadingZero(e.target.value); set('pass_score', v === '' ? 0 : Math.max(0, Math.min(100, parseInt(v, 10) || 0))); }, style:Object.assign({}, STYLES.input, { width:'84px' }) }),
+              React.createElement('span', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif' } }, '점 이상이면 합격. 미만이면 학생 결과에 "불합격" 표시 + 재응시 권유. (앱 채점 % 기준)')
+            )
+          ),
+
           React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'14px' } },
             React.createElement('div', null,
               React.createElement('div', { style:STYLES.label }, '상태'),
@@ -1105,6 +1117,8 @@
     var avg = n > 0 ? Math.round((bests.reduce(function(s, a){ return s + (a.percentage || 0); }, 0) / n) * 10) / 10 : 0;
     var hi = n > 0 ? Math.round(bests[0].percentage || 0) : 0;
     var lo = n > 0 ? Math.round(bests[bests.length-1].percentage || 0) : 0;
+    var cut = parseInt(test.pass_score, 10) || 0; // 커트라인(0=없음)
+    var passN = cut > 0 ? bests.filter(function(a){ return (a.percentage || 0) >= cut; }).length : null;
     var dist = { '90+': 0, '80-89': 0, '70-79': 0, '60-69': 0, '0-59': 0 };
     bests.forEach(function(a){
       var p = a.percentage || 0;
@@ -1194,6 +1208,12 @@
                       React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#c82014' } }, lo + '점')
                     )
                   ),
+                  cut > 0 && React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', borderTop:'1px solid rgba(0,0,0,0.06)', paddingTop:'10px', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } },
+                    React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', color:'#1A1A1A' } }, '커트라인 ' + cut + '점'),
+                    React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', background:'#dcfce7', color:'#16a34a', borderRadius:'4px', padding:'2px 8px' } }, '합격 ' + passN + '명'),
+                    React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', background:'#fff5f5', color:'#c82014', borderRadius:'4px', padding:'2px 8px' } }, '불합격 ' + (n - passN) + '명'),
+                    React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)' } }, '(' + (n > 0 ? Math.round((passN / n) * 100) : 0) + '% 합격)')
+                  ),
                   React.createElement('div', { style:{ borderTop:'1px solid rgba(0,0,0,0.06)', paddingTop:'10px' } },
                     React.createElement('div', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.55)', marginBottom:'6px' } }, '점수 분포'),
                     [['90+', '#16a34a'], ['80-89', '#65a30d'], ['70-79', '#c87000'], ['60-69', '#dc6803'], ['0-59', '#c82014']].map(function(b){
@@ -1242,6 +1262,7 @@
                           React.createElement('div', { style:{ fontSize:'13px', fontWeight:'700', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, a.student_name || '(이름 없음)'),
                           React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)' } }, (a.time_taken_seconds || 0) + '초 · ' + a.attempt_number + '회차')
                         ),
+                        cut > 0 && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', borderRadius:'4px', padding:'2px 6px', flexShrink:0, background: pct >= cut ? '#dcfce7' : '#fff5f5', color: pct >= cut ? '#16a34a' : '#c82014' } }, pct >= cut ? '합격' : '불합격'),
                         React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:color, minWidth:'46px', textAlign:'right' } }, pct + '점'),
                         React.createElement('div', { style:{ fontSize:'14px', color:'rgba(0,0,0,0.3)' } }, '›')
                       );
