@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260512v73-picker-filters';
+const CACHE_VERSION = 'b2-bigbang-20260512v74-unlink-clears-all';
 const OFFLINE_URLS = [
   './',
   './index.html',

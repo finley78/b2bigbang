@@ -1017,7 +1017,7 @@ function loadMaterialIntoExam(m) {
   setMaterialPickerOpen(false);
 }
 function unlinkMaterialFromExam() {
-  setAdminLtDraft(function(p){ return Object.assign({}, p, { material_id: null, material_title: '', existing_paths: [], answer_existing_paths: [] }); });
+  setAdminLtDraft(function(p){ return Object.assign({}, p, { material_id: null, material_title: '', existing_paths: [], answer_existing_paths: [], analysis: null, answer_key: {}, question_count: '0', text_question_count: '0', choices_per_question: '5', analyze_page_range: '', selected_questions_text: '', precise: false, precise_student: false }); });
 }
 
 async function loadAdminScheduleRequests() {
