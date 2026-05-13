@@ -116,9 +116,19 @@
   // ── 단어장 만들기/편집 모달 ─────────────────────────
   function VocabListEditModal(props) {
     var sb = window.supabase;
-    var initial = props.list || { name:'', description:'', subject:'', grade:'', unit_size: 20 };
+    var initial = props.list || { name:'', description:'', subject:'', school_level:'', grade:'', class_id:'', unit_size: 20 };
     var [draft, setDraft] = React.useState(initial);
     var [saving, setSaving] = React.useState(false);
+    var [classes, setClasses] = React.useState([]);
+
+    React.useEffect(function(){
+      (async function(){
+        try {
+          var c = await sb.from('classes').select('id, name, grade, subject').order('name');
+          setClasses((c && c.data) || []);
+        } catch (e) {}
+      })();
+    }, []);
 
     function set(k, v) { setDraft(function(d){ var n = Object.assign({}, d); n[k] = v; return n; }); }
 
@@ -128,29 +138,24 @@
       if (isNaN(unitSize) || unitSize < 1 || unitSize > 200) { alert('유닛 사이즈는 1~200 사이로 입력해 주세요.'); return; }
       setSaving(true);
       try {
+        var row = {
+          name: draft.name.trim(),
+          description: draft.description || null,
+          subject: draft.subject || null,
+          school_level: draft.school_level || null,
+          grade: draft.grade || null,
+          class_id: draft.class_id || null,
+          unit_size: unitSize,
+          updated_at: new Date().toISOString(),
+        };
         if (props.list && props.list.id) {
-          // 편집
-          var { error } = await sb.from('vocab_lists').update({
-            name: draft.name.trim(),
-            description: draft.description || null,
-            subject: draft.subject || null,
-            grade: draft.grade || null,
-            unit_size: unitSize,
-            updated_at: new Date().toISOString(),
-          }).eq('id', props.list.id);
+          var { error } = await sb.from('vocab_lists').update(row).eq('id', props.list.id);
           if (error) throw error;
         } else {
-          // 새로 만들기
           var creator = props.user || {};
-          var { error: e2 } = await sb.from('vocab_lists').insert({
-            name: draft.name.trim(),
-            description: draft.description || null,
-            subject: draft.subject || null,
-            grade: draft.grade || null,
-            unit_size: unitSize,
-            created_by: window.B2Utils.safeUserId(creator),
-            creator_name: creator.name || null,
-          });
+          row.created_by = window.B2Utils.safeUserId(creator);
+          row.creator_name = creator.name || null;
+          var { error: e2 } = await sb.from('vocab_lists').insert(row);
           if (e2) throw e2;
         }
         props.onSaved();
@@ -158,6 +163,7 @@
       setSaving(false);
     }
 
+    var gradeOpts = draft.school_level === '초' ? ['1','2','3','4','5','6'] : (draft.school_level === '중' || draft.school_level === '고') ? ['1','2','3'] : [];
     // 입력 도중 실수로 배경 클릭 시 작성 내용이 사라지지 않도록 backdrop 클릭 닫기 비활성화 (X/취소 버튼으로만 닫기)
     return React.createElement('div', { style:STYLES.modalBackdrop },
       React.createElement('div', { style:STYLES.modalCard },
@@ -166,16 +172,40 @@
 
         React.createElement('div', { style:{ marginBottom:'12px' } },
           React.createElement('div', { style:STYLES.label }, '이름 *'),
-          React.createElement('input', { type:'text', value:draft.name||'', onChange:function(e){ set('name', e.target.value); }, placeholder:'예: 중2 5월 단어장', style:STYLES.input })
+          React.createElement('input', { type:'text', value:draft.name||'', onChange:function(e){ set('name', e.target.value); }, placeholder:'예: 워드마스터 수능 2000', style:STYLES.input })
         ),
+        // 1행: 과목 · 초중고 · 학년 (모두 드롭다운, 선택사항)
         React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'10px', marginBottom:'12px' } },
           React.createElement('div', null,
             React.createElement('div', { style:STYLES.label }, '과목'),
-            React.createElement('input', { type:'text', value:draft.subject||'', onChange:function(e){ set('subject', e.target.value); }, placeholder:'영어', style:STYLES.input })
+            React.createElement('select', { value:draft.subject||'', onChange:function(e){ set('subject', e.target.value); }, style:STYLES.input },
+              React.createElement('option', { value:'' }, '선택 안 함'),
+              ['국어','영어','수학','과학','사회','한국사','기타'].map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { style:STYLES.label }, '초중고'),
+            React.createElement('select', { value:draft.school_level||'', onChange:function(e){ set('school_level', e.target.value); set('grade', ''); }, style:STYLES.input },
+              React.createElement('option', { value:'' }, '선택 안 함'),
+              ['초','중','고'].map(function(L){ return React.createElement('option', { key:L, value:L }, L); })
+            )
           ),
           React.createElement('div', null,
             React.createElement('div', { style:STYLES.label }, '학년'),
-            React.createElement('input', { type:'text', value:draft.grade||'', onChange:function(e){ set('grade', e.target.value); }, placeholder:'중2', style:STYLES.input })
+            React.createElement('select', { value:draft.grade||'', onChange:function(e){ set('grade', e.target.value); }, disabled: !draft.school_level, style:STYLES.input },
+              React.createElement('option', { value:'' }, '선택 안 함'),
+              gradeOpts.map(function(g){ return React.createElement('option', { key:g, value:g }, g + '학년'); })
+            )
+          )
+        ),
+        // 2행: 클래스 + 유닛 단위
+        React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'10px', marginBottom:'12px' } },
+          React.createElement('div', null,
+            React.createElement('div', { style:STYLES.label }, '클래스 (특정 반 전용으로 만들 때)'),
+            React.createElement('select', { value:draft.class_id||'', onChange:function(e){ set('class_id', e.target.value); }, style:STYLES.input },
+              React.createElement('option', { value:'' }, '학원 전체 공유 (모든 반)'),
+              classes.map(function(c){ return React.createElement('option', { key:c.id, value:c.id }, c.name + (c.grade ? (' — ' + c.grade) : '')); })
+            )
           ),
           React.createElement('div', null,
             React.createElement('div', { style:STYLES.label }, '유닛 단위'),
