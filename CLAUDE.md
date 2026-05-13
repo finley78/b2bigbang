@@ -123,7 +123,9 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-12 기준, 최신 ?v=20260512v89-academic-edit-school)
+## 현재 진행 (2026-05-13 기준, 최신 ?v=20260513v94-feature-flash-fix)
+> v94 (버그픽스): PC에서 메인 페이지 켤 때 옛 'feature' 배너 문구('첫 달 수강료 50% 할인' 등 `INITIAL_STATE.content`/`FeatureBand` 하드코딩 기본값)가 잠깐 보였다가 DB에서 받은 최신 문구로 바뀌는 깜빡임 수정. → (1) `feature` 콘텐츠를 받으면 `localStorage['b2_feature']`에 캐시 → 다음 로드 때 state 초기화 시 즉시 복원(`b2_db_cache` 패턴과 동일). (2) `featureLoaded` state(캐시 있으면 처음부터 true, 없으면 DB fetch 끝나면 true) → `index.html`이 `HomePage`에 전달 → `FeatureBand`가 `!featureLoaded`면 `return null`(아직 못 받았으면 배너 자체를 안 그림). 첫 방문(캐시 없음)엔 배너가 ~100ms 늦게 뜨지만 옛 문구 안 보임, 이후 방문은 캐시로 즉시·정확. (옛 하드코딩 기본값들은 그대로 둠 — DB row에 없는 필드 fallback용, featureLoaded 게이트로 깜빡임은 안 생김.) ⚠️ `event_button`(floating 버튼)도 비슷한 하드코딩 기본값 있지만 거기는 사용자 불만 없어 안 건드림.
+> v90~v93 (다른 PC 세션, 단어시험): v90 단어 시험 '편집' 버튼→'학생에게 내기'로 명확화+문제 형식 설명. v91 단어 STUDY 자유연습 4모드 구현 + 시험 개별학생 픽커 필터·3열 그리드. v92 STUDY 자유연습 결과 화면에 '틀린 N개만 다시 풀기'. v93 단어 시험에 커트라인(합격) 점수 추가. (상세는 해당 커밋 메시지 참고 — 이 줄은 catch-up용.)
 > v89: (1) 학사일정 **수정** 가능 — `openAcademicEditForm(item)`(`academicDraft.id` 세팅), `submitAcademicSchedule`가 `d.id` 있으면 update 아니면 insert. 폼 제목/버튼도 수정/등록 분기. 날짜 팝업·목록 항목에 [수정][삭제] 버튼. (2) **마전중** 학교 추가 — `TP_NEARBY_SCHOOLS`(TeacherPortal), `SCHOOLS`·`SCHOOL_LEVELS['중등'].schools`(AdminPanel)에 '마전중' 추가.
 > v88 (버그픽스): 학사일정 달력이 하루 밀려 표시되던 버그 — `acByDate` 만들 때 `dt.toISOString().slice(0,10)`(UTC 변환)을 써서 KST에서 하루 빠르게 찍혔음(7/21 시작 일정이 7/20 칸에). → 로컬 날짜 컴포넌트(`dt.getFullYear()/getMonth()+1/getDate()`)로 계산하는 `_localDS()` 사용. `todayStr`(오늘 강조)도 동일 수정. (날짜 팝업의 `dayItems`는 문자열 비교라 원래 정상이었음 → 그래서 달력 셀과 팝업이 안 맞았던 것.) ⚠️ 다른 곳의 `new Date().toISOString().slice(0,10)`(날짜 기본값들)도 KST 새벽엔 하루 밀릴 수 있음 — 추후 정리 대상.
 > v87: 학사일정 표시에서 제목이 분류 라벨('방학'/'시험기간')과 같으면 중복 안 보이게(`a.title !== academicCategoryLabel(a.category)`일 때만 제목 표시) — 날짜 팝업·목록·달력 셀 뱃지 모두. 항목 한 줄로 압축(분류뱃지 · 학교 · (제목) · 날짜범위). 달력 셀 뱃지는 학교명 우선, 없으면 제목/분류.

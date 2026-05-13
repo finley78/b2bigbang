@@ -440,8 +440,11 @@ function StatsBand() {
   );
 }
 
-function FeatureBand({ setPage, isAdmin, content, onEdit }) {
+function FeatureBand({ setPage, isAdmin, content, onEdit, featureLoaded }) {
   const isMobile = useIsMobile();
+  // DB에서 'feature' 콘텐츠를 아직 못 받았으면 배너를 아예 그리지 않음
+  // — 옛 기본 문구('50% 할인' 등)가 잠깐 보였다가 바뀌는 깜빡임 방지
+  if (!featureLoaded) return null;
   const BAND_BG = content.featureBgColor || '#FFEBED';
   const TEXT = content.featureTextColor || '#1A1A1A';
   const SUB = TEXT === '#fff' || TEXT === '#FFFFFF' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.55)';
@@ -754,7 +757,7 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
   );
 }
 
-function HomePage({ banners, slides, categories, notices, announcements, setPage, isAdmin, content, onAdminAction, user, onLoginClick }) {
+function HomePage({ banners, slides, categories, notices, announcements, setPage, isAdmin, content, onAdminAction, user, onLoginClick, featureLoaded }) {
   const [selectedNotice, setSelectedNotice] = React.useState(null);
   const [selectedBanner, setSelectedBanner] = React.useState(null);
 
@@ -769,7 +772,7 @@ function HomePage({ banners, slides, categories, notices, announcements, setPage
     React.createElement(HeroBanner, { banners, isAdmin, onEdit:()=>onAdminAction('banner'), onSelectBanner:setSelectedBanner }),
     React.createElement(SplitSection, { notices, announcements, isAdmin, onEditNotices:()=>onAdminAction('notice'), onSelectNotice:setSelectedNotice, slides }),
     React.createElement(StatsBand),
-    React.createElement(FeatureBand, { setPage, isAdmin, content, onEdit:()=>onAdminAction('feature') })
+    React.createElement(FeatureBand, { setPage, isAdmin, content, onEdit:()=>onAdminAction('feature'), featureLoaded })
   );
 }
 

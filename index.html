@@ -484,15 +484,15 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260513v93-vocab-pass-score"></script>
-<script src="TopNav.js?v=20260513v93-vocab-pass-score"></script>
-<script src="HomePage.js?v=20260513v93-vocab-pass-score"></script>
-<script src="Pages.js?v=20260513v93-vocab-pass-score"></script>
-<script src="VocabManager.js?v=20260513v93-vocab-pass-score"></script>
-<script src="VocabPlayer.js?v=20260513v93-vocab-pass-score"></script>
-<script src="StudentPortal.js?v=20260513v93-vocab-pass-score"></script>
-<script src="TeacherPortal.js?v=20260513v93-vocab-pass-score"></script>
-<script src="AdminPanel.js?v=20260513v93-vocab-pass-score"></script>
+<script src="Utils.js?v=20260513v94-feature-flash-fix"></script>
+<script src="TopNav.js?v=20260513v94-feature-flash-fix"></script>
+<script src="HomePage.js?v=20260513v94-feature-flash-fix"></script>
+<script src="Pages.js?v=20260513v94-feature-flash-fix"></script>
+<script src="VocabManager.js?v=20260513v94-feature-flash-fix"></script>
+<script src="VocabPlayer.js?v=20260513v94-feature-flash-fix"></script>
+<script src="StudentPortal.js?v=20260513v94-feature-flash-fix"></script>
+<script src="TeacherPortal.js?v=20260513v94-feature-flash-fix"></script>
+<script src="AdminPanel.js?v=20260513v94-feature-flash-fix"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -778,15 +778,27 @@ const [adminAuthed, setAdminAuthed] = React.useState(() => {
 const [state, setState] = React.useState(() => {
   // 이전 DB 응답을 localStorage에서 즉시 hydrate → INITIAL_STATE 플래시 방지
   try {
+    var base = INITIAL_STATE;
     var cached = localStorage.getItem('b2_db_cache');
     if (cached) {
       var parsed = JSON.parse(cached);
-      return { ...INITIAL_STATE, ...parsed };
+      base = { ...INITIAL_STATE, ...parsed };
     }
+    // 메인 페이지 'feature' 배너 콘텐츠도 캐시에서 즉시 복원 (옛 문구 깜빡임 방지)
+    var fc = localStorage.getItem('b2_feature');
+    if (fc) {
+      var fcParsed = JSON.parse(fc);
+      if (fcParsed && typeof fcParsed === 'object') base = { ...base, content: { ...(base.content || {}), ...fcParsed } };
+    }
+    return base;
   } catch {}
   return INITIAL_STATE;
 });
 const [dbLoaded, setDbLoaded] = React.useState(false);
+// 'feature' 콘텐츠를 DB(또는 캐시)에서 받았는지 — 받기 전엔 메인 배너를 안 그림
+const [featureLoaded, setFeatureLoaded] = React.useState(function(){
+  try { return !!localStorage.getItem('b2_feature'); } catch (e) { return false; }
+});
 const [eventButton, setEventButton] = React.useState({ enabled:true, badge:'EVENT', text:'무료 레벨테스트', target_page:'leveltest' });
 const eventButtonKey = (eventButton.target_page || 'leveltest') + '|' + (eventButton.text || '');
 const [eventClickedKey, setEventClickedKey] = React.useState(function(){
@@ -801,8 +813,12 @@ React.useEffect(() => {
     } catch (e) {}
     try {
       const fv = await window.B2Utils.loadSiteContent('feature');
-      if (fv) setState(s => Object.assign({}, s, { content: Object.assign({}, s.content || {}, fv) }));
+      if (fv) {
+        setState(s => Object.assign({}, s, { content: Object.assign({}, s.content || {}, fv) }));
+        try { localStorage.setItem('b2_feature', JSON.stringify(fv)); } catch (e2) {}
+      }
     } catch (e) {}
+    setFeatureLoaded(true);
   })();
 }, []);
 
@@ -1088,6 +1104,7 @@ announcements: state.announcements,
 setPage: navigate,
 isAdmin,
 content: state.content,
+featureLoaded: featureLoaded,
 onAdminAction: ()=>{},
 user: effectiveUser,
 onLoginClick: ()=>setShowLogin(true),

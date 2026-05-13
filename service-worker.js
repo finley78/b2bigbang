@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v93-vocab-pass-score';
+const CACHE_VERSION = 'b2-bigbang-20260513v94-feature-flash-fix';
 const OFFLINE_URLS = [
   './',
   './index.html',
