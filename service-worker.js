@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v95-vocab-study-sets-upload';
+const CACHE_VERSION = 'b2-bigbang-20260513v96-material-xlsx-accept';
 const OFFLINE_URLS = [
   './',
   './index.html',

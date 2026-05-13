@@ -4190,12 +4190,12 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   </div>
                 )}
 
-                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지·문제집 (이미지 또는 PDF, 여러 장 가능){materialEditId ? ' — 새 파일 선택하면 기존 시험지를 교체합니다' : ''}</label>
-                <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setMaterialDraft({ ...materialDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>시험지·문제집·자료 (이미지·PDF·엑셀, 여러 장 가능){materialEditId ? ' — 새 파일 선택하면 기존 시험지를 교체합니다' : ''}</label>
+                <input type="file" accept="image/*,application/pdf,.pdf,.xlsx,.xls,.csv" multiple onChange={e => setMaterialDraft({ ...materialDraft, files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
                 {materialDraft.files && materialDraft.files.length > 0 && <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'12px' }}>새 시험지 {materialDraft.files.length}개 선택됨</div>}
 
-                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>답안지·해설 (선택 — 정답·해설 정확도 향상, PDF 가능){materialEditId ? ' — 새 파일 선택하면 기존 답안을 교체합니다' : ''}</label>
-                <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setMaterialDraft({ ...materialDraft, answer_files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>답안지·해설 (선택 — 정답·해설 정확도 향상, PDF·엑셀 가능){materialEditId ? ' — 새 파일 선택하면 기존 답안을 교체합니다' : ''}</label>
+                <input type="file" accept="image/*,application/pdf,.pdf,.xlsx,.xls,.csv" multiple onChange={e => setMaterialDraft({ ...materialDraft, answer_files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
                 {materialDraft.answer_files && materialDraft.answer_files.length > 0 && <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'12px' }}>새 답안지 {materialDraft.answer_files.length}개 선택됨</div>}
 
                 <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>
