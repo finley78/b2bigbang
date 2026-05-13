@@ -88,7 +88,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [attachDraft, setAttachDraft] = React.useState({ title:'', description:'', scope:'class', class_id:'', student_ids:[], course_id:'', video_id:'', file:null });
 
   // 자료실 — 분석 자료 도서관 (시험·숙제 만들기용; kind='material' exams)
-  const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null };
+  const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', material_type:'exam', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null };
   const [materials, setMaterials] = React.useState([]);
   const [materialLoading, setMaterialLoading] = React.useState(false);
   const [materialUploading, setMaterialUploading] = React.useState(false);
@@ -1299,6 +1299,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setMaterialDraft({
       title: m.title || '', subject: m.subject || '', school_level: m.school_level || '', target_grade: m.target_grade || '', target_semester: m.target_semester || '',
       description: m.description || '',
+      material_type: m.material_type || 'exam',
       files: [], answer_files: [],
       existing_paths: Array.isArray(m.image_paths) ? m.image_paths : [],
       answer_existing_paths: Array.isArray(m.answer_paths) ? m.answer_paths : [],
@@ -1352,6 +1353,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
         target_grade: (d.target_grade||'').trim() || null,
         target_semester: (d.target_semester||'').trim() || null,
         description: (d.description||'').trim() || null,
+        material_type: d.material_type || 'exam',
         image_paths: paths,
         answer_paths: ansPaths,
         analyze_page_range: (d.analyze_page_range || '').trim() || null,
@@ -2867,6 +2869,9 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 {materialLoading ? <div style={{ color:'#9ca3af', fontSize:'13px' }}>불러오는 중...</div> : (() => {
                   var list = (materials || []).filter(function(m){
                     if (!m.analysis) return false; // 분석된 것만 불러올 수 있음
+                    // 시험 발행용 picker: 시험·문제집(exam) 종류만 (단어 관련 자료는 단어장 메뉴에서 다룸)
+                    var mt = m.material_type || 'exam';
+                    if (mt !== 'exam') return false;
                     if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
                     if (materialFilters.level && m.school_level !== materialFilters.level) return false;
                     if (materialFilters.grade && m.target_grade !== materialFilters.grade) return false;
@@ -2881,6 +2886,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                         return (
                           <button key={m.id} onClick={() => loadMaterialIntoExam(m)} style={{ textAlign:'left', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                              <span style={window.B2Utils.materialTypeBadgeStyle(m.material_type)}>{window.B2Utils.materialTypeLabel(m.material_type)}</span>
                               {m.subject && <span style={{ fontSize:'11px', fontWeight:'700', color:'#374151' }}>{m.subject}</span>}
                               {(m.school_level || m.target_grade) && <span style={{ fontSize:'11px', color:'#6b7280' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
                               <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>{m.title}</span>
@@ -4109,6 +4115,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   return (
                     <div key={m.id} style={{ borderBottom:'1px solid #eef2f7', padding:'8px 2px', fontFamily:'Manrope, sans-serif' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                        <span style={window.B2Utils.materialTypeBadgeStyle(m.material_type)}>{window.B2Utils.materialTypeLabel(m.material_type)}</span>
                         {m.analysis ? <span style={{ fontSize:'10px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'1px 6px' }}>분석완료</span> : <span style={{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'1px 6px' }}>분석전</span>}
                         {m.subject && <span style={{ fontSize:'11px', fontWeight:'700', color:'#374151' }}>{m.subject}</span>}
                         {(m.school_level || m.target_grade) && <span style={{ fontSize:'11px', color:'#9ca3af' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
@@ -4152,6 +4159,14 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
 
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>자료 제목 *</label>
                 <input value={materialDraft.title} onChange={e => setMaterialDraft({ ...materialDraft, title: e.target.value })} placeholder="예: 2024 9월 고2 영어 모의고사 / 능률 영어1 3과 본문" style={{ ...inputStyle, marginBottom:'14px' }} />
+
+                <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>자료 종류</label>
+                <select value={materialDraft.material_type || 'exam'} onChange={e => setMaterialDraft({ ...materialDraft, material_type: e.target.value })} style={{ ...inputStyle, marginBottom:'14px' }}>
+                  <option value="exam">시험·문제집</option>
+                  <option value="vocab_list">단어장 원본 (단어+뜻)</option>
+                  <option value="vocab_study_set">5단계 학습 세트 (단어시험 6시트 엑셀)</option>
+                  <option value="other">기타</option>
+                </select>
 
                 <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
                   <div style={{ flex:1 }}>

@@ -498,5 +498,26 @@
     return String(v);
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone };
+  // ── 자료실(material) 자료 종류 라벨/뱃지 ──────────────────────────
+  // exams.material_type 값(NULL/'exam'/'vocab_list'/'vocab_study_set'/'other')에 따른 표시.
+  // 자료실 카드 + 자료 불러오기 picker + 업로드 폼에서 공통 사용.
+  function materialTypeLabel(t) {
+    var k = t || 'exam';
+    if (k === 'vocab_list') return '단어장 원본';
+    if (k === 'vocab_study_set') return '5단계 학습 세트';
+    if (k === 'other') return '기타';
+    return '시험·문제집';
+  }
+  function materialTypeBadgeStyle(t) {
+    var k = t || 'exam';
+    var pal = {
+      exam:            { bg:'#dbeafe', color:'#1e40af' }, // 파랑
+      vocab_list:      { bg:'#ede9fe', color:'#6d28d9' }, // 보라
+      vocab_study_set: { bg:'#ccfbf1', color:'#0f766e' }, // 청록
+      other:           { bg:'#f3f4f6', color:'#374151' }, // 회색
+    }[k] || { bg:'#dbeafe', color:'#1e40af' };
+    return { background: pal.bg, color: pal.color, fontSize:'10px', fontWeight:'800', padding:'2px 7px', borderRadius:'4px', letterSpacing:'0.02em', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
+  }
+
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle };
 })();

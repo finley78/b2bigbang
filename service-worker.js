@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v96-material-xlsx-accept';
+const CACHE_VERSION = 'b2-bigbang-20260513v97-material-type-badge';
 const OFFLINE_URLS = [
   './',
   './index.html',

@@ -182,7 +182,7 @@ const [analyzingExamId, setAnalyzingExamId] = React.useState(null);
 const [analysisOpenId, setAnalysisOpenId] = React.useState(null);
 const [analyzingStudentId, setAnalyzingStudentId] = React.useState(null);
 // 자료실 — 분석 자료 도서관 (시험·숙제 만들기용; kind='material' exams)
-const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null };
+const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', material_type:'exam', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null };
 const [materials, setMaterials] = React.useState([]);
 const [materialLoading, setMaterialLoading] = React.useState(false);
 const [materialUploading, setMaterialUploading] = React.useState(false);
@@ -861,6 +861,7 @@ function openMaterialFormForEdit(m) {
   setMaterialDraft({
     title: m.title || '', subject: m.subject || '', school_level: m.school_level || '', target_grade: m.target_grade || '', target_semester: m.target_semester || '',
     description: m.description || '',
+    material_type: m.material_type || 'exam',
     files: [], answer_files: [],
     existing_paths: Array.isArray(m.image_paths) ? m.image_paths : [],
     answer_existing_paths: Array.isArray(m.answer_paths) ? m.answer_paths : [],
@@ -914,6 +915,7 @@ async function submitMaterial(thenAnalyze) {
       target_grade: (d.target_grade||'').trim() || null,
       target_semester: (d.target_semester||'').trim() || null,
       description: (d.description||'').trim() || null,
+      material_type: d.material_type || 'exam',
       image_paths: paths,
       answer_paths: ansPaths,
       analyze_page_range: (d.analyze_page_range || '').trim() || null,
@@ -4587,6 +4589,7 @@ tab==='files' && React.createElement('div', null,
             var open = materialAnalysisOpenId === m.id; var busy = analyzingMaterialId === m.id;
             return React.createElement('div', { key:m.id, style:{ borderBottom:'1px solid #eef2f7', padding:'8px 2px', fontFamily:'Manrope, sans-serif' } },
               React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+                React.createElement('span', { style: window.B2Utils.materialTypeBadgeStyle(m.material_type) }, window.B2Utils.materialTypeLabel(m.material_type)),
                 m.analysis ? React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'1px 6px' } }, '분석완료') : React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'1px 6px' } }, '분석전'),
                 m.subject && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151' } }, m.subject),
                 (m.school_level || m.target_grade) && React.createElement('span', { style:{ fontSize:'11px', color:'#9ca3af' } }, [m.school_level, m.target_grade].filter(Boolean).join(' ')),
@@ -4625,6 +4628,13 @@ tab==='files' && React.createElement('div', null,
       ),
       React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '자료 제목 *'),
       React.createElement('input', { value:materialDraft.title, onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { title:e.target.value })); }, placeholder:'예: 2024 9월 고2 영어 모의고사 / 능률 영어1 3과', style:Object.assign({}, inputS, { marginBottom:'14px', width:'100%' }) }),
+      React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '자료 종류'),
+      React.createElement('select', { value:materialDraft.material_type || 'exam', onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { material_type:e.target.value })); }, style:Object.assign({}, inputS, { width:'100%', marginBottom:'14px' }) },
+        React.createElement('option', { value:'exam' }, '시험·문제집'),
+        React.createElement('option', { value:'vocab_list' }, '단어장 원본 (단어+뜻)'),
+        React.createElement('option', { value:'vocab_study_set' }, '5단계 학습 세트 (단어시험 6시트 엑셀)'),
+        React.createElement('option', { value:'other' }, '기타')
+      ),
       React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px' } },
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '과목'),
@@ -5169,6 +5179,9 @@ tab==='leveltest' && (function(){
       materialLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px' } }, '불러오는 중...') : (function(){
         var list = (materials || []).filter(function(m){
           if (!m.analysis) return false;
+          // 시험 발행용 picker: 시험·문제집(exam) 종류만 (단어 관련 자료는 단어장 메뉴에서 다룸)
+          var mt = m.material_type || 'exam';
+          if (mt !== 'exam') return false;
           if (materialFilters.subject && m.subject !== materialFilters.subject) return false;
           if (materialFilters.level && m.school_level !== materialFilters.level) return false;
           if (materialFilters.grade && m.target_grade !== materialFilters.grade) return false;
@@ -5181,6 +5194,7 @@ tab==='leveltest' && (function(){
             var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
             return React.createElement('button', { key:m.id, onClick:function(){ loadMaterialIntoExam(m); }, style:{ textAlign:'left', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } },
               React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+                React.createElement('span', { style: window.B2Utils.materialTypeBadgeStyle(m.material_type) }, window.B2Utils.materialTypeLabel(m.material_type)),
                 m.subject && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151' } }, m.subject),
                 (m.school_level || m.target_grade) && React.createElement('span', { style:{ fontSize:'11px', color:'#6b7280' } }, [m.school_level, m.target_grade].filter(Boolean).join(' ')),
                 React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, m.title)
