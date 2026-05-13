@@ -723,7 +723,36 @@ async function adminSubmitLevelTest(thenAnalyze) {
           setAnalysisOpenId(savedId);
           var u = (r.data && r.data.usage) || {};
           setAdminLtDraft(function(p){ return Object.assign({}, p, { id: savedId, analysis: (r.data && r.data.analysis) || p.analysis }); });
-          alert('문항 분석 완료!' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' / 출력 ' + (u.output_tokens||0) + ' 토큰)' : ''));
+          // 자료실 자동 수집: 새로 업로드+분석한 경우 자료실에도 같은 자료로 row 추가하고 material_id 로 연결
+          if (!d.material_id) {
+            try {
+              var mIns = await sb.from('exams').insert({
+                kind: 'material', class_id: null,
+                material_type: 'exam',
+                teacher_id: null, teacher_name: '관리자',
+                title: d.title.trim(),
+                subject: (d.subject||'').trim() || null,
+                school_level: d.school_level || null,
+                target_grade: d.target_grade || null,
+                target_semester: d.target_semester || null,
+                description: (d.description||'').trim() || null,
+                image_paths: row.image_paths, answer_paths: row.answer_paths,
+                analyze_page_range: row.analyze_page_range,
+                selected_questions: row.selected_questions,
+                analyze_model: row.analyze_model,
+                analyze_student_model: row.analyze_student_model,
+                analysis: (r.data && r.data.analysis) || null,
+                answer_key: row.answer_key || {},
+                question_count: row.question_count, text_question_count: row.text_question_count, choices_per_question: row.choices_per_question,
+                status: 'open',
+              }).select('id').single();
+              if (mIns && mIns.data && mIns.data.id) {
+                await sb.from('exams').update({ material_id: mIns.data.id }).eq('id', savedId);
+              }
+              await loadMaterials();
+            } catch (mErr) { console.warn('자료실 자동 수집 실패:', mErr); }
+          }
+          alert('문항 분석 완료!' + (u.input_tokens ? '\n(입력 ' + u.input_tokens + ' / 출력 ' + (u.output_tokens||0) + ' 토큰)' : '') + '\n— 자료실에도 같이 보관됐어요.');
         }
       } catch (ee) { alert('저장은 됐지만 문항 분석 실패: ' + (ee.message || ee)); }
       finally { setAnalyzingExamId(null); }
@@ -5039,6 +5068,34 @@ tab==='leveltest' && (function(){
       !adminLtDraft.material_id && React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시험지 직접 올리기 (이미지 또는 PDF)' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 시험지 전체가 교체됩니다' : ' (선택 — 자료실에서 안 불러올 때만)')),
       !adminLtDraft.material_id && React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
       (!adminLtDraft.material_id && adminLtDraft.files && adminLtDraft.files.length > 0) && React.createElement('div', { style:{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' } }, '새 시험지 ' + adminLtDraft.files.length + '장 선택됨 (저장 시 교체)'),
+      // 답안지·해설 입력 + 분석 범위 + 정밀 체크박스 — 자료실에서 안 불러왔을 때만
+      !adminLtDraft.material_id && React.createElement(React.Fragment, null,
+        React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '답안지·해설 (선택 — 자동 채점·해설 정확도 향상, PDF 가능)' + (adminLtDraft.id ? ' — 새 파일 선택하면 위 기존 답안을 교체합니다' : '')),
+        React.createElement('input', { type:'file', accept:'image/*,application/pdf,.pdf', multiple:true, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { answer_files: Array.from(e.target.files || []) })); }, style:{ width:'100%', fontSize:'13px', marginBottom:'4px' } }),
+        adminLtDraft.answer_files && adminLtDraft.answer_files.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' } }, '새 답안지 ' + adminLtDraft.answer_files.length + '개 선택됨 (저장 시 교체)'),
+
+        React.createElement('div', { style:{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } },
+          React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#0f766e', marginBottom:'8px' } }, '분석 범위 (선택 — 비워두면 전체 분석)'),
+          React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap' } },
+            React.createElement('div', { style:{ flex:1, minWidth:'140px' } },
+              React.createElement('label', { style:{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' } }, '분석할 페이지 (예: 3-5)'),
+              React.createElement('input', { type:'text', value: adminLtDraft.analyze_page_range || '', onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { analyze_page_range: e.target.value })); }, placeholder:'비워두면 전체', style:Object.assign({}, inputS, { width:'100%' }) })
+            ),
+            React.createElement('div', { style:{ flex:1, minWidth:'140px' } },
+              React.createElement('label', { style:{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' } }, '학생에게 낼 문항 번호 (예: 21-40)'),
+              React.createElement('input', { type:'text', value: adminLtDraft.selected_questions_text || '', onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { selected_questions_text: e.target.value })); }, placeholder:'비워두면 전체', style:Object.assign({}, inputS, { width:'100%' }) })
+            )
+          ),
+          React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', fontSize:'12px', color:'#0f766e', fontWeight:'700' } },
+            React.createElement('input', { type:'checkbox', checked:!!adminLtDraft.precise, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { precise: e.target.checked })); }, style:{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#0f766e' } }),
+            React.createElement('span', null, '정밀 분석 (Opus — 비용 약 5배)')
+          ),
+          React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'4px', fontSize:'12px', color:'#0f766e', fontWeight:'700' } },
+            React.createElement('input', { type:'checkbox', checked:!!adminLtDraft.precise_student, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { precise_student: e.target.checked })); }, style:{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#0f766e' } }),
+            React.createElement('span', null, '학생 답안 분석도 정밀하게 (Opus)')
+          )
+        )
+      ),
       React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', marginBottom:'14px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'#374151', fontWeight:'700' } },
         React.createElement('input', { type:'checkbox', checked:!!adminLtDraft.hide_paper, onChange:function(e){ setAdminLtDraft(Object.assign({}, adminLtDraft, { hide_paper:e.target.checked })); }, style:{ width:'16px', height:'16px', cursor:'pointer', accentColor:'#E60012' } }),
         React.createElement('span', null, '종이 시험지로 진행 — 학생 화면엔 OMR 답안만 표시 (시험지는 종이로 나눠줌)')
@@ -5147,6 +5204,8 @@ tab==='leveltest' && (function(){
           )
         );
       })(),
+      // 시험지가 있고 자료실에서 안 불러왔으면 "저장 + Claude 분석" 옵션
+      !adminLtDraft.material_id && ((adminLtDraft.existing_paths||[]).length > 0 || (adminLtDraft.files||[]).length > 0) && React.createElement('button', { onClick:function(){ adminSubmitLevelTest(true); }, disabled: adminLtUploading, style:{ width:'100%', background: adminLtUploading ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: adminLtUploading ? 'not-allowed' : 'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, adminLtUploading ? '저장+분석 중...' : '저장 + Claude 문항 분석'),
       React.createElement('button', { onClick:function(){ adminSubmitLevelTest(false); }, disabled: adminLtUploading, style:{ width:'100%', background: adminLtUploading ? '#9ca3af' : '#E60012', color:'#fff', border:'none', borderRadius:'9px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: adminLtUploading ? 'not-allowed' : 'pointer', marginTop:'4px', fontFamily:'Manrope, sans-serif' } }, adminLtUploading ? '저장 중...' : (adminLtDraft.id ? '수정 저장' : (adminLtDraft.kind === 'homework' ? '숙제 발행' : (adminLtDraft.kind === 'weekly' ? '주간 테스트 발행' : (adminLtDraft.kind === 'monthly' ? '월말 테스트 발행' : '레벨테스트 발행'))))),
       React.createElement('div', { style:{ marginTop:'8px' } },
         React.createElement('button', { onClick:adminCloseLtForm, disabled: adminLtUploading, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'10px', fontSize:'13px', fontWeight:'700', cursor: adminLtUploading ? 'not-allowed' : 'pointer' } }, '닫기')

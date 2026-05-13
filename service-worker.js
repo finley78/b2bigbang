@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v103-study5-player';
+const CACHE_VERSION = 'b2-bigbang-20260513v104-admin-exam-analyze';
 const OFFLINE_URLS = [
   './',
   './index.html',
