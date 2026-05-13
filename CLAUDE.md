@@ -123,7 +123,9 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-13 기준, 최신 ?v=20260513v103-study5-player)
+## 현재 진행 (2026-05-13 기준, 최신 ?v=20260513v105-material-types-simplified)
+> v105: 자료실 자료 종류 단순화 — 단어장 원본/5단계 학습 세트 옵션 제거, 시험·문제집/기타 2종만. 단어장 자료는 단어장 메뉴에서 다룬다는 안내문 추가. 기존 vocab_list/vocab_study_set 행은 카드에 그대로 보임(라벨만 유지). 시험 발행 picker는 이미 material_type='exam' 필터로 영향 없음. (UX 간소화 #4)
+> v104 (Phase 1.5): AdminPanel 레벨테스트/주간/월말/숙제 폼에도 TeacherPortal와 같은 분석 통합 흐름 적용. 답안지 입력 + 분석 범위 카드 + 정밀(Opus) 체크박스 2개 + '저장 + Claude 문항 분석' 버튼. 분석 성공하면 자료실(kind='material', material_type='exam') row 자동 추가 + material_id 연결. 이제 관리자도 자료실 안 거치고 시험 폼 한 곳에서 끝나는 흐름.
 > v103 (★ Phase 2 — 5단계 학생 응시 화면): `StudySet5Player` 추가 — vocab_study_sets 행을 1→2→2.5→3→어법 순서로 풀기. 단계별 진행률, 보기 셔플(seeded 안 흔들림), 정답/오답 피드백, 단계 끝나면 단계 점수 + 다음 단계로, 모두 끝나면 종합 결과. 영작(3단계)은 텍스트 빈칸 입력(`Stage3Question`) — 영문 sentence를 `___`로 split해 input 박스. 이전/모름/다음 버튼 다 있음. 점수 저장 안 함(자유 학습). 학생 STUDY 모드 picker에 `5단계 학습 세트` 메인 옵션으로 (highlight bg). 자료 없으면 안내 메시지.
 > v102: 단어시험 응시화면에 이전/건너뛰기/다음 + 자동 발음 (영어 단어 보이는 문제만). maxIdx 추적으로 이전 문제 review 모드 = 자동 진행 안 함. (다른 변경 동반.)
 > v101: 시험·숙제 발행 폼에서 직접 분석 + 자료실 자동 수집 (TeacherPortal Phase 1).
