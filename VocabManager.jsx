@@ -290,7 +290,11 @@
       var unitWords = words.slice((u-1) * unitSize, u * unitSize);
       var unitTests = tests.filter(function(t){ return t.unit_index === u; });
       var unitStudy = studySets.find(function(s){ return s.unit_index === u; }) || null;
-      var unitAssignments = assignments.filter(function(a){ return a.unit_index === u; });
+      var unitAssignments = assignments.filter(function(a){ return a.unit_index === u; }).slice().sort(function(a, b){
+        // 연습이 먼저, 시험이 뒤. 같은 종류는 최신순.
+        if (a.mode !== b.mode) return a.mode === 'practice' ? -1 : 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
       unitsArray.push({ unit_index: u, words: unitWords, tests: unitTests, study: unitStudy, assignments: unitAssignments });
     }
 

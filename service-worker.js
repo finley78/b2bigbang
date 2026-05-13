@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v110-clean-old-tests';
+const CACHE_VERSION = 'b2-bigbang-20260513v111-practice-first';
 const OFFLINE_URLS = [
   './',
   './index.html',
