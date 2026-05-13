@@ -1761,24 +1761,27 @@
               classes.map(function(c){ return React.createElement('option', { key:c.id, value:c.id }, c.name + (c.grade ? (' — ' + c.grade) : '')); })
             )
           ),
-          // 개별 학생 추가
-          React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, '개별 학생 직접 지정 (선택)'),
-          React.createElement('input', { type:'text', value: studentSearch, onChange:function(e){ setStudentSearch(e.target.value); }, placeholder:'학생 이름 검색', style:Object.assign({}, inputStyleS, { width:'100%', marginBottom:'6px' }) }),
-          studentSearch && React.createElement('div', { style:{ maxHeight:'120px', overflowY:'auto', border:'1px solid #e5e7eb', borderRadius:'6px', marginBottom:'6px' } },
-            filteredStudents.slice(0, 30).map(function(s){
-              var picked = individualIds.indexOf(s.id) >= 0;
-              return React.createElement('div', { key:s.id, onClick:function(){ toggleStudent(s.id); }, style:{ padding:'6px 10px', cursor:'pointer', fontSize:'12px', borderBottom:'1px solid #f3f4f6', background: picked ? '#FFEBED' : '#fff', color: picked ? '#E60012' : '#1A1A1A', fontFamily:'Manrope, sans-serif', display:'flex', justifyContent:'space-between', alignItems:'center' } },
-                React.createElement('span', null, s.name + ' (' + (s.grade || '?') + ')'),
-                picked && React.createElement('span', { style:{ fontWeight:'800' } }, '✓')
-              );
-            })
+          // 개별 학생 추가 — 리스트 항상 보임, 체크박스로 선택
+          React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'4px', fontFamily:'Manrope, sans-serif', display:'flex', justifyContent:'space-between', alignItems:'center' } },
+            React.createElement('span', null, '개별 학생 직접 지정 (선택)' + (individualIds.length > 0 ? ' — ' + individualIds.length + '명 선택' : '')),
+            filteredStudents.length > 0 && React.createElement('button', { onClick: function(){
+              var allFilteredPicked = filteredStudents.every(function(s){ return individualIds.indexOf(s.id) >= 0; });
+              if (allFilteredPicked) setIndividualIds(individualIds.filter(function(id){ return !filteredStudents.find(function(s){ return s.id === id; }); }));
+              else setIndividualIds(individualIds.concat(filteredStudents.map(function(s){ return s.id; }).filter(function(id){ return individualIds.indexOf(id) < 0; })));
+            }, style:{ background:'transparent', color:'#E60012', border:'none', cursor:'pointer', fontSize:'11px', fontWeight:'700' } }, filteredStudents.every(function(s){ return individualIds.indexOf(s.id) >= 0; }) ? '전체 해제' : '보이는 학생 전체 선택')
           ),
-          individualIds.length > 0 && React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'4px' } },
-            individualIds.map(function(sid){
-              var s = students.find(function(x){ return x.id === sid; });
-              if (!s) return null;
-              return React.createElement('span', { key:sid, onClick:function(){ toggleStudent(sid); }, style:{ background:'#FFEBED', color:'#E60012', fontSize:'11px', fontWeight:'700', padding:'3px 8px', borderRadius:'12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, s.name + ' ×');
-            })
+          React.createElement('input', { type:'text', value: studentSearch, onChange:function(e){ setStudentSearch(e.target.value); }, placeholder:'학생 이름 검색 (초중고·학년으로도 자동 필터됨)', style:Object.assign({}, inputStyleS, { width:'100%', marginBottom:'6px' }) }),
+          React.createElement('div', { style:{ maxHeight:'200px', overflowY:'auto', border:'1px solid #e5e7eb', borderRadius:'6px', marginBottom:'6px' } },
+            filteredStudents.length === 0
+              ? React.createElement('div', { style:{ padding:'12px', textAlign:'center', color:'#9ca3af', fontSize:'12px' } }, '보이는 학생이 없습니다')
+              : filteredStudents.map(function(s){
+                  var picked = individualIds.indexOf(s.id) >= 0;
+                  return React.createElement('label', { key:s.id, style:{ padding:'7px 10px', cursor:'pointer', fontSize:'12px', borderBottom:'1px solid #f3f4f6', background: picked ? '#FFEBED' : '#fff', color: picked ? '#E60012' : '#1A1A1A', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'8px' } },
+                    React.createElement('input', { type:'checkbox', checked: picked, onChange:function(){ toggleStudent(s.id); }, style:{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#E60012' } }),
+                    React.createElement('span', { style:{ flex:1 } }, s.name),
+                    React.createElement('span', { style:{ fontSize:'10px', color: picked ? '#E60012' : 'rgba(0,0,0,0.4)' } }, s.grade || '')
+                  );
+                })
           )
         ),
 

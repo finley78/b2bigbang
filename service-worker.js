@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v111-practice-first';
+const CACHE_VERSION = 'b2-bigbang-20260513v112-student-list-checkbox';
 const OFFLINE_URLS = [
   './',
   './index.html',
