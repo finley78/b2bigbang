@@ -672,6 +672,7 @@
     var [timeLeft, setTimeLeft] = React.useState(0);
     var [submitted, setSubmitted] = React.useState(false);
     var [finalScore, setFinalScore] = React.useState(null); // { score, total, attempt_number }
+    var [maxIdx, setMaxIdx] = React.useState(0); // 가장 멀리 간 idx — 이보다 작은 idx로 가면 review (자동 진행 안 함)
 
     // 단어 로드 + 문제 출제
     React.useEffect(function(){
@@ -710,33 +711,65 @@
       return function(){ clearInterval(timer); };
     }, [idx, started, phase]);
 
-    // 듣기 모드 자동 발음
+    // 자동 발음 — 듣기 모드는 항상, 객관식은 영어 단어가 보일 때만 (답이 영어인 모드는 힌트 방지)
     React.useEffect(function(){
       if (!started || !current) return;
-      if (current.mode === 'listening' && phase === 'answering') {
-        var t = setTimeout(function(){ speak(current.word); }, 200);
-        return function(){ clearTimeout(t); };
-      }
+      if (phase !== 'answering') return;
+      var shouldSpeak = (
+        current.mode === 'listening' ||
+        (current.mode === 'multiple_choice' && current.direction === 'word_to_meaning')
+      );
+      if (!shouldSpeak) return;
+      var t = setTimeout(function(){ speak(current.word); }, 200);
+      return function(){ clearTimeout(t); };
     }, [idx, started, phase]);
+
+    // 정답 표시 후 자동 진행 — show_answer_seconds 후. review(이전 문제 보는 중)면 자동 진행 안 함.
+    React.useEffect(function(){
+      if (!started || phase !== 'showing') return;
+      if (idx < maxIdx) return; // 이전 문제 다시 보는 중 — 자동 진행 금지
+      var ms = (test.show_answer_seconds || 2) * 1000;
+      var timer = setTimeout(function(){ goNext(answers); }, ms);
+      return function(){ clearTimeout(timer); };
+    }, [phase, idx, maxIdx, started]);
+
+    function goNext(answersObj) {
+      var ao = answersObj || answers;
+      if (idx < total - 1) {
+        var ni = idx + 1;
+        setIdx(ni);
+        if (ni > maxIdx) setMaxIdx(ni);
+        setPhase(ao[ni] !== undefined ? 'showing' : 'answering');
+      } else {
+        setPhase('done');
+        submitFinal(ao);
+      }
+    }
+    function goPrev() {
+      if (idx <= 0) return;
+      setIdx(idx - 1);
+      setPhase('showing'); // 이전 문제는 이미 답했거나 건너뛴 상태 — 정답이 보이는 review 모드
+    }
 
     function handleAnswer(userAns, fromTimeout) {
       if (phase !== 'answering') return;
-      // 마지막 답안을 state 업데이트와 별개로 직접 보관 → submitFinal에 정확히 전달
       var nextAnswers = Object.assign({}, answers);
       nextAnswers[idx] = userAns;
       setAnswers(nextAnswers);
       setPhase('showing');
-      // 정답 표시 시간 후 다음 문제
-      var ms = (test.show_answer_seconds || 2) * 1000;
-      setTimeout(function(){
-        if (idx < total - 1) {
-          setIdx(idx + 1);
-          setPhase('answering');
-        } else {
-          setPhase('done');
-          submitFinal(nextAnswers);  // 마지막 답안 포함된 객체 직접 전달
-        }
-      }, ms);
+      // useEffect 가 show_answer_seconds 후 자동 진행 처리
+    }
+    function handleSkip() {
+      // 모름·답 없이 즉시 다음
+      if (phase !== 'answering') return;
+      var nextAnswers = Object.assign({}, answers);
+      nextAnswers[idx] = null;
+      setAnswers(nextAnswers);
+      goNext(nextAnswers);
+    }
+    function handleNextNow() {
+      // 정답 표시 중에 즉시 다음 (2초 안 기다림)
+      goNext(answers);
     }
 
     async function submitFinal(answersOverride) {
@@ -793,8 +826,9 @@
             React.createElement('div', { style: { fontSize: '13px', color: THEME.textMid, lineHeight: '1.8', marginBottom: '20px', textAlign: 'left' } },
               React.createElement('div', null, '• 총 ' + total + '문제 (단어당 ' + (test.seconds_per_question || 30) + '초)'),
               React.createElement('div', null, '• 답을 선택하면 정답이 ' + (test.show_answer_seconds || 2) + '초간 표시됩니다'),
-              React.createElement('div', null, '• 시간이 다 되면 자동으로 다음 문제로 넘어갑니다'),
-              React.createElement('div', null, '• 듣기 문제는 발음을 듣고 단어를 입력하세요')
+              React.createElement('div', null, '• "모름/건너뛰기" 또는 "다음 →" 버튼으로 직접 넘길 수 있어요'),
+              React.createElement('div', null, '• "← 이전" 으로 풀었던 문제 다시 볼 수도 있어요'),
+              React.createElement('div', null, '• 영어 단어가 보이는 문제는 발음이 자동 재생됩니다 ("다시 듣기"로 재생 가능)')
             ),
             React.createElement('button', { onClick: function(){ setStarted(true); setStartedAt(Date.now()); }, style: S.btnPrimary }, '시작')
           )
@@ -862,7 +896,16 @@
 
       // 문제 본체
       React.createElement('div', { style: { padding: '24px 16px', maxWidth: '600px', margin: '0 auto' } },
-        React.createElement(QuestionCard, { question: current, phase: phase, userAnswer: userAnswer, isCorrect: isCorrect, onAnswer: handleAnswer })
+        React.createElement(QuestionCard, { question: current, phase: phase, userAnswer: userAnswer, isCorrect: isCorrect, onAnswer: handleAnswer }),
+        // 영어 단어 자동 발음 후에도 다시 듣고 싶을 때 — 답 보일 때만 (답안 직전 발음 누설 방지)
+        current && ((current.mode === 'listening') || (current.mode === 'multiple_choice' && current.direction === 'word_to_meaning')) && React.createElement('button', { onClick: function(){ speak(current.word); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '8px 14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font, marginTop: '14px' } }, '다시 듣기'),
+        // 이전 · 건너뛰기/다음 버튼
+        React.createElement('div', { style: { display: 'flex', gap: '8px', marginTop: '20px' } },
+          React.createElement('button', { onClick: goPrev, disabled: idx === 0, style: Object.assign({}, S.btnGhost, { flex: 1, opacity: idx === 0 ? 0.4 : 1, cursor: idx === 0 ? 'not-allowed' : 'pointer' }) }, '← 이전'),
+          phase === 'answering'
+            ? React.createElement('button', { onClick: handleSkip, style: Object.assign({}, S.btnGhost, { flex: 1 }) }, '모름 / 건너뛰기 →')
+            : React.createElement('button', { onClick: handleNextNow, style: Object.assign({}, S.btnPrimary, { flex: 1, padding: '10px 16px', fontSize: '14px' }) }, idx < total - 1 ? '다음 →' : '결과 보기 →')
+        )
       )
     );
   }
