@@ -282,8 +282,9 @@
     var unitSize = list.unit_size || 20;
     var maxWordUnit = Math.ceil(words.length / unitSize);
     var maxStudyUnit = studySets.reduce(function(m, s){ return Math.max(m, s.unit_index || 0); }, 0);
-    // 유닛 그리드: 현재 데이터에 따른 유닛 + **항상 다음 빈 유닛 1개도 보여줌** — [+ 5단계 세트 업로드] 시작점
-    var unitCount = Math.max(maxWordUnit, maxStudyUnit) + 1;
+    // 채워진 유닛만 표시 — 다음 유닛은 상단의 '+ 5단계 학습 세트 업로드' 버튼이 자동 배치.
+    // 단, 단어가 하나도 없으면 최소 UNIT 1은 보여주어 어디 시작할지 알게 함.
+    var unitCount = Math.max(maxWordUnit, maxStudyUnit, 1);
     // 유닛별 단어 그룹화
     var unitsArray = [];
     for (var u = 1; u <= unitCount; u++) {
