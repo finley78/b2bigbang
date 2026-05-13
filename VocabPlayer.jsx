@@ -190,17 +190,18 @@
               ),
               React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr', gap: '10px' } },
                 [
+                  { id: 'study5', label: '5단계 학습 세트', desc: '단어 → 예문 해석 → 빈칸 → 영작 → 어법 순서로 풀기', emoji: '', highlight: true },
                   { id: 'flashcard', label: 'Flash Card', desc: '단어를 보고 외우기 (자동 진행, 발음 자동)', emoji: '' },
                   { id: 'multiple_choice', label: '객관식', desc: '4지선다로 뜻 맞추기', emoji: '' },
                   { id: 'spelling', label: '스펠링 채우기', desc: '일부 빈칸을 채우기', emoji: '' },
                   { id: 'writing', label: '뜻 보고 쓰기', desc: '뜻을 보고 단어 쓰기', emoji: '' },
                   { id: 'listening', label: '듣고 쓰기', desc: '발음을 듣고 단어 쓰기', emoji: '' },
                 ].map(function(m){
-                  return React.createElement('button', { key: m.id, onClick: function(){ pickMode(m.id); }, style: { background: '#fff', border: '1.5px solid ' + THEME.border, borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', fontFamily: THEME.font, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' } },
+                  return React.createElement('button', { key: m.id, onClick: function(){ pickMode(m.id); }, style: { background: m.highlight ? THEME.primaryBg : '#fff', border: '1.5px solid ' + (m.highlight ? THEME.primary : THEME.border), borderRadius: '12px', padding: '14px 16px', cursor: 'pointer', fontFamily: THEME.font, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' } },
                     React.createElement('div', { style: { fontSize: '24px', width: '40px', textAlign: 'center' } }, m.emoji),
                     React.createElement('div', { style: { flex: 1 } },
-                      React.createElement('div', { style: { fontSize: '14px', fontWeight: '800', color: THEME.dark } }, m.label),
-                      React.createElement('div', { style: { fontSize: '11px', color: THEME.textMid, marginTop: '2px' } }, m.desc)
+                      React.createElement('div', { style: { fontSize: '14px', fontWeight: '800', color: m.highlight ? THEME.primary : THEME.dark } }, m.label),
+                      React.createElement('div', { style: { fontSize: '11px', color: m.highlight ? THEME.primary : THEME.textMid, marginTop: '2px' } }, m.desc)
                     )
                   );
                 })
@@ -214,6 +215,7 @@
   // ── STUDY 학습 화면 (모드별 라우팅) ───────────────────
   function StudyPlayer(props) {
     if (props.mode === 'flashcard') return React.createElement(FlashCardPlayer, props);
+    if (props.mode === 'study5') return React.createElement(StudySet5Player, props);
     return React.createElement(StudyQuizPlayer, props);
   }
 
@@ -303,6 +305,317 @@
             : React.createElement('button', { onClick: props.onDone, style: Object.assign({}, S.btnPrimary, { flex: 1, padding: '10px 16px', fontSize: '14px' }) }, '완료')
         )
       )
+    );
+  }
+
+  // ── STUDY 5단계 학습 세트 (1단계 단어 → 2단계 해석 → 2.5단계 빈칸 → 3단계 영작 → 어법) ─────
+  // vocab_study_sets 행에 저장된 stage1/stage2/stage25/stage3/grammar 를 순서대로 푸는 학습 흐름.
+  // 점수 저장 안 함 — 자유 학습.
+  function StudySet5Player(props) {
+    var sb = window.supabase;
+    var [studyData, setStudyData] = React.useState(null);
+    var [loading, setLoading] = React.useState(true);
+    var [stage, setStage] = React.useState('1'); // '1' | '2' | '25' | '3' | 'grammar' | 'done'
+    var [idx, setIdx] = React.useState(0);
+    var [phase, setPhase] = React.useState('answering'); // 'answering' | 'showing'
+    var [answers, setAnswers] = React.useState({}); // { stage: { idx: userAns } }
+    var [stageScores, setStageScores] = React.useState({}); // { stage: {correct, total} }
+
+    React.useEffect(function(){
+      (async function(){
+        try {
+          var res = await sb.from('vocab_study_sets').select('*').eq('list_id', props.list.id).eq('unit_index', props.unitIndex).maybeSingle();
+          if (res && res.data) setStudyData(res.data);
+        } catch (e) { console.error('학습 세트 로드 실패:', e); }
+        setLoading(false);
+      })();
+    }, []);
+
+    var STAGE_ORDER = ['1', '2', '25', '3', 'grammar'];
+    var STAGE_LABEL = { '1': '1단계 — 단어', '2': '2단계 — 예문 해석', '25': '2.5단계 — 빈칸 채우기', '3': '3단계 — 영작 빈칸', 'grammar': '어법 — 문법 분석' };
+    function getStageItems(s) {
+      if (!studyData) return [];
+      if (s === '1') return studyData.stage1 || [];
+      if (s === '2') return studyData.stage2 || [];
+      if (s === '25') return studyData.stage25 || [];
+      if (s === '3') return studyData.stage3 || [];
+      if (s === 'grammar') return studyData.grammar || [];
+      return [];
+    }
+    function nextStage(s) {
+      var i = STAGE_ORDER.indexOf(s);
+      return i >= 0 && i < STAGE_ORDER.length - 1 ? STAGE_ORDER[i + 1] : null;
+    }
+    // 객관식 보기 셔플 — 문제별로 시드 고정해서 re-render 시 흔들리지 않게
+    function seededShuffle(arr, seed) {
+      var r = arr.slice();
+      var s = seed;
+      for (var i = r.length - 1; i > 0; i--) {
+        s = (s * 9301 + 49297) % 233280;
+        var j = Math.floor((s / 233280) * (i + 1));
+        var t = r[i]; r[i] = r[j]; r[j] = t;
+      }
+      return r;
+    }
+    function stageIdxSeed(stageKey, idx) {
+      var s = idx * 31 + 1;
+      for (var c = 0; c < stageKey.length; c++) s = (s * 17 + stageKey.charCodeAt(c)) % 1000000;
+      return s + 1;
+    }
+    function isCorrect(stageKey, item, userAns) {
+      if (userAns == null || userAns === '') return false;
+      if (stageKey === 'grammar') {
+        // userAns는 선택한 옵션 텍스트. 정답은 1-based index → options[correct-1]
+        var correctText = (item.options || [])[(item.correct || 1) - 1];
+        return userAns === correctText;
+      }
+      if (stageKey === '3') {
+        // 영작 — 빈칸 정답 배열을 ',' 로 모은 사용자 입력과 비교
+        var got = String(userAns || '').split('|||').map(function(s){ return String(s||'').trim().toLowerCase(); });
+        var want = (item.answers || []).map(function(s){ return String(s||'').trim().toLowerCase(); });
+        if (got.length !== want.length) return false;
+        for (var k = 0; k < want.length; k++) if (got[k] !== want[k]) return false;
+        return true;
+      }
+      return String(userAns).trim() === String(item.correct || '').trim();
+    }
+    function recordAnswer(userAns) {
+      if (phase !== 'answering') return;
+      var sa = Object.assign({}, answers);
+      if (!sa[stage]) sa[stage] = {};
+      sa[stage] = Object.assign({}, sa[stage]);
+      sa[stage][idx] = userAns;
+      setAnswers(sa);
+      setPhase('showing');
+    }
+    function goNext() {
+      var items = getStageItems(stage);
+      if (idx < items.length - 1) {
+        setIdx(idx + 1);
+        setPhase('answering');
+      } else {
+        // 단계 종료 — 점수 계산 + 다음 단계
+        var sa = answers[stage] || {};
+        var correct = 0;
+        items.forEach(function(it, i){ if (isCorrect(stage, it, sa[i])) correct++; });
+        setStageScores(function(p){ var o = Object.assign({}, p); o[stage] = { correct: correct, total: items.length }; return o; });
+        var ns = nextStage(stage);
+        if (ns && getStageItems(ns).length > 0) {
+          setStage(ns); setIdx(0); setPhase('answering');
+        } else {
+          setStage('done');
+        }
+      }
+    }
+    function goPrev() {
+      if (idx <= 0) return;
+      setIdx(idx - 1);
+      setPhase('showing');
+    }
+
+    if (loading) {
+      return React.createElement('div', { style: S.page },
+        React.createElement(StudentHeader, { title: '5단계 학습 세트', onBack: props.onBack }),
+        React.createElement('div', { style: { padding: '40px', textAlign: 'center', color: THEME.textMid } }, '학습 자료 불러오는 중...')
+      );
+    }
+    if (!studyData) {
+      return React.createElement('div', { style: S.page },
+        React.createElement(StudentHeader, { title: '5단계 학습 세트', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
+        React.createElement('div', { style: { padding: '40px 20px', textAlign: 'center', color: THEME.textMid, fontFamily: THEME.font, lineHeight: '1.7' } },
+          React.createElement('div', { style: { fontSize: '15px', fontWeight: '700', color: THEME.dark, marginBottom: '10px' } }, '이 유닛엔 아직 5단계 학습 세트가 없어요'),
+          '선생님이 학습 세트를 등록하면 풀 수 있습니다.'
+        )
+      );
+    }
+    // 종료 화면 — 단계별 점수 + 종합
+    if (stage === 'done') {
+      var totalCorrect = 0, totalCount = 0;
+      STAGE_ORDER.forEach(function(s){ var sc = stageScores[s]; if (sc) { totalCorrect += sc.correct; totalCount += sc.total; } });
+      var pct = totalCount > 0 ? Math.round(totalCorrect * 100 / totalCount) : 0;
+      return React.createElement('div', { style: S.page },
+        React.createElement(StudentHeader, { title: '5단계 학습 — 결과', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: function(){ props.onDone && props.onDone(); } }),
+        React.createElement('div', { style: { padding: '20px 16px', maxWidth: '600px', margin: '0 auto' } },
+          React.createElement('div', { style: Object.assign({}, S.card, { padding: '32px 20px', textAlign: 'center', marginBottom: '14px' }) },
+            React.createElement('div', { style: { fontSize: '52px', fontWeight: '800', color: pct >= 80 ? THEME.success : pct >= 60 ? '#c87000' : THEME.fail } }, pct + '점'),
+            React.createElement('div', { style: { fontSize: '14px', color: THEME.textMid, marginTop: '6px' } }, totalCorrect + ' / ' + totalCount + ' 정답')
+          ),
+          React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' } },
+            STAGE_ORDER.filter(function(s){ return stageScores[s]; }).map(function(s){
+              var sc = stageScores[s];
+              var p = sc.total > 0 ? Math.round(sc.correct * 100 / sc.total) : 0;
+              return React.createElement('div', { key: s, style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#fff', border: '1px solid ' + THEME.border, borderRadius: '10px' } },
+                React.createElement('div', { style: { fontSize: '13px', fontWeight: '700', color: THEME.dark } }, STAGE_LABEL[s]),
+                React.createElement('div', { style: { fontSize: '13px', fontWeight: '800', color: p >= 80 ? THEME.success : p >= 60 ? '#c87000' : THEME.fail } }, sc.correct + ' / ' + sc.total + ' (' + p + '%)')
+              );
+            })
+          ),
+          React.createElement('button', { onClick: function(){ props.onDone && props.onDone(); }, style: Object.assign({}, S.btnPrimary, { width: '100%' }) }, '학습 메뉴로')
+        )
+      );
+    }
+
+    // 현재 문제
+    var items = getStageItems(stage);
+    if (!items.length) {
+      // 이 단계 비어있음 — 다음 단계로 자동 점프
+      var ns = nextStage(stage);
+      if (ns) {
+        setTimeout(function(){ setStage(ns); setIdx(0); setPhase('answering'); }, 0);
+      } else {
+        setTimeout(function(){ setStage('done'); }, 0);
+      }
+      return null;
+    }
+    var current = items[idx];
+    var userAns = (answers[stage] || {})[idx];
+    var correctNow = isCorrect(stage, current, userAns);
+    var stageItemsTotal = items.length;
+    var stageProgress = ((idx + 1) / stageItemsTotal) * 100;
+    var stageIdxInOrder = STAGE_ORDER.indexOf(stage);
+    var overallProgress = Math.round(((stageIdxInOrder + (idx + 1) / stageItemsTotal) / STAGE_ORDER.length) * 100);
+
+    function renderChoices(choices) {
+      return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px' } },
+        choices.map(function(c, i){
+          var selected = userAns === c;
+          var isCorrectChoice = (stage === 'grammar')
+            ? c === (current.options || [])[(current.correct || 1) - 1]
+            : c === current.correct;
+          var bg = '#fff', border = THEME.border, color = THEME.dark;
+          if (phase === 'showing') {
+            if (isCorrectChoice) { bg = THEME.successBg; border = THEME.success; color = THEME.success; }
+            else if (selected) { bg = THEME.failBg; border = THEME.fail; color = THEME.fail; }
+          } else if (selected) {
+            bg = THEME.primaryBg; border = THEME.primary; color = THEME.primary;
+          }
+          return React.createElement('button', { key: i, onClick: function(){ recordAnswer(c); }, disabled: phase === 'showing',
+            style: { background: bg, border: '1.5px solid ' + border, borderRadius: '10px', padding: '12px 14px', textAlign: 'left', cursor: phase === 'showing' ? 'default' : 'pointer', color: color, fontSize: '14px', fontWeight: '600', fontFamily: THEME.font, whiteSpace: 'pre-wrap' } },
+            (i + 1) + '. ' + c
+          );
+        })
+      );
+    }
+
+    function shufChoices(item, stageKey) {
+      var pool = stageKey === 'grammar' ? (item.options || []).slice() : [item.correct].concat(item.wrong || []);
+      return seededShuffle(pool, stageIdxSeed(stageKey, idx));
+    }
+
+    function renderQuestion() {
+      if (stage === '1') {
+        return React.createElement('div', null,
+          React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '4px', fontFamily: THEME.font } }, '단어 보고 뜻 고르기'),
+          React.createElement('div', { style: { fontSize: '32px', fontWeight: '800', color: THEME.dark, marginBottom: '6px', fontFamily: THEME.font, textAlign: 'center' } }, current.word),
+          React.createElement('div', { style: { textAlign: 'center', marginBottom: '8px' } },
+            React.createElement('button', { onClick: function(){ speak(current.word); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '6px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font } }, '발음 듣기')
+          ),
+          renderChoices(shufChoices(current, '1'))
+        );
+      }
+      if (stage === '2') {
+        return React.createElement('div', null,
+          React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '6px', fontFamily: THEME.font } }, '예문 해석 고르기'),
+          React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '1.7', marginBottom: '8px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, current.sentence),
+          renderChoices(shufChoices(current, '2'))
+        );
+      }
+      if (stage === '25') {
+        return React.createElement('div', null,
+          React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '6px', fontFamily: THEME.font } }, '빈칸에 들어갈 단어 고르기'),
+          React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '1.7', marginBottom: '8px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, current.sentence),
+          renderChoices(shufChoices(current, '25'))
+        );
+      }
+      if (stage === '3') {
+        return React.createElement(Stage3Question, {
+          item: current,
+          phase: phase,
+          userAns: userAns,
+          onAnswer: function(joined){ recordAnswer(joined); }
+        });
+      }
+      if (stage === 'grammar') {
+        return React.createElement('div', null,
+          React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '6px', fontFamily: THEME.font } }, '대괄호 [...] 부분의 문법 설명 고르기'),
+          React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '1.7', marginBottom: '8px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px', whiteSpace: 'pre-wrap' } }, current.sentence),
+          renderChoices(shufChoices(current, 'grammar'))
+        );
+      }
+      return null;
+    }
+
+    return React.createElement('div', { style: S.page },
+      React.createElement(StudentHeader, { title: '5단계 학습 세트', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
+      // 단계 + 진행률
+      React.createElement('div', { style: { background: THEME.cardBg, borderBottom: '1px solid ' + THEME.border, padding: '10px 16px', position: 'sticky', top: 0, zIndex: 10 } },
+        React.createElement('div', { style: { maxWidth: '600px', margin: '0 auto' } },
+          React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' } },
+            React.createElement('div', { style: { fontSize: '13px', fontWeight: '800', color: THEME.primary, fontFamily: THEME.font } }, STAGE_LABEL[stage]),
+            React.createElement('div', { style: { fontSize: '12px', fontWeight: '700', color: THEME.textMid, fontFamily: THEME.font } }, (idx + 1) + ' / ' + stageItemsTotal + ' · 전체 ' + overallProgress + '%')
+          ),
+          React.createElement('div', { style: { height: '6px', background: THEME.border, borderRadius: '3px', overflow: 'hidden' } },
+            React.createElement('div', { style: { width: stageProgress + '%', height: '100%', background: THEME.primary, transition: 'width 0.3s' } })
+          )
+        )
+      ),
+      // 본문
+      React.createElement('div', { style: { padding: '20px 16px', maxWidth: '600px', margin: '0 auto' } },
+        renderQuestion(),
+        // 정답/오답 피드백 (영작은 Stage3Question 안에서 표시)
+        phase === 'showing' && stage !== '3' && React.createElement('div', { style: { marginTop: '14px', padding: '12px 14px', background: correctNow ? THEME.successBg : THEME.failBg, borderRadius: '8px', borderLeft: '3px solid ' + (correctNow ? THEME.success : THEME.fail) } },
+          React.createElement('div', { style: { fontSize: '13px', fontWeight: '800', color: correctNow ? THEME.success : THEME.fail } }, correctNow ? '정답!' : '오답'),
+          !correctNow && React.createElement('div', { style: { fontSize: '12px', color: THEME.textMid, marginTop: '4px' } }, '정답: ' + (stage === 'grammar' ? ((current.correct || 1) + '. ' + (current.options || [])[(current.correct || 1) - 1]) : current.correct))
+        ),
+        // 이전 / 건너뛰기·다음
+        React.createElement('div', { style: { display: 'flex', gap: '8px', marginTop: '20px' } },
+          React.createElement('button', { onClick: goPrev, disabled: idx === 0, style: Object.assign({}, S.btnGhost, { flex: 1, opacity: idx === 0 ? 0.4 : 1, cursor: idx === 0 ? 'not-allowed' : 'pointer' }) }, '← 이전'),
+          phase === 'answering'
+            ? React.createElement('button', { onClick: function(){ recordAnswer(null); }, style: Object.assign({}, S.btnGhost, { flex: 1 }) }, '모름 / 건너뛰기 →')
+            : React.createElement('button', { onClick: goNext, style: Object.assign({}, S.btnPrimary, { flex: 1, padding: '10px 16px', fontSize: '14px' }) }, idx < stageItemsTotal - 1 ? '다음 →' : (nextStage(stage) ? '다음 단계 →' : '결과 보기 →'))
+        )
+      )
+    );
+  }
+
+  // ── 3단계 영작 빈칸 (텍스트 입력) ─────────────
+  function Stage3Question(props) {
+    var item = props.item;
+    var phase = props.phase;
+    var userAns = props.userAns; // '|||' 로 연결된 사용자 입력
+    // 영문 문장의 ___ 갯수에 맞춰 입력 박스 N개
+    var parts = String(item.sentence || '').split(/___+/);
+    var blankCount = Math.max(0, parts.length - 1);
+    var [inputs, setInputs] = React.useState(function(){ return new Array(blankCount).fill(''); });
+    React.useEffect(function(){ setInputs(new Array(blankCount).fill('')); }, [item]);
+    function submit() {
+      props.onAnswer(inputs.join('|||'));
+    }
+    var answers = (item.answers || []);
+    return React.createElement('div', null,
+      React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '6px', fontFamily: THEME.font } }, '한국어 해석을 보고 빈칸 채우기'),
+      React.createElement('div', { style: { fontSize: '14px', color: THEME.dark, lineHeight: '1.7', marginBottom: '10px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, item.korean),
+      // 영문 + 빈칸 입력
+      React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '2.4', fontFamily: THEME.font, padding: '12px 14px', border: '1px solid ' + THEME.border, borderRadius: '8px' } },
+        parts.map(function(part, i){
+          var hasBlankAfter = i < parts.length - 1;
+          return React.createElement(React.Fragment, { key: i },
+            React.createElement('span', null, part),
+            hasBlankAfter && React.createElement('input', {
+              type: 'text', value: inputs[i] || '', disabled: phase === 'showing',
+              onChange: function(e){ var v = e.target.value; setInputs(function(arr){ var n = arr.slice(); n[i] = v; return n; }); },
+              style: { width: '110px', border: 'none', borderBottom: '2px solid ' + (phase === 'showing' && (String(inputs[i]||'').trim().toLowerCase() !== String((answers[i]||'')).trim().toLowerCase()) ? THEME.fail : THEME.primary), padding: '2px 4px', margin: '0 4px', fontSize: '15px', fontFamily: THEME.font, color: phase === 'showing' && (String(inputs[i]||'').trim().toLowerCase() !== String((answers[i]||'')).trim().toLowerCase()) ? THEME.fail : THEME.dark, outline: 'none', background: 'transparent', textAlign: 'center' }
+            })
+          );
+        })
+      ),
+      // 정답 표시 (showing 단계)
+      phase === 'showing' && React.createElement('div', { style: { marginTop: '12px', padding: '12px 14px', background: THEME.successBg, borderRadius: '8px', borderLeft: '3px solid ' + THEME.success } },
+        React.createElement('div', { style: { fontSize: '12px', fontWeight: '800', color: THEME.success, marginBottom: '4px' } }, '정답'),
+        React.createElement('div', { style: { fontSize: '13px', color: THEME.dark, fontFamily: THEME.font } }, answers.join(', '))
+      ),
+      // 제출 버튼
+      phase === 'answering' && React.createElement('button', { onClick: submit, style: Object.assign({}, S.btnPrimary, { width: '100%', marginTop: '14px' }) }, '제출')
     );
   }
 
