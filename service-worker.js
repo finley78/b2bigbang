@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v99-study-set-autowords';
+const CACHE_VERSION = 'b2-bigbang-20260513v100-one-button-upload';
 const OFFLINE_URLS = [
   './',
   './index.html',

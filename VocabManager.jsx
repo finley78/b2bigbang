@@ -300,11 +300,15 @@
               [list.subject, list.grade, words.length + '단어', words.length > 0 ? '유닛 ' + maxWordUnit + '개 (' + unitSize + '/유닛)' : null].filter(Boolean).join(' · ')
             )
           ),
-          activeTab === 'words' && React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
-            React.createElement('button', { onClick:function(){ setShowImport(true); }, style:STYLES.btnPrimary }, '+ 단어 추가')
-          ),
-          activeTab === 'tests' && words.length > 0 && React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
-            React.createElement('button', { onClick:createTestsForAllUnits, style:STYLES.btnPrimary }, '유닛 전체 시험 만들기')
+          React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
+            // 메인 버튼: 5단계 학습 세트 업로드 (다음 빈 유닛에 자동 등록)
+            React.createElement('button', { onClick:function(){
+              var nextUnit = Math.max(maxWordUnit, maxStudyUnit) + 1;
+              setStudyUploadUnit(nextUnit);
+            }, style:STYLES.btnPrimary }, '+ 5단계 학습 세트 업로드'),
+            // 단어만 / 시험 만들기 — 부가
+            activeTab === 'words' && React.createElement('button', { onClick:function(){ setShowImport(true); }, style:STYLES.btnGhost }, '단어만 추가'),
+            activeTab === 'tests' && words.length > 0 && React.createElement('button', { onClick:createTestsForAllUnits, style:STYLES.btnGhost }, '유닛 전체 시험 만들기')
           )
         )
       ),
@@ -319,7 +323,7 @@
       // 단어 탭
       activeTab === 'words' && (
         !words.length
-          ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 단어가 없습니다. "+ 단어 추가" 버튼으로 엑셀 업로드 또는 붙여넣기로 한 번에 등록할 수 있어요.')
+          ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 단어가 없습니다. 위의 "+ 5단계 학습 세트 업로드" 버튼으로 한 번에 등록하세요. (단어만 따로 넣으려면 "단어만 추가")')
           : React.createElement('div', { style:STYLES.card },
               React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 1.5fr 100px', gap:'8px', padding:'8px 4px', borderBottom:'2px solid #1A1A1A', fontSize:'11px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } },
                 !isMobile && React.createElement('div', null, '#'),
