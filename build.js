@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 
 // ⬇⬇ 배포할 때 여기만 갱신하세요. index.html ?v=... 와 service-worker.js CACHE_VERSION이 자동 동기화됩니다.
-const BUILD_VERSION = '20260513v108-mode-stages-separate';
+const BUILD_VERSION = '20260513v109-bus-tracking';
 
 const FILES = [
   'Utils.jsx',
@@ -15,6 +15,7 @@ const FILES = [
   'Pages.jsx',
   'VocabManager.jsx',
   'VocabPlayer.jsx',
+  'BusTracking.jsx',
   'StudentPortal.jsx',
   'TeacherPortal.jsx',
   'AdminPanel.jsx',
