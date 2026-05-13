@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v114-vocab-list-targeting';
+const CACHE_VERSION = 'b2-bigbang-20260513v115-study-set-archive';
 const OFFLINE_URLS = [
   './',
   './index.html',

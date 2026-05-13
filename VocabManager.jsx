@@ -1506,6 +1506,18 @@
       if (!parsed) return;
       setSaving(true);
       try {
+        // 1) 원본 xlsx 를 storage 에도 보관 — 자료실에서 검색·다운로드 가능하게.
+        //    (file 이 있을 때만. 교체 업로드일 때는 새 파일이 있을 때만 새로 올림.)
+        var sourcePath = null;
+        if (file) {
+          try {
+            var ext = (file.name.split('.').pop() || 'xlsx').toLowerCase();
+            sourcePath = 'materials/study_sets/' + props.listId + '_u' + props.unitIndex + '_' + Date.now() + '.' + ext;
+            var up = await sb.storage.from('attachments').upload(sourcePath, file, { cacheControl:'3600', upsert:false });
+            if (up.error) { console.warn('원본 파일 업로드 실패:', up.error); sourcePath = null; }
+          } catch (e) { console.warn('원본 파일 업로드 예외:', e); sourcePath = null; }
+        }
+
         var row = {
           list_id: props.listId,
           unit_index: props.unitIndex,
@@ -1524,8 +1536,32 @@
         var { error } = await sb.from('vocab_study_sets').upsert(row, { onConflict: 'list_id,unit_index' });
         if (error) throw error;
 
-        // 그 유닛에 단어가 비어 있으면 stage1에서 단어+뜻 자동 추출 → vocab_words에도 같이 등록
-        // (이미 단어가 있으면 건드리지 않음 — 중복 방지)
+        // 2) 자료실(exams kind='material', material_type='vocab_study_set')에도 자동 등록 — 나중에 검색·다운로드용
+        if (sourcePath) {
+          try {
+            var listName = (props.list && props.list.name) ? props.list.name : '단어장';
+            var matTitle = listName + ' · UNIT ' + props.unitIndex + ((parsed.meta && parsed.meta.title) ? (' — ' + parsed.meta.title) : '');
+            await sb.from('exams').insert({
+              kind: 'material',
+              material_type: 'vocab_study_set',
+              class_id: null,
+              teacher_id: window.B2Utils.safeUserId(props.user),
+              teacher_name: (props.user && props.user.name) || null,
+              title: matTitle,
+              subject: (props.list && props.list.subject) || null,
+              school_level: (props.list && props.list.school_level) || null,
+              target_grade: (props.list && props.list.grade) || null,
+              description: '5단계 학습 세트 원본 (자동 등록)' + (parsed.stage1 ? (' · 단어 ' + parsed.stage1.length + '개') : ''),
+              image_paths: [sourcePath],
+              answer_paths: [],
+              answer_key: {},
+              question_count: 0, text_question_count: 0, choices_per_question: 5,
+              status: 'open',
+            });
+          } catch (e) { console.warn('자료실 자동 등록 실패:', e); }
+        }
+
+        // 3) 그 유닛에 단어가 비어 있으면 stage1에서 단어+뜻 자동 추출 → vocab_words에도 같이 등록
         var unitSize = props.unitSize || 20;
         var startSort = (props.unitIndex - 1) * unitSize;
         var endSort = startSort + unitSize - 1;
@@ -1546,7 +1582,10 @@
             addedWordCount = newWords.length;
           }
         }
-        if (addedWordCount > 0) alert('5단계 학습 세트와 단어 ' + addedWordCount + '개를 등록했습니다.');
+        var msg = '5단계 학습 세트 저장 완료!';
+        if (addedWordCount > 0) msg += '\n단어 ' + addedWordCount + '개 자동 등록.';
+        if (sourcePath) msg += '\n원본 파일은 자료실에서 검색해서 찾을 수 있어요.';
+        alert(msg);
         props.onSaved();
       } catch (e) {
         alert('저장 실패: ' + (e.message || e));
