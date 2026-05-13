@@ -1675,7 +1675,36 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             setAnalysisOpenId(savedId);
             var us = (r.data && r.data.usage) || {};
             setExamDraft(function(p){ return Object.assign({}, p, { analysis: (r.data && r.data.analysis) || p.analysis }); });
-            alert('문항 분석 완료!' + (us.input_tokens ? '\n(입력 ' + us.input_tokens + ' / 출력 ' + (us.output_tokens||0) + ' 토큰)' : ''));
+            // 자료실 자동 수집: 시험 폼에서 새로 업로드+분석한 경우, 자료실(exams kind='material')에도
+            // 같은 파일·분석 결과로 row 추가하고 exam.material_id 로 연결. 이미 material_id 가 있으면
+            // 자료실에서 불러온 시험이므로 새로 만들지 않음.
+            if (!d.material_id) {
+              try {
+                var mIns = await sb.from('exams').insert({
+                  kind: 'material', class_id: null,
+                  material_type: 'exam',
+                  teacher_id: (user && user.id) || null,
+                  teacher_name: teacherInfo.name || user?.name || '선생님',
+                  title: d.title.trim(),
+                  subject: (d.subject||'').trim() || null,
+                  description: (d.description||'').trim() || null,
+                  image_paths: row.image_paths, answer_paths: row.answer_paths,
+                  analyze_page_range: row.analyze_page_range,
+                  selected_questions: row.selected_questions,
+                  analyze_model: row.analyze_model,
+                  analyze_student_model: row.analyze_student_model,
+                  analysis: (r.data && r.data.analysis) || null,
+                  answer_key: row.answer_key || {},
+                  question_count: row.question_count, text_question_count: row.text_question_count, choices_per_question: row.choices_per_question,
+                  status: 'open',
+                }).select('id').single();
+                if (mIns && mIns.data && mIns.data.id) {
+                  await sb.from('exams').update({ material_id: mIns.data.id }).eq('id', savedId);
+                }
+                await loadMaterials();
+              } catch (mErr) { console.warn('자료실 자동 수집 실패:', mErr); }
+            }
+            alert('문항 분석 완료!' + (us.input_tokens ? '\n(입력 ' + us.input_tokens + ' / 출력 ' + (us.output_tokens||0) + ' 토큰)' : '') + '\n— 자료실에도 같이 보관됐어요.');
           }
         } catch (ee) { alert('저장은 됐지만 문항 분석 실패: ' + (ee.message || ee)); }
         finally { setAnalyzingExamId(null); }
@@ -2862,6 +2891,10 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   </div>
                 )}
 
+                {/* 시험지 파일 있고 자료실에서 안 불러왔으면 "저장 + Claude 분석" 옵션 */}
+                {!examDraft.material_id && ((examDraft.existing_paths||[]).length > 0 || (examDraft.files||[]).length > 0) && (
+                  <button onClick={() => submitExam(true)} disabled={examUploading} style={{ width:'100%', background: examUploading ? '#9ca3af' : '#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: examUploading ? 'not-allowed' : 'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' }}>{examUploading ? '저장+분석 중...' : '저장 + Claude 문항 분석'}</button>
+                )}
                 <button onClick={() => submitExam(false)} disabled={examUploading} style={{ width:'100%', background: examUploading ? '#9ca3af' : '#E60012', color:'#fff', border:'none', borderRadius:'9px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor: examUploading ? 'not-allowed' : 'pointer', marginTop:'4px', fontFamily:'Manrope, sans-serif' }}>{examUploading ? '저장 중...' : (editingExamId ? '수정 저장' : (examKindLabel(examDraft.kind) + ' 발행'))}</button>
                 <div style={{ marginTop:'8px' }}>
                   <button onClick={closeExamForm} disabled={examUploading} style={{ ...lightButtonStyle, width:'100%', padding:'10px', fontSize:'13px', cursor: examUploading ? 'not-allowed' : 'pointer' }}>닫기</button>

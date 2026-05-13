@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v100-one-button-upload';
+const CACHE_VERSION = 'b2-bigbang-20260513v101-exam-form-analyze';
 const OFFLINE_URLS = [
   './',
   './index.html',
