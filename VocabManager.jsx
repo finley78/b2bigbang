@@ -276,7 +276,10 @@
     if (!list) return React.createElement('div', { style:{ padding:'40px', textAlign:'center', color:'#9ca3af' } }, '단어장을 찾을 수 없습니다.');
 
     var unitSize = list.unit_size || 20;
-    var unitCount = Math.ceil(words.length / unitSize);
+    var maxWordUnit = Math.ceil(words.length / unitSize);
+    var maxStudyUnit = studySets.reduce(function(m, s){ return Math.max(m, s.unit_index || 0); }, 0);
+    // 유닛 그리드: 현재 데이터에 따른 유닛 + **항상 다음 빈 유닛 1개도 보여줌** — [+ 5단계 세트 업로드] 시작점
+    var unitCount = Math.max(maxWordUnit, maxStudyUnit) + 1;
     // 유닛별 단어 그룹화
     var unitsArray = [];
     for (var u = 1; u <= unitCount; u++) {
@@ -294,7 +297,7 @@
           React.createElement('div', null,
             React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, list.name),
             React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginTop:'4px' } },
-              [list.subject, list.grade, words.length + '단어', words.length > 0 ? '유닛 ' + unitCount + '개 (' + unitSize + '/유닛)' : null].filter(Boolean).join(' · ')
+              [list.subject, list.grade, words.length + '단어', words.length > 0 ? '유닛 ' + maxWordUnit + '개 (' + unitSize + '/유닛)' : null].filter(Boolean).join(' · ')
             )
           ),
           activeTab === 'words' && React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
@@ -355,12 +358,14 @@
                   // 유닛 헤더
                   React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:'5px', paddingBottom:'4px', borderBottom:'1px solid #1A1A1A', gap:'6px' } },
                     React.createElement('div', { style:{ minWidth:0, flex:1 } },
-                      React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } }, 'UNIT ' + unit.unit_index),
+                      React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', color: unit.words.length===0 ? 'rgba(0,0,0,0.4)' : '#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } }, 'UNIT ' + unit.unit_index),
                       React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginLeft:'8px' } },
-                        unit.words.length + '단어 · ' + (unit.words[0] && unit.words[0].word) + (unit.words.length > 1 ? ' ~ ' + unit.words[unit.words.length-1].word : '')
+                        unit.words.length > 0
+                          ? (unit.words.length + '단어 · ' + unit.words[0].word + (unit.words.length > 1 ? ' ~ ' + unit.words[unit.words.length-1].word : ''))
+                          : '단어 없음 — 5단계 세트 업로드해서 시작'
                       )
                     ),
-                    React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', fontWeight:'700', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, unit.tests.length + '개 시험')
+                    unit.words.length > 0 && React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', fontWeight:'700', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, unit.tests.length + '개 시험')
                   ),
                   // 5단계 학습 세트 행: 업로드 상태 + 버튼
                   React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'6px', fontSize:'10px', fontFamily:'Manrope, sans-serif' } },
@@ -409,8 +414,8 @@
                               )
                         )
                       );
-                    }).concat(unit.tests.length > 0 ? [] : [
-                      // + 시험 추가 카드 — 그 유닛에 아직 시험이 없을 때만 (이미 만든 시험은 카드의 '학생에게 내기'/'수정'으로)
+                    }).concat((unit.tests.length > 0 || unit.words.length === 0) ? [] : [
+                      // + 시험 추가 카드 — 그 유닛에 아직 시험이 없고 단어가 있을 때만
                       React.createElement('button', { key:'add-' + unit.unit_index, onClick:function(){ setShowTestCreate(unit.unit_index); }, style:{ background:'#fff', border:'1.5px dashed #d6dbde', borderRadius:'8px', padding:'8px', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', cursor:'pointer', transition:'all 0.15s', fontFamily:'Manrope, sans-serif', minHeight:'70px', color:'rgba(0,0,0,0.45)' }, onMouseEnter:function(e){ e.currentTarget.style.borderColor='#E60012'; e.currentTarget.style.color='#E60012'; }, onMouseLeave:function(e){ e.currentTarget.style.borderColor='#d6dbde'; e.currentTarget.style.color='rgba(0,0,0,0.45)'; } },
                         React.createElement('div', { style:{ fontSize:'18px', fontWeight:'300', lineHeight:1 } }, '+'),
                         React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700' } }, '시험 추가')
@@ -457,6 +462,8 @@
       studyUploadUnit !== null && React.createElement(VocabStudySetUploadModal, {
         listId: props.listId,
         unitIndex: studyUploadUnit,
+        unitSize: list.unit_size || 20,
+        existingWords: words,
         existingStudy: studySets.find(function(s){ return s.unit_index === studyUploadUnit; }) || null,
         user: props.user,
         onClose: function(){ setStudyUploadUnit(null); },
@@ -1488,6 +1495,30 @@
         };
         var { error } = await sb.from('vocab_study_sets').upsert(row, { onConflict: 'list_id,unit_index' });
         if (error) throw error;
+
+        // 그 유닛에 단어가 비어 있으면 stage1에서 단어+뜻 자동 추출 → vocab_words에도 같이 등록
+        // (이미 단어가 있으면 건드리지 않음 — 중복 방지)
+        var unitSize = props.unitSize || 20;
+        var startSort = (props.unitIndex - 1) * unitSize;
+        var endSort = startSort + unitSize - 1;
+        var unitHasWords = (props.existingWords || []).some(function(w){ return w.sort_order >= startSort && w.sort_order <= endSort; });
+        var addedWordCount = 0;
+        if (!unitHasWords && parsed.stage1 && parsed.stage1.length) {
+          var newWords = parsed.stage1
+            .filter(function(s){ return s && s.word && s.correct; })
+            .map(function(s, i){ return {
+              list_id: props.listId,
+              word: String(s.word).trim(),
+              meaning: String(s.correct).trim(),
+              sort_order: startSort + i,
+            }; });
+          if (newWords.length > 0) {
+            var wRes = await sb.from('vocab_words').insert(newWords);
+            if (wRes.error) throw wRes.error;
+            addedWordCount = newWords.length;
+          }
+        }
+        if (addedWordCount > 0) alert('5단계 학습 세트와 단어 ' + addedWordCount + '개를 등록했습니다.');
         props.onSaved();
       } catch (e) {
         alert('저장 실패: ' + (e.message || e));

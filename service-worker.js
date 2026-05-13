@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v98-vocab-import-parser';
+const CACHE_VERSION = 'b2-bigbang-20260513v99-study-set-autowords';
 const OFFLINE_URLS = [
   './',
   './index.html',
