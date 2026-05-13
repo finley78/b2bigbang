@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v94-feature-flash-fix';
+const CACHE_VERSION = 'b2-bigbang-20260513v95-vocab-study-sets-upload';
 const OFFLINE_URLS = [
   './',
   './index.html',
