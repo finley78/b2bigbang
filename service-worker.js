@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v104-admin-exam-analyze';
+const CACHE_VERSION = 'b2-bigbang-20260513v105-material-types-simplified';
 const OFFLINE_URLS = [
   './',
   './index.html',

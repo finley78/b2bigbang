@@ -4222,12 +4222,11 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                 <input value={materialDraft.title} onChange={e => setMaterialDraft({ ...materialDraft, title: e.target.value })} placeholder="예: 2024 9월 고2 영어 모의고사 / 능률 영어1 3과 본문" style={{ ...inputStyle, marginBottom:'14px' }} />
 
                 <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>자료 종류</label>
-                <select value={materialDraft.material_type || 'exam'} onChange={e => setMaterialDraft({ ...materialDraft, material_type: e.target.value })} style={{ ...inputStyle, marginBottom:'14px' }}>
+                <select value={materialDraft.material_type || 'exam'} onChange={e => setMaterialDraft({ ...materialDraft, material_type: e.target.value })} style={{ ...inputStyle, marginBottom:'6px' }}>
                   <option value="exam">시험·문제집</option>
-                  <option value="vocab_list">단어장 원본 (단어+뜻)</option>
-                  <option value="vocab_study_set">5단계 학습 세트 (단어시험 6시트 엑셀)</option>
                   <option value="other">기타</option>
                 </select>
+                <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif', marginBottom:'14px' }}>단어장·5단계 학습 세트는 이제 단어장 메뉴에서 직접 업로드하세요.</div>
 
                 <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
                   <div style={{ flex:1 }}>
