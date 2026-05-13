@@ -311,16 +311,15 @@
               var nextUnit = Math.max(maxWordUnit, maxStudyUnit) + 1;
               setStudyUploadUnit(nextUnit);
             }, style:STYLES.btnPrimary }, '+ 5단계 학습 세트 업로드'),
-            // 단어만 / 시험 만들기 — 부가
-            activeTab === 'words' && React.createElement('button', { onClick:function(){ setShowImport(true); }, style:STYLES.btnGhost }, '단어만 추가'),
-            activeTab === 'tests' && words.length > 0 && React.createElement('button', { onClick:createTestsForAllUnits, style:STYLES.btnGhost }, '유닛 전체 시험 만들기')
+            // 단어만 — 부가
+            activeTab === 'words' && React.createElement('button', { onClick:function(){ setShowImport(true); }, style:STYLES.btnGhost }, '단어만 추가')
           )
         )
       ),
 
       // 탭
       React.createElement('div', { style:{ display:'flex', gap:'6px', marginBottom:'14px', borderBottom:'1px solid rgba(0,0,0,0.08)' } },
-        [['words','단어 (' + words.length + ')'], ['tests','시험 (' + tests.length + ')']].map(function(t){
+        [['words','단어 (' + words.length + ')'], ['tests','연습/시험 (' + assignments.length + ')']].map(function(t){
           return React.createElement('button', { key:t[0], onClick:function(){ setActiveTab(t[0]); }, style:{ background:'none', border:'none', padding:'10px 18px', fontSize:'14px', fontWeight:'700', cursor:'pointer', color: activeTab===t[0] ? '#E60012' : 'rgba(0,0,0,0.55)', borderBottom: activeTab===t[0] ? '2px solid #E60012' : '2px solid transparent', fontFamily:'Manrope, sans-serif', marginBottom:'-1px' } }, t[1]);
         })
       ),
@@ -374,7 +373,7 @@
                           : '단어 없음 — 5단계 세트 업로드해서 시작'
                       )
                     ),
-                    unit.words.length > 0 && React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', fontWeight:'700', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, unit.tests.length + '개 시험')
+                    unit.words.length > 0 && unit.assignments.length > 0 && React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', fontWeight:'700', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, unit.assignments.length + '개 보냄')
                   ),
                   // 5단계 학습 세트 행: 업로드 상태 + 버튼
                   React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'6px', fontSize:'10px', fontFamily:'Manrope, sans-serif' } },
@@ -390,41 +389,7 @@
                           React.createElement('button', { onClick:function(){ setStudyUploadUnit(unit.unit_index); }, style:{ background:'#FFEBED', color:'#E60012', border:'none', borderRadius:'4px', padding:'2px 8px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 업로드')
                         )
                   ),
-                  // 시험 카드 (유닛 셀이 좁아졌으니 1열) + 추가 버튼
-                  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px' } },
-                    unit.tests.map(function(t){
-                      var modes = [];
-                      if (t.multiple_choice_count) modes.push('객 ' + t.multiple_choice_count);
-                      if (t.spelling_count) modes.push('스 ' + t.spelling_count);
-                      if (t.writing_count) modes.push('쓰 ' + t.writing_count);
-                      if (t.listening_count) modes.push('듣 ' + t.listening_count);
-                      var totalQ = (t.multiple_choice_count||0) + (t.spelling_count||0) + (t.writing_count||0) + (t.listening_count||0);
-                      var statusBg = t.status === 'open' ? '#d4e9e2' : t.status === 'closed' ? '#f3f4f6' : '#fef3c7';
-                      var statusColor = t.status === 'open' ? '#006241' : t.status === 'closed' ? '#6b7280' : '#92400e';
-                      var statusLabel = t.status === 'open' ? '진행중' : t.status === 'closed' ? '마감' : '준비중';
-                      var borderColor = t.status === 'open' ? '#006241' : t.status === 'closed' ? '#d1d5db' : '#fbbf24';
-                      return React.createElement('div', { key:t.id, style:{ background:'#fff', border:'1.5px solid ' + borderColor, borderRadius:'8px', padding:'8px', display:'flex', flexDirection:'column', gap:'4px', cursor:'pointer', transition:'transform 0.15s, box-shadow 0.15s', fontFamily:'Manrope, sans-serif' }, onMouseEnter:function(e){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'; }, onMouseLeave:function(e){ e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }, onClick:function(){ if (t.status === 'draft') setEditingTest(t); else setResultsTest(t); } },
-                        // 상태 뱃지
-                        React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center' } },
-                          React.createElement('span', { style:{ fontSize:'9px', fontWeight:'800', background:statusBg, color:statusColor, borderRadius:'3px', padding:'1px 6px', letterSpacing:'0.04em' } }, statusLabel),
-                          React.createElement('span', { style:{ fontSize:'9px', fontWeight:'700', color:'rgba(0,0,0,0.4)' } }, totalQ + '문제')
-                        ),
-                        // 시험 제목
-                        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, t.title),
-                        // 모드 요약
-                        React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.55)', fontWeight:'600', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, modes.join(' · ') || '문제 형식 미설정'),
-                        // 액션 버튼
-                        React.createElement('div', { style:{ display:'flex', gap:'4px', marginTop:'2px', borderTop:'1px solid rgba(0,0,0,0.06)', paddingTop:'4px' } },
-                          t.status === 'draft'
-                            ? React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'#E60012', color:'#fff', border:'none', borderRadius:'4px', padding:'4px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '학생에게 내기')
-                            : React.createElement(React.Fragment, null,
-                                React.createElement('button', { onClick:function(e){ e.stopPropagation(); setResultsTest(t); }, style:{ flex:1, background:'#FFEBED', color:'#E60012', border:'none', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '결과'),
-                                React.createElement('button', { onClick:function(e){ e.stopPropagation(); setEditingTest(t); }, style:{ flex:1, background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'3px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '수정')
-                              )
-                        )
-                      );
-                    })
-                  ),
+                  // 옛 vocab_tests 카드 표시는 제거 — 새 vocab_assignments 통합 흐름으로 대체.
                   // 보낸 연습/시험 목록 (vocab_assignments)
                   unit.assignments.length > 0 && React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px', marginTop:'6px' } },
                     unit.assignments.map(function(a){

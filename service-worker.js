@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v109-bus-tracking';
+const CACHE_VERSION = 'b2-bigbang-20260513v110-clean-old-tests';
 const OFFLINE_URLS = [
   './',
   './index.html',
