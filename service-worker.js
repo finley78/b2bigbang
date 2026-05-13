@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v107-student-assignments';
+const CACHE_VERSION = 'b2-bigbang-20260513v108-mode-stages-separate';
 const OFFLINE_URLS = [
   './',
   './index.html',

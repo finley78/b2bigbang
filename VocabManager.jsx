@@ -1624,7 +1624,13 @@
   function VocabAssignmentModal(props) {
     var sb = window.supabase;
     var [mode, setMode] = React.useState('practice'); // 'practice' | 'test'
-    var [stages, setStages] = React.useState({ '1': true, '2': false, '25': false, '3': false, 'grammar': false });
+    // 연습과 시험은 체크박스 상태를 따로 기억 — 모드 바꿔도 안 흔들림
+    // 기본값: 연습 = 1단계만, 시험 = 5단계 다 (보통 시험은 전체 평가하니까)
+    var [stagesByMode, setStagesByMode] = React.useState({
+      practice: { '1': true,  '2': false, '25': false, '3': false, 'grammar': false },
+      test:     { '1': true,  '2': true,  '25': true,  '3': true,  'grammar': true  },
+    });
+    var stages = stagesByMode[mode];
     // 대상
     var [targetLevel, setTargetLevel] = React.useState('');
     var [targetGrade, setTargetGrade] = React.useState('');
@@ -1661,7 +1667,14 @@
       { key: 'grammar', label: '어법',              count: (studyData.grammar || []).length },
     ];
 
-    function toggleStage(k) { setStages(function(p){ var o = Object.assign({}, p); o[k] = !o[k]; return o; }); }
+    function toggleStage(k) {
+      setStagesByMode(function(p){
+        var o = Object.assign({}, p);
+        o[mode] = Object.assign({}, p[mode]);
+        o[mode][k] = !o[mode][k];
+        return o;
+      });
+    }
     function toggleStudent(id) {
       setIndividualIds(function(p){ return p.indexOf(id) >= 0 ? p.filter(function(x){ return x !== id; }) : p.concat([id]); });
     }
