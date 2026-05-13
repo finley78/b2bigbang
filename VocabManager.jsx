@@ -507,22 +507,44 @@
         var wb = window.XLSX.read(buf, { type:'array' });
         var sheet = wb.Sheets[wb.SheetNames[0]];
         var rows = window.XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
-        // 첫 줄이 헤더("단어/뜻" 같은 한글)면 스킵
+        // 헤더 행 자동 감지 + 컬럼 위치 자동 결정
+        // 케이스 1: "단어 / 뜻" (2열) — wordCol=0, meaningCol=1
+        // 케이스 2: "번호 / 단어 / 뜻" (3열) — wordCol=1, meaningCol=2 (번호 컬럼 skip)
+        // 케이스 3: 그 외 / 헤더 없음 — 기본 wordCol=0, meaningCol=1
+        var wordCol = 0, meaningCol = 1, exampleCol = 2;
         var startIdx = 0;
-        if (rows.length && rows[0].length >= 2) {
-          var first = String(rows[0][0] || '').trim();
-          if (/단어|word|영단|어휘/i.test(first)) startIdx = 1;
+        if (rows.length && Array.isArray(rows[0])) {
+          var hr = rows[0].map(function(x){ return String(x||'').trim(); });
+          var hasHeader = false;
+          var wIdx = -1, mIdx = -1, eIdx = -1;
+          for (var c = 0; c < hr.length; c++) {
+            var h = hr[c];
+            if (/단어|word|영단|어휘|vocabulary/i.test(h)) { if (wIdx < 0) wIdx = c; hasHeader = true; }
+            else if (/^뜻$|^의미$|^한국어$|meaning|korean|definition/i.test(h)) { if (mIdx < 0) mIdx = c; hasHeader = true; }
+            else if (/예문|문장|example|sentence/i.test(h)) { if (eIdx < 0) eIdx = c; hasHeader = true; }
+            else if (/번호|순번|^no\.?$|^#$|^index$|^id$/i.test(h)) { hasHeader = true; }
+          }
+          if (hasHeader) {
+            startIdx = 1;
+            if (wIdx >= 0) wordCol = wIdx;
+            if (mIdx >= 0) meaningCol = mIdx;
+            if (eIdx >= 0) exampleCol = eIdx;
+            // 단어/뜻 헤더가 명시 안 됐고 첫 컬럼이 "번호"면 한 칸씩 밀어서 추정
+            if (wIdx < 0 && mIdx < 0 && /번호|순번|^no\.?$|^#$|^index$|^id$/i.test(hr[0])) {
+              wordCol = 1; meaningCol = 2; exampleCol = 3;
+            }
+          }
         }
         var out = [];
         for (var i = startIdx; i < rows.length; i++) {
           var r = rows[i];
-          if (!r || !r[0]) continue;
-          var w = String(r[0] || '').trim();
-          var m = String(r[1] || '').trim();
+          if (!r) continue;
+          var w = String(r[wordCol] || '').trim();
+          var m = String(r[meaningCol] || '').trim();
           if (!w || !m) continue;
           out.push({
             word: w, meaning: m,
-            example: String(r[2] || '').trim() || null,
+            example: String(r[exampleCol] || '').trim() || null,
           });
         }
         setParsed(out);
@@ -629,7 +651,7 @@
 
         mode === 'excel' && React.createElement('div', null,
           React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } },
-            '엑셀 파일(.xlsx, .xls)을 업로드하세요. 1열=단어, 2열=뜻 (3열=예문은 선택). 첫 줄에 헤더("단어"/"뜻")가 있으면 자동으로 건너뜁니다.'
+            '엑셀 파일(.xlsx, .xls)을 업로드하세요. 단어 + 뜻 (+ 예문 선택). 첫 줄에 헤더("번호"/"단어"/"뜻")가 있으면 자동으로 건너뛰고 컬럼 위치도 자동으로 맞춥니다 — 단어/뜻 2열, 번호/단어/뜻 3열 모두 OK.'
           ),
           React.createElement('input', {
             type:'file',

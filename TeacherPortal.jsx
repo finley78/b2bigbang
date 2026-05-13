@@ -2710,6 +2710,34 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   {examDraft.files && examDraft.files.length > 0 && (
                     <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' }}>새 시험지 {examDraft.files.length}장 선택됨 (저장 시 교체)</div>
                   )}
+
+                  <label style={{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' }}>답안지·해설 (선택 — 자동 채점·해설 정확도 향상, PDF 가능){editingExamId ? ' — 새 파일 선택하면 위 기존 답안을 교체합니다' : ''}</label>
+                  <input type="file" accept="image/*,application/pdf,.pdf" multiple onChange={e => setExamDraft({ ...examDraft, answer_files: Array.from(e.target.files || []) })} style={{ width:'100%', fontSize:'13px', marginBottom:'4px' }} />
+                  {examDraft.answer_files && examDraft.answer_files.length > 0 && (
+                    <div style={{ fontSize:'11px', color:'#16a34a', fontWeight:'700', marginBottom:'14px' }}>새 답안지 {examDraft.answer_files.length}개 선택됨 (저장 시 교체)</div>
+                  )}
+
+                  <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:'8px', padding:'12px', marginBottom:'14px', fontFamily:'Manrope, sans-serif' }}>
+                    <div style={{ fontSize:'12px', fontWeight:'800', color:'#0f766e', marginBottom:'8px' }}>분석 범위 (선택 — 비워두면 전체 분석)</div>
+                    <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
+                      <div style={{ flex:1, minWidth:'140px' }}>
+                        <label style={{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' }}>분석할 페이지 (예: 3-5)</label>
+                        <input type="text" value={examDraft.analyze_page_range || ''} onChange={e => setExamDraft({ ...examDraft, analyze_page_range: e.target.value })} placeholder="비워두면 전체" style={{ ...inputStyle, width:'100%' }} />
+                      </div>
+                      <div style={{ flex:1, minWidth:'140px' }}>
+                        <label style={{ fontSize:'11px', color:'#475569', display:'block', marginBottom:'2px' }}>학생에게 낼 문항 번호 (예: 21-40)</label>
+                        <input type="text" value={examDraft.selected_questions_text || ''} onChange={e => setExamDraft({ ...examDraft, selected_questions_text: e.target.value })} placeholder="비워두면 전체" style={{ ...inputStyle, width:'100%' }} />
+                      </div>
+                    </div>
+                    <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', fontSize:'12px', color:'#0f766e', fontWeight:'700' }}>
+                      <input type="checkbox" checked={!!examDraft.precise} onChange={e => setExamDraft({ ...examDraft, precise: e.target.checked })} style={{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#0f766e' }} />
+                      <span>정밀 분석 (Opus — 비용 약 5배, 어려운 시험에)</span>
+                    </label>
+                    <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'4px', fontSize:'12px', color:'#0f766e', fontWeight:'700' }}>
+                      <input type="checkbox" checked={!!examDraft.precise_student} onChange={e => setExamDraft({ ...examDraft, precise_student: e.target.checked })} style={{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#0f766e' }} />
+                      <span>학생 답안 분석도 정밀하게 (Opus)</span>
+                    </label>
+                  </div>
                 </>)}
 
                 <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginTop:'10px', marginBottom:'14px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'#374151', fontWeight:'700' }}>

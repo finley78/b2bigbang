@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260513v97-material-type-badge';
+const CACHE_VERSION = 'b2-bigbang-20260513v98-vocab-import-parser';
 const OFFLINE_URLS = [
   './',
   './index.html',
