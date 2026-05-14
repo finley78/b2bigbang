@@ -484,16 +484,16 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260514v120-password-reset-pkce-fix"></script>
-<script src="TopNav.js?v=20260514v120-password-reset-pkce-fix"></script>
-<script src="HomePage.js?v=20260514v120-password-reset-pkce-fix"></script>
-<script src="Pages.js?v=20260514v120-password-reset-pkce-fix"></script>
-<script src="VocabManager.js?v=20260514v120-password-reset-pkce-fix"></script>
-<script src="VocabPlayer.js?v=20260514v120-password-reset-pkce-fix"></script>
-<script src="BusTracking.js?v=20260514v120-password-reset-pkce-fix"></script>
-<script src="StudentPortal.js?v=20260514v120-password-reset-pkce-fix"></script>
-<script src="TeacherPortal.js?v=20260514v120-password-reset-pkce-fix"></script>
-<script src="AdminPanel.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="Utils.js?v=20260515v148-edge-auth-error-boundary"></script>
+<script src="TopNav.js?v=20260515v148-edge-auth-error-boundary"></script>
+<script src="HomePage.js?v=20260515v148-edge-auth-error-boundary"></script>
+<script src="Pages.js?v=20260515v148-edge-auth-error-boundary"></script>
+<script src="VocabManager.js?v=20260515v148-edge-auth-error-boundary"></script>
+<script src="VocabPlayer.js?v=20260515v148-edge-auth-error-boundary"></script>
+<script src="BusTracking.js?v=20260515v148-edge-auth-error-boundary"></script>
+<script src="StudentPortal.js?v=20260515v148-edge-auth-error-boundary"></script>
+<script src="TeacherPortal.js?v=20260515v148-edge-auth-error-boundary"></script>
+<script src="AdminPanel.js?v=20260515v148-edge-auth-error-boundary"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -1207,8 +1207,31 @@ eventButton.enabled && !eventClicked && !isInsiderUser(user) && page !== (eventB
 );
 }
 
+/* ── Error Boundary — 한 컴포넌트 크래시 시 전체 흰화면 방지 ───────── */
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error: error }; }
+  componentDidCatch(error, errorInfo) {
+    console.error('[ErrorBoundary]', error, errorInfo);
+    try { var supa = window.supabase; if (supa && supa.from) { supa.from('client_errors').insert({ message: String(error && error.message || error), stack: String(error && error.stack || ''), component_stack: String(errorInfo && errorInfo.componentStack || ''), url: location.href, user_agent: navigator.userAgent }).then(function(){}, function(){}); } } catch (e) {}
+  }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', { style:{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px', background:'#fff', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ maxWidth:'420px', textAlign:'center' } },
+          React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#1A1A1A', marginBottom:'12px' } }, '화면을 그리는 중 문제가 발생했어요'),
+          React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.55)', lineHeight:'1.7', marginBottom:'18px' } }, '아래 다시 시도하기를 눌러주세요. 계속 같은 문제가 발생하면 관리자에게 알려주세요.'),
+          this.state.error && React.createElement('div', { style:{ fontSize:'11px', color:'#c82014', background:'#fef2f2', padding:'10px 12px', borderRadius:'6px', marginBottom:'14px', whiteSpace:'pre-line', textAlign:'left' } }, String((this.state.error && this.state.error.message) || this.state.error).slice(0, 200)),
+          React.createElement('button', { onClick: function(){ try { location.reload(); } catch (e) {} }, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 28px', fontSize:'14px', fontWeight:'800', cursor:'pointer' } }, '다시 시도하기')
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
+root.render(React.createElement(ErrorBoundary, null, React.createElement(App)));
 </script>
 </body>
 </html>
