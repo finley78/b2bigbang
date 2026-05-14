@@ -70,6 +70,21 @@
       var kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
       return kst.getUTCFullYear() + '-' + String(kst.getUTCMonth()+1).padStart(2,'0') + '-' + String(kst.getUTCDate()).padStart(2,'0');
     }
+    function nowKstHHMM() {
+      var d = new Date();
+      var kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+      return String(kst.getUTCHours()).padStart(2,'0') + ':' + String(kst.getUTCMinutes()).padStart(2,'0');
+    }
+    // 정류장의 "다음 운행 시간" — 지금(KST) 이후 가장 가까운 시간. 모두 지나갔으면 null
+    function nextTimeForStop(stop) {
+      var times = (stop && stop.pickup_times && stop.pickup_times.length) ? stop.pickup_times.slice().sort() : (stop && stop.pickup_time ? [stop.pickup_time] : []);
+      if (!times.length) return null;
+      var hhmm = nowKstHHMM();
+      for (var i = 0; i < times.length; i++) {
+        if (String(times[i]) >= hhmm) return times[i];
+      }
+      return null; // 오늘 운행 종료
+    }
     var todayStr = todayKstDateStr();
 
     var mapRef = React.useRef(null);
@@ -387,12 +402,19 @@
             effectiveStopId = myStudentRow.default_bus_stop_id;
           }
           var defaultStop = busStops.find(function(s){ return s.id === myStudentRow.default_bus_stop_id; });
-          var sortedStops = busStops.slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); });
+          var defaultNextTime = defaultStop ? nextTimeForStop(defaultStop) : null;
+          // 다음 운행 시간 순으로 자동 정렬. 시간 지난 정류장은 뒤로.
+          var sortedStops = busStops.slice().sort(function(a,b){
+            var ta = nextTimeForStop(a); var tb = nextTimeForStop(b);
+            if (ta && tb) return String(ta).localeCompare(String(tb));
+            if (ta) return -1; if (tb) return 1;
+            return 0;
+          });
           return React.createElement('div', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px', padding:'14px 16px', marginBottom:'10px' } },
             React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'4px' } }, '오늘 어디서 탈까요?'),
             React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6' } },
               defaultStop
-                ? ('기본은 ' + defaultStop.name + (defaultStop.pickup_time ? (' (' + defaultStop.pickup_time + ')') : '') + '. 다른 곳에서 탈 거면 그 정류장을 누르세요.')
+                ? ('기본은 ' + defaultStop.name + (defaultNextTime ? (' (다음 ' + defaultNextTime + ')') : ' (오늘 운행 종료)') + '. 다른 곳에서 탈 거면 그 정류장을 누르세요.')
                 : '기본 정류장이 아직 설정 안 됐어요. 오늘 탈 정류장을 골라주세요.'
             ),
             sortedStops.length === 0
@@ -401,16 +423,21 @@
                   sortedStops.map(function(s){
                     var isPicked = !effectiveSkip && s.id === effectiveStopId;
                     var isDefault = s.id === myStudentRow.default_bus_stop_id;
+                    var nextT = nextTimeForStop(s);
+                    var ended = !nextT;
                     return React.createElement('button', { key:s.id, disabled: stopSaving, onClick: function(){ pickStop(s.id, false); }, style:{
                       background: isPicked ? '#E60012' : '#fff',
-                      color: isPicked ? '#fff' : '#1A1A1A',
+                      color: isPicked ? '#fff' : (ended ? 'rgba(0,0,0,0.4)' : '#1A1A1A'),
                       border: '2px solid ' + (isPicked ? '#E60012' : '#d6dbde'),
                       borderRadius:'10px', padding:'12px 10px',
                       fontSize:'13px', fontWeight:'800', cursor: stopSaving ? 'wait' : 'pointer',
-                      fontFamily:'Manrope, sans-serif', textAlign:'center', lineHeight:'1.3'
+                      fontFamily:'Manrope, sans-serif', textAlign:'center', lineHeight:'1.3',
+                      opacity: ended ? 0.65 : 1
                     } },
                       React.createElement('div', null, s.name),
-                      s.pickup_time && React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700', color: isPicked ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.55)', marginTop:'2px' } }, s.pickup_time),
+                      nextT
+                        ? React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700', color: isPicked ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.55)', marginTop:'2px' } }, '다음 ' + nextT)
+                        : React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700', color: isPicked ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.4)', marginTop:'2px' } }, '오늘 운행 종료'),
                       isDefault && React.createElement('div', { style:{ fontSize:'9px', fontWeight:'700', color: isPicked ? 'rgba(255,255,255,0.85)' : '#1d4ed8', marginTop:'2px', letterSpacing:'0.04em' } }, '기본')
                     );
                   })
@@ -456,8 +483,13 @@
             (stopMap[effStopId] = stopMap[effStopId] || []).push(st);
             totalRiding++;
           });
-          var sortedStops = busStops.slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); });
-          var seats = (vehicle && vehicle.seat_count != null) ? vehicle.seat_count : 25;
+          var sortedStops = busStops.slice().sort(function(a,b){
+            var ta = nextTimeForStop(a); var tb = nextTimeForStop(b);
+            if (ta && tb) return String(ta).localeCompare(String(tb));
+            if (ta) return -1; if (tb) return 1;
+            return 0;
+          });
+          var seats = (vehicle && vehicle.seat_count != null) ? vehicle.seat_count : 12;
           var seatsLeft = seats - totalRiding;
           return React.createElement('div', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px', padding:'14px 16px' } },
             React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px', flexWrap:'wrap', gap:'8px' } },

@@ -176,10 +176,10 @@ const [footerDraft, setFooterDraft] = React.useState(null);
 const [footerSaving, setFooterSaving] = React.useState(false);
 // 차량 위치 관리
 const [vehiclesList, setVehiclesList] = React.useState([]);
-const [vehicleDraft, setVehicleDraft] = React.useState({ name:'', driver_name:'', driver_phone:'', route:'', seat_count:'25' });
+const [vehicleDraft, setVehicleDraft] = React.useState({ name:'', driver_name:'', driver_phone:'', route:'', seat_count:'12' });
 // 정류장 관리
 const [busStopsList, setBusStopsList] = React.useState([]);
-const [stopDraft, setStopDraft] = React.useState({ name:'', pickup_time:'' });
+const [stopDraft, setStopDraft] = React.useState({ name:'', pickup_times:[], time_input:'' }); // pickup_times = ['14:00','16:00',...]
 const [stopEditingId, setStopEditingId] = React.useState(null);
 const [stopSaving, setStopSaving] = React.useState(false);
 // 차량 이용 신청 (학생 PWA에서 보낸 것)
@@ -524,14 +524,44 @@ async function rejectBusApplication(st) {
     await loadVehiclesData();
   } catch (e) { alert('거절 실패: ' + (e.message || e)); }
 }
+function normalizeTimeStr(raw) {
+  var s = String(raw || '').trim();
+  if (!s) return '';
+  // "1430" → "14:30", "9:5" → "09:05", "9시 30분" → "09:30"
+  var m = s.match(/^(\d{1,2}):?(\d{2})$/);
+  if (m) { var hh = String(parseInt(m[1],10)).padStart(2,'0'); var mm = m[2]; return hh+':'+mm; }
+  m = s.match(/^(\d{1,2})\s*시\s*(\d{1,2})?\s*분?$/);
+  if (m) { var hh2 = String(parseInt(m[1],10)).padStart(2,'0'); var mm2 = m[2] ? String(parseInt(m[2],10)).padStart(2,'0') : '00'; return hh2+':'+mm2; }
+  return s; // 그대로 (사용자가 직접 형식 맞추는 경우)
+}
+function addStopTime() {
+  var t = normalizeTimeStr(stopDraft.time_input);
+  if (!t) return;
+  if (!/^\d{2}:\d{2}$/.test(t)) { alert('시간 형식이 올바르지 않아요. 예: 14:30, 1430, 9시 30분'); return; }
+  setStopDraft(function(p){
+    var arr = (p.pickup_times || []).slice();
+    if (arr.indexOf(t) < 0) arr.push(t);
+    arr.sort();
+    return Object.assign({}, p, { pickup_times: arr, time_input:'' });
+  });
+}
+function removeStopTime(t) {
+  setStopDraft(function(p){
+    var arr = (p.pickup_times || []).filter(function(x){ return x !== t; });
+    return Object.assign({}, p, { pickup_times: arr });
+  });
+}
 async function saveBusStop() {
   var d = stopDraft;
   if (!(d.name || '').trim()) { alert('정류장 이름을 입력해 주세요.'); return; }
+  if (!(d.pickup_times || []).length) { alert('정차 시간을 1개 이상 등록해 주세요. (예: 14:30, 16:30 등 여러 번 운행이면 모두 추가)'); return; }
   setStopSaving(true);
   try {
+    var times = (d.pickup_times || []).slice().sort();
     var payload = {
       name: d.name.trim(),
-      pickup_time: (d.pickup_time || '').trim() || null,
+      pickup_time: times[0] || null, // 호환성용
+      pickup_times: times,
       is_active: true,
       updated_at: new Date().toISOString(),
     };
@@ -543,7 +573,7 @@ async function saveBusStop() {
       var ins = await sb.from('bus_stops').insert(payload);
       if (ins.error) throw ins.error;
     }
-    setStopDraft({ name:'', pickup_time:'' });
+    setStopDraft({ name:'', pickup_times:[], time_input:'' });
     setStopEditingId(null);
     await loadVehiclesData();
   } catch (e) { alert('정류장 저장 실패: ' + (e.message || e)); }
@@ -551,11 +581,15 @@ async function saveBusStop() {
 }
 function editBusStop(s) {
   setStopEditingId(s.id);
-  setStopDraft({ name: s.name || '', pickup_time: s.pickup_time || '' });
+  var times = (s.pickup_times && s.pickup_times.length) ? s.pickup_times.slice() : (s.pickup_time ? [s.pickup_time] : []);
+  setStopDraft({ name: s.name || '', pickup_times: times, time_input:'' });
+  setTimeout(function(){
+    try { var el = document.getElementById('bus-stop-form'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); } catch (e) {}
+  }, 50);
 }
 function cancelBusStopEdit() {
   setStopEditingId(null);
-  setStopDraft({ name:'', pickup_time:'' });
+  setStopDraft({ name:'', pickup_times:[], time_input:'' });
 }
 async function deleteBusStop(s) {
   if (!confirm('"' + s.name + '" 정류장을 삭제할까요? 이 정류장을 기본으로 쓰던 학생은 기본 정류장이 빈 상태가 됩니다.')) return;
@@ -600,7 +634,7 @@ async function saveVehicle() {
       driver_name: (d.driver_name || '').trim() || null,
       driver_phone: (d.driver_phone || '').trim() || null,
       route: (d.route || '').trim() || null,
-      seat_count: Math.max(0, parseInt(d.seat_count, 10) || 25),
+      seat_count: Math.max(0, parseInt(d.seat_count, 10) || 12),
       is_active: true,
       updated_at: new Date().toISOString(),
     };
@@ -611,7 +645,7 @@ async function saveVehicle() {
       var ins = await sb.from('vehicles').insert(payload);
       if (ins.error) throw ins.error;
     }
-    setVehicleDraft({ name:'', driver_name:'', driver_phone:'', route:'', seat_count:'25' });
+    setVehicleDraft({ name:'', driver_name:'', driver_phone:'', route:'', seat_count:'12' });
     setVehicleEditingId(null);
     await loadVehiclesData();
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
@@ -619,7 +653,7 @@ async function saveVehicle() {
 }
 function editVehicle(v) {
   setVehicleEditingId(v.id);
-  setVehicleDraft({ name: v.name || '', driver_name: v.driver_name || '', driver_phone: v.driver_phone || '', route: v.route || '', seat_count: String(v.seat_count != null ? v.seat_count : 25) });
+  setVehicleDraft({ name: v.name || '', driver_name: v.driver_name || '', driver_phone: v.driver_phone || '', route: v.route || '', seat_count: String(v.seat_count != null ? v.seat_count : 12) });
   // 폼이 화면 위쪽에 있어서 스크롤해 주어야 사용자가 변화를 알아챔
   setTimeout(function(){
     try { var el = document.getElementById('vehicle-form'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); } catch (e) {}
@@ -6102,7 +6136,7 @@ tab==='vehicles' && React.createElement('div', null,
             return React.createElement('div', { key:v.id, style:{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', background: v.is_active ? '#fff' : '#f9fafb', fontFamily:'Manrope, sans-serif' } },
               React.createElement('span', { style:{ background: v.is_active ? '#dcfce7' : '#f3f4f6', color: v.is_active ? '#15803d' : '#6b7280', fontSize:'11px', fontWeight:'800', padding:'4px 10px', borderRadius:'999px' } }, v.is_active ? '활성' : '비활성'),
               React.createElement('div', { style:{ flex:1, minWidth:0 } },
-                React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, v.name + (v.route ? ' · ' + v.route : '') + ' · 좌석 ' + (v.seat_count != null ? v.seat_count : 25) + '석'),
+                React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, v.name + (v.route ? ' · ' + v.route : '') + ' · 좌석 ' + (v.seat_count != null ? v.seat_count : 12) + '석'),
                 (v.driver_name || v.driver_phone) && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginTop:'2px' } }, [v.driver_name, v.driver_phone].filter(Boolean).join(' · '))
               ),
               React.createElement('button', { onClick: function(){ toggleVehicleActive(v); }, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, v.is_active ? '비활성화' : '활성화'),
@@ -6121,7 +6155,7 @@ tab==='vehicles' && React.createElement('div', null,
         // 좌석 잔여 안내 (대표 차량 기준)
         var firstActive = vehiclesList.find(function(v){ return v.is_active; });
         if (!firstActive) return null;
-        var total = firstActive.seat_count != null ? firstActive.seat_count : 25;
+        var total = firstActive.seat_count != null ? firstActive.seat_count : 12;
         var left = total - busApprovedCount;
         return React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color: left <= 0 ? '#c82014' : left < 5 ? '#c87000' : '#15803d' } }, firstActive.name + ' · 승인 ' + busApprovedCount + '명 / 좌석 ' + total + '석 (잔여 ' + left + '석)');
       })()
@@ -6153,32 +6187,55 @@ tab==='vehicles' && React.createElement('div', null,
     React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'12px', lineHeight:'1.7' } },
       '학생이 차량 페이지에서 선택할 정류장입니다. 학생 명단 탭에서 학생별 ', React.createElement('strong', null, '차량 이용 여부'), '와 ', React.createElement('strong', null, '기본 정류장'), '을 설정하면, 학생은 기본 정류장이 자동 선택되고 필요할 때만 다른 정류장을 누르면 됩니다.'
     ),
-    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 160px', gap:'10px', marginBottom:'10px' } },
-      React.createElement('div', null,
+    React.createElement('div', { id:'bus-stop-form', style:{ scrollMarginTop:'80px', border: stopEditingId ? '2px solid #E60012' : '1px solid #e5e7eb', borderRadius:'8px', padding:'14px', marginBottom:'14px', background: stopEditingId ? '#fff5f6' : '#f9fafb' } },
+      React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color: stopEditingId ? '#E60012' : '#1A1A1A', marginBottom:'10px' } }, stopEditingId ? '정류장 수정 중...' : '+ 새 정류장 추가'),
+      React.createElement('div', { style:{ marginBottom:'10px' } },
         React.createElement('label', { style:labelS }, '정류장 이름 *'),
         React.createElement('input', { value: stopDraft.name, onChange: function(e){ var v = e.target.value; setStopDraft(function(p){ return Object.assign({}, p, { name: v }); }); }, placeholder:'예: 검암역 1번 출구', style: inputS })
       ),
-      React.createElement('div', null,
-        React.createElement('label', { style:labelS }, '탑승 시간 (선택)'),
-        React.createElement('input', { value: stopDraft.pickup_time, onChange: function(e){ var v = e.target.value; setStopDraft(function(p){ return Object.assign({}, p, { pickup_time: v }); }); }, placeholder:'예: 07:30', style: inputS })
+      React.createElement('div', { style:{ marginBottom:'10px' } },
+        React.createElement('label', { style:labelS }, '정차 시간 — 하루에 여러 번 운행하면 모두 추가 *'),
+        React.createElement('div', { style:{ display:'flex', gap:'6px', alignItems:'center', marginBottom:'8px' } },
+          React.createElement('input', { type:'text', value: stopDraft.time_input, onChange: function(e){ var v = e.target.value; setStopDraft(function(p){ return Object.assign({}, p, { time_input: v }); }); }, onKeyDown: function(e){ if (e.key === 'Enter') { e.preventDefault(); addStopTime(); } }, placeholder:'예: 14:30 (또는 1430, 14시 30분)', style: Object.assign({}, inputS, { flex:1 }) }),
+          React.createElement('button', { type:'button', onClick: addStopTime, style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '+ 시간 추가')
+        ),
+        (stopDraft.pickup_times || []).length === 0
+          ? React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '아직 추가된 시간이 없어요. 운행 시간(예: 14:30)을 입력하고 + 시간 추가를 누르세요.')
+          : React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'6px' } },
+              stopDraft.pickup_times.slice().sort().map(function(t){
+                return React.createElement('span', { key:t, style:{ display:'inline-flex', alignItems:'center', gap:'6px', background:'#dbeafe', color:'#1d4ed8', fontSize:'12px', fontWeight:'800', padding:'5px 10px', borderRadius:'999px', fontFamily:'Manrope, sans-serif' } },
+                  t,
+                  React.createElement('button', { type:'button', onClick: function(){ removeStopTime(t); }, style:{ background:'none', border:'none', color:'#1d4ed8', cursor:'pointer', fontWeight:'800', padding:0, lineHeight:1 } }, '×')
+                );
+              })
+            )
+      ),
+      React.createElement('div', { style:{ display:'flex', gap:'8px', justifyContent:'flex-end' } },
+        stopEditingId && React.createElement('button', { onClick: cancelBusStopEdit, style: btnOutS }, '취소'),
+        React.createElement('button', { onClick: saveBusStop, disabled: stopSaving || !stopDraft.name.trim() || (stopDraft.pickup_times || []).length === 0, style: btnS(stopSaving ? '#9ca3af' : '#E60012') }, stopSaving ? '저장 중...' : (stopEditingId ? '수정 저장' : '+ 정류장 등록'))
       )
-    ),
-    React.createElement('div', { style:{ display:'flex', gap:'8px', justifyContent:'flex-end', marginBottom:'14px' } },
-      stopEditingId && React.createElement('button', { onClick: cancelBusStopEdit, style: btnOutS }, '취소'),
-      React.createElement('button', { onClick: saveBusStop, disabled: stopSaving || !stopDraft.name.trim(), style: btnS(stopSaving ? '#9ca3af' : '#E60012') }, stopSaving ? '저장 중...' : (stopEditingId ? '수정 저장' : '+ 정류장 등록'))
     ),
     busStopsList.length === 0
       ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', padding:'14px 0', fontFamily:'Manrope, sans-serif' } }, '아직 등록된 정류장이 없습니다.')
       : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
-          busStopsList.slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); }).map(function(s, i, arr){
+          busStopsList.slice().sort(function(a,b){
+            // 첫 운행 시간(pickup_times[0])으로 자동 정렬, 없으면 마지막으로
+            var ta = (a.pickup_times && a.pickup_times[0]) || a.pickup_time || 'zz';
+            var tb = (b.pickup_times && b.pickup_times[0]) || b.pickup_time || 'zz';
+            return String(ta).localeCompare(String(tb));
+          }).map(function(s, i){
+            var times = (s.pickup_times && s.pickup_times.length) ? s.pickup_times.slice().sort() : (s.pickup_time ? [s.pickup_time] : []);
             return React.createElement('div', { key:s.id, style:{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', background:'#fff', fontFamily:'Manrope, sans-serif' } },
               React.createElement('span', { style:{ background:'#dbeafe', color:'#1d4ed8', fontSize:'11px', fontWeight:'800', padding:'3px 8px', borderRadius:'999px', minWidth:'28px', textAlign:'center' } }, (i+1)),
               React.createElement('div', { style:{ flex:1, minWidth:0 } },
                 React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, s.name),
-                s.pickup_time && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginTop:'2px' } }, '탑승 시간: ' + s.pickup_time)
+                times.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginTop:'2px', display:'flex', flexWrap:'wrap', gap:'4px' } },
+                  React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)' } }, '정차:'),
+                  times.map(function(t){
+                    return React.createElement('span', { key:t, style:{ background:'#f3f4f6', color:'#374151', padding:'1px 7px', borderRadius:'4px', fontWeight:'700' } }, t);
+                  })
+                )
               ),
-              React.createElement('button', { onClick: function(){ moveBusStop(s, -1); }, disabled: i===0, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor: i===0?'not-allowed':'pointer', opacity: i===0 ? 0.4 : 1 } }, '↑'),
-              React.createElement('button', { onClick: function(){ moveBusStop(s, 1); }, disabled: i===arr.length-1, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor: i===arr.length-1?'not-allowed':'pointer', opacity: i===arr.length-1 ? 0.4 : 1 } }, '↓'),
               React.createElement('button', { onClick: function(){ editBusStop(s); }, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '수정'),
               React.createElement('button', { onClick: function(){ deleteBusStop(s); }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '삭제')
             );

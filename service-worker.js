@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v127-bus-application-approval';
+const CACHE_VERSION = 'b2-bigbang-20260515v128-multi-pickup-times';
 const OFFLINE_URLS = [
   './',
   './index.html',
