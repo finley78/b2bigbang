@@ -38,8 +38,11 @@
         var counts = {};
         if (rows.length) {
           var ids = rows.map(function(r){ return r.id; });
-          var wRes = await sb.from('vocab_words').select('list_id').in('list_id', ids);
-          ((wRes && wRes.data) || []).forEach(function(w){ counts[w.list_id] = (counts[w.list_id] || 0) + 1; });
+          // 1000행 한도 우회 — count 머리(head)만 받아서 정확한 개수만 조회
+          for (var ci = 0; ci < ids.length; ci++) {
+            var cRes = await sb.from('vocab_words').select('id', { count:'exact', head:true }).eq('list_id', ids[ci]);
+            counts[ids[ci]] = (cRes && typeof cRes.count === 'number') ? cRes.count : 0;
+          }
         }
         rows.forEach(function(r){ r._wordCount = counts[r.id] || 0; });
         setLists(rows);
@@ -238,6 +241,7 @@
     var [loading, setLoading] = React.useState(true);
     var [showImport, setShowImport] = React.useState(false);
     var [editingWord, setEditingWord] = React.useState(null);
+    var [wordPage, setWordPage] = React.useState(1); // 단어 목록 페이지 (200개씩)
     var [showTestCreate, setShowTestCreate] = React.useState(null); // unit_index 또는 null
     var [editingTest, setEditingTest] = React.useState(null);
     var [resultsTest, setResultsTest] = React.useState(null);
@@ -256,8 +260,19 @@
       try {
         var lRes = await sb.from('vocab_lists').select('*').eq('id', props.listId).maybeSingle();
         setList(lRes.data || null);
-        var wRes = await sb.from('vocab_words').select('*').eq('list_id', props.listId).order('sort_order', { ascending: true }).order('created_at', { ascending: true });
-        setWords((wRes && wRes.data) || []);
+        // Supabase PostgREST 기본 1000행 한도를 우회 — .range()로 페이지네이션해서 모두 가져옴
+        var allWords = [];
+        var pageSize = 1000;
+        for (var p = 0; ; p++) {
+          var wRes = await sb.from('vocab_words').select('*').eq('list_id', props.listId)
+            .order('sort_order', { ascending: true }).order('created_at', { ascending: true })
+            .range(p * pageSize, p * pageSize + pageSize - 1);
+          var batch = (wRes && wRes.data) || [];
+          if (!batch.length) break;
+          allWords = allWords.concat(batch);
+          if (batch.length < pageSize) break;
+        }
+        setWords(allWords);
         var tRes = await sb.from('vocab_tests').select('*').eq('list_id', props.listId).eq('is_active', true).order('unit_index', { ascending: true }).order('created_at', { ascending: false });
         setTests((tRes && tRes.data) || []);
         var sRes = await sb.from('vocab_study_sets').select('*').eq('list_id', props.listId).order('unit_index', { ascending: true });
@@ -363,36 +378,54 @@
       ),
 
       // 단어 탭
-      activeTab === 'words' && (
-        !words.length
-          ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 단어가 없습니다. 위의 "+ 5단계 학습 세트 업로드" 버튼으로 한 번에 등록하세요. (단어만 따로 넣으려면 "단어만 추가")')
-          : React.createElement('div', { style:STYLES.card },
-              React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 1.5fr 100px', gap:'8px', padding:'8px 4px', borderBottom:'2px solid #1A1A1A', fontSize:'11px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } },
-                !isMobile && React.createElement('div', null, '#'),
-                React.createElement('div', null, '단어'),
-                React.createElement('div', null, '뜻'),
-                !isMobile && React.createElement('div', null, '예문'),
-                React.createElement('div', { style:{ textAlign:'right' } }, '관리')
-              ),
-              words.map(function(w, i){
-                var thisUnit = Math.floor(i / unitSize) + 1;
-                var isUnitStart = i % unitSize === 0;
-                return React.createElement(React.Fragment, { key:w.id },
-                  isUnitStart && React.createElement('div', { style:{ gridColumn:'1 / -1', padding:'10px 4px 4px', fontSize:'11px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em', borderTop: i > 0 ? '1px dashed rgba(0,0,0,0.1)' : 'none', marginTop: i > 0 ? '6px' : 0 } }, '── UNIT ' + thisUnit + ' ──'),
-                  React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 1.5fr 100px', gap:'8px', padding:'10px 4px', borderBottom:'1px solid rgba(0,0,0,0.06)', fontSize:'13px', fontFamily:'Manrope, sans-serif', alignItems:'center' } },
-                    !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.4)', fontSize:'12px' } }, (i+1)),
-                    React.createElement('div', { style:{ fontWeight:'700', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis' } }, w.word),
-                    React.createElement('div', { style:{ color:'rgba(0,0,0,0.75)', overflow:'hidden', textOverflow:'ellipsis' } }, w.meaning),
-                    !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.55)', fontSize:'12px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, w.example || '-'),
-                    React.createElement('div', { style:{ display:'flex', gap:'4px', justifyContent:'flex-end' } },
-                      React.createElement('button', { onClick:function(){ setEditingWord(w); }, style:Object.assign({}, STYLES.btnGhost, { padding:'3px 8px', fontSize:'11px' }) }, '편집'),
-                      React.createElement('button', { onClick:function(){ deleteWord(w); }, style:Object.assign({}, STYLES.btnDanger, { padding:'3px 8px', fontSize:'11px' }) }, '×')
-                    )
-                  )
-                );
-              })
-            )
-      ),
+      activeTab === 'words' && (function(){
+        if (!words.length) return React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 단어가 없습니다. 위의 "+ 5단계 학습 세트 업로드" 버튼으로 한 번에 등록하세요. (단어만 따로 넣으려면 "단어만 추가")');
+        var PER_PAGE = 200;
+        var totalPages = Math.max(1, Math.ceil(words.length / PER_PAGE));
+        var safePage = Math.min(Math.max(1, wordPage), totalPages);
+        var pageStart = (safePage - 1) * PER_PAGE;
+        var pageWords = words.slice(pageStart, pageStart + PER_PAGE);
+        function PageNav(key) {
+          if (totalPages <= 1) return null;
+          return React.createElement('div', { key:key, style:{ display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', padding:'12px 4px', flexWrap:'wrap', fontFamily:'Manrope, sans-serif' } },
+            React.createElement('button', { onClick:function(){ setWordPage(1); }, disabled: safePage===1, style:Object.assign({}, STYLES.btnGhost, { padding:'4px 10px', fontSize:'12px', opacity: safePage===1 ? 0.4 : 1 }) }, '«'),
+            React.createElement('button', { onClick:function(){ setWordPage(safePage-1); }, disabled: safePage===1, style:Object.assign({}, STYLES.btnGhost, { padding:'4px 10px', fontSize:'12px', opacity: safePage===1 ? 0.4 : 1 }) }, '‹ 이전'),
+            React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#1A1A1A', padding:'0 8px' } }, safePage + ' / ' + totalPages + ' 페이지'),
+            React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)' } }, '(' + (pageStart+1) + '~' + Math.min(pageStart+PER_PAGE, words.length) + ' / 총 ' + words.length + '개)'),
+            React.createElement('button', { onClick:function(){ setWordPage(safePage+1); }, disabled: safePage===totalPages, style:Object.assign({}, STYLES.btnGhost, { padding:'4px 10px', fontSize:'12px', opacity: safePage===totalPages ? 0.4 : 1 }) }, '다음 ›'),
+            React.createElement('button', { onClick:function(){ setWordPage(totalPages); }, disabled: safePage===totalPages, style:Object.assign({}, STYLES.btnGhost, { padding:'4px 10px', fontSize:'12px', opacity: safePage===totalPages ? 0.4 : 1 }) }, '»')
+          );
+        }
+        return React.createElement('div', { style:STYLES.card },
+          PageNav('nav-top'),
+          React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 1.5fr 100px', gap:'8px', padding:'8px 4px', borderBottom:'2px solid #1A1A1A', fontSize:'11px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } },
+            !isMobile && React.createElement('div', null, '#'),
+            React.createElement('div', null, '단어'),
+            React.createElement('div', null, '뜻'),
+            !isMobile && React.createElement('div', null, '예문'),
+            React.createElement('div', { style:{ textAlign:'right' } }, '관리')
+          ),
+          pageWords.map(function(w, idx){
+            var i = pageStart + idx; // 전역 인덱스
+            var thisUnit = Math.floor(i / unitSize) + 1;
+            var isUnitStart = i % unitSize === 0;
+            return React.createElement(React.Fragment, { key:w.id },
+              isUnitStart && React.createElement('div', { style:{ gridColumn:'1 / -1', padding:'10px 4px 4px', fontSize:'11px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em', borderTop: idx > 0 ? '1px dashed rgba(0,0,0,0.1)' : 'none', marginTop: idx > 0 ? '6px' : 0 } }, '── UNIT ' + thisUnit + ' ──'),
+              React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr 70px' : '40px 1fr 1fr 1.5fr 100px', gap:'8px', padding:'10px 4px', borderBottom:'1px solid rgba(0,0,0,0.06)', fontSize:'13px', fontFamily:'Manrope, sans-serif', alignItems:'center' } },
+                !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.4)', fontSize:'12px' } }, (i+1)),
+                React.createElement('div', { style:{ fontWeight:'700', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis' } }, w.word),
+                React.createElement('div', { style:{ color:'rgba(0,0,0,0.75)', overflow:'hidden', textOverflow:'ellipsis' } }, w.meaning),
+                !isMobile && React.createElement('div', { style:{ color:'rgba(0,0,0,0.55)', fontSize:'12px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, w.example || '-'),
+                React.createElement('div', { style:{ display:'flex', gap:'4px', justifyContent:'flex-end' } },
+                  React.createElement('button', { onClick:function(){ setEditingWord(w); }, style:Object.assign({}, STYLES.btnGhost, { padding:'3px 8px', fontSize:'11px' }) }, '편집'),
+                  React.createElement('button', { onClick:function(){ deleteWord(w); }, style:Object.assign({}, STYLES.btnDanger, { padding:'3px 8px', fontSize:'11px' }) }, '×')
+                )
+              )
+            );
+          }),
+          PageNav('nav-bottom')
+        );
+      })(),
 
       // 시험 탭 — 유닛별 섹션 + 시험 카드 그리드
       activeTab === 'tests' && (
