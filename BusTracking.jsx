@@ -75,6 +75,8 @@
       var kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
       return String(kst.getUTCHours()).padStart(2,'0') + ':' + String(kst.getUTCMinutes()).padStart(2,'0');
     }
+    // 수업 시간 (관리자 패널과 동일하게 고정)
+    var CLASS_TIMES = ['15:00','16:30','17:30','18:00','19:30'];
     // 정류장의 "다음 운행 시간" — 지금(KST) 이후 가장 가까운 시간. 모두 지나갔으면 null
     function nextTimeForStop(stop) {
       var times = (stop && stop.pickup_times && stop.pickup_times.length) ? stop.pickup_times.slice().sort() : (stop && stop.pickup_time ? [stop.pickup_time] : []);
@@ -83,7 +85,14 @@
       for (var i = 0; i < times.length; i++) {
         if (String(times[i]) >= hhmm) return times[i];
       }
-      return null; // 오늘 운행 종료
+      return null;
+    }
+    // 학생의 수업 시간에 맞는 정류장 픽업 시간 — pickup_times[클래스 인덱스]
+    function pickupTimeForClass(stop, classTime) {
+      var idx = CLASS_TIMES.indexOf(classTime);
+      if (idx < 0) return null;
+      var times = (stop && stop.pickup_times) ? stop.pickup_times : (stop && stop.pickup_time ? [stop.pickup_time] : []);
+      return times[idx] || null;
     }
     var todayStr = todayKstDateStr();
 
@@ -127,7 +136,7 @@
           setBusStops((stopsRes && stopsRes.data) || []);
           // 본인 학생 행 (uses_bus, default_bus_stop_id, bus_application_status)
           if (user && user.id) {
-            var myRes = await sb.from('students').select('id, name, uses_bus, default_bus_stop_id, bus_application_status, role, is_active').eq('id', user.id).maybeSingle();
+            var myRes = await sb.from('students').select('id, name, uses_bus, default_bus_stop_id, bus_class_time, bus_application_status, role, is_active').eq('id', user.id).maybeSingle();
             if (myRes && myRes.data) {
               setMyStudentRow(myRes.data);
               // 오늘 변경 행
@@ -393,6 +402,8 @@
 
         // 학생: 오늘 정류장 선택 (uses_bus가 true일 때만)
         myStudentRow && myStudentRow.uses_bus && (function(){
+          var classTime = myStudentRow.bus_class_time;
+          var hasClass = !!classTime;
           var effectiveStopId = null;
           var effectiveSkip = false;
           if (myTodayBoarding) {
@@ -402,19 +413,28 @@
             effectiveStopId = myStudentRow.default_bus_stop_id;
           }
           var defaultStop = busStops.find(function(s){ return s.id === myStudentRow.default_bus_stop_id; });
-          var defaultNextTime = defaultStop ? nextTimeForStop(defaultStop) : null;
-          // 다음 운행 시간 순으로 자동 정렬. 시간 지난 정류장은 뒤로.
+          // 본인 수업 시간 기준 정렬 — 픽업 시간 빠른 정류장 먼저
           var sortedStops = busStops.slice().sort(function(a,b){
-            var ta = nextTimeForStop(a); var tb = nextTimeForStop(b);
+            var ta = hasClass ? pickupTimeForClass(a, classTime) : nextTimeForStop(a);
+            var tb = hasClass ? pickupTimeForClass(b, classTime) : nextTimeForStop(b);
             if (ta && tb) return String(ta).localeCompare(String(tb));
             if (ta) return -1; if (tb) return 1;
             return 0;
           });
+          var defaultPickup = (defaultStop && hasClass) ? pickupTimeForClass(defaultStop, classTime) : null;
           return React.createElement('div', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px', padding:'14px 16px', marginBottom:'10px' } },
+            // 수업 시간 배너
+            hasClass
+              ? React.createElement('div', { style:{ background:'#FFEBED', color:'#E60012', padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:'800', marginBottom:'10px', display:'flex', alignItems:'center', gap:'8px' } },
+                  React.createElement('span', null, '🕒'),
+                  React.createElement('span', null, '내 수업 시간: ' + classTime),
+                  defaultPickup && React.createElement('span', { style:{ marginLeft:'auto', fontSize:'11px', fontWeight:'700', color:'rgba(230,0,18,0.75)' } }, '기본 정류장 도착 ' + defaultPickup)
+                )
+              : React.createElement('div', { style:{ background:'#fffbeb', color:'#92400e', padding:'8px 12px', borderRadius:'8px', fontSize:'12px', fontWeight:'700', marginBottom:'10px', lineHeight:'1.6' } }, '수업 시간이 아직 설정 안 됐어요. 관리자에게 문의해 주세요.'),
             React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'4px' } }, '오늘 어디서 탈까요?'),
             React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6' } },
               defaultStop
-                ? ('기본은 ' + defaultStop.name + (defaultNextTime ? (' (다음 ' + defaultNextTime + ')') : ' (오늘 운행 종료)') + '. 다른 곳에서 탈 거면 그 정류장을 누르세요.')
+                ? ('기본은 ' + defaultStop.name + (defaultPickup ? (' (' + defaultPickup + ' 도착)') : '') + '. 다른 곳에서 탈 거면 그 정류장을 누르세요.')
                 : '기본 정류장이 아직 설정 안 됐어요. 오늘 탈 정류장을 골라주세요.'
             ),
             sortedStops.length === 0
@@ -423,21 +443,21 @@
                   sortedStops.map(function(s){
                     var isPicked = !effectiveSkip && s.id === effectiveStopId;
                     var isDefault = s.id === myStudentRow.default_bus_stop_id;
-                    var nextT = nextTimeForStop(s);
-                    var ended = !nextT;
+                    var pickT = hasClass ? pickupTimeForClass(s, classTime) : nextTimeForStop(s);
+                    var noTime = !pickT;
                     return React.createElement('button', { key:s.id, disabled: stopSaving, onClick: function(){ pickStop(s.id, false); }, style:{
                       background: isPicked ? '#E60012' : '#fff',
-                      color: isPicked ? '#fff' : (ended ? 'rgba(0,0,0,0.4)' : '#1A1A1A'),
+                      color: isPicked ? '#fff' : (noTime ? 'rgba(0,0,0,0.4)' : '#1A1A1A'),
                       border: '2px solid ' + (isPicked ? '#E60012' : '#d6dbde'),
                       borderRadius:'10px', padding:'12px 10px',
                       fontSize:'13px', fontWeight:'800', cursor: stopSaving ? 'wait' : 'pointer',
                       fontFamily:'Manrope, sans-serif', textAlign:'center', lineHeight:'1.3',
-                      opacity: ended ? 0.65 : 1
+                      opacity: noTime ? 0.65 : 1
                     } },
                       React.createElement('div', null, s.name),
-                      nextT
-                        ? React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700', color: isPicked ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.55)', marginTop:'2px' } }, '다음 ' + nextT)
-                        : React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700', color: isPicked ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.4)', marginTop:'2px' } }, '오늘 운행 종료'),
+                      pickT
+                        ? React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700', color: isPicked ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.55)', marginTop:'2px' } }, pickT + ' 도착')
+                        : React.createElement('div', { style:{ fontSize:'10px', fontWeight:'700', color: isPicked ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.4)', marginTop:'2px' } }, hasClass ? '이 수업 운행 없음' : '시간 없음'),
                       isDefault && React.createElement('div', { style:{ fontSize:'9px', fontWeight:'700', color: isPicked ? 'rgba(255,255,255,0.85)' : '#1d4ed8', marginTop:'2px', letterSpacing:'0.04em' } }, '기본')
                     );
                   })

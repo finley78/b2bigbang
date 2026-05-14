@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v138-bus-full-message';
+const CACHE_VERSION = 'b2-bigbang-20260515v139-student-pwa-class-time';
 const OFFLINE_URLS = [
   './',
   './index.html',
