@@ -110,9 +110,9 @@
           // 정류장 목록
           var stopsRes = await sb.from('bus_stops').select('*').eq('is_active', true).order('sort_order').order('created_at');
           setBusStops((stopsRes && stopsRes.data) || []);
-          // 본인 학생 행 (uses_bus, default_bus_stop_id)
+          // 본인 학생 행 (uses_bus, default_bus_stop_id, bus_application_status)
           if (user && user.id) {
-            var myRes = await sb.from('students').select('id, name, uses_bus, default_bus_stop_id').eq('id', user.id).maybeSingle();
+            var myRes = await sb.from('students').select('id, name, uses_bus, default_bus_stop_id, bus_application_status, role, is_active').eq('id', user.id).maybeSingle();
             if (myRes && myRes.data) {
               setMyStudentRow(myRes.data);
               // 오늘 변경 행
@@ -143,6 +143,28 @@
       var t = setInterval(loadDriverBoardings, 30 * 1000);
       return function(){ clearInterval(t); };
     }, [canDrive, driving]);
+
+    // 차량 이용 신청 (학생) — status='pending'으로 표시
+    async function applyForBus() {
+      if (!myStudentRow) return;
+      if (!confirm('차량 이용을 신청할까요? 관리자 승인 후 정류장 선택이 가능해집니다.')) return;
+      try {
+        var u = await sb.from('students').update({ bus_application_status: 'pending', bus_applied_at: new Date().toISOString() }).eq('id', myStudentRow.id).select().single();
+        if (u.error) throw u.error;
+        setMyStudentRow(Object.assign({}, myStudentRow, { bus_application_status: 'pending' }));
+        alert('신청이 접수되었습니다. 관리자 승인을 기다려 주세요.');
+      } catch (e) { alert('신청 실패: ' + (e.message || e)); }
+    }
+    // 신청 취소 (대기 중일 때만)
+    async function cancelBusApplication() {
+      if (!myStudentRow) return;
+      if (!confirm('신청을 취소할까요?')) return;
+      try {
+        var u = await sb.from('students').update({ bus_application_status: 'none', bus_applied_at: null }).eq('id', myStudentRow.id);
+        if (u.error) throw u.error;
+        setMyStudentRow(Object.assign({}, myStudentRow, { bus_application_status: 'none' }));
+      } catch (e) { alert('취소 실패: ' + (e.message || e)); }
+    }
 
     // 학생이 정류장 선택 — 기본과 같으면 변경 행 삭제, 다르면 upsert
     async function pickStop(stopId, skip) {
@@ -329,6 +351,31 @@
             loc.accuracy != null && React.createElement('span', null, '정확도: ' + Math.round(loc.accuracy) + ' m')
           )
         ),
+        // 학생: 차량 이용 신청 카드 (학생 본인 + 미승인 상태에만)
+        myStudentRow && myStudentRow.role === 'student' && !myStudentRow.uses_bus && (function(){
+          var status = myStudentRow.bus_application_status || 'none';
+          if (status === 'pending') {
+            return React.createElement('div', { style:{ background:'#fffbeb', border:'1px solid #fbbf24', borderRadius:'12px', padding:'14px 16px', marginBottom:'10px' } },
+              React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#92400e', marginBottom:'4px' } }, '⏳ 차량 이용 신청 대기 중'),
+              React.createElement('div', { style:{ fontSize:'11px', color:'#78350f', marginBottom:'10px', lineHeight:'1.6' } }, '관리자가 신청을 확인하고 좌석 여유를 보아 승인해 줍니다. 승인되면 이 자리에서 정류장을 선택할 수 있어요.'),
+              React.createElement('button', { onClick: cancelBusApplication, style:{ background:'transparent', color:'rgba(0,0,0,0.55)', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer' } }, '신청 취소')
+            );
+          }
+          if (status === 'rejected') {
+            return React.createElement('div', { style:{ background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:'12px', padding:'14px 16px', marginBottom:'10px' } },
+              React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#991b1b', marginBottom:'4px' } }, '차량 이용 신청 거절됨'),
+              React.createElement('div', { style:{ fontSize:'11px', color:'#7f1d1d', marginBottom:'10px', lineHeight:'1.6' } }, '좌석이 없거나 다른 사정으로 거절되었어요. 학원에 문의해 주세요. 다시 신청도 가능합니다.'),
+              React.createElement('button', { onClick: applyForBus, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer' } }, '다시 신청하기')
+            );
+          }
+          // 'none' — 미신청
+          return React.createElement('div', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px', padding:'14px 16px', marginBottom:'10px' } },
+            React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'4px' } }, '차량(셔틀) 이용을 신청하시겠어요?'),
+            React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6' } }, '신청 후 관리자가 좌석 여유를 확인해 승인합니다. 승인되면 정류장을 선택할 수 있어요.'),
+            React.createElement('button', { onClick: applyForBus, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'800', cursor:'pointer' } }, '+ 차량 이용 신청하기')
+          );
+        })(),
+
         // 학생: 오늘 정류장 선택 (uses_bus가 true일 때만)
         myStudentRow && myStudentRow.uses_bus && (function(){
           var effectiveStopId = null;
