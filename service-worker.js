@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v135-stop-time-clean-box';
+const CACHE_VERSION = 'b2-bigbang-20260515v136-admin-boarding-list';
 const OFFLINE_URLS = [
   './',
   './index.html',

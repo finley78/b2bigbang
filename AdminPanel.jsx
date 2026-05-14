@@ -183,6 +183,9 @@ const [stopDraft, setStopDraft] = React.useState({ name:'' });
 const [stopSaving, setStopSaving] = React.useState(false);
 // 행 안에서 시간 입력하는 버퍼 (정류장 ID별)
 const [stopTimeInputs, setStopTimeInputs] = React.useState({});
+// 차량 위치 탭의 오늘 탑승 명단
+const [busTodayStudents, setBusTodayStudents] = React.useState([]);
+const [busTodayBoardings, setBusTodayBoardings] = React.useState([]);
 // 차량 이용 신청 (학생 PWA에서 보낸 것)
 const [busApplications, setBusApplications] = React.useState([]); // pending 학생들
 const [busApprovedCount, setBusApprovedCount] = React.useState(0); // uses_bus=true 학생 수
@@ -515,6 +518,12 @@ async function loadVehiclesData() {
     setBusApplications((aRes && aRes.data) || []);
     var cRes = await sb.from('students').select('id', { count:'exact', head:true }).eq('uses_bus', true).eq('is_active', true);
     setBusApprovedCount((cRes && typeof cRes.count === 'number') ? cRes.count : 0);
+    // 오늘 탑승 명단
+    var tdyKst = (function(){ var now = new Date(); var kst = new Date(now.getTime() + 9*60*60*1000); return kst.getUTCFullYear() + '-' + String(kst.getUTCMonth()+1).padStart(2,'0') + '-' + String(kst.getUTCDate()).padStart(2,'0'); })();
+    var stRes = await sb.from('students').select('id, name, grade, uses_bus, default_bus_stop_id').eq('uses_bus', true).eq('is_active', true);
+    setBusTodayStudents((stRes && stRes.data) || []);
+    var bRes = await sb.from('bus_boardings').select('*').eq('boarding_date', tdyKst);
+    setBusTodayBoardings((bRes && bRes.data) || []);
   } catch (e) { console.error('차량 데이터 로드 실패:', e); }
 }
 async function approveBusApplication(st) {
@@ -6302,9 +6311,84 @@ tab==='vehicles' && React.createElement('div', null,
         )
   ),
 
+  /* 오늘 탑승 명단 */
+  React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px', marginTop:'14px' } },
+    (function(){
+      // 학생별 effective stop 계산
+      var stopMap = {};
+      var skipList = [];
+      var totalRiding = 0;
+      busTodayStudents.forEach(function(st){
+        var override = busTodayBoardings.find(function(b){ return b.student_id === st.id; });
+        if (override && override.is_skip) { skipList.push(st); return; }
+        var effStopId = override ? override.stop_id : st.default_bus_stop_id;
+        if (!effStopId) return;
+        (stopMap[effStopId] = stopMap[effStopId] || []).push(st);
+        totalRiding++;
+      });
+      var sortedStops = busStopsList.slice().sort(function(a,b){
+        var ta = (a.pickup_times && a.pickup_times[0]) || a.pickup_time || 'zz';
+        var tb = (b.pickup_times && b.pickup_times[0]) || b.pickup_time || 'zz';
+        return String(ta).localeCompare(String(tb));
+      });
+      var firstActive = vehiclesList.find(function(v){ return v.is_active; });
+      var seats = firstActive ? (firstActive.seat_count != null ? firstActive.seat_count : 12) : 12;
+      var seatsLeft = seats - totalRiding;
+      var unset = busTodayStudents.filter(function(st){
+        var override = busTodayBoardings.find(function(b){ return b.student_id === st.id; });
+        if (override && (override.is_skip || override.stop_id)) return false;
+        if (st.default_bus_stop_id) return false;
+        return true;
+      });
+      return React.createElement(React.Fragment, null,
+        React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px', flexWrap:'wrap', gap:'8px' } },
+          React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', color:'#1A1A1A', margin:0 } }, '4. 오늘 탑승 명단 (' + totalRiding + '명)'),
+          React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' } },
+            React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color: seatsLeft < 0 ? '#c82014' : seatsLeft < 5 ? '#c87000' : '#15803d' } }, '좌석 잔여 ' + seatsLeft + '석 / 총 ' + seats + '석'),
+            React.createElement('button', { onClick: loadVehiclesData, style:{ background:'transparent', color:'rgba(0,0,0,0.55)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '새로고침')
+          )
+        ),
+        busTodayStudents.length === 0
+          ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', padding:'14px 0', fontFamily:'Manrope, sans-serif' } }, '차량 이용 학생이 아직 없어요. 위 신청 대기에서 승인하거나 수강생 관리에서 차량 이용을 켜주세요.')
+          : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+              sortedStops.map(function(s, i){
+                var picks = stopMap[s.id] || [];
+                var times = (s.pickup_times && s.pickup_times.length) ? s.pickup_times : (s.pickup_time ? [s.pickup_time] : []);
+                return React.createElement('div', { key:s.id, style:{ border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px 12px', background: picks.length>0 ? '#fff' : '#fafbfc', fontFamily:'Manrope, sans-serif' } },
+                  React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', marginBottom: picks.length>0 ? '6px' : 0, flexWrap:'wrap' } },
+                    React.createElement('span', { style:{ background:'#dbeafe', color:'#1d4ed8', fontSize:'11px', fontWeight:'800', padding:'2px 8px', borderRadius:'999px', minWidth:'26px', textAlign:'center' } }, (i+1)),
+                    React.createElement('div', { style:{ flex:1, minWidth:'140px' } },
+                      React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, s.name),
+                      React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)' } }, picks.length + '명 탑승' + (times.length ? (' · 정차 ' + times.join(', ')) : ''))
+                    )
+                  ),
+                  picks.length > 0 && React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'4px' } },
+                    picks.map(function(p){
+                      return React.createElement('span', { key:p.id, style:{ background:'#FFEBED', color:'#E60012', fontSize:'11px', fontWeight:'700', padding:'3px 8px', borderRadius:'5px' } }, p.name + (p.grade ? (' ' + p.grade) : ''));
+                    })
+                  )
+                );
+              }),
+              unset.length > 0 && React.createElement('div', { style:{ border:'1px dashed #fbbf24', borderRadius:'8px', padding:'10px 12px', background:'#fffbeb', fontFamily:'Manrope, sans-serif' } },
+                React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'#92400e', marginBottom:'4px' } }, '기본 정류장 미설정 (' + unset.length + '명)'),
+                React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'4px' } },
+                  unset.map(function(p){ return React.createElement('span', { key:p.id, style:{ background:'#fef3c7', color:'#92400e', fontSize:'11px', fontWeight:'700', padding:'3px 8px', borderRadius:'5px' } }, p.name + (p.grade ? (' ' + p.grade) : '')); })
+                )
+              ),
+              skipList.length > 0 && React.createElement('div', { style:{ border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px 12px', background:'#f9fafb', fontFamily:'Manrope, sans-serif' } },
+                React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', marginBottom:'4px' } }, '오늘 안 탐 (' + skipList.length + '명)'),
+                React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'4px' } },
+                  skipList.map(function(p){ return React.createElement('span', { key:p.id, style:{ background:'#f3f4f6', color:'rgba(0,0,0,0.55)', fontSize:'11px', fontWeight:'700', padding:'3px 8px', borderRadius:'5px', textDecoration:'line-through' } }, p.name); })
+                )
+              )
+            )
+      );
+    })()
+  ),
+
   /* 정류장 관리 */
   React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px', marginTop:'14px' } },
-    React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'6px', color:'#1A1A1A' } }, '4. 정류장 관리'),
+    React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'6px', color:'#1A1A1A' } }, '5. 정류장 관리'),
     React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'12px', lineHeight:'1.7' } },
       '학생이 차량 페이지에서 선택할 정류장입니다. 학생 명단 탭에서 학생별 ', React.createElement('strong', null, '차량 이용 여부'), '와 ', React.createElement('strong', null, '기본 정류장'), '을 설정하면, 학생은 기본 정류장이 자동 선택되고 필요할 때만 다른 정류장을 누르면 됩니다.'
     ),
