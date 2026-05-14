@@ -174,6 +174,13 @@ const [eventBtnSaving, setEventBtnSaving] = React.useState(false);
 const [featureSaving, setFeatureSaving] = React.useState(false);
 const [footerDraft, setFooterDraft] = React.useState(null);
 const [footerSaving, setFooterSaving] = React.useState(false);
+// 차량 위치 관리
+const [vehiclesList, setVehiclesList] = React.useState([]);
+const [vehicleDraft, setVehicleDraft] = React.useState({ name:'', driver_name:'', driver_phone:'', route:'' });
+const [vehicleEditingId, setVehicleEditingId] = React.useState(null);
+const [kakaoKeyInput, setKakaoKeyInput] = React.useState('');
+const [kakaoKeyHasSaved, setKakaoKeyHasSaved] = React.useState(false);
+const [vehicleSaving, setVehicleSaving] = React.useState(false);
 const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); // { exam_id: [requests] }
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
@@ -470,6 +477,77 @@ async function saveEventBtn() {
     alert('이벤트 버튼이 저장되었습니다. (메인 페이지 새로고침 시 반영)');
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
   finally { setEventBtnSaving(false); }
+}
+
+async function loadVehiclesData() {
+  try {
+    var vRes = await sb.from('vehicles').select('*').order('created_at');
+    setVehiclesList((vRes && vRes.data) || []);
+    var kRes = await window.B2Utils.loadSiteContent('kakao_map_key');
+    var saved = (kRes && (kRes.appkey || kRes.key)) || '';
+    setKakaoKeyInput(saved);
+    setKakaoKeyHasSaved(!!saved);
+  } catch (e) { console.error('차량 데이터 로드 실패:', e); }
+}
+async function saveKakaoKey() {
+  var key = (kakaoKeyInput || '').trim();
+  if (!key) { alert('카카오 JavaScript 키를 입력해 주세요.'); return; }
+  setVehicleSaving(true);
+  try {
+    var { error } = await window.B2Utils.saveSiteContent('kakao_map_key', { appkey: key });
+    if (error) throw error;
+    setKakaoKeyHasSaved(true);
+    alert('카카오 지도 키가 저장되었습니다. 차량 위치 페이지를 새로고침하면 반영됩니다.');
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+  finally { setVehicleSaving(false); }
+}
+async function saveVehicle() {
+  var d = vehicleDraft;
+  if (!d.name || !d.name.trim()) { alert('차량 이름을 입력해 주세요. (예: 1호차)'); return; }
+  setVehicleSaving(true);
+  try {
+    var payload = {
+      name: d.name.trim(),
+      driver_name: (d.driver_name || '').trim() || null,
+      driver_phone: (d.driver_phone || '').trim() || null,
+      route: (d.route || '').trim() || null,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    };
+    if (vehicleEditingId) {
+      var u = await sb.from('vehicles').update(payload).eq('id', vehicleEditingId);
+      if (u.error) throw u.error;
+    } else {
+      var ins = await sb.from('vehicles').insert(payload);
+      if (ins.error) throw ins.error;
+    }
+    setVehicleDraft({ name:'', driver_name:'', driver_phone:'', route:'' });
+    setVehicleEditingId(null);
+    await loadVehiclesData();
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+  finally { setVehicleSaving(false); }
+}
+function editVehicle(v) {
+  setVehicleEditingId(v.id);
+  setVehicleDraft({ name: v.name || '', driver_name: v.driver_name || '', driver_phone: v.driver_phone || '', route: v.route || '' });
+}
+function cancelVehicleEdit() {
+  setVehicleEditingId(null);
+  setVehicleDraft({ name:'', driver_name:'', driver_phone:'', route:'' });
+}
+async function toggleVehicleActive(v) {
+  try {
+    await sb.from('vehicles').update({ is_active: !v.is_active, updated_at: new Date().toISOString() }).eq('id', v.id);
+    await loadVehiclesData();
+  } catch (e) { alert('변경 실패: ' + (e.message || e)); }
+}
+async function deleteVehicle(v) {
+  if (!confirm('차량 "' + v.name + '"을(를) 삭제할까요? (위치 기록도 함께 삭제됩니다)')) return;
+  try {
+    await sb.from('vehicle_locations').delete().eq('vehicle_id', v.id);
+    await sb.from('vehicles').delete().eq('id', v.id);
+    await loadVehiclesData();
+  } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
 }
 
 async function loadProgramsContent() {
@@ -1684,6 +1762,7 @@ const tabs = [
 { id:'schedule',label:'학원 일정' },
 { id:'leveltest',label:'시험 관리' },
 { id:'vocab',   label:'단어장' },
+{ id:'vehicles',label:'차량 위치' },
 { id:'feature', label:'섹션 편집' },
 { id:'about',   label:'학원안내 편집' },
 { id:'programs',label:'프로그램 편집' },
@@ -1695,7 +1774,7 @@ const tabGroups = [
 { id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about','programs','eventbtn','footer'] },
 { id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
 { id:'students', label:'수강생',    tabs:['enrollee','classmgmt','views','analysis'] },
-{ id:'academy',  label:'학원 관리', tabs:['leveltest','vocab','member','schedule','files'] },
+{ id:'academy',  label:'학원 관리', tabs:['leveltest','vocab','member','schedule','files','vehicles'] },
 ];
 
 const inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'4px', padding:'8px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', color:'rgba(0,0,0,0.87)', outline:'none', boxSizing:'border-box' };
@@ -1812,7 +1891,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'16px 18px', fontSize:'15px', display:'inline-flex', alignItems:'center', minHeight:'52px' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadMaterials(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') { loadAdminLevelTests(); loadMaterials(); } if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadMaterials(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') { loadAdminLevelTests(); loadMaterials(); } if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); if (tid === 'vehicles') loadVehiclesData(); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -5479,6 +5558,81 @@ tab==='footer' && React.createElement('div', null,
     React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end', marginTop:'8px' } },
       React.createElement('button', { onClick: saveFooterContent, disabled: footerSaving, style:{ background: footerSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px 24px', fontSize:'14px', fontWeight:'800', cursor: footerSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, footerSaving ? '저장 중...' : '변경사항 저장')
     )
+  )
+),
+
+/* ── 차량 위치 TAB ── */
+tab==='vehicles' && React.createElement('div', null,
+  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '학원 차량 위치'),
+  React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'18px', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } },
+    '학원 차량을 등록하고 카카오 지도 키를 저장하면 로그인한 사용자들이 ', React.createElement('strong', null, '메뉴 > 차량 위치'),
+    '에서 실시간 위치를 확인할 수 있습니다. 운행 중인 기사(관리자/선생님)가 페이지에서 ‘운행 시작’ 누르면 본인 휴대폰 GPS로 30초마다 자동 송신.'
+  ),
+
+  /* 카카오 지도 키 */
+  React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px', marginBottom:'14px' } },
+    React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'10px', color:'#1A1A1A' } }, '1. 카카오 지도 JavaScript 키'),
+    React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'10px', lineHeight:'1.7' } },
+      'developers.kakao.com → 내 애플리케이션 → 앱 만들기 → ',
+      React.createElement('strong', null, '앱 설정 > 플랫폼 > Web 플랫폼 등록'),
+      '에 사이트 도메인(예: https://b2bigbang.com, https://finley78.github.io)을 등록한 뒤, ',
+      React.createElement('strong', null, '요약 정보 > JavaScript 키'),
+      '를 복사해 아래에 붙여넣고 저장하세요.'
+    ),
+    React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
+      React.createElement('input', { type:'text', value: kakaoKeyInput, onChange: function(e){ setKakaoKeyInput(e.target.value); }, placeholder:'예: 1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p', style: Object.assign({}, inputS, { flex:1, fontFamily:'Menlo, Consolas, monospace' }) }),
+      React.createElement('button', { onClick: saveKakaoKey, disabled: vehicleSaving, style:{ background: vehicleSaving?'#9ca3af':'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'10px 16px', fontSize:'13px', fontWeight:'800', cursor: vehicleSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, vehicleSaving ? '저장 중...' : '키 저장')
+    ),
+    kakaoKeyHasSaved && React.createElement('div', { style:{ fontSize:'11px', color:'#15803d', fontWeight:'700', marginTop:'8px', fontFamily:'Manrope, sans-serif' } }, '✓ 저장된 키가 있습니다.')
+  ),
+
+  /* 차량 목록 + 등록 폼 */
+  React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px', marginBottom:'14px' } },
+    React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'10px', color:'#1A1A1A' } }, '2. 차량 ' + (vehicleEditingId ? '수정' : '등록')),
+    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px' } },
+      React.createElement('div', null,
+        React.createElement('label', { style:labelS }, '차량 이름 *'),
+        React.createElement('input', { value: vehicleDraft.name, onChange: function(e){ var v = e.target.value; setVehicleDraft(function(p){ return Object.assign({}, p, { name: v }); }); }, placeholder:'예: 1호차', style: inputS })
+      ),
+      React.createElement('div', null,
+        React.createElement('label', { style:labelS }, '노선 (선택)'),
+        React.createElement('input', { value: vehicleDraft.route, onChange: function(e){ var v = e.target.value; setVehicleDraft(function(p){ return Object.assign({}, p, { route: v }); }); }, placeholder:'예: 검암 → 학원', style: inputS })
+      ),
+      React.createElement('div', null,
+        React.createElement('label', { style:labelS }, '기사 이름 (선택)'),
+        React.createElement('input', { value: vehicleDraft.driver_name, onChange: function(e){ var v = e.target.value; setVehicleDraft(function(p){ return Object.assign({}, p, { driver_name: v }); }); }, placeholder:'예: 김기사', style: inputS })
+      ),
+      React.createElement('div', null,
+        React.createElement('label', { style:labelS }, '기사 전화 (선택)'),
+        React.createElement('input', { value: vehicleDraft.driver_phone, onChange: function(e){ var v = e.target.value; setVehicleDraft(function(p){ return Object.assign({}, p, { driver_phone: v }); }); }, placeholder:'예: 010-1234-5678', style: inputS })
+      )
+    ),
+    React.createElement('div', { style:{ display:'flex', gap:'8px', justifyContent:'flex-end' } },
+      vehicleEditingId && React.createElement('button', { onClick: cancelVehicleEdit, style: btnOutS }, '취소'),
+      React.createElement('button', { onClick: saveVehicle, disabled: vehicleSaving || !vehicleDraft.name.trim(), style: btnS(vehicleSaving ? '#9ca3af' : '#E60012') }, vehicleSaving ? '저장 중...' : (vehicleEditingId ? '수정 저장' : '+ 차량 등록'))
+    )
+  ),
+
+  /* 등록된 차량 목록 */
+  React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
+    React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'10px', color:'#1A1A1A' } }, '등록된 차량 (' + vehiclesList.length + '대)'),
+    React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '※ 현재 학생/학부모 화면은 ', React.createElement('strong', null, '활성 차량 중 가장 먼저 등록된 1대'), '를 표시합니다. 여러 대 운영 시 보여줄 차량만 활성으로 두세요.'),
+    vehiclesList.length === 0
+      ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', padding:'14px 0', fontFamily:'Manrope, sans-serif' } }, '아직 등록된 차량이 없습니다.')
+      : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+          vehiclesList.map(function(v){
+            return React.createElement('div', { key:v.id, style:{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', background: v.is_active ? '#fff' : '#f9fafb', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('span', { style:{ background: v.is_active ? '#dcfce7' : '#f3f4f6', color: v.is_active ? '#15803d' : '#6b7280', fontSize:'11px', fontWeight:'800', padding:'4px 10px', borderRadius:'999px' } }, v.is_active ? '활성' : '비활성'),
+              React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, v.name + (v.route ? ' · ' + v.route : '')),
+                (v.driver_name || v.driver_phone) && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginTop:'2px' } }, [v.driver_name, v.driver_phone].filter(Boolean).join(' · '))
+              ),
+              React.createElement('button', { onClick: function(){ toggleVehicleActive(v); }, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, v.is_active ? '비활성화' : '활성화'),
+              React.createElement('button', { onClick: function(){ editVehicle(v); }, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '수정'),
+              React.createElement('button', { onClick: function(){ deleteVehicle(v); }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
+            );
+          })
+        )
   )
 ),
 
