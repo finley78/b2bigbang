@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260514v117-bus-resume-wakelock';
+const CACHE_VERSION = 'b2-bigbang-20260514v118-sw-pass-cdn';
 const OFFLINE_URLS = [
   './',
   './index.html',
@@ -58,6 +58,12 @@ self.addEventListener('fetch', (event) => {
   ) {
     return;
   }
+
+  // 외부 도메인(카카오 SDK, React CDN, Supabase JS CDN, SheetJS CDN, Google Fonts 등)은
+  // service-worker가 가로채면 opaque 응답이 되어 CORB로 차단될 수 있음.
+  // 그냥 통과시켜 브라우저가 직접 처리하도록 한다.
+  const sameOriginEarly = url.origin === self.location.origin;
+  if (!sameOriginEarly) return;
 
   // 우리 앱 코드(.js, .jsx, .html)와 네비게이션 요청(루트 '/' 포함)은 네트워크 우선
   // — 업데이트가 즉시 반영되도록. (네비게이션 = 주소창 입력/링크 클릭/새로고침으로
