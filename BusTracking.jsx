@@ -60,6 +60,7 @@
     // 정류장 관련 상태
     var [busStops, setBusStops] = React.useState([]);
     var [myStudentRow, setMyStudentRow] = React.useState(null); // { uses_bus, default_bus_stop_id, id, name }
+    var [myEnrolledClasses, setMyEnrolledClasses] = React.useState([]); // [{id, name, day_times}]
     var [myTodayBoarding, setMyTodayBoarding] = React.useState(null); // 오늘 변경 행 (null이면 기본 정류장)
     var [stopSaving, setStopSaving] = React.useState(false);
     var [allTodayBoardings, setAllTodayBoardings] = React.useState([]); // 기사 모드: 오늘 전체 변경 행
@@ -77,6 +78,23 @@
     }
     // 수업 시간 (관리자 패널과 동일하게 고정)
     var CLASS_TIMES = ['15:00','16:30','17:30','18:00','19:30'];
+    // 오늘 요일 (KST) — '월','화','수','목','금','토','일'
+    function todayKstDay() {
+      var now = new Date();
+      var kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      return ['일','월','화','수','목','금','토'][kst.getUTCDay()];
+    }
+    // 학생의 오늘 수업 시간 — 등록된 반들의 day_times[오늘 요일] 중 가장 이른 시간 (없으면 fallback)
+    function computeTodayClassTime() {
+      var day = todayKstDay();
+      var times = [];
+      myEnrolledClasses.forEach(function(c){
+        var dts = (c.day_times && typeof c.day_times === 'object') ? c.day_times : null;
+        if (dts && dts[day]) times.push(dts[day]);
+      });
+      if (times.length) { times.sort(); return times[0]; }
+      return (myStudentRow && myStudentRow.bus_class_time) || null;
+    }
     // 정류장의 "다음 운행 시간" — 지금(KST) 이후 가장 가까운 시간. 모두 지나갔으면 null
     function nextTimeForStop(stop) {
       var times = (stop && stop.pickup_times && stop.pickup_times.length) ? stop.pickup_times.slice().sort() : (stop && stop.pickup_time ? [stop.pickup_time] : []);
@@ -139,11 +157,17 @@
             var myRes = await sb.from('students').select('id, name, uses_bus, default_bus_stop_id, bus_class_time, bus_application_status, role, is_active').eq('id', user.id).maybeSingle();
             if (myRes && myRes.data) {
               setMyStudentRow(myRes.data);
-              // 오늘 변경 행
+              // 오늘 변경 행 + 등록된 반들의 day_times
               if (myRes.data.uses_bus) {
                 var tdy = todayKstDateStr();
                 var bRes = await sb.from('bus_boardings').select('*').eq('student_id', myRes.data.id).eq('boarding_date', tdy).maybeSingle();
                 setMyTodayBoarding((bRes && bRes.data) || null);
+                var csRes = await sb.from('class_students').select('class_id').eq('student_id', myRes.data.id);
+                var clsIds = ((csRes && csRes.data) || []).map(function(r){ return r.class_id; });
+                if (clsIds.length) {
+                  var clRes = await sb.from('classes').select('id, name, day_times').in('id', clsIds);
+                  setMyEnrolledClasses((clRes && clRes.data) || []);
+                }
               }
             }
           }
@@ -402,7 +426,7 @@
 
         // 학생: 오늘 정류장 선택 (uses_bus가 true일 때만)
         myStudentRow && myStudentRow.uses_bus && (function(){
-          var classTime = myStudentRow.bus_class_time;
+          var classTime = computeTodayClassTime();
           var hasClass = !!classTime;
           var effectiveStopId = null;
           var effectiveSkip = false;
@@ -425,12 +449,14 @@
           return React.createElement('div', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px', padding:'14px 16px', marginBottom:'10px' } },
             // 수업 시간 배너
             hasClass
-              ? React.createElement('div', { style:{ background:'#FFEBED', color:'#E60012', padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:'800', marginBottom:'10px', display:'flex', alignItems:'center', gap:'8px' } },
+              ? React.createElement('div', { style:{ background:'#FFEBED', color:'#E60012', padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:'800', marginBottom:'10px', display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
                   React.createElement('span', null, '🕒'),
-                  React.createElement('span', null, '내 수업 시간: ' + classTime),
+                  React.createElement('span', null, '오늘(' + todayKstDay() + ') 수업 ' + classTime),
                   defaultPickup && React.createElement('span', { style:{ marginLeft:'auto', fontSize:'11px', fontWeight:'700', color:'rgba(230,0,18,0.75)' } }, '기본 정류장 도착 ' + defaultPickup)
                 )
-              : React.createElement('div', { style:{ background:'#fffbeb', color:'#92400e', padding:'8px 12px', borderRadius:'8px', fontSize:'12px', fontWeight:'700', marginBottom:'10px', lineHeight:'1.6' } }, '수업 시간이 아직 설정 안 됐어요. 관리자에게 문의해 주세요.'),
+              : myEnrolledClasses.length > 0
+                ? React.createElement('div', { style:{ background:'#f3f4f6', color:'rgba(0,0,0,0.55)', padding:'8px 12px', borderRadius:'8px', fontSize:'12px', fontWeight:'700', marginBottom:'10px', lineHeight:'1.6' } }, '오늘(' + todayKstDay() + ')은 수업이 없는 요일이에요. 차량 운행도 없습니다.')
+                : React.createElement('div', { style:{ background:'#fffbeb', color:'#92400e', padding:'8px 12px', borderRadius:'8px', fontSize:'12px', fontWeight:'700', marginBottom:'10px', lineHeight:'1.6' } }, '수업 시간이 아직 설정 안 됐어요. 관리자에게 문의해 주세요.'),
             React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'4px' } }, '오늘 어디서 탈까요?'),
             React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6' } },
               defaultStop

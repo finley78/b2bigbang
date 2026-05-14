@@ -6421,7 +6421,7 @@ tab==='vehicles' && React.createElement('div', null,
         )
   ),
 
-  /* 오늘 탑승 명단 — 수업 시간별 그룹 */
+  /* 오늘 탑승 명단 — 오늘 요일 + 수업 시간별 그룹 */
   React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px', marginTop:'14px' } },
     (function(){
       var sortedStops = busStopsList.slice().sort(function(a,b){
@@ -6429,25 +6429,45 @@ tab==='vehicles' && React.createElement('div', null,
         var tb = (b.pickup_times && b.pickup_times[0]) || b.pickup_time || 'zz';
         return String(ta).localeCompare(String(tb));
       });
+      // 오늘 요일
+      function todayKstDay(){
+        var now = new Date();
+        var kst = new Date(now.getTime() + 9*60*60*1000);
+        return ['일','월','화','수','목','금','토'][kst.getUTCDay()];
+      }
+      var today = todayKstDay();
+      // 학생 ID → 등록된 반들 day_times에서 오늘 요일 가장 이른 시간
+      function todayClassTimeFor(studentId, fallback){
+        var times = [];
+        Object.keys(classStudents || {}).forEach(function(cid){
+          if ((classStudents[cid] || []).indexOf(studentId) >= 0) {
+            var c = (teacherClasses || []).find(function(x){ return x.id === cid; });
+            if (c && c.day_times && typeof c.day_times === 'object' && c.day_times[today]) times.push(c.day_times[today]);
+          }
+        });
+        if (times.length) { times.sort(); return times[0]; }
+        return fallback || null;
+      }
       var totalRiding = 0;
       var skipList = [];
       var unset = [];
-      // 수업 시간별 → 정류장별 학생 매핑
+      var noClassToday = []; // 오늘 수업 없는 학생
       var byClassThenStop = {};
       CLASS_TIMES.forEach(function(ct){ byClassThenStop[ct] = {}; });
       busTodayStudents.forEach(function(st){
         var override = busTodayBoardings.find(function(b){ return b.student_id === st.id; });
         if (override && override.is_skip) { skipList.push(st); return; }
         var effStopId = override ? override.stop_id : st.default_bus_stop_id;
-        if (!effStopId || !st.bus_class_time) { unset.push(st); return; }
-        var ct = st.bus_class_time;
+        var ct = todayClassTimeFor(st.id, st.bus_class_time);
+        if (!effStopId) { unset.push(st); return; }
+        if (!ct) { noClassToday.push(st); return; }
         if (!byClassThenStop[ct]) byClassThenStop[ct] = {};
         (byClassThenStop[ct][effStopId] = byClassThenStop[ct][effStopId] || []).push(st);
         totalRiding++;
       });
       return React.createElement(React.Fragment, null,
         React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px', flexWrap:'wrap', gap:'8px' } },
-          React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', color:'#1A1A1A', margin:0 } }, '4. 오늘 탑승 명단 (' + totalRiding + '명)'),
+          React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', color:'#1A1A1A', margin:0 } }, '4. 오늘(' + today + ') 탑승 명단 (' + totalRiding + '명)'),
           React.createElement('button', { onClick: loadVehiclesData, style:{ background:'transparent', color:'rgba(0,0,0,0.55)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '새로고침')
         ),
         busTodayStudents.length === 0
@@ -6478,8 +6498,14 @@ tab==='vehicles' && React.createElement('div', null,
                   )
                 );
               }),
+              noClassToday.length > 0 && React.createElement('div', { style:{ border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px 12px', background:'#f9fafb', fontFamily:'Manrope, sans-serif' } },
+                React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'rgba(0,0,0,0.55)', marginBottom:'4px' } }, '오늘(' + today + ') 수업 없음 — 차량 운행 없음 (' + noClassToday.length + '명)'),
+                React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'4px' } },
+                  noClassToday.map(function(p){ return React.createElement('span', { key:p.id, style:{ background:'#f3f4f6', color:'rgba(0,0,0,0.55)', fontSize:'11px', fontWeight:'700', padding:'3px 8px', borderRadius:'5px' } }, p.name + (p.grade ? (' ' + p.grade) : '')); })
+                )
+              ),
               unset.length > 0 && React.createElement('div', { style:{ border:'1px dashed #fbbf24', borderRadius:'8px', padding:'10px 12px', background:'#fffbeb', fontFamily:'Manrope, sans-serif' } },
-                React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'#92400e', marginBottom:'4px' } }, '수업 시간·정류장 미설정 (' + unset.length + '명)'),
+                React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'#92400e', marginBottom:'4px' } }, '정류장 미설정 (' + unset.length + '명)'),
                 React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'4px' } },
                   unset.map(function(p){ return React.createElement('span', { key:p.id, style:{ background:'#fef3c7', color:'#92400e', fontSize:'11px', fontWeight:'700', padding:'3px 8px', borderRadius:'5px' } }, p.name + (p.grade ? (' ' + p.grade) : '')); })
                 )
