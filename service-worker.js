@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v145-fix-bus-fields-race';
+const CACHE_VERSION = 'b2-bigbang-20260515v146-bus-state-sync';
 const OFFLINE_URLS = [
   './',
   './index.html',

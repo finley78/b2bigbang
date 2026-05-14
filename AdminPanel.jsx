@@ -533,14 +533,19 @@ async function loadVehiclesData() {
 }
 async function approveBusApplication(st) {
   try {
-    await sb.from('students').update({ bus_application_status:'approved', uses_bus:true }).eq('id', st.id);
+    var patch = { bus_application_status:'approved', uses_bus:true };
+    await sb.from('students').update(patch).eq('id', st.id);
+    // 학생 카드(수강생 관리 탭)에도 즉시 반영 — 새로고침 없이
+    setDbStudents(s => s.map(x => x.id === st.id ? Object.assign({}, x, patch) : x));
     await loadVehiclesData();
   } catch (e) { alert('승인 실패: ' + (e.message || e)); }
 }
 async function rejectBusApplication(st) {
   if (!confirm('"' + st.name + '" 학생의 차량 이용 신청을 거절할까요?')) return;
   try {
-    await sb.from('students').update({ bus_application_status:'rejected', uses_bus:false, default_bus_stop_id:null }).eq('id', st.id);
+    var patch = { bus_application_status:'rejected', uses_bus:false, default_bus_stop_id:null, bus_class_time:null };
+    await sb.from('students').update(patch).eq('id', st.id);
+    setDbStudents(s => s.map(x => x.id === st.id ? Object.assign({}, x, patch) : x));
     await loadVehiclesData();
   } catch (e) { alert('거절 실패: ' + (e.message || e)); }
 }
@@ -1741,7 +1746,13 @@ showSaved();
 }
 async function updateStudentUsesBus(studentId, usesBus) {
   var payload = { uses_bus: !!usesBus };
-  if (!usesBus) { payload.default_bus_stop_id = null; payload.bus_class_time = null; }
+  if (!usesBus) {
+    payload.default_bus_stop_id = null;
+    payload.bus_class_time = null;
+    // uses_bus 끄면 신청 상태도 리셋 (다시 신청 가능하게)
+    payload.bus_application_status = 'none';
+    payload.bus_applied_at = null;
+  }
   await sb.from('students').update(payload).eq('id', studentId);
   setDbStudents(s => s.map(st => st.id === studentId ? Object.assign({}, st, payload) : st));
   showSaved();
