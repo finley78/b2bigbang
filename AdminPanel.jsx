@@ -1785,10 +1785,19 @@ async function autoFillStudentBusClassTime(studentId) {
     var csRes = await sb.from('class_students').select('class_id').eq('student_id', studentId);
     var classIds = ((csRes && csRes.data) || []).map(function(r){ return r.class_id; });
     if (!classIds.length) { alert('이 학생이 등록된 반이 없어요. 반을 먼저 배정해 주세요.'); return; }
-    var clsList = (teacherClasses || []).filter(function(c){ return classIds.indexOf(c.id) >= 0 && c.start_time; });
-    if (!clsList.length) { alert('등록된 반 중에 시간이 입력된 반이 없어요. 클래스 관리에서 반 시간을 먼저 설정해 주세요.'); return; }
-    var times = clsList.map(function(c){ return c.start_time; }).sort();
-    var earliest = times[0];
+    var clsList = (teacherClasses || []).filter(function(c){ return classIds.indexOf(c.id) >= 0; });
+    var allTimes = [];
+    clsList.forEach(function(c){
+      var dts = (c.day_times && typeof c.day_times === 'object') ? c.day_times : null;
+      if (dts) {
+        Object.keys(dts).forEach(function(k){ if (dts[k]) allTimes.push(dts[k]); });
+      } else if (c.start_time) {
+        allTimes.push(c.start_time);
+      }
+    });
+    if (!allTimes.length) { alert('등록된 반 중에 시간이 입력된 반이 없어요. 클래스 관리에서 반 시간을 먼저 설정해 주세요.'); return; }
+    allTimes.sort();
+    var earliest = allTimes[0];
     // CLASS_TIMES 중 가장 가까운 정원이 빈 시간 매칭 (정확히 같은 시간이 우선)
     var target = (CLASS_TIMES.indexOf(earliest) >= 0) ? earliest : null;
     if (!target) { alert('반 시작 시간(' + earliest + ')이 수업 시간 5개 중 하나가 아닙니다. 클래스 관리에서 ' + CLASS_TIMES.join(', ') + ' 중 하나로 맞춰 주세요.'); return; }
@@ -3566,34 +3575,37 @@ tab==='classmgmt' && (function(){
               React.createElement('span', { onClick:function(){ setExpandedClassId(isExp?null:cls.id); setClassStudentSearch(''); }, style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', cursor:'pointer', transition:'transform 0.2s', transform: isExp?'rotate(180deg)':'none', flexShrink:0 } }, '▾')
             ),
             isExp && React.createElement('div', { style:{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid #f3f4f6' } },
-              // 반 시간·요일 (차량 시간 자동 매칭용)
+              // 반 요일별 시간 (차량 시간 자동 매칭용)
               React.createElement('div', { style:{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'10px 12px', marginBottom:'10px' } },
-                React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#1e3a8a', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '수업 시간 · 요일 (차량 자동 매칭용)'),
-                React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap', marginBottom:'8px' } },
-                  React.createElement('label', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151' } }, '시작 시간:'),
-                  React.createElement('select', {
-                    value: cls.start_time || '',
-                    onChange: function(e){ updateClassSchedule(cls.id, { start_time: e.target.value || null }); },
-                    style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Menlo, Consolas, monospace', background:'#fff', outline:'none', cursor:'pointer' }
-                  },
-                    React.createElement('option', { value:'' }, '선택'),
-                    CLASS_TIMES.map(function(ct){ return React.createElement('option', { key:ct, value:ct }, ct); })
-                  )
-                ),
-                React.createElement('div', { style:{ display:'flex', gap:'4px', alignItems:'center', flexWrap:'wrap' } },
-                  React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginRight:'4px' } }, '요일:'),
+                React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#1e3a8a', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '요일별 수업 시간 (차량 자동 매칭용)'),
+                React.createElement('div', { style:{ fontSize:'10px', color:'#475569', marginBottom:'8px', lineHeight:'1.5' } }, '체크한 요일에만 시간 칸이 나타납니다. 요일마다 다른 시간을 넣을 수 있어요 (예: 월·수 16:30, 금 15:00).'),
+                React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(110px, 1fr))', gap:'6px' } },
                   ['월','화','수','목','금','토','일'].map(function(d){
-                    var sel = ((cls.days_of_week || []).indexOf(d) >= 0);
-                    return React.createElement('button', { key:d, onClick: function(){
-                      var arr = (cls.days_of_week || []).slice();
-                      if (sel) arr = arr.filter(function(x){ return x !== d; });
-                      else arr.push(d);
-                      updateClassSchedule(cls.id, { days_of_week: arr });
-                    }, style:{
-                      background: sel ? '#1d4ed8' : '#fff', color: sel ? '#fff' : '#1e3a8a',
-                      border:'1.5px solid #1d4ed8', borderRadius:'6px', padding:'3px 9px',
-                      fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif'
-                    } }, d);
+                    var dts = (cls.day_times && typeof cls.day_times === 'object') ? cls.day_times : {};
+                    var has = (d in dts);
+                    var val = has ? (dts[d] || '') : '';
+                    return React.createElement('div', { key:d, style:{ display:'flex', alignItems:'center', gap:'6px' } },
+                      React.createElement('button', { onClick: function(){
+                        var next = Object.assign({}, dts);
+                        if (has) delete next[d]; else next[d] = '';
+                        updateClassSchedule(cls.id, { day_times: next });
+                      }, style:{
+                        background: has ? '#1d4ed8' : '#fff', color: has ? '#fff' : '#1e3a8a',
+                        border:'1.5px solid #1d4ed8', borderRadius:'6px', padding:'4px 10px',
+                        fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minWidth:'30px'
+                      } }, d),
+                      has && React.createElement('select', {
+                        value: val,
+                        onChange: function(e){
+                          var next = Object.assign({}, dts); next[d] = e.target.value;
+                          updateClassSchedule(cls.id, { day_times: next });
+                        },
+                        style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 6px', fontSize:'11px', fontFamily:'Menlo, Consolas, monospace', background:'#fff', outline:'none', cursor:'pointer', flex:1 }
+                      },
+                        React.createElement('option', { value:'' }, '시간'),
+                        CLASS_TIMES.map(function(ct){ return React.createElement('option', { key:ct, value:ct }, ct); })
+                      )
+                    );
                   })
                 )
               ),
