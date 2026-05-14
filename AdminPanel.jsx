@@ -257,9 +257,10 @@ const [adminScrMode, setAdminScrMode] = React.useState('change'); // 'change' | 
 const [adminAcademicList, setAdminAcademicList] = React.useState([]);
 const [adminAcademicLoading, setAdminAcademicLoading] = React.useState(false);
 const [adminAcademicCategoryFilter, setAdminAcademicCategoryFilter] = React.useState('전체');
-// 학사일정 달력 (선생님 페이지와 동일 UI)
+// 학원 일정 달력 — 강의일정 변경 + 학사일정 두 모드가 공유 (선생님 페이지와 동일)
 const [adminAcademicMonth, setAdminAcademicMonth] = React.useState(function(){ var n = new Date(); return { y: n.getFullYear(), m: n.getMonth() }; });
 const [adminAcademicDayOpen, setAdminAcademicDayOpen] = React.useState(null);
+const [adminScrDayOpen, setAdminScrDayOpen] = React.useState(null);
 const [adminAcademicSearch, setAdminAcademicSearch] = React.useState('');
 const [adminAcademicFormOpen, setAdminAcademicFormOpen] = React.useState(false);
 const [adminAcademicSubmitting, setAdminAcademicSubmitting] = React.useState(false);
@@ -4898,39 +4899,138 @@ tab==='schedule' && React.createElement('div', null,
     })
   ),
 
-  /* 강의일정 변경 신청 모드 */
+  /* 강의일정 변경 신청 모드 — 달력 + 목록 (선생님 페이지와 동일 UI) */
   adminScrMode === 'change' && (function(){
     var _allTeacherNames = (dbTeachers || []).filter(function(t){ return t.role === 'teacher'; }).map(function(t){ return t.name; }).filter(Boolean);
     var _namesInList = adminScrList.map(function(r){ return r.teacher_name; }).filter(Boolean);
     var teacherOptions = ['전체'].concat(Array.from(new Set(_allTeacherNames.concat(_namesInList))).sort());
     var filtered = adminScrTeacherFilter === '전체' ? adminScrList : adminScrList.filter(function(r){ return r.teacher_name === adminScrTeacherFilter; });
+
+    var y = adminAcademicMonth.y, m = adminAcademicMonth.m;
+    var monthLabel = y + '년 ' + (m+1) + '월';
+    var firstDay = new Date(y, m, 1).getDay();
+    var daysInMonth = new Date(y, m+1, 0).getDate();
+    var cells = [];
+    for (var i = 0; i < firstDay; i++) cells.push(null);
+    for (var d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    var _tNow = new Date();
+    var todayStr = _tNow.getFullYear() + '-' + String(_tNow.getMonth()+1).padStart(2,'0') + '-' + String(_tNow.getDate()).padStart(2,'0');
+    function dateStrOf(dd) { return y + '-' + String(m+1).padStart(2,'0') + '-' + String(dd).padStart(2,'0'); }
+    var reqsByDate = {};
+    filtered.forEach(function(r){ if (!r.target_date) return; (reqsByDate[r.target_date] = reqsByDate[r.target_date] || []).push(r); });
+    function shiftMonth(delta) {
+      var nm = m + delta;
+      var ny = y + Math.floor(nm / 12);
+      var nmm = ((nm % 12) + 12) % 12;
+      setAdminAcademicMonth({ y: ny, m: nmm });
+    }
+    var holidayName = (window.B2Utils && window.B2Utils.holidayName) ? window.B2Utils.holidayName : function(){ return null; };
+
     return React.createElement('div', null,
-      React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'14px', flexWrap:'wrap' } },
+      /* 선생님 필터 + 월 네비 */
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'12px', flexWrap:'wrap' } },
         React.createElement('label', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, '선생님 필터:'),
         React.createElement('select', { value:adminScrTeacherFilter, onChange:function(e){ setAdminScrTeacherFilter(e.target.value); }, style:{ ...inputS, width:'auto', minWidth:'140px' } },
           teacherOptions.map(function(t){ return React.createElement('option', { key:t, value:t }, t); })
         ),
         React.createElement('div', { style:{ marginLeft:'auto', fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '총 ' + filtered.length + '건')
       ),
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' } },
+        React.createElement('button', { onClick:function(){ shiftMonth(-1); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '‹ 이전'),
+        React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, monthLabel),
+        React.createElement('button', { onClick:function(){ shiftMonth(1); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '다음 ›')
+      ),
+
+      /* 달력 */
       adminScrLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '불러오는 중...') :
-      filtered.length === 0 ? React.createElement('div', { style:{ background:'#fff', borderRadius:'10px', padding:'40px', textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px' } }, '신청 내역이 없습니다.') :
-      React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
-        filtered.map(function(r){
-          return React.createElement('div', { key:r.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'14px 16px', display:'flex', alignItems:'flex-start', gap:'14px' } },
-            React.createElement('div', { style:{ minWidth:'92px', flexShrink:0 } },
-              React.createElement('div', { style:{ fontSize:'15px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, String(r.target_date||'')),
-              React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'#E60012', fontFamily:'Manrope, sans-serif', marginTop:'2px' } }, r.teacher_name || '-')
-            ),
-            React.createElement('div', { style:{ flex:1, minWidth:0 } },
-              React.createElement('div', { style:{ fontSize:'13px', color:'#374151', fontFamily:'Manrope, sans-serif', whiteSpace:'pre-line', lineHeight:'1.6' } }, r.reason),
-              r.file_path && React.createElement('div', { style:{ marginTop:'6px' } },
-                React.createElement('a', { href: adminAttachmentPublicUrl(r.file_path), target:'_blank', rel:'noopener', style:{ fontSize:'12px', color:'#E60012', fontWeight:'700', textDecoration:'underline', fontFamily:'Manrope, sans-serif' } }, '첨부 ' + (r.file_name || '파일') + ' (' + adminFormatBytes(r.file_size) + ')')
-              ),
-              React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif', marginTop:'4px' } }, '신청일: ' + String(r.created_at||'').slice(0,16).replace('T',' '))
-            )
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px', marginBottom:'24px' } },
+        ['일','월','화','수','목','금','토'].map(function(w, wi){
+          return React.createElement('div', { key:w, style:{ textAlign:'center', padding:'8px 0', fontSize:'12px', fontWeight:'700', color: wi===0 ? '#c82014' : wi===6 ? '#1d4ed8' : '#374151', fontFamily:'Manrope, sans-serif' } }, w);
+        }),
+        cells.map(function(dd, ci){
+          if (dd === null) return React.createElement('div', { key:'e'+ci, style:{ minHeight:'88px', background:'transparent' } });
+          var ds = dateStrOf(dd);
+          var reqs = reqsByDate[ds] || [];
+          var holi = holidayName(ds);
+          var isToday = ds === todayStr;
+          var dow = (firstDay + dd - 1) % 7;
+          var dColor = holi ? '#c82014' : (dow === 0 ? '#c82014' : dow === 6 ? '#1d4ed8' : '#111827');
+          return React.createElement('button', { key:dd, onClick:function(){ if (reqs.length > 0) setAdminScrDayOpen(ds); }, style:{
+            minHeight:'88px', textAlign:'left', padding:'6px 8px',
+            background: isToday ? '#fef3c7' : (holi ? '#fef2f2' : '#fff'),
+            border: isToday ? '2px solid #F8B500' : '1px solid #e5e7eb',
+            borderRadius:'8px', cursor: reqs.length > 0 ? 'pointer' : 'default',
+            display:'flex', flexDirection:'column', gap:'3px',
+            fontFamily:'Manrope, sans-serif', overflow:'hidden'
+          } },
+            React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:dColor } }, String(dd)),
+            holi && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#fee2e2', color:'#c82014', borderRadius:'4px', padding:'2px 5px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' } }, holi),
+            reqs.slice(0,3).map(function(r, ri){
+              return React.createElement('span', { key:ri, style:{
+                fontSize:'10px', fontWeight:'700',
+                background: '#1A1A1A',
+                color:'#fff', borderRadius:'4px', padding:'2px 5px',
+                whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+              } }, r.teacher_name || '-');
+            }),
+            reqs.length > 3 && React.createElement('span', { style:{ fontSize:'10px', color:'#6b7280' } }, '+' + (reqs.length-3) + '건')
           );
         })
-      )
+      ),
+
+      /* 신청 목록 (펼치기) */
+      React.createElement('div', { style:{ marginTop:'8px' } },
+        React.createElement('details', null,
+          React.createElement('summary', { style:{ cursor:'pointer', fontSize:'13px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, '전체 신청 목록 펼치기 (' + filtered.length + '건)'),
+          React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px', marginTop:'10px' } },
+            filtered.length === 0 ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' } }, '신청 내역이 없습니다.') :
+            filtered.slice().sort(function(a,b){ return String(b.target_date||'').localeCompare(String(a.target_date||'')); }).map(function(r){
+              return React.createElement('div', { key:r.id, style:{ display:'flex', gap:'12px', padding:'10px 12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', alignItems:'flex-start', fontFamily:'Manrope, sans-serif' } },
+                React.createElement('div', { style:{ minWidth:'92px', flexShrink:0 } },
+                  React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827' } }, String(r.target_date||'')),
+                  React.createElement('div', { style:{ fontSize:'12px', fontWeight:'700', color:'#E60012', marginTop:'2px' } }, r.teacher_name || '-')
+                ),
+                React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                  React.createElement('div', { style:{ fontSize:'13px', color:'#374151', whiteSpace:'pre-line', lineHeight:'1.6' } }, r.reason),
+                  r.file_path && React.createElement('div', { style:{ marginTop:'4px' } },
+                    React.createElement('a', { href: adminAttachmentPublicUrl(r.file_path), target:'_blank', rel:'noopener', style:{ fontSize:'12px', color:'#E60012', fontWeight:'700', textDecoration:'underline' } }, '첨부 ' + (r.file_name || '파일') + ' (' + adminFormatBytes(r.file_size) + ')')
+                  ),
+                  React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' } }, '신청일: ' + String(r.created_at||'').slice(0,16).replace('T',' '))
+                )
+              );
+            })
+          )
+        )
+      ),
+
+      /* 날짜별 신청 보기 팝업 */
+      adminScrDayOpen && (function(){
+        var dayReqs = filtered.filter(function(r){ return r.target_date === adminScrDayOpen; });
+        return React.createElement('div', { onClick:function(){ setAdminScrDayOpen(null); }, style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' } },
+          React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'16px', padding:'24px', width:'100%', maxWidth:'460px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'85vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' } },
+            React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px' } },
+              React.createElement('h3', { style:{ fontSize:'16px', fontWeight:'800', color:'#111827', margin:0 } }, adminScrDayOpen + ' 일정 변경 신청'),
+              React.createElement('button', { onClick:function(){ setAdminScrDayOpen(null); }, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' } }, '×')
+            ),
+            dayReqs.length === 0
+              ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', padding:'8px 0 14px' } }, '이 날 신청이 없습니다.')
+              : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px', marginBottom:'14px' } },
+                  dayReqs.map(function(r){
+                    return React.createElement('div', { key:r.id, style:{ padding:'10px 12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px' } },
+                      React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#E60012', marginBottom:'4px' } }, r.teacher_name || '-'),
+                      React.createElement('div', { style:{ fontSize:'13px', color:'#374151', whiteSpace:'pre-line', lineHeight:'1.6' } }, r.reason),
+                      r.file_path && React.createElement('div', { style:{ marginTop:'6px' } },
+                        React.createElement('a', { href: adminAttachmentPublicUrl(r.file_path), target:'_blank', rel:'noopener', style:{ fontSize:'12px', color:'#E60012', fontWeight:'700', textDecoration:'underline' } }, '첨부 ' + (r.file_name || '파일') + ' (' + adminFormatBytes(r.file_size) + ')')
+                      ),
+                      React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'4px' } }, '신청일: ' + String(r.created_at||'').slice(0,16).replace('T',' '))
+                    );
+                  })
+                ),
+            React.createElement('button', { onClick:function(){ setAdminScrDayOpen(null); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'10px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, '닫기')
+          )
+        );
+      })()
     );
   })(),
 

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260514v121-admin-academic-calendar';
+const CACHE_VERSION = 'b2-bigbang-20260514v122-admin-schedule-calendar';
 const OFFLINE_URLS = [
   './',
   './index.html',
