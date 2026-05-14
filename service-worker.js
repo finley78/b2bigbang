@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260514v116-multi-upload-bus';
+const CACHE_VERSION = 'b2-bigbang-20260514v117-bus-resume-wakelock';
 const OFFLINE_URLS = [
   './',
   './index.html',

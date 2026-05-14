@@ -70,6 +70,7 @@
     }, []);
 
     // 초기 로드: 차량 정보 + 카카오 키 + 현재 위치
+    // + 운행 중이던 기사가 새로고침했으면 driving 자동 복원 (마지막 송신 2분 이내일 때만)
     React.useEffect(function(){
       (async function(){
         try {
@@ -81,11 +82,45 @@
           setAppkey(ak);
           if (vRes && vRes.data) {
             var lRes = await sb.from('vehicle_locations').select('*').eq('vehicle_id', vRes.data.id).maybeSingle();
-            if (lRes && lRes.data) setLoc(lRes.data);
+            if (lRes && lRes.data) {
+              setLoc(lRes.data);
+              // 자동 운행 복원: is_driving=true & driver=본인 & 2분 이내 송신
+              var isMine = user && lRes.data.driver_user_id && String(lRes.data.driver_user_id) === String(user.id);
+              var ageMs = Date.now() - new Date(lRes.data.updated_at).getTime();
+              if (canDrive && isMine && lRes.data.is_driving && ageMs < 2 * 60 * 1000) {
+                setDriving(true);
+              }
+            }
           }
         } catch (e) { setError('초기 로드 실패: ' + (e.message || e)); }
       })();
     }, []);
+
+    // Wake Lock: 운행 중일 때 화면 안 꺼지게 (지원 브라우저만)
+    React.useEffect(function(){
+      var wakeLockRef = null;
+      var released = false;
+      async function acquire() {
+        if (!driving) return;
+        if (!('wakeLock' in navigator)) return; // iOS Safari 16.4+, Android Chrome 등에서 지원
+        try {
+          wakeLockRef = await navigator.wakeLock.request('screen');
+          wakeLockRef.addEventListener('release', function(){ /* 시스템이 풀면 visibilitychange에서 재시도 */ });
+        } catch (e) { /* 권한 없음·이미 잠금 등 — 무시 */ }
+      }
+      function onVisibility() {
+        if (document.visibilityState === 'visible' && driving && !released) acquire();
+      }
+      if (driving) {
+        acquire();
+        document.addEventListener('visibilitychange', onVisibility);
+      }
+      return function(){
+        released = true;
+        document.removeEventListener('visibilitychange', onVisibility);
+        if (wakeLockRef) { try { wakeLockRef.release(); } catch(e){} }
+      };
+    }, [driving]);
 
     // 카카오 지도 초기화
     React.useEffect(function(){
