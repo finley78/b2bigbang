@@ -1769,6 +1769,38 @@ function countClassTime(ct) {
   if (!ct) return 0;
   return (dbStudents || []).filter(function(s){ return s.uses_bus && s.bus_class_time === ct; }).length;
 }
+async function updateClassSchedule(classId, patch) {
+  try {
+    var u = await sb.from('classes').update(patch).eq('id', classId);
+    if (u.error) throw u.error;
+    setTeacherClasses(function(prev){ return (prev || []).map(function(c){ return c.id === classId ? Object.assign({}, c, patch) : c; }); });
+    showSaved();
+  } catch (e) { alert('반 정보 저장 실패: ' + (e.message || e)); }
+}
+// 학생이 등록된 반 중 가장 이른 start_time을 bus_class_time에 자동 적용
+async function autoFillStudentBusClassTime(studentId) {
+  var st = (dbStudents || []).find(function(s){ return s.id === studentId; });
+  if (!st || !st.uses_bus) { alert('차량 이용 학생만 자동 채우기 가능합니다.'); return; }
+  try {
+    var csRes = await sb.from('class_students').select('class_id').eq('student_id', studentId);
+    var classIds = ((csRes && csRes.data) || []).map(function(r){ return r.class_id; });
+    if (!classIds.length) { alert('이 학생이 등록된 반이 없어요. 반을 먼저 배정해 주세요.'); return; }
+    var clsList = (teacherClasses || []).filter(function(c){ return classIds.indexOf(c.id) >= 0 && c.start_time; });
+    if (!clsList.length) { alert('등록된 반 중에 시간이 입력된 반이 없어요. 클래스 관리에서 반 시간을 먼저 설정해 주세요.'); return; }
+    var times = clsList.map(function(c){ return c.start_time; }).sort();
+    var earliest = times[0];
+    // CLASS_TIMES 중 가장 가까운 정원이 빈 시간 매칭 (정확히 같은 시간이 우선)
+    var target = (CLASS_TIMES.indexOf(earliest) >= 0) ? earliest : null;
+    if (!target) { alert('반 시작 시간(' + earliest + ')이 수업 시간 5개 중 하나가 아닙니다. 클래스 관리에서 ' + CLASS_TIMES.join(', ') + ' 중 하나로 맞춰 주세요.'); return; }
+    if (st.bus_class_time !== target && countClassTime(target) >= BUS_CAPACITY) {
+      alert(target + ' 수업 차량은 정원 ' + BUS_CAPACITY + '명이 모두 찼습니다.\n이 학생은 차량을 이용할 수 없습니다.');
+      return;
+    }
+    await sb.from('students').update({ bus_class_time: target, bus_class_time_source: 'auto' }).eq('id', studentId);
+    setDbStudents(function(prev){ return (prev || []).map(function(s){ return s.id === studentId ? Object.assign({}, s, { bus_class_time: target, bus_class_time_source: 'auto' }) : s; }); });
+    showSaved();
+  } catch (e) { alert('자동 채우기 실패: ' + (e.message || e)); }
+}
 async function updateStudentClassTime(studentId, classTime) {
   if (classTime) {
     var current = dbStudents.find(function(s){ return s.id === studentId; });
@@ -1778,8 +1810,8 @@ async function updateStudentClassTime(studentId, classTime) {
       return;
     }
   }
-  await sb.from('students').update({ bus_class_time: classTime || null }).eq('id', studentId);
-  setDbStudents(s => s.map(st => st.id === studentId ? Object.assign({}, st, { bus_class_time: classTime || null }) : st));
+  await sb.from('students').update({ bus_class_time: classTime || null, bus_class_time_source: 'manual' }).eq('id', studentId);
+  setDbStudents(s => s.map(st => st.id === studentId ? Object.assign({}, st, { bus_class_time: classTime || null, bus_class_time_source: 'manual' }) : st));
   showSaved();
 }
 
@@ -3184,6 +3216,8 @@ var full = !isSelf && used >= BUS_CAPACITY;
 return React.createElement('option', { key:ct, value:ct, disabled: full }, ct + ' (' + used + '/' + BUS_CAPACITY + (full ? ' · 만석' : '') + ')');
 })
 ),
+React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', padding:'2px 6px', borderRadius:'4px', background: st.bus_class_time_source === 'auto' ? '#dcfce7' : '#f3f4f6', color: st.bus_class_time_source === 'auto' ? '#15803d' : '#6b7280' } }, st.bus_class_time_source === 'auto' ? '자동' : '수동'),
+React.createElement('button', { onClick: function(){ autoFillStudentBusClassTime(st.id); }, title: '등록된 반의 가장 이른 수업 시간으로 자동 매칭', style:{ background:'#1d4ed8', color:'#fff', border:'none', borderRadius:'5px', padding:'3px 8px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '반 시간으로'),
 React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.45)', marginLeft:'4px' } }, '기본 정류장'),
 React.createElement('select', {
 value: st.default_bus_stop_id || '',
@@ -3532,6 +3566,37 @@ tab==='classmgmt' && (function(){
               React.createElement('span', { onClick:function(){ setExpandedClassId(isExp?null:cls.id); setClassStudentSearch(''); }, style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', cursor:'pointer', transition:'transform 0.2s', transform: isExp?'rotate(180deg)':'none', flexShrink:0 } }, '▾')
             ),
             isExp && React.createElement('div', { style:{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid #f3f4f6' } },
+              // 반 시간·요일 (차량 시간 자동 매칭용)
+              React.createElement('div', { style:{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'10px 12px', marginBottom:'10px' } },
+                React.createElement('div', { style:{ fontSize:'11px', fontWeight:'800', color:'#1e3a8a', marginBottom:'6px', fontFamily:'Manrope, sans-serif' } }, '수업 시간 · 요일 (차량 자동 매칭용)'),
+                React.createElement('div', { style:{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap', marginBottom:'8px' } },
+                  React.createElement('label', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151' } }, '시작 시간:'),
+                  React.createElement('select', {
+                    value: cls.start_time || '',
+                    onChange: function(e){ updateClassSchedule(cls.id, { start_time: e.target.value || null }); },
+                    style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Menlo, Consolas, monospace', background:'#fff', outline:'none', cursor:'pointer' }
+                  },
+                    React.createElement('option', { value:'' }, '선택'),
+                    CLASS_TIMES.map(function(ct){ return React.createElement('option', { key:ct, value:ct }, ct); })
+                  )
+                ),
+                React.createElement('div', { style:{ display:'flex', gap:'4px', alignItems:'center', flexWrap:'wrap' } },
+                  React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151', marginRight:'4px' } }, '요일:'),
+                  ['월','화','수','목','금','토','일'].map(function(d){
+                    var sel = ((cls.days_of_week || []).indexOf(d) >= 0);
+                    return React.createElement('button', { key:d, onClick: function(){
+                      var arr = (cls.days_of_week || []).slice();
+                      if (sel) arr = arr.filter(function(x){ return x !== d; });
+                      else arr.push(d);
+                      updateClassSchedule(cls.id, { days_of_week: arr });
+                    }, style:{
+                      background: sel ? '#1d4ed8' : '#fff', color: sel ? '#fff' : '#1e3a8a',
+                      border:'1.5px solid #1d4ed8', borderRadius:'6px', padding:'3px 9px',
+                      fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif'
+                    } }, d);
+                  })
+                )
+              ),
               clsStu.length > 0 && React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'10px' } },
                 clsStu.map(function(sid){
                   var stu = (dbStudents||[]).find(function(x){ return x.id === sid; }) || (dbWithdrawnStudents||[]).find(function(x){ return x.id === sid; });
