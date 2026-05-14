@@ -53,7 +53,7 @@
     var [error, setError] = React.useState('');
     var [now, setNow] = React.useState(Date.now()); // 갱신 시각 표시용 1초 틱
 
-    // 기사 모드 상태
+    // 차량 운행 모드 상태
     var [driving, setDriving] = React.useState(false);
     var [lastSent, setLastSent] = React.useState(null);
 
@@ -157,7 +157,7 @@
       return function(){ try { sb.removeChannel(channel); } catch(e){} };
     }, [vehicle && vehicle.id]);
 
-    // 기사 모드: GPS watchPosition + 30초마다 업로드
+    // 차량 운행 모드: GPS watchPosition + 30초마다 업로드
     React.useEffect(function(){
       if (!driving || !vehicle) return;
       if (!navigator.geolocation) { alert('이 브라우저는 위치 기능을 지원하지 않습니다.'); setDriving(false); return; }
@@ -245,9 +245,9 @@
             loc.accuracy != null && React.createElement('span', null, '정확도: ' + Math.round(loc.accuracy) + ' m')
           )
         ),
-        // 기사 모드 컨트롤 (관리자/선생님만)
+        // 차량 운행 모드 컨트롤 (관리자/선생님만)
         canDrive && React.createElement('div', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px', padding:'14px 16px' } },
-          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px' } }, '기사 모드'),
+          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px' } }, '차량 운행 모드'),
           React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6' } }, '본인 휴대폰의 GPS로 위치를 30초마다 자동 송신합니다. 페이지를 열어둔 동안만 동작해요.'),
           !driving
             ? React.createElement('button', { onClick: startDriving, style:{ width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:'pointer' } }, '운행 시작')

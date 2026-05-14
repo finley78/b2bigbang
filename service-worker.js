@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v124-bulk-assign-all-units';
+const CACHE_VERSION = 'b2-bigbang-20260515v125-driver-mode-rename';
 const OFFLINE_URLS = [
   './',
   './index.html',
