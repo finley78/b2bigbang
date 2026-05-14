@@ -484,16 +484,16 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260514v119-signup-driver-label"></script>
-<script src="TopNav.js?v=20260514v119-signup-driver-label"></script>
-<script src="HomePage.js?v=20260514v119-signup-driver-label"></script>
-<script src="Pages.js?v=20260514v119-signup-driver-label"></script>
-<script src="VocabManager.js?v=20260514v119-signup-driver-label"></script>
-<script src="VocabPlayer.js?v=20260514v119-signup-driver-label"></script>
-<script src="BusTracking.js?v=20260514v119-signup-driver-label"></script>
-<script src="StudentPortal.js?v=20260514v119-signup-driver-label"></script>
-<script src="TeacherPortal.js?v=20260514v119-signup-driver-label"></script>
-<script src="AdminPanel.js?v=20260514v119-signup-driver-label"></script>
+<script src="Utils.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="TopNav.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="HomePage.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="Pages.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="VocabManager.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="VocabPlayer.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="BusTracking.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="StudentPortal.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="TeacherPortal.js?v=20260514v120-password-reset-pkce-fix"></script>
+<script src="AdminPanel.js?v=20260514v120-password-reset-pkce-fix"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -621,11 +621,21 @@ React.useEffect(() => {
   let cancelled = false;
   function isRecoveryContext() {
     try {
+      if (window.__b2RecoveryActive) return true;
       var s = window.location.search || '';
       var h = window.location.hash || '';
       return s.indexOf('reset=') >= 0 || h.indexOf('type=recovery') >= 0;
     } catch { return false; }
   }
+  // 진입 즉시 마킹 — 라우팅 useEffect가 ?reset=을 떼어내고 PKCE code 교환이 늦게 끝나
+  //   나중에 도착하는 SIGNED_IN을 syncSession이 일반 로그인으로 오인하는 레이스 방지
+  try {
+    var _s0 = window.location.search || '';
+    var _h0 = window.location.hash || '';
+    if (_s0.indexOf('reset=') >= 0 || _h0.indexOf('type=recovery') >= 0) {
+      window.__b2RecoveryActive = true;
+    }
+  } catch {}
   async function syncSession(session, shouldNavigate) {
     if (cancelled) return;
     if (!session?.user?.id) {
@@ -752,14 +762,23 @@ React.useEffect(() => {
   })();
   const subRes = window.supabase.auth.onAuthStateChange(function(event, session) {
     if (event === 'PASSWORD_RECOVERY') {
-      // 복구 세션 — ResetPasswordPage가 처리. 추가 동기화 불필요.
+      // 복구 세션 — 플래그 세우고 reset 페이지로 강제 이동.
+      //   (PKCE flow 등으로 URL에서 ?reset=가 사라져도 안전)
+      try { window.__b2RecoveryActive = true; } catch {}
+      setResetToken('supabase');
+      setPage('reset');
+      try { sessionStorage.setItem('b2_page', 'reset'); } catch {}
+      try { window.history.replaceState({ page: 'reset' }, '', window.location.pathname); } catch {}
       return;
     }
     if (event === 'SIGNED_IN') {
+      // 복구 흐름이면 SIGNED_IN을 일반 로그인으로 처리하지 않음
+      if (isRecoveryContext()) return;
       syncSession(session, true);
     } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
       syncSession(session, false);
     } else if (event === 'SIGNED_OUT') {
+      try { window.__b2RecoveryActive = false; } catch {}
       setUser(null); setIsAdmin(false); setAdminAuthed(false);
       try { window.B2Utils.clearAuthStorage(); } catch {}
     }
@@ -1120,7 +1139,7 @@ page === 'privacy' && React.createElement(PrivacyPolicyPage),
 page === 'terms' && React.createElement(TermsPage),
 page === 'leveltest' && React.createElement(LevelTestPage, { user: effectiveUser, onLoginClick: ()=>setShowLogin(true), setPage: navigate }),
 
-page === 'reset' && resetToken && React.createElement(ResetPasswordPage, { token: resetToken, onDone: ()=>{ setResetToken(null); navigate('home'); setShowLogin(true); } }),
+page === 'reset' && resetToken && React.createElement(ResetPasswordPage, { token: resetToken, onDone: ()=>{ try { window.__b2RecoveryActive = false; } catch {}; setResetToken(null); navigate('home'); setShowLogin(true); } }),
 
 page === 'signup' && React.createElement(SignupPage, {
 prefill: oauthPrefill,
