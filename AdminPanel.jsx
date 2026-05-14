@@ -1774,7 +1774,7 @@ async function updateStudentClassTime(studentId, classTime) {
     var current = dbStudents.find(function(s){ return s.id === studentId; });
     var wasSame = current && current.bus_class_time === classTime;
     if (!wasSame && countClassTime(classTime) >= BUS_CAPACITY) {
-      alert(classTime + ' 수업은 차량 정원 ' + BUS_CAPACITY + '명이 모두 찼습니다. 다른 시간을 선택하거나 한 명을 빼주세요.');
+      alert(classTime + ' 수업 차량은 정원 ' + BUS_CAPACITY + '명이 모두 찼습니다.\n이 학생은 차량을 이용할 수 없습니다.\n\n(학생의 수업 시간이 정해져 있어서 다른 시간 차량으로 옮길 수 없으며, 만석인 시간대는 차량 제공 자체가 불가합니다.)');
       return;
     }
   }
