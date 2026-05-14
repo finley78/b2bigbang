@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v129-pc-inline-time-inputs';
+const CACHE_VERSION = 'b2-bigbang-20260515v130-scheduled-claude-analysis';
 const OFFLINE_URLS = [
   './',
   './index.html',

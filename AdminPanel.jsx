@@ -197,7 +197,7 @@ const [analyzingExamId, setAnalyzingExamId] = React.useState(null);
 const [analysisOpenId, setAnalysisOpenId] = React.useState(null);
 const [analyzingStudentId, setAnalyzingStudentId] = React.useState(null);
 // 자료실 — 분석 자료 도서관 (시험·숙제 만들기용; kind='material' exams)
-const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', material_type:'exam', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null };
+const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', material_type:'exam', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null, schedule_mode:'immediate', scheduled_for:'', scheduled_for_2nd:'' };
 const [materials, setMaterials] = React.useState([]);
 const [materialLoading, setMaterialLoading] = React.useState(false);
 const [materialUploading, setMaterialUploading] = React.useState(false);
@@ -1103,6 +1103,12 @@ function openMaterialForm() {
 }
 function openMaterialFormForEdit(m) {
   setMaterialEditId(m.id);
+  // datetime-local 입력값 포맷: yyyy-MM-ddTHH:mm (로컬 시각)
+  function toDtLocal(iso) {
+    if (!iso) return '';
+    try { var d = new Date(iso); var p = function(n){ return String(n).padStart(2,'0'); }; return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); } catch (e) { return ''; }
+  }
+  var st = m.analyze_status;
   setMaterialDraft({
     title: m.title || '', subject: m.subject || '', school_level: m.school_level || '', target_grade: m.target_grade || '', target_semester: m.target_semester || '',
     description: m.description || '',
@@ -1115,6 +1121,9 @@ function openMaterialFormForEdit(m) {
     precise: m.analyze_model === 'opus',
     precise_student: m.analyze_student_model === 'opus',
     analysis: m.analysis || null,
+    schedule_mode: (st === 'scheduled' || st === 'failed') ? 'scheduled' : 'immediate',
+    scheduled_for: toDtLocal(m.analyze_scheduled_for),
+    scheduled_for_2nd: toDtLocal(m.analyze_scheduled_for_2nd),
   });
   setMaterialFormOpen(true);
 }
@@ -1126,7 +1135,16 @@ async function submitMaterial(thenAnalyze) {
   var hasNewFiles = (d.files && d.files.length) || (d.answer_files && d.answer_files.length);
   var hasExisting = ((d.existing_paths||[]).length) || ((d.answer_existing_paths||[]).length);
   if (!hasNewFiles && !hasExisting) { alert('시험지 또는 답안지·해설 파일을 1개 이상 올려주세요.'); return; }
+  // thenAnalyze: false = 저장만, true = 즉시 분석, 'scheduled' = 예약 분석
+  var isScheduled = thenAnalyze === 'scheduled';
   var doAnalyze = thenAnalyze === true;
+  if (isScheduled) {
+    if (!d.scheduled_for) { alert('예약 시간을 선택해 주세요.'); return; }
+    if (new Date(d.scheduled_for).getTime() < Date.now()) { alert('예약 시간이 과거예요. 미래 시각으로 골라 주세요.'); return; }
+    if (d.scheduled_for_2nd && new Date(d.scheduled_for_2nd).getTime() < new Date(d.scheduled_for).getTime()) {
+      alert('2차(백업) 시간은 1차 시간보다 뒤여야 해요.'); return;
+    }
+  }
   if (doAnalyze && materialEditId && d.analysis) {
     doAnalyze = confirm('이미 문항 분석이 된 자료입니다.\n[확인] = 저장하고 다시 분석 (Claude 요금 다시 발생)\n[취소] = 저장만');
   }
@@ -1168,6 +1186,12 @@ async function submitMaterial(thenAnalyze) {
       analyze_model: d.precise ? 'opus' : 'sonnet',
       analyze_student_model: d.precise_student ? 'opus' : 'sonnet',
     };
+    if (isScheduled) {
+      row.analyze_status = 'scheduled';
+      row.analyze_scheduled_for = new Date(d.scheduled_for).toISOString();
+      row.analyze_scheduled_for_2nd = d.scheduled_for_2nd ? new Date(d.scheduled_for_2nd).toISOString() : null;
+      row.analyze_error = null;
+    }
     var savedId = null;
     if (materialEditId) {
       var u = await sb.from('exams').update(row).eq('id', materialEditId);
@@ -1183,6 +1207,13 @@ async function submitMaterial(thenAnalyze) {
       if (!doAnalyze) alert('자료가 저장되었습니다.');
     }
     await loadMaterials();
+    if (isScheduled) {
+      var dt1 = new Date(d.scheduled_for).toLocaleString('ko-KR');
+      var dt2 = d.scheduled_for_2nd ? new Date(d.scheduled_for_2nd).toLocaleString('ko-KR') : null;
+      alert('예약 완료! ' + dt1 + (dt2 ? ' (실패 시 ' + dt2 + ' 자동 재시도)' : '') + '\n그 시각에 Supabase 서버가 자동으로 Claude를 호출해 분석합니다. 컴퓨터를 꺼두셔도 됩니다.');
+      closeMaterialForm();
+      return;
+    }
     if (!doAnalyze) { closeMaterialForm(); }
     if (doAnalyze && savedId) {
       setMaterialEditId(savedId);
@@ -4929,7 +4960,17 @@ tab==='files' && React.createElement('div', null,
             return React.createElement('div', { key:m.id, style:{ borderBottom:'1px solid #eef2f7', padding:'8px 2px', fontFamily:'Manrope, sans-serif' } },
               React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
                 React.createElement('span', { style: window.B2Utils.materialTypeBadgeStyle(m.material_type) }, window.B2Utils.materialTypeLabel(m.material_type)),
-                m.analysis ? React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'1px 6px' } }, '분석완료') : React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'1px 6px' } }, '분석전'),
+                (function(){
+                  if (m.analysis) return React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'1px 6px' } }, '분석완료');
+                  var st = m.analyze_status;
+                  if (st === 'scheduled') {
+                    var w = m.analyze_scheduled_for ? new Date(m.analyze_scheduled_for).toLocaleString('ko-KR', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+                    return React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#dbeafe', color:'#1d4ed8', borderRadius:'4px', padding:'1px 6px' } }, '예약 ' + w);
+                  }
+                  if (st === 'analyzing') return React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'1px 6px' } }, '분석중...');
+                  if (st === 'failed') return React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fee2e2', color:'#991b1b', borderRadius:'4px', padding:'1px 6px' } }, '실패');
+                  return React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'1px 6px' } }, '분석전');
+                })(),
                 m.subject && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'#374151' } }, m.subject),
                 (m.school_level || m.target_grade) && React.createElement('span', { style:{ fontSize:'11px', color:'#9ca3af' } }, [m.school_level, m.target_grade].filter(Boolean).join(' ')),
                 React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#111827', flex:1, minWidth:'110px' } }, m.title),
@@ -5033,7 +5074,33 @@ tab==='files' && React.createElement('div', null,
           '이 자료로 만든 시험의 학생 답안 분석도 정밀하게'
         )
       ),
-      React.createElement('button', { onClick:function(){ submitMaterial(true); }, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:(materialUploading||analyzingMaterialId)?'#9ca3af':'#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'11px', fontSize:'14px', fontWeight:'800', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, analyzingMaterialId ? '분석 중... (1~2분)' : (materialUploading ? '업로드 중...' : '업로드하고 바로 분석')),
+      // 분석 모드 선택
+      React.createElement('div', { style:{ background:'#fff7ed', border:'1px solid #fdba74', borderRadius:'9px', padding:'12px', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } },
+        React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#9a3412', marginBottom:'8px' } }, '분석 시점'),
+        React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'8px' } },
+          [['immediate','즉시 분석','업로드 즉시 Claude 호출'],['scheduled','예약 분석','학원 끝나고 새벽에']].map(function(o){
+            var on = (materialDraft.schedule_mode || 'immediate') === o[0];
+            return React.createElement('button', { key:o[0], onClick:function(){ setMaterialDraft(Object.assign({}, materialDraft, { schedule_mode: o[0] })); }, style:{
+              flex:1, background: on ? '#9a3412' : '#fff', color: on ? '#fff' : '#9a3412',
+              border:'1.5px solid #9a3412', borderRadius:'8px', padding:'9px 10px', cursor:'pointer', fontWeight:'800', fontSize:'13px', fontFamily:'Manrope, sans-serif'
+            } }, React.createElement('div', null, o[1]), React.createElement('div', { style:{ fontSize:'10px', fontWeight:'600', marginTop:'2px', opacity:0.85 } }, o[2]));
+          })
+        ),
+        (materialDraft.schedule_mode === 'scheduled') && React.createElement('div', null,
+          React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap' } },
+            React.createElement('div', { style:{ flex:1, minWidth:'180px' } },
+              React.createElement('label', { style:{ fontSize:'11px', fontWeight:'800', color:'#9a3412', display:'block', marginBottom:'3px' } }, '1차 시각 *'),
+              React.createElement('input', { type:'datetime-local', value: materialDraft.scheduled_for || '', onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { scheduled_for: e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+            ),
+            React.createElement('div', { style:{ flex:1, minWidth:'180px' } },
+              React.createElement('label', { style:{ fontSize:'11px', fontWeight:'800', color:'#9a3412', display:'block', marginBottom:'3px' } }, '2차 시각 (1차 실패 시, 선택)'),
+              React.createElement('input', { type:'datetime-local', value: materialDraft.scheduled_for_2nd || '', onChange:function(e){ setMaterialDraft(Object.assign({}, materialDraft, { scheduled_for_2nd: e.target.value })); }, style:Object.assign({}, inputS, { width:'100%' }) })
+            )
+          ),
+          React.createElement('div', { style:{ fontSize:'10px', color:'#78350f', marginTop:'6px', lineHeight:'1.5' } }, '예약 시각에 Supabase 서버가 자동으로 분석을 시작합니다. 컴퓨터를 켜둘 필요 없어요. 1차 실패하면 (10분 이상 무응답 등) 2차 시각에 자동 재시도.')
+        )
+      ),
+      React.createElement('button', { onClick:function(){ submitMaterial(materialDraft.schedule_mode === 'scheduled' ? 'scheduled' : true); }, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:(materialUploading||analyzingMaterialId)?'#9ca3af':'#0f766e', color:'#fff', border:'none', borderRadius:'9px', padding:'11px', fontSize:'14px', fontWeight:'800', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer', marginBottom:'8px', fontFamily:'Manrope, sans-serif' } }, analyzingMaterialId ? '분석 중... (1~2분)' : (materialUploading ? '업로드 중...' : (materialDraft.schedule_mode === 'scheduled' ? '업로드하고 예약 등록' : '업로드하고 바로 분석'))),
       React.createElement('button', { onClick:function(){ submitMaterial(false); }, disabled: materialUploading || !!analyzingMaterialId, style:{ width:'100%', background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'9px', padding:'9px', fontSize:'13px', fontWeight:'700', marginBottom:'10px', cursor:(materialUploading||analyzingMaterialId)?'not-allowed':'pointer' } }, '업로드만 (분석은 나중에)'),
       materialDraft.analysis && renderExamAnalysis(materialDraft.analysis),
       React.createElement('div', { style:{ marginTop:'10px' } },
