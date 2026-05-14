@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v131-stop-add-then-set-times';
+const CACHE_VERSION = 'b2-bigbang-20260515v132-student-schedule-and-simple-stop-times';
 const OFFLINE_URLS = [
   './',
   './index.html',

@@ -196,6 +196,11 @@ const [adminLtFormOpen, setAdminLtFormOpen] = React.useState(false);
 const [analyzingExamId, setAnalyzingExamId] = React.useState(null);
 const [analysisOpenId, setAnalysisOpenId] = React.useState(null);
 const [analyzingStudentId, setAnalyzingStudentId] = React.useState(null);
+// 응시 분석 예약 모달 — { ids: [...], examTitle: '...' } 또는 null
+const [scheduleSubModal, setScheduleSubModal] = React.useState(null);
+const [scheduleSubT1, setScheduleSubT1] = React.useState('');
+const [scheduleSubT2, setScheduleSubT2] = React.useState('');
+const [scheduleSubSaving, setScheduleSubSaving] = React.useState(false);
 // 자료실 — 분석 자료 도서관 (시험·숙제 만들기용; kind='material' exams)
 const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', material_type:'exam', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null, schedule_mode:'immediate', scheduled_for:'', scheduled_for_2nd:'' };
 const [materials, setMaterials] = React.useState([]);
@@ -1020,6 +1025,43 @@ async function runExamAnalysis(t) {
   finally { setAnalyzingExamId(null); }
 }
 
+function openScheduleSubModal(ids, examTitle) {
+  if (!ids || !ids.length) { alert('예약할 응시자가 없습니다.'); return; }
+  setScheduleSubModal({ ids: ids.slice(), examTitle: examTitle || '' });
+  // 기본값: 오늘 22:00 + 내일 02:00
+  function toDtLocal(d){ var p = function(n){ return String(n).padStart(2,'0'); }; return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  var now = new Date();
+  var t1 = new Date(now); t1.setHours(22, 0, 0, 0); if (t1.getTime() < now.getTime()) t1.setDate(t1.getDate()+1);
+  var t2 = new Date(t1.getTime() + 4 * 60 * 60 * 1000);
+  setScheduleSubT1(toDtLocal(t1));
+  setScheduleSubT2(toDtLocal(t2));
+}
+async function confirmScheduleSubModal() {
+  if (!scheduleSubModal) return;
+  var ids = scheduleSubModal.ids || [];
+  if (!ids.length) return;
+  if (!scheduleSubT1) { alert('1차 시각을 선택해 주세요.'); return; }
+  if (new Date(scheduleSubT1).getTime() < Date.now()) { alert('1차 시각이 과거예요. 미래 시각으로 선택해 주세요.'); return; }
+  if (scheduleSubT2 && new Date(scheduleSubT2).getTime() < new Date(scheduleSubT1).getTime()) {
+    alert('2차 시각은 1차보다 뒤여야 해요.'); return;
+  }
+  setScheduleSubSaving(true);
+  try {
+    var payload = {
+      analyze_status: 'scheduled',
+      analyze_scheduled_for: new Date(scheduleSubT1).toISOString(),
+      analyze_scheduled_for_2nd: scheduleSubT2 ? new Date(scheduleSubT2).toISOString() : null,
+      analyze_error: null,
+      analyze_started_at: null,
+    };
+    var u = await sb.from('exam_submissions').update(payload).in('id', ids);
+    if (u.error) throw u.error;
+    alert(ids.length + '명 학생 답안 분석 예약 완료. 컴퓨터를 꺼두셔도 그 시각에 자동 실행됩니다.');
+    setScheduleSubModal(null);
+    await loadAdminLevelTests();
+  } catch (e) { alert('예약 실패: ' + (e.message || e)); }
+  finally { setScheduleSubSaving(false); }
+}
 async function runStudentAnalysis(submissionId, hasExisting) {
   if (!submissionId) return;
   if (hasExisting && !confirm('이 학생은 이미 AI 약점 분석이 되어 있습니다.\n다시 분석하면 Claude 요금이 다시 발생합니다 (약 50원).\n다시 분석할까요?')) return;
@@ -5605,6 +5647,16 @@ tab==='leveltest' && (function(){
         ),
         (reqs.length > 0 || subs.length > 0) && React.createElement('details', { style:{ marginTop:'10px' } },
           React.createElement('summary', { style:{ cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, '신청자 / 응시자 보기'),
+          // 일괄 예약 버튼 — 분석 안 된 응시자가 있을 때
+          (function(){
+            if (!t.analysis) return null;
+            var pendingIds = subs.filter(function(s){ return !s.ai_analysis && s.analyze_status !== 'scheduled' && s.analyze_status !== 'analyzing'; }).map(function(s){ return s.id; });
+            if (pendingIds.length === 0) return null;
+            return React.createElement('div', { style:{ marginTop:'8px', display:'flex', gap:'8px', flexWrap:'wrap', padding:'8px 10px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'6px' } },
+              React.createElement('div', { style:{ flex:1, minWidth:'120px', fontSize:'11px', color:'#1e3a8a', fontWeight:'700', fontFamily:'Manrope, sans-serif', alignSelf:'center' } }, '미분석 응시자 ' + pendingIds.length + '명 — 한 번에 처리'),
+              React.createElement('button', { onClick:function(){ openScheduleSubModal(pendingIds, t.title); }, style:{ background:'#1d4ed8', color:'#fff', border:'none', borderRadius:'6px', padding:'6px 14px', fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '전체 예약 분석')
+            );
+          })(),
           React.createElement('div', { style:{ marginTop:'8px', display:'flex', flexDirection:'column', gap:'6px' } },
             reqs.map(function(r){
               var matched = subs.find(function(s){ return s.student_id === r.student_id; });
@@ -5641,8 +5693,21 @@ tab==='leveltest' && (function(){
                   return React.createElement('div', { key:k, style:{ marginTop:'4px', color:'#374151', fontSize:'11px', whiteSpace:'pre-line' } }, '서술형 ' + k + '. ' + matched.text_answers[k]);
                 }),
                 /* AI 약점 분석 (시험 문항 분석이 된 경우만) */
-                matched && t.analysis && React.createElement('div', { style:{ marginTop:'8px', display:'flex', gap:'6px', flexWrap:'wrap' } },
-                  React.createElement('button', { onClick:function(){ runStudentAnalysis(matched.id, !!matched.ai_analysis); }, disabled: analyzingStudentId === matched.id, style:{ background: analyzingStudentId === matched.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === matched.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' } }, analyzingStudentId === matched.id ? 'AI 분석 중... (수십 초 소요)' : (matched.ai_analysis ? 'AI 약점 재분석' : 'AI 약점 분석')),
+                matched && t.analysis && React.createElement('div', { style:{ marginTop:'8px', display:'flex', gap:'6px', flexWrap:'wrap', alignItems:'center' } },
+                  // 분석 상태 뱃지
+                  (function(){
+                    var st = matched.analyze_status;
+                    if (matched.ai_analysis) return React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'2px 7px' } }, '분석완료');
+                    if (st === 'scheduled') {
+                      var w = matched.analyze_scheduled_for ? new Date(matched.analyze_scheduled_for).toLocaleString('ko-KR', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+                      return React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#dbeafe', color:'#1d4ed8', borderRadius:'4px', padding:'2px 7px' } }, '예약 ' + w);
+                    }
+                    if (st === 'analyzing') return React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'2px 7px' } }, '분석중...');
+                    if (st === 'failed') return React.createElement('span', { style:{ fontSize:'10px', fontWeight:'800', background:'#fee2e2', color:'#991b1b', borderRadius:'4px', padding:'2px 7px' } }, '실패');
+                    return null;
+                  })(),
+                  React.createElement('button', { onClick:function(){ runStudentAnalysis(matched.id, !!matched.ai_analysis); }, disabled: analyzingStudentId === matched.id, style:{ background: analyzingStudentId === matched.id ? '#9ca3af' : '#15803d', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor: analyzingStudentId === matched.id ? 'wait' : 'pointer', fontFamily:'Manrope, sans-serif' } }, analyzingStudentId === matched.id ? 'AI 분석 중... (수십 초 소요)' : (matched.ai_analysis ? '즉시 재분석' : '즉시 분석')),
+                  React.createElement('button', { onClick:function(){ openScheduleSubModal([matched.id], t.title); }, disabled: analyzingStudentId === matched.id, style:{ background:'#fff', color:'#1d4ed8', border:'1px solid #1d4ed8', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, matched.analyze_status === 'scheduled' ? '예약 변경' : '예약 분석'),
                   matched.ai_analysis && React.createElement('button', { onClick:function(){ window.B2Utils.printStudentReport(matched.ai_analysis, matched.student_name, t.title); }, style:{ background:'#fff', color:'#15803d', border:'1px solid #15803d', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '리포트 인쇄·PDF')
                 ),
                 matched && matched.ai_analysis && renderStudentAnalysis(matched.ai_analysis),
@@ -6272,7 +6337,7 @@ tab==='vehicles' && React.createElement('div', null,
       React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color: stopEditingId ? '#E60012' : '#1A1A1A', marginBottom:'10px' } }, stopEditingId ? '정류장 수정 중... (정차 시간 입력)' : '+ 새 정류장 추가 (이름만 먼저)'),
       !stopEditingId && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', marginBottom:'10px', lineHeight:'1.6' } }, '먼저 정류장 이름을 등록한 다음, 아래 목록에서 그 정류장의 ', React.createElement('strong', null, '수정'), ' 버튼을 눌러 정차 시간을 추가해 주세요.'),
 
-      // 새 정류장 추가: 이름만. 수정 모드: 이름 + 시간 입력.
+      // 새 정류장 추가: 이름만. 수정 모드: 이름 + 시간 누적 리스트.
       !stopEditingId
         ? React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'flex-end' } },
             React.createElement('div', { style:{ flex:1 } },
@@ -6281,87 +6346,67 @@ tab==='vehicles' && React.createElement('div', null,
             ),
             React.createElement('button', { onClick: saveBusStop, disabled: stopSaving || !stopDraft.name.trim(), style: Object.assign({}, btnS(stopSaving ? '#9ca3af' : '#E60012'), { whiteSpace:'nowrap' }) }, stopSaving ? '저장 중...' : '+ 등록')
           )
-        : !adminIsMobile
-        ? (function(){
-            var slotCount = Math.max(6, (stopDraft.pickup_times || []).length + 2); // 빈 칸 항상 여유 있게
-            return React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'minmax(220px, 2fr) repeat(' + slotCount + ', minmax(80px, 1fr)) auto', gap:'8px', alignItems:'end', marginBottom:'12px' } },
-              React.createElement('div', null,
-                React.createElement('label', { style:labelS }, '정류장 이름 *'),
-                React.createElement('input', { value: stopDraft.name, onChange: function(e){ var v = e.target.value; setStopDraft(function(p){ return Object.assign({}, p, { name: v }); }); }, placeholder:'예: 검암역 1번 출구', style: inputS })
-              ),
-              Array.from({ length: slotCount }).map(function(_, idx){
-                var val = (stopDraft.pickup_times && stopDraft.pickup_times[idx]) || '';
-                return React.createElement('div', { key:idx },
-                  React.createElement('label', { style:labelS }, '시간 ' + (idx+1)),
-                  React.createElement('input', {
-                    type:'text', value: val,
-                    placeholder: idx === 0 ? '14:30' : '',
-                    onChange: function(e){
-                      var v = e.target.value;
-                      setStopDraft(function(p){
-                        var arr = (p.pickup_times || []).slice();
-                        // 길이 맞추기
-                        while (arr.length <= idx) arr.push('');
-                        arr[idx] = v;
-                        return Object.assign({}, p, { pickup_times: arr });
-                      });
-                    },
-                    onBlur: function(e){
-                      var v = (e.target.value || '').trim();
-                      if (!v) return;
-                      var nz = normalizeTimeStr(v);
-                      if (nz && nz !== v) {
-                        setStopDraft(function(p){
-                          var arr = (p.pickup_times || []).slice();
-                          while (arr.length <= idx) arr.push('');
-                          arr[idx] = nz;
-                          return Object.assign({}, p, { pickup_times: arr });
-                        });
-                      }
-                    },
-                    style: Object.assign({}, inputS, { textAlign:'center', fontFamily:'Menlo, Consolas, monospace' })
-                  })
-                );
-              }),
-              // 저장 버튼은 마지막 열
-              React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px' } },
-                React.createElement('label', { style:labelS }, ' '),
-                React.createElement('button', { onClick: saveBusStop, disabled: stopSaving || !stopDraft.name.trim() || !((stopDraft.pickup_times || []).filter(function(t){ return (t||'').trim(); }).length), style: Object.assign({}, btnS(stopSaving ? '#9ca3af' : '#E60012'), { whiteSpace:'nowrap' }) }, stopSaving ? '저장 중...' : (stopEditingId ? '수정' : '+ 등록'))
-              )
-            );
-          })()
         : React.createElement('div', null,
-            React.createElement('div', { style:{ marginBottom:'10px' } },
+            React.createElement('div', { style:{ marginBottom:'12px' } },
               React.createElement('label', { style:labelS }, '정류장 이름 *'),
               React.createElement('input', { value: stopDraft.name, onChange: function(e){ var v = e.target.value; setStopDraft(function(p){ return Object.assign({}, p, { name: v }); }); }, placeholder:'예: 검암역 1번 출구', style: inputS })
             ),
-            React.createElement('div', { style:{ marginBottom:'10px' } },
-              React.createElement('label', { style:labelS }, '정차 시간 — 하루에 여러 번 운행하면 모두 추가 *'),
-              React.createElement('div', { style:{ display:'flex', gap:'6px', alignItems:'center', marginBottom:'8px' } },
-                React.createElement('input', { type:'text', value: stopDraft.time_input, onChange: function(e){ var v = e.target.value; setStopDraft(function(p){ return Object.assign({}, p, { time_input: v }); }); }, onKeyDown: function(e){ if (e.key === 'Enter') { e.preventDefault(); addStopTime(); } }, placeholder:'예: 14:30 (또는 1430, 14시 30분)', style: Object.assign({}, inputS, { flex:1 }) }),
-                React.createElement('button', { type:'button', onClick: addStopTime, style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'8px', padding:'8px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '+ 시간 추가')
-              ),
-              (stopDraft.pickup_times || []).length === 0
-                ? React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '아직 추가된 시간이 없어요. 운행 시간(예: 14:30)을 입력하고 + 시간 추가를 누르세요.')
-                : React.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:'6px' } },
-                    stopDraft.pickup_times.slice().filter(function(t){ return (t||'').trim(); }).sort().map(function(t){
-                      return React.createElement('span', { key:t, style:{ display:'inline-flex', alignItems:'center', gap:'6px', background:'#dbeafe', color:'#1d4ed8', fontSize:'12px', fontWeight:'800', padding:'5px 10px', borderRadius:'999px', fontFamily:'Manrope, sans-serif' } },
-                        t,
-                        React.createElement('button', { type:'button', onClick: function(){ removeStopTime(t); }, style:{ background:'none', border:'none', color:'#1d4ed8', cursor:'pointer', fontWeight:'800', padding:0, lineHeight:1 } }, '×')
-                      );
-                    })
-                  )
+            React.createElement('div', { style:{ marginBottom:'12px' } },
+              React.createElement('label', { style:labelS }, '정차 시간 — 하루에 여러 번 운행하면 시간을 한 줄씩 추가하세요'),
+              (function(){
+                var times = (stopDraft.pickup_times || []);
+                return React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'6px', marginTop:'6px' } },
+                  times.map(function(t, idx){
+                    return React.createElement('div', { key:idx, style:{ display:'flex', gap:'6px', alignItems:'center' } },
+                      React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', minWidth:'46px', fontFamily:'Manrope, sans-serif' } }, '시간 ' + (idx+1)),
+                      React.createElement('input', {
+                        type:'text', value: t || '',
+                        placeholder: '예: 14:30 (또는 1430)',
+                        onChange: function(e){
+                          var v = e.target.value;
+                          setStopDraft(function(p){
+                            var arr = (p.pickup_times || []).slice();
+                            arr[idx] = v;
+                            return Object.assign({}, p, { pickup_times: arr });
+                          });
+                        },
+                        onBlur: function(e){
+                          var v = (e.target.value || '').trim(); if (!v) return;
+                          var nz = normalizeTimeStr(v);
+                          if (nz && nz !== v) {
+                            setStopDraft(function(p){
+                              var arr = (p.pickup_times || []).slice();
+                              arr[idx] = nz;
+                              return Object.assign({}, p, { pickup_times: arr });
+                            });
+                          }
+                        },
+                        style: Object.assign({}, inputS, { flex:1, textAlign:'center', fontFamily:'Menlo, Consolas, monospace' })
+                      }),
+                      React.createElement('button', { type:'button', onClick:function(){
+                        setStopDraft(function(p){
+                          var arr = (p.pickup_times || []).slice();
+                          arr.splice(idx, 1);
+                          return Object.assign({}, p, { pickup_times: arr });
+                        });
+                      }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
+                    );
+                  }),
+                  React.createElement('button', { type:'button', onClick: function(){
+                    setStopDraft(function(p){
+                      var arr = (p.pickup_times || []).slice();
+                      arr.push('');
+                      return Object.assign({}, p, { pickup_times: arr });
+                    });
+                  }, style:{ background:'#fff', color:'#1d4ed8', border:'1px dashed #1d4ed8', borderRadius:'8px', padding:'9px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', marginTop: times.length === 0 ? '0' : '4px' } }, '+ 시간 추가')
+                );
+              })()
             ),
             React.createElement('div', { style:{ display:'flex', gap:'8px', justifyContent:'flex-end' } },
-              stopEditingId && React.createElement('button', { onClick: cancelBusStopEdit, style: btnOutS }, '취소'),
-              React.createElement('button', { onClick: saveBusStop, disabled: stopSaving || !stopDraft.name.trim() || !((stopDraft.pickup_times || []).filter(function(t){ return (t||'').trim(); }).length), style: btnS(stopSaving ? '#9ca3af' : '#E60012') }, stopSaving ? '저장 중...' : (stopEditingId ? '수정 저장' : '+ 정류장 등록'))
+              React.createElement('button', { onClick: cancelBusStopEdit, style: btnOutS }, '취소'),
+              React.createElement('button', { onClick: saveBusStop, disabled: stopSaving || !stopDraft.name.trim() || !((stopDraft.pickup_times || []).filter(function(t){ return (t||'').trim(); }).length), style: btnS(stopSaving ? '#9ca3af' : '#E60012') }, stopSaving ? '저장 중...' : '저장')
             )
-          ),
-
-      // PC에서 수정 중일 때만 '취소' 버튼 추가
-      !adminIsMobile && stopEditingId && React.createElement('div', { style:{ display:'flex', justifyContent:'flex-end' } },
-        React.createElement('button', { onClick: cancelBusStopEdit, style: btnOutS }, '수정 취소')
-      )
+          )
     ),
     busStopsList.length === 0
       ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', padding:'14px 0', fontFamily:'Manrope, sans-serif' } }, '아직 등록된 정류장이 없습니다.')
@@ -6659,7 +6704,25 @@ teacherPicker && (function(){
           })
     )
   );
-})()
+})(),
+
+/* 학생 답안 분석 예약 모달 */
+scheduleSubModal && React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }, onClick:function(){ if (!scheduleSubSaving) setScheduleSubModal(null); } },
+  React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'14px', padding:'22px', width:'100%', maxWidth:'440px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif' } },
+    React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#111827', marginBottom:'6px' } }, '학생 답안 AI 분석 예약'),
+    React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'14px', lineHeight:'1.6' } },
+      (scheduleSubModal.examTitle ? '"' + scheduleSubModal.examTitle + '" — ' : '') + (scheduleSubModal.ids || []).length + '명 응시자를 예약 시각에 자동 분석합니다. 컴퓨터를 꺼두셔도 됩니다.'
+    ),
+    React.createElement('label', { style:{ fontSize:'11px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'3px' } }, '1차 시각 *'),
+    React.createElement('input', { type:'datetime-local', value: scheduleSubT1, onChange:function(e){ setScheduleSubT1(e.target.value); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'6px', padding:'8px 10px', fontSize:'13px', marginBottom:'10px', boxSizing:'border-box' } }),
+    React.createElement('label', { style:{ fontSize:'11px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'3px' } }, '2차 시각 (1차 실패 시 자동 재시도, 선택)'),
+    React.createElement('input', { type:'datetime-local', value: scheduleSubT2, onChange:function(e){ setScheduleSubT2(e.target.value); }, style:{ width:'100%', border:'1px solid #d6dbde', borderRadius:'6px', padding:'8px 10px', fontSize:'13px', marginBottom:'14px', boxSizing:'border-box' } }),
+    React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+      React.createElement('button', { onClick:function(){ setScheduleSubModal(null); }, disabled:scheduleSubSaving, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'10px', fontSize:'13px', fontWeight:'700', cursor: scheduleSubSaving ? 'wait' : 'pointer' } }, '취소'),
+      React.createElement('button', { onClick: confirmScheduleSubModal, disabled:scheduleSubSaving, style:{ flex:2, background: scheduleSubSaving ? '#9ca3af' : '#1d4ed8', color:'#fff', border:'none', borderRadius:'8px', padding:'10px', fontSize:'13px', fontWeight:'800', cursor: scheduleSubSaving ? 'wait' : 'pointer' } }, scheduleSubSaving ? '예약 중...' : '예약 등록')
+    )
+  )
+)
 
 );
 }
