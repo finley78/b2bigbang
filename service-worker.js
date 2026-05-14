@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v136-admin-boarding-list';
+const CACHE_VERSION = 'b2-bigbang-20260515v137-bus-class-time-capacity';
 const OFFLINE_URLS = [
   './',
   './index.html',
