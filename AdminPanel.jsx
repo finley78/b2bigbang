@@ -418,11 +418,7 @@ async function loadAdminAttachments() {
   setAdminAttachments(data || []);
   setAdminAttachLoading(false);
 }
-function adminAttachmentPublicUrl(path) {
-  var sb = window.supabase;
-  var { data } = sb.storage.from('attachments').getPublicUrl(path);
-  return data.publicUrl;
-}
+var adminAttachmentPublicUrl = window.B2Utils.attachmentPublicUrl;
 function renderFileList(paths, label, unitWord) {
   if (!paths || paths.length === 0) return null;
   var w = unitWord || '페이지';
@@ -437,12 +433,7 @@ function renderFileList(paths, label, unitWord) {
     })
   );
 }
-function adminFormatBytes(n) {
-  var v = Number(n) || 0;
-  if (v < 1024) return v + ' B';
-  if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
-  return (v/1024/1024).toFixed(1) + ' MB';
-}
+var adminFormatBytes = window.B2Utils.formatBytes;
 async function deleteAdminAttachment(att) {
   if (!confirm('이 자료를 삭제하시겠습니까?')) return;
   var sb = window.supabase;
@@ -1355,16 +1346,8 @@ async function deleteAdminAcademicSchedule(item) {
     await loadAdminAcademicSchedules();
   } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
 }
-function adminAcademicCategoryLabel(c) {
-  if (c === 'vacation') return '방학';
-  if (c === 'exam') return '시험기간';
-  return '기타';
-}
-function adminAcademicCategoryColor(c) {
-  if (c === 'vacation') return '#1d4ed8';
-  if (c === 'exam') return '#c87000';
-  return '#6b7280';
-}
+var adminAcademicCategoryLabel = window.B2Utils.academicCategoryLabel;
+var adminAcademicCategoryColor = window.B2Utils.academicCategoryColor;
 // 학사일정 폼 (관리자) — 선생님 페이지와 동일 구조
 function openAdminAcademicForm(dateStr) {
   setAdminAcademicDraft({ id:'', category:'vacation', title:'', school:'', start_date: dateStr || '', end_date: dateStr || '', description:'' });

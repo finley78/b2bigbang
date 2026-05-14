@@ -831,12 +831,7 @@ function VideoPlayer({ lecture, course, onBack, studentName, userId }) {
     var d = sb.storage.from('attachments').getPublicUrl(path);
     return (d && d.data && d.data.publicUrl) || '';
   }
-  function fmtBytes(n) {
-    var v = Number(n) || 0;
-    if (v < 1024) return v + ' B';
-    if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
-    return (v/1024/1024).toFixed(1) + ' MB';
-  }
+  var fmtBytes = window.B2Utils.formatBytes;
 
   var storageKey = 'lec_progress_' + lecture.id;
   var progress = duration > 0 ? Math.min((currentSec / duration) * 100, 100) : 0;

@@ -519,6 +519,31 @@
     return { background: pal.bg, color: pal.color, fontSize:'10px', fontWeight:'800', padding:'2px 7px', borderRadius:'4px', letterSpacing:'0.02em', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
   }
 
+  // ── 학사일정 카테고리 라벨·색상 (관리자·선생님 페이지 공용) ──
+  function academicCategoryLabel(c) {
+    if (c === 'vacation') return '방학';
+    if (c === 'exam') return '시험기간';
+    return '기타';
+  }
+  function academicCategoryColor(c) {
+    if (c === 'vacation') return '#1d4ed8';
+    if (c === 'exam') return '#c87000';
+    return '#6b7280';
+  }
+  // ── 첨부 파일 공개 URL ──
+  function attachmentPublicUrl(path) {
+    var sb = window.supabase;
+    var { data } = sb.storage.from('attachments').getPublicUrl(path);
+    return data.publicUrl;
+  }
+  // ── 바이트 사람이 읽기 좋은 형태 ──
+  function formatBytes(n) {
+    var v = Number(n) || 0;
+    if (v < 1024) return v + ' B';
+    if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
+    return (v/1024/1024).toFixed(1) + ' MB';
+  }
+
   // ── 차량/수업 공통 상수·헬퍼 (AdminPanel과 BusTracking에서 함께 사용) ──
   var CLASS_TIMES = ['15:00','16:30','17:30','18:00','19:30'];
   var BUS_CAPACITY = 12;
@@ -542,5 +567,5 @@
     return s;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle, CLASS_TIMES, BUS_CAPACITY, todayKstDay, todayKstDateStr, normalizeTimeStr };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle, CLASS_TIMES, BUS_CAPACITY, todayKstDay, todayKstDateStr, normalizeTimeStr, academicCategoryLabel, academicCategoryColor, attachmentPublicUrl, formatBytes };
 })();

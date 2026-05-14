@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v143-cleanup-duplicates';
+const CACHE_VERSION = 'b2-bigbang-20260515v144-dedupe-helpers';
 const OFFLINE_URLS = [
   './',
   './index.html',

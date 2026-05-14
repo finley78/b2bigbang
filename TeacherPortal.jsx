@@ -1216,16 +1216,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
     setAttachments(data || []);
     setAttachLoading(false);
   }
-  function attachmentPublicUrl(path) {
-    var { data } = sb.storage.from('attachments').getPublicUrl(path);
-    return data.publicUrl;
-  }
-  function formatBytes(n) {
-    var v = Number(n) || 0;
-    if (v < 1024) return v + ' B';
-    if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
-    return (v/1024/1024).toFixed(1) + ' MB';
-  }
+  var attachmentPublicUrl = window.B2Utils.attachmentPublicUrl;
+  var formatBytes = window.B2Utils.formatBytes;
   async function uploadAttachment() {
     var d = attachDraft;
     if (!teacherInfo) { alert('선생님 정보가 없습니다.'); return; }
@@ -1932,12 +1924,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       await loadScheduleRequests();
     } catch (e) { alert('취소 실패: ' + (e.message || e)); }
   }
-  function scrFormatBytes(n) {
-    var v = Number(n) || 0;
-    if (v < 1024) return v + ' B';
-    if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
-    return (v/1024/1024).toFixed(1) + ' MB';
-  }
+  var scrFormatBytes = window.B2Utils.formatBytes;
 
   // 학사일정
   async function loadAcademicSchedules() {
@@ -2009,16 +1996,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       await loadAcademicSchedules();
     } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
   }
-  function academicCategoryLabel(c) {
-    if (c === 'vacation') return '방학';
-    if (c === 'exam') return '시험기간';
-    return '기타';
-  }
-  function academicCategoryColor(c) {
-    if (c === 'vacation') return '#1d4ed8'; // 파랑
-    if (c === 'exam') return '#c87000';     // 주황
-    return '#6b7280';                       // 회색
-  }
+  var academicCategoryLabel = window.B2Utils.academicCategoryLabel;
+  var academicCategoryColor = window.B2Utils.academicCategoryColor;
 
   // ── 마이페이지 ──
   async function loadMyProfile() {
