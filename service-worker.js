@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v125-driver-mode-rename';
+const CACHE_VERSION = 'b2-bigbang-20260515v126-bus-stops-boarding';
 const OFFLINE_URLS = [
   './',
   './index.html',

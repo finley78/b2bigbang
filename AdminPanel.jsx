@@ -176,7 +176,12 @@ const [footerDraft, setFooterDraft] = React.useState(null);
 const [footerSaving, setFooterSaving] = React.useState(false);
 // 차량 위치 관리
 const [vehiclesList, setVehiclesList] = React.useState([]);
-const [vehicleDraft, setVehicleDraft] = React.useState({ name:'', driver_name:'', driver_phone:'', route:'' });
+const [vehicleDraft, setVehicleDraft] = React.useState({ name:'', driver_name:'', driver_phone:'', route:'', seat_count:'25' });
+// 정류장 관리
+const [busStopsList, setBusStopsList] = React.useState([]);
+const [stopDraft, setStopDraft] = React.useState({ name:'', pickup_time:'' });
+const [stopEditingId, setStopEditingId] = React.useState(null);
+const [stopSaving, setStopSaving] = React.useState(false);
 const [vehicleEditingId, setVehicleEditingId] = React.useState(null);
 const [kakaoKeyInput, setKakaoKeyInput] = React.useState('');
 const [kakaoKeyHasSaved, setKakaoKeyHasSaved] = React.useState(false);
@@ -495,7 +500,63 @@ async function loadVehiclesData() {
     var saved = (kRes && (kRes.appkey || kRes.key)) || '';
     setKakaoKeyInput(saved);
     setKakaoKeyHasSaved(!!saved);
+    var sRes = await sb.from('bus_stops').select('*').eq('is_active', true).order('sort_order').order('created_at');
+    setBusStopsList((sRes && sRes.data) || []);
   } catch (e) { console.error('차량 데이터 로드 실패:', e); }
+}
+async function saveBusStop() {
+  var d = stopDraft;
+  if (!(d.name || '').trim()) { alert('정류장 이름을 입력해 주세요.'); return; }
+  setStopSaving(true);
+  try {
+    var payload = {
+      name: d.name.trim(),
+      pickup_time: (d.pickup_time || '').trim() || null,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    };
+    if (stopEditingId) {
+      var u = await sb.from('bus_stops').update(payload).eq('id', stopEditingId);
+      if (u.error) throw u.error;
+    } else {
+      payload.sort_order = busStopsList.length;
+      var ins = await sb.from('bus_stops').insert(payload);
+      if (ins.error) throw ins.error;
+    }
+    setStopDraft({ name:'', pickup_time:'' });
+    setStopEditingId(null);
+    await loadVehiclesData();
+  } catch (e) { alert('정류장 저장 실패: ' + (e.message || e)); }
+  finally { setStopSaving(false); }
+}
+function editBusStop(s) {
+  setStopEditingId(s.id);
+  setStopDraft({ name: s.name || '', pickup_time: s.pickup_time || '' });
+}
+function cancelBusStopEdit() {
+  setStopEditingId(null);
+  setStopDraft({ name:'', pickup_time:'' });
+}
+async function deleteBusStop(s) {
+  if (!confirm('"' + s.name + '" 정류장을 삭제할까요? 이 정류장을 기본으로 쓰던 학생은 기본 정류장이 빈 상태가 됩니다.')) return;
+  try {
+    var u = await sb.from('bus_stops').update({ is_active:false }).eq('id', s.id);
+    if (u.error) throw u.error;
+    await loadVehiclesData();
+  } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+}
+async function moveBusStop(s, delta) {
+  var list = busStopsList.slice().sort(function(a,b){ return (a.sort_order||0) - (b.sort_order||0); });
+  var idx = list.findIndex(function(x){ return x.id === s.id; });
+  if (idx < 0) return;
+  var swap = idx + delta;
+  if (swap < 0 || swap >= list.length) return;
+  var a = list[idx], b = list[swap];
+  try {
+    await sb.from('bus_stops').update({ sort_order: b.sort_order || swap }).eq('id', a.id);
+    await sb.from('bus_stops').update({ sort_order: a.sort_order || idx }).eq('id', b.id);
+    await loadVehiclesData();
+  } catch (e) { alert('순서 변경 실패: ' + (e.message || e)); }
 }
 async function saveKakaoKey() {
   var key = (kakaoKeyInput || '').trim();
@@ -519,6 +580,7 @@ async function saveVehicle() {
       driver_name: (d.driver_name || '').trim() || null,
       driver_phone: (d.driver_phone || '').trim() || null,
       route: (d.route || '').trim() || null,
+      seat_count: Math.max(0, parseInt(d.seat_count, 10) || 25),
       is_active: true,
       updated_at: new Date().toISOString(),
     };
@@ -529,7 +591,7 @@ async function saveVehicle() {
       var ins = await sb.from('vehicles').insert(payload);
       if (ins.error) throw ins.error;
     }
-    setVehicleDraft({ name:'', driver_name:'', driver_phone:'', route:'' });
+    setVehicleDraft({ name:'', driver_name:'', driver_phone:'', route:'', seat_count:'25' });
     setVehicleEditingId(null);
     await loadVehiclesData();
   } catch (e) { alert('저장 실패: ' + (e.message || e)); }
@@ -537,7 +599,7 @@ async function saveVehicle() {
 }
 function editVehicle(v) {
   setVehicleEditingId(v.id);
-  setVehicleDraft({ name: v.name || '', driver_name: v.driver_name || '', driver_phone: v.driver_phone || '', route: v.route || '' });
+  setVehicleDraft({ name: v.name || '', driver_name: v.driver_name || '', driver_phone: v.driver_phone || '', route: v.route || '', seat_count: String(v.seat_count != null ? v.seat_count : 25) });
 }
 function cancelVehicleEdit() {
   setVehicleEditingId(null);
@@ -1560,6 +1622,18 @@ await sb.from('students').update({ grade }).eq('id', studentId);
 setDbStudents(s => s.map(st => st.id === studentId ? { ...st, grade } : st));
 showSaved();
 }
+async function updateStudentUsesBus(studentId, usesBus) {
+  var payload = { uses_bus: !!usesBus };
+  if (!usesBus) payload.default_bus_stop_id = null;
+  await sb.from('students').update(payload).eq('id', studentId);
+  setDbStudents(s => s.map(st => st.id === studentId ? Object.assign({}, st, payload) : st));
+  showSaved();
+}
+async function updateStudentDefaultStop(studentId, stopId) {
+  await sb.from('students').update({ default_bus_stop_id: stopId || null }).eq('id', studentId);
+  setDbStudents(s => s.map(st => st.id === studentId ? Object.assign({}, st, { default_bus_stop_id: stopId || null }) : st));
+  showSaved();
+}
 
 async function toggleSubject(studentId, subject) {
 const st = dbStudents.find(s => s.id === studentId);
@@ -1957,7 +2031,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'16px 18px', fontSize:'15px', display:'inline-flex', alignItems:'center', minHeight:'52px' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadMaterials(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') { loadAdminLevelTests(); loadMaterials(); } if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); if (tid === 'vehicles') loadVehiclesData(); }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadMaterials(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') { loadAdminLevelTests(); loadMaterials(); } if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); if (tid === 'vehicles') loadVehiclesData(); if (tid === 'enrollee') { loadVehiclesData(); } }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -2939,6 +3013,26 @@ React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)'
 React.createElement('span', null,
 React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.45)', marginRight:'6px' } }, '학부모'),
 React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, B2Utils.formatPhone(st.parent_phone) || '미입력')
+)
+),
+// 차량 이용 설정
+React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px', padding:'6px 10px', background:'#eff6ff', borderRadius:'6px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } },
+React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer' } },
+React.createElement('input', { type:'checkbox', checked: !!st.uses_bus, onChange: function(e){ updateStudentUsesBus(st.id, e.target.checked); }, style:{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#1d4ed8' } }),
+React.createElement('span', { style:{ fontWeight:'700', color: st.uses_bus ? '#1d4ed8' : 'rgba(0,0,0,0.65)' } }, '차량 이용')
+),
+st.uses_bus && React.createElement('span', { style:{ display:'flex', alignItems:'center', gap:'6px' } },
+React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.45)' } }, '기본 정류장'),
+React.createElement('select', {
+value: st.default_bus_stop_id || '',
+onChange: function(e){ updateStudentDefaultStop(st.id, e.target.value); },
+style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+React.createElement('option', { value:'' }, busStopsList.length === 0 ? '— 정류장 없음 (먼저 등록)' : '선택'),
+busStopsList.slice().sort(function(a,b){ return (a.sort_order||0) - (b.sort_order||0); }).map(function(stop){
+return React.createElement('option', { key:stop.id, value:stop.id }, stop.name + (stop.pickup_time ? (' (' + stop.pickup_time + ')') : ''));
+})
+)
 )
 ),
 React.createElement('div', { style:{ marginBottom:'8px' } },
@@ -5961,6 +6055,10 @@ tab==='vehicles' && React.createElement('div', null,
       React.createElement('div', null,
         React.createElement('label', { style:labelS }, '기사 전화 (선택)'),
         React.createElement('input', { value: vehicleDraft.driver_phone, onChange: function(e){ var v = e.target.value; setVehicleDraft(function(p){ return Object.assign({}, p, { driver_phone: v }); }); }, placeholder:'예: 010-1234-5678', style: inputS })
+      ),
+      React.createElement('div', null,
+        React.createElement('label', { style:labelS }, '좌석 수'),
+        React.createElement('input', { type:'number', min:'1', max:'100', value: vehicleDraft.seat_count, onChange: function(e){ var v = e.target.value; setVehicleDraft(function(p){ return Object.assign({}, p, { seat_count: v }); }); }, placeholder:'예: 25', style: inputS })
       )
     ),
     React.createElement('div', { style:{ display:'flex', gap:'8px', justifyContent:'flex-end' } },
@@ -5980,12 +6078,51 @@ tab==='vehicles' && React.createElement('div', null,
             return React.createElement('div', { key:v.id, style:{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', background: v.is_active ? '#fff' : '#f9fafb', fontFamily:'Manrope, sans-serif' } },
               React.createElement('span', { style:{ background: v.is_active ? '#dcfce7' : '#f3f4f6', color: v.is_active ? '#15803d' : '#6b7280', fontSize:'11px', fontWeight:'800', padding:'4px 10px', borderRadius:'999px' } }, v.is_active ? '활성' : '비활성'),
               React.createElement('div', { style:{ flex:1, minWidth:0 } },
-                React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, v.name + (v.route ? ' · ' + v.route : '')),
+                React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, v.name + (v.route ? ' · ' + v.route : '') + ' · 좌석 ' + (v.seat_count != null ? v.seat_count : 25) + '석'),
                 (v.driver_name || v.driver_phone) && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginTop:'2px' } }, [v.driver_name, v.driver_phone].filter(Boolean).join(' · '))
               ),
               React.createElement('button', { onClick: function(){ toggleVehicleActive(v); }, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, v.is_active ? '비활성화' : '활성화'),
               React.createElement('button', { onClick: function(){ editVehicle(v); }, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '수정'),
               React.createElement('button', { onClick: function(){ deleteVehicle(v); }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
+            );
+          })
+        )
+  ),
+
+  /* 정류장 관리 */
+  React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px', marginTop:'14px' } },
+    React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'6px', color:'#1A1A1A' } }, '3. 정류장 관리'),
+    React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'12px', lineHeight:'1.7' } },
+      '학생이 차량 페이지에서 선택할 정류장입니다. 학생 명단 탭에서 학생별 ', React.createElement('strong', null, '차량 이용 여부'), '와 ', React.createElement('strong', null, '기본 정류장'), '을 설정하면, 학생은 기본 정류장이 자동 선택되고 필요할 때만 다른 정류장을 누르면 됩니다.'
+    ),
+    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'1fr 160px', gap:'10px', marginBottom:'10px' } },
+      React.createElement('div', null,
+        React.createElement('label', { style:labelS }, '정류장 이름 *'),
+        React.createElement('input', { value: stopDraft.name, onChange: function(e){ var v = e.target.value; setStopDraft(function(p){ return Object.assign({}, p, { name: v }); }); }, placeholder:'예: 검암역 1번 출구', style: inputS })
+      ),
+      React.createElement('div', null,
+        React.createElement('label', { style:labelS }, '탑승 시간 (선택)'),
+        React.createElement('input', { value: stopDraft.pickup_time, onChange: function(e){ var v = e.target.value; setStopDraft(function(p){ return Object.assign({}, p, { pickup_time: v }); }); }, placeholder:'예: 07:30', style: inputS })
+      )
+    ),
+    React.createElement('div', { style:{ display:'flex', gap:'8px', justifyContent:'flex-end', marginBottom:'14px' } },
+      stopEditingId && React.createElement('button', { onClick: cancelBusStopEdit, style: btnOutS }, '취소'),
+      React.createElement('button', { onClick: saveBusStop, disabled: stopSaving || !stopDraft.name.trim(), style: btnS(stopSaving ? '#9ca3af' : '#E60012') }, stopSaving ? '저장 중...' : (stopEditingId ? '수정 저장' : '+ 정류장 등록'))
+    ),
+    busStopsList.length === 0
+      ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', padding:'14px 0', fontFamily:'Manrope, sans-serif' } }, '아직 등록된 정류장이 없습니다.')
+      : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+          busStopsList.slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); }).map(function(s, i, arr){
+            return React.createElement('div', { key:s.id, style:{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', background:'#fff', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('span', { style:{ background:'#dbeafe', color:'#1d4ed8', fontSize:'11px', fontWeight:'800', padding:'3px 8px', borderRadius:'999px', minWidth:'28px', textAlign:'center' } }, (i+1)),
+              React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, s.name),
+                s.pickup_time && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginTop:'2px' } }, '탑승 시간: ' + s.pickup_time)
+              ),
+              React.createElement('button', { onClick: function(){ moveBusStop(s, -1); }, disabled: i===0, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor: i===0?'not-allowed':'pointer', opacity: i===0 ? 0.4 : 1 } }, '↑'),
+              React.createElement('button', { onClick: function(){ moveBusStop(s, 1); }, disabled: i===arr.length-1, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor: i===arr.length-1?'not-allowed':'pointer', opacity: i===arr.length-1 ? 0.4 : 1 } }, '↓'),
+              React.createElement('button', { onClick: function(){ editBusStop(s); }, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '수정'),
+              React.createElement('button', { onClick: function(){ deleteBusStop(s); }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '삭제')
             );
           })
         )
