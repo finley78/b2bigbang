@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260514v123-vocab-pagination';
+const CACHE_VERSION = 'b2-bigbang-20260515v124-bulk-assign-all-units';
 const OFFLINE_URLS = [
   './',
   './index.html',
