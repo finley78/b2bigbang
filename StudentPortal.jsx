@@ -349,7 +349,7 @@ function SignupPage({ onBack, onComplete, prefill }) {
   const ROLE_OPTIONS = [
     { key:'student', label:'학생' },
     { key:'parent',  label:'학부모' },
-    { key:'teacher', label:'선생님' },
+    { key:'teacher', label:'선생님 · 학원 직원' },
   ];
 
   function normalizePhone(s) {
@@ -525,7 +525,7 @@ function SignupPage({ onBack, onComplete, prefill }) {
       React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', marginBottom:'20px' } },
         React.createElement('div', { style:{ marginBottom:'20px', paddingBottom:'16px', borderBottom:'1px solid rgba(0,0,0,0.07)' } },
           React.createElement('div', { style:{ fontSize:'17px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif' } }, ROLE_OPTIONS.find(r=>r.key===roleType)?.label + ' 회원가입'),
-          roleType === 'teacher' && React.createElement('div', { style:{ fontSize:'12px', color:'#c87000', fontFamily:'Manrope, sans-serif', marginTop:'4px', fontWeight:'600' } }, '관리자 승인 후 이용 가능합니다')
+          roleType === 'teacher' && React.createElement('div', { style:{ fontSize:'12px', color:'#c87000', fontFamily:'Manrope, sans-serif', marginTop:'4px', fontWeight:'600', lineHeight:'1.6' } }, '차량 기사·행정 직원 등 학원 관계자도 여기서 가입하세요. 관리자 승인 후 이용 가능합니다.')
         ),
 
         // 소셜 로그인에서 prefill된 경우 안내

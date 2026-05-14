@@ -123,7 +123,33 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-13 기준, 최신 ?v=20260513v105-material-types-simplified)
+## 현재 진행 (2026-05-14 기준, 최신 ?v=20260514v118-sw-pass-cdn)
+> **v118 (2026-05-14)**: service-worker가 외부 도메인(카카오 SDK·React CDN·Supabase JS CDN·SheetJS CDN·Google Fonts 등) 요청을 가로채면 opaque 응답이 되어 CORB로 차단되던 문제 수정. fetch 핸들러 앞쪽에 `if (!sameOriginEarly) return;` 추가해 외부 요청은 브라우저 기본 처리에 맡김. 카카오 지도 SDK 로드 실패 해결의 핵심.
+> **v117 (2026-05-14)**: BusTracking 운행 상태 자동 복원 + Wake Lock. 페이지 마운트 시 `vehicle_locations`에 `is_driving=true & driver_user_id=본인 & updated_at < 2분`이면 `driving` 자동 복원 — 기사가 새로고침하거나 통화 후 돌아와도 운행 시작 다시 안 눌러도 됨. Wake Lock API로 운행 중 화면 자동 꺼짐 방지(`visibilitychange` 시 재취득).
+> **v116 (2026-05-14)**: 파일 업로드 multiple 지원 (단어 추가·5단계 세트·학생 명단) + 관리자 차량 위치 관리 탭 신설.
+>   - **단어 추가 모달(VocabImportModal)**: 엑셀 여러 개 한 번에 선택 → 합쳐서 한 단어장에 추가. `parseOneExcel`/`handleExcels`로 분리.
+>   - **새 모달 `VocabStudySetMultiUploadModal`** (단어장 상세 상단 `+ 여러 유닛 한꺼번에` 버튼): 파일명에서 `UNIT/Day/단원/유닛/u + 숫자` 정규식 패턴 자동 추출 → 각 유닛에 자동 매핑. 추출 실패한 행은 빨강으로 표시되고 사용자가 직접 유닛 번호 입력 가능. 한 번에 일괄 저장 — 각 파일별로 자료실 자동 등록 + 단어 자동 추가 포함. 같은 유닛 중복·덮어쓰기 가드.
+>   - **AdminPanel '차량 위치' 탭** (`학원 관리` 그룹 신설): 카카오 JavaScript 키 입력+저장(`site_content.kakao_map_key`), 차량 등록/수정/삭제·활성토글(`vehicles`). 한 행 컴팩트 UI. 카카오 콘솔 가이드 안내문 포함.
+>   - **AdminPanel 학생 명단 import**: 엑셀 여러 파일 선택 가능, 파일별로 미리보기·확인 후 순차 import.
+>   - **회원가입 ROLE_OPTIONS** 라벨: `선생님` → `선생님 · 학원 직원`. 기사·행정직원도 여기서 가입한다는 안내문 추가.
+
+### ★ 차량 실시간 위치 시스템 (v109 + v116~v118로 완성) ★
+- DB: `vehicles`(id, name, driver_name, driver_phone, route, is_active, ...) + `vehicle_locations`(vehicle_id PK, lat, lng, heading, speed, accuracy, is_driving, driver_user_id, updated_at). Realtime 구독으로 학생/학부모 화면이 자동 갱신.
+- `BusTracking.jsx` (`page === 'bus'`, TopNav '차량 위치' 메뉴): 카카오 지도 + 차량 마커. 관리자/선생님(`isAdmin || user.role==='teacher'`)에게만 `운행 시작` 버튼 노출. 운행 중이면 `navigator.geolocation.watchPosition`으로 25초 간격 GPS 송신(배터리·DB 절약). 자동 복원 + Wake Lock 적용.
+- **카카오 콘솔 설정 (한 번 끝남)**: ① 좌측 `앱 > 플랫폼 키` > Default JS Key 카드 클릭 → **JavaScript SDK 도메인**에 `https://b2bigbang.com`, `https://finley78.github.io` 등록. ② `제품 설정 > 카카오맵` 활성화. ③ 관리자 '차량 위치' 탭에서 JavaScript 키(`7fbf65e2eb787a84dd40a2602628528c`) 입력 + 저장. 도메인 미등록 시 SDK 로드 응답이 의심스러워져 브라우저가 CORB로 차단 → "지도 로드 실패: 카카오 지도 SDK 로드 실패" 에러. 이게 v117까지 막혔던 진짜 원인.
+- **운영 흐름**: 학원용 폰 한 대를 차량에 거치 → 그 폰으로 우리 앱 로그인 → `차량 위치` → `운행 시작` → 위치 권한 허용. 시동 켜면 그대로 운행 시작 자동 복원. 학생/학부모는 본인 기기에서 메뉴 누르면 실시간 차량 위치 확인.
+- **남은 옵션 (선택)**: 아이킹 DTG API 연동(두리텍 측 답 받으면) 또는 OBD/시거잭 GPS 트래커 연동 — 그러면 폰 거치 안 해도 됨. 현재는 폰 거치 방식.
+
+> v115: 5단계 학습 세트 업로드 시 원본 xlsx를 자료실에도 자동 보관.
+> v114: 단어장 만들기/편집에 과목·초중고·학년·클래스 드롭다운 추가.
+> v113: 빈 유닛 placeholder 제거 — 채워진 유닛만 표시.
+> v112: 개별 학생 직접 지정 — 학생 리스트 항상 보임 + 체크박스.
+> v111: 유닛 카드에서 연습 먼저, 시험 아래 순서로 정렬.
+> v110: 옛 vocab_tests UI 제거 — 새 vocab_assignments 통합 흐름만.
+> v109: 학원 차량 실시간 위치 페이지 (BusTracking) 신설 — 위 ★ 블록 참고.
+> v108: 연습/시험 단계 체크 상태를 모드별로 분리.
+> v107: 학생 페이지에 받은 연습/시험 섹션 + 응시 기록 (Phase B).
+> v106: 연습/시험 보내기 통합 팝업 (vocab_assignments) — Phase A.
 > v105: 자료실 자료 종류 단순화 — 단어장 원본/5단계 학습 세트 옵션 제거, 시험·문제집/기타 2종만. 단어장 자료는 단어장 메뉴에서 다룬다는 안내문 추가. 기존 vocab_list/vocab_study_set 행은 카드에 그대로 보임(라벨만 유지). 시험 발행 picker는 이미 material_type='exam' 필터로 영향 없음. (UX 간소화 #4)
 > v104 (Phase 1.5): AdminPanel 레벨테스트/주간/월말/숙제 폼에도 TeacherPortal와 같은 분석 통합 흐름 적용. 답안지 입력 + 분석 범위 카드 + 정밀(Opus) 체크박스 2개 + '저장 + Claude 문항 분석' 버튼. 분석 성공하면 자료실(kind='material', material_type='exam') row 자동 추가 + material_id 연결. 이제 관리자도 자료실 안 거치고 시험 폼 한 곳에서 끝나는 흐름.
 > v103 (★ Phase 2 — 5단계 학생 응시 화면): `StudySet5Player` 추가 — vocab_study_sets 행을 1→2→2.5→3→어법 순서로 풀기. 단계별 진행률, 보기 셔플(seeded 안 흔들림), 정답/오답 피드백, 단계 끝나면 단계 점수 + 다음 단계로, 모두 끝나면 종합 결과. 영작(3단계)은 텍스트 빈칸 입력(`Stage3Question`) — 영문 sentence를 `___`로 split해 input 박스. 이전/모름/다음 버튼 다 있음. 점수 저장 안 함(자유 학습). 학생 STUDY 모드 picker에 `5단계 학습 세트` 메인 옵션으로 (highlight bg). 자료 없으면 안내 메시지.

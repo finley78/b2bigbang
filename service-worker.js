@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260514v118-sw-pass-cdn';
+const CACHE_VERSION = 'b2-bigbang-20260514v119-signup-driver-label';
 const OFFLINE_URLS = [
   './',
   './index.html',
