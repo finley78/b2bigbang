@@ -66,23 +66,13 @@
     var [allTodayBoardings, setAllTodayBoardings] = React.useState([]); // 기사 모드: 오늘 전체 변경 행
     var [busStudents, setBusStudents] = React.useState([]); // 기사 모드: 차량 이용 학생 명단
 
-    function todayKstDateStr() {
-      var now = new Date();
-      var kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-      return kst.getUTCFullYear() + '-' + String(kst.getUTCMonth()+1).padStart(2,'0') + '-' + String(kst.getUTCDate()).padStart(2,'0');
-    }
+    var CLASS_TIMES = window.B2Utils.CLASS_TIMES;
+    var todayKstDateStr = window.B2Utils.todayKstDateStr;
+    var todayKstDay = window.B2Utils.todayKstDay;
     function nowKstHHMM() {
       var d = new Date();
       var kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
       return String(kst.getUTCHours()).padStart(2,'0') + ':' + String(kst.getUTCMinutes()).padStart(2,'0');
-    }
-    // 수업 시간 (관리자 패널과 동일하게 고정)
-    var CLASS_TIMES = ['15:00','16:30','17:30','18:00','19:30'];
-    // 오늘 요일 (KST) — '월','화','수','목','금','토','일'
-    function todayKstDay() {
-      var now = new Date();
-      var kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-      return ['일','월','화','수','목','금','토'][kst.getUTCDay()];
     }
     // 학생의 오늘 수업 시간 — 등록된 반들의 day_times[오늘 요일] 중 가장 이른 시간 (없으면 fallback)
     function computeTodayClassTime() {
@@ -97,7 +87,7 @@
     }
     // 정류장의 "다음 운행 시간" — 지금(KST) 이후 가장 가까운 시간. 모두 지나갔으면 null
     function nextTimeForStop(stop) {
-      var times = (stop && stop.pickup_times && stop.pickup_times.length) ? stop.pickup_times.slice().sort() : (stop && stop.pickup_time ? [stop.pickup_time] : []);
+      var times = (stop && stop.pickup_times && stop.pickup_times.length) ? stop.pickup_times.slice().sort() : [];
       if (!times.length) return null;
       var hhmm = nowKstHHMM();
       for (var i = 0; i < times.length; i++) {
@@ -109,7 +99,7 @@
     function pickupTimeForClass(stop, classTime) {
       var idx = CLASS_TIMES.indexOf(classTime);
       if (idx < 0) return null;
-      var times = (stop && stop.pickup_times) ? stop.pickup_times : (stop && stop.pickup_time ? [stop.pickup_time] : []);
+      var times = (stop && stop.pickup_times) ? stop.pickup_times : [];
       return times[idx] || null;
     }
     var todayStr = todayKstDateStr();
@@ -551,7 +541,7 @@
                       React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', marginBottom: picks.length>0 ? '6px' : 0 } },
                         React.createElement('span', { style:{ background:'#dbeafe', color:'#1d4ed8', fontSize:'11px', fontWeight:'800', padding:'2px 8px', borderRadius:'999px', minWidth:'26px', textAlign:'center' } }, (i+1)),
                         React.createElement('div', { style:{ flex:1, minWidth:0 } },
-                          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, s.name + (s.pickup_time ? (' · ' + s.pickup_time) : '')),
+                          React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A' } }, s.name + ((s.pickup_times && s.pickup_times.length) ? (' · ' + s.pickup_times.join(', ')) : '')),
                           React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)' } }, picks.length + '명 탑승')
                         )
                       ),

@@ -519,5 +519,28 @@
     return { background: pal.bg, color: pal.color, fontSize:'10px', fontWeight:'800', padding:'2px 7px', borderRadius:'4px', letterSpacing:'0.02em', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle };
+  // ── 차량/수업 공통 상수·헬퍼 (AdminPanel과 BusTracking에서 함께 사용) ──
+  var CLASS_TIMES = ['15:00','16:30','17:30','18:00','19:30'];
+  var BUS_CAPACITY = 12;
+  function todayKstDay() {
+    var now = new Date();
+    var kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    return ['일','월','화','수','목','금','토'][kst.getUTCDay()];
+  }
+  function todayKstDateStr() {
+    var now = new Date();
+    var kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    return kst.getUTCFullYear() + '-' + String(kst.getUTCMonth()+1).padStart(2,'0') + '-' + String(kst.getUTCDate()).padStart(2,'0');
+  }
+  function normalizeTimeStr(raw) {
+    var s = String(raw || '').trim();
+    if (!s) return '';
+    var m = s.match(/^(\d{1,2}):?(\d{2})$/);
+    if (m) { var hh = String(parseInt(m[1],10)).padStart(2,'0'); var mm = m[2]; return hh+':'+mm; }
+    m = s.match(/^(\d{1,2})\s*시\s*(\d{1,2})?\s*분?$/);
+    if (m) { var hh2 = String(parseInt(m[1],10)).padStart(2,'0'); var mm2 = m[2] ? String(parseInt(m[2],10)).padStart(2,'0') : '00'; return hh2+':'+mm2; }
+    return s;
+  }
+
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle, CLASS_TIMES, BUS_CAPACITY, todayKstDay, todayKstDateStr, normalizeTimeStr };
 })();

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v142-today-class-time-auto';
+const CACHE_VERSION = 'b2-bigbang-20260515v143-cleanup-duplicates';
 const OFFLINE_URLS = [
   './',
   './index.html',

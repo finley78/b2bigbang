@@ -175,8 +175,8 @@ const [featureSaving, setFeatureSaving] = React.useState(false);
 const [footerDraft, setFooterDraft] = React.useState(null);
 const [footerSaving, setFooterSaving] = React.useState(false);
 // 차량 위치 관리
-const CLASS_TIMES = ['15:00','16:30','17:30','18:00','19:30']; // 수업 시간 (고정)
-const BUS_CAPACITY = 12;
+const CLASS_TIMES = window.B2Utils.CLASS_TIMES;
+const BUS_CAPACITY = window.B2Utils.BUS_CAPACITY;
 const [vehiclesList, setVehiclesList] = React.useState([]);
 const [vehicleDraft, setVehicleDraft] = React.useState({ name:'', driver_name:'', driver_phone:'', route:'', seat_count:'12' });
 // 정류장 관리
@@ -521,7 +521,7 @@ async function loadVehiclesData() {
     var cRes = await sb.from('students').select('id', { count:'exact', head:true }).eq('uses_bus', true).eq('is_active', true);
     setBusApprovedCount((cRes && typeof cRes.count === 'number') ? cRes.count : 0);
     // 오늘 탑승 명단
-    var tdyKst = (function(){ var now = new Date(); var kst = new Date(now.getTime() + 9*60*60*1000); return kst.getUTCFullYear() + '-' + String(kst.getUTCMonth()+1).padStart(2,'0') + '-' + String(kst.getUTCDate()).padStart(2,'0'); })();
+    var tdyKst = window.B2Utils.todayKstDateStr();
     var stRes = await sb.from('students').select('id, name, grade, uses_bus, default_bus_stop_id, bus_class_time').eq('uses_bus', true).eq('is_active', true);
     setBusTodayStudents((stRes && stRes.data) || []);
     var bRes = await sb.from('bus_boardings').select('*').eq('boarding_date', tdyKst);
@@ -541,15 +541,7 @@ async function rejectBusApplication(st) {
     await loadVehiclesData();
   } catch (e) { alert('거절 실패: ' + (e.message || e)); }
 }
-function normalizeTimeStr(raw) {
-  var s = String(raw || '').trim();
-  if (!s) return '';
-  var m = s.match(/^(\d{1,2}):?(\d{2})$/);
-  if (m) { var hh = String(parseInt(m[1],10)).padStart(2,'0'); var mm = m[2]; return hh+':'+mm; }
-  m = s.match(/^(\d{1,2})\s*시\s*(\d{1,2})?\s*분?$/);
-  if (m) { var hh2 = String(parseInt(m[1],10)).padStart(2,'0'); var mm2 = m[2] ? String(parseInt(m[2],10)).padStart(2,'0') : '00'; return hh2+':'+mm2; }
-  return s;
-}
+var normalizeTimeStr = window.B2Utils.normalizeTimeStr;
 async function saveBusStop() {
   // 새 정류장 추가 — 이름만
   var name = (stopDraft.name || '').trim();
@@ -558,7 +550,6 @@ async function saveBusStop() {
   try {
     var payload = {
       name: name,
-      pickup_time: null,
       pickup_times: [],
       sort_order: busStopsList.length,
       is_active: true,
@@ -574,24 +565,24 @@ async function saveBusStop() {
 async function addStopTimeNow(s, raw) {
   var nz = normalizeTimeStr(String(raw || '').trim());
   if (!/^\d{2}:\d{2}$/.test(nz)) { alert('시간은 14:30 형식으로 입력해 주세요. (또는 1430, 14시 30분)'); return; }
-  var current = (s.pickup_times && s.pickup_times.length) ? s.pickup_times.slice() : (s.pickup_time ? [s.pickup_time] : []);
+  var current = (s.pickup_times && s.pickup_times.length) ? s.pickup_times.slice() : [];
   if (current.indexOf(nz) >= 0) {
     setStopTimeInputs(function(p){ var n = Object.assign({}, p); n[s.id] = ''; return n; });
     return;
   }
   current.push(nz); current.sort();
   try {
-    var u = await sb.from('bus_stops').update({ pickup_times: current, pickup_time: current[0], updated_at: new Date().toISOString() }).eq('id', s.id);
+    var u = await sb.from('bus_stops').update({ pickup_times: current, updated_at: new Date().toISOString() }).eq('id', s.id);
     if (u.error) throw u.error;
     setStopTimeInputs(function(p){ var n = Object.assign({}, p); n[s.id] = ''; return n; });
     await loadVehiclesData();
   } catch (e) { alert('시간 추가 실패: ' + (e.message || e)); }
 }
 async function removeStopTimeNow(s, time) {
-  var current = (s.pickup_times && s.pickup_times.length) ? s.pickup_times.slice() : (s.pickup_time ? [s.pickup_time] : []);
+  var current = (s.pickup_times && s.pickup_times.length) ? s.pickup_times.slice() : [];
   var next = current.filter(function(t){ return t !== time; });
   try {
-    var u = await sb.from('bus_stops').update({ pickup_times: next, pickup_time: next[0] || null, updated_at: new Date().toISOString() }).eq('id', s.id);
+    var u = await sb.from('bus_stops').update({ pickup_times: next, updated_at: new Date().toISOString() }).eq('id', s.id);
     if (u.error) throw u.error;
     await loadVehiclesData();
   } catch (e) { alert('시간 삭제 실패: ' + (e.message || e)); }
@@ -1789,11 +1780,7 @@ async function autoFillStudentBusClassTime(studentId) {
     var allTimes = [];
     clsList.forEach(function(c){
       var dts = (c.day_times && typeof c.day_times === 'object') ? c.day_times : null;
-      if (dts) {
-        Object.keys(dts).forEach(function(k){ if (dts[k]) allTimes.push(dts[k]); });
-      } else if (c.start_time) {
-        allTimes.push(c.start_time);
-      }
+      if (dts) Object.keys(dts).forEach(function(k){ if (dts[k]) allTimes.push(dts[k]); });
     });
     if (!allTimes.length) { alert('등록된 반 중에 시간이 입력된 반이 없어요. 클래스 관리에서 반 시간을 먼저 설정해 주세요.'); return; }
     allTimes.sort();
@@ -6425,17 +6412,11 @@ tab==='vehicles' && React.createElement('div', null,
   React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px', marginTop:'14px' } },
     (function(){
       var sortedStops = busStopsList.slice().sort(function(a,b){
-        var ta = (a.pickup_times && a.pickup_times[0]) || a.pickup_time || 'zz';
-        var tb = (b.pickup_times && b.pickup_times[0]) || b.pickup_time || 'zz';
+        var ta = (a.pickup_times && a.pickup_times[0]) || 'zz';
+        var tb = (b.pickup_times && b.pickup_times[0]) || 'zz';
         return String(ta).localeCompare(String(tb));
       });
-      // 오늘 요일
-      function todayKstDay(){
-        var now = new Date();
-        var kst = new Date(now.getTime() + 9*60*60*1000);
-        return ['일','월','화','수','목','금','토'][kst.getUTCDay()];
-      }
-      var today = todayKstDay();
+      var today = window.B2Utils.todayKstDay();
       // 학생 ID → 등록된 반들 day_times에서 오늘 요일 가장 이른 시간
       function todayClassTimeFor(studentId, fallback){
         var times = [];
@@ -6543,11 +6524,11 @@ tab==='vehicles' && React.createElement('div', null,
       : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
           busStopsList.slice().sort(function(a,b){
             // 첫 운행 시간(pickup_times[0])으로 자동 정렬, 없으면 마지막으로
-            var ta = (a.pickup_times && a.pickup_times[0]) || a.pickup_time || 'zz';
-            var tb = (b.pickup_times && b.pickup_times[0]) || b.pickup_time || 'zz';
+            var ta = (a.pickup_times && a.pickup_times[0]) || 'zz';
+            var tb = (b.pickup_times && b.pickup_times[0]) || 'zz';
             return String(ta).localeCompare(String(tb));
           }).map(function(s, i){
-            var times = (s.pickup_times && s.pickup_times.length) ? s.pickup_times.slice().sort() : (s.pickup_time ? [s.pickup_time] : []);
+            var times = (s.pickup_times && s.pickup_times.length) ? s.pickup_times.slice().sort() : [];
             var noTimes = times.length === 0;
             var inputVal = stopTimeInputs[s.id] || '';
             return React.createElement('div', { key:s.id, style:{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', border: noTimes ? '1px dashed #fbbf24' : '1px solid #e5e7eb', borderRadius:'8px', background: noTimes ? '#fffbeb' : '#fff', fontFamily:'Manrope, sans-serif', flexWrap:'wrap' } },
