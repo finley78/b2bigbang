@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v146-bus-state-sync';
+const CACHE_VERSION = 'b2-bigbang-20260515v147-perfectionism';
 const OFFLINE_URLS = [
   './',
   './index.html',

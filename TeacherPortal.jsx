@@ -88,7 +88,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [attachDraft, setAttachDraft] = React.useState({ title:'', description:'', scope:'class', class_id:'', student_ids:[], course_id:'', video_id:'', file:null });
 
   // 자료실 — 분석 자료 도서관 (시험·숙제 만들기용; kind='material' exams)
-  const MATERIAL_DRAFT_INIT = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', material_type:'exam', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null };
+  const MATERIAL_DRAFT_INIT = window.B2Utils.materialDraftInit();
   const [materials, setMaterials] = React.useState([]);
   const [materialLoading, setMaterialLoading] = React.useState(false);
   const [materialUploading, setMaterialUploading] = React.useState(false);
