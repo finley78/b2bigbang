@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v134-move-leveltest-vocab-to-students';
+const CACHE_VERSION = 'b2-bigbang-20260515v135-stop-time-clean-box';
 const OFFLINE_URLS = [
   './',
   './index.html',

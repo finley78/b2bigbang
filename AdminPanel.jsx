@@ -6337,7 +6337,7 @@ tab==='vehicles' && React.createElement('div', null,
               // 시간 칩들 + 인라인 입력
               React.createElement('div', { style:{ flex:1, display:'flex', flexWrap:'wrap', gap:'6px', alignItems:'center', minWidth:'200px' } },
                 times.map(function(t){
-                  return React.createElement('span', { key:t, style:{ display:'inline-flex', alignItems:'center', gap:'4px', background:'#dbeafe', color:'#1d4ed8', fontSize:'12px', fontWeight:'800', padding:'4px 8px', borderRadius:'999px', fontFamily:'Menlo, Consolas, monospace' } },
+                  return React.createElement('span', { key:t, style:{ display:'inline-flex', alignItems:'center', gap:'6px', background:'#fff', color:'#1d4ed8', fontSize:'12px', fontWeight:'800', padding:'5px 10px', borderRadius:'8px', border:'1.5px solid #1d4ed8', fontFamily:'Menlo, Consolas, monospace' } },
                     t,
                     React.createElement('button', { type:'button', onClick: function(){ removeStopTimeNow(s, t); }, style:{ background:'none', border:'none', color:'#1d4ed8', cursor:'pointer', fontWeight:'800', padding:0, lineHeight:1, fontSize:'14px' } }, '×')
                   );
@@ -6348,7 +6348,7 @@ tab==='vehicles' && React.createElement('div', null,
                   onChange: function(e){ var v = e.target.value; setStopTimeInputs(function(p){ var n = Object.assign({}, p); n[s.id] = v; return n; }); },
                   onKeyDown: function(e){ if (e.key === 'Enter') { e.preventDefault(); if (inputVal && inputVal.trim()) addStopTimeNow(s, inputVal); } },
                   onBlur: function(){ if (inputVal && inputVal.trim()) addStopTimeNow(s, inputVal); },
-                  style:{ border:'1px dashed #1d4ed8', borderRadius:'999px', padding:'4px 10px', fontSize:'12px', fontFamily:'Menlo, Consolas, monospace', width: noTimes ? '180px' : '110px', outline:'none', background:'#fff' }
+                  style:{ border:'1.5px solid #1d4ed8', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontFamily:'Menlo, Consolas, monospace', width: noTimes ? '180px' : '110px', outline:'none', background:'#fff', color:'#1d4ed8', fontWeight:'700' }
                 })
               ),
               React.createElement('button', { onClick: function(){ deleteBusStop(s); }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', flexShrink:0 } }, '삭제')
