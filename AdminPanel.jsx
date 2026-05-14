@@ -331,6 +331,13 @@ phone: st.phone || '', parent_phone: st.parent_phone || '', parent_id: st.parent
 address: st.address || '',
 created_at: st.created_at || '', withdrawn_at: st.withdrawn_at || '',
 role: 'student',
+// 차량 관련 — UI에서 직접 접근 (countClassTime, autoFill 등)
+uses_bus: !!st.uses_bus,
+bus_class_time: st.bus_class_time || null,
+bus_class_time_source: st.bus_class_time_source || null,
+default_bus_stop_id: st.default_bus_stop_id || null,
+bus_application_status: st.bus_application_status || null,
+bus_applied_at: st.bus_applied_at || null,
 }));
 setDbStudents(mapped);
 }
@@ -345,6 +352,11 @@ phone: st.phone || '', parent_phone: st.parent_phone || '', parent_id: st.parent
 address: st.address || '',
 created_at: st.created_at || '', withdrawn_at: st.withdrawn_at || '',
 role: 'student',
+uses_bus: !!st.uses_bus,
+bus_class_time: st.bus_class_time || null,
+bus_class_time_source: st.bus_class_time_source || null,
+default_bus_stop_id: st.default_bus_stop_id || null,
+bus_application_status: st.bus_application_status || null,
 }));
 setDbWithdrawnStudents(mappedW);
 }

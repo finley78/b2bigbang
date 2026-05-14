@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v144-dedupe-helpers';
+const CACHE_VERSION = 'b2-bigbang-20260515v145-fix-bus-fields-race';
 const OFFLINE_URLS = [
   './',
   './index.html',

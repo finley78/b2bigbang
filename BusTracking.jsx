@@ -61,6 +61,7 @@
     var [busStops, setBusStops] = React.useState([]);
     var [myStudentRow, setMyStudentRow] = React.useState(null); // { uses_bus, default_bus_stop_id, id, name }
     var [myEnrolledClasses, setMyEnrolledClasses] = React.useState([]); // [{id, name, day_times}]
+    var [myClassesLoaded, setMyClassesLoaded] = React.useState(false);
     var [myTodayBoarding, setMyTodayBoarding] = React.useState(null); // 오늘 변경 행 (null이면 기본 정류장)
     var [stopSaving, setStopSaving] = React.useState(false);
     var [allTodayBoardings, setAllTodayBoardings] = React.useState([]); // 기사 모드: 오늘 전체 변경 행
@@ -158,6 +159,7 @@
                   var clRes = await sb.from('classes').select('id, name, day_times').in('id', clsIds);
                   setMyEnrolledClasses((clRes && clRes.data) || []);
                 }
+                setMyClassesLoaded(true);
               }
             }
           }
@@ -415,7 +417,7 @@
         })(),
 
         // 학생: 오늘 정류장 선택 (uses_bus가 true일 때만)
-        myStudentRow && myStudentRow.uses_bus && (function(){
+        myStudentRow && myStudentRow.uses_bus && myClassesLoaded && (function(){
           var classTime = computeTodayClassTime();
           var hasClass = !!classTime;
           var effectiveStopId = null;
