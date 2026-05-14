@@ -2427,17 +2427,20 @@ style:{ background:'#E60012', color:'#fff', borderRadius:'8px', padding:'7px 12p
 },
 '⬆ 엑셀 가져오기',
 React.createElement('input', {
-type:'file', accept:'.xlsx,.xls,.csv',
+type:'file', accept:'.xlsx,.xls,.csv', multiple: true,
 style:{ display:'none' },
 onChange: async function(e) {
-var f = e.target.files && e.target.files[0];
+var files = Array.from(e.target.files || []);
 e.target.value = '';
-if (f) await importStudentsExcel(f);
+if (!files.length) return;
+for (var i = 0; i < files.length; i++) {
+await importStudentsExcel(files[i]);
+}
 }
 })
 ),
 React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
-'※ 필수: 이름만 / 학생전화 있으면 기존 학생 업데이트, 없으면 신규'
+'※ 필수: 이름만 / 학생전화 있으면 기존 학생 업데이트, 없으면 신규 · 여러 파일 한꺼번에 선택 가능(파일별로 미리보기·확인)'
 )
 ),
 

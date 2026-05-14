@@ -243,6 +243,7 @@
     var [resultsTest, setResultsTest] = React.useState(null);
     var [studySets, setStudySets] = React.useState([]); // [{unit_index, ...stages, title, ...}]
     var [studyUploadUnit, setStudyUploadUnit] = React.useState(null); // 업로드 모달 열 유닛 번호
+    var [studyMultiOpen, setStudyMultiOpen] = React.useState(false); // 여러 유닛 일괄 업로드 모달
     var [studyViewUnit, setStudyViewUnit] = React.useState(null); // 미리보기 모달 열 유닛 번호
     var [assignModalUnit, setAssignModalUnit] = React.useState(null); // 연습/시험 보내기 모달 열 유닛 번호
     var [assignments, setAssignments] = React.useState([]); // [{id, unit_index, mode, stages, ...}] — 그 단어장의 모든 배정
@@ -346,6 +347,8 @@
               var nextUnit = Math.max(maxWordUnit, maxStudyUnit) + 1;
               setStudyUploadUnit(nextUnit);
             }, style:STYLES.btnPrimary }, '+ 5단계 학습 세트 업로드'),
+            // 여러 유닛 한꺼번에 (파일명에서 UNIT 번호 자동 추출)
+            React.createElement('button', { onClick:function(){ setStudyMultiOpen(true); }, style:STYLES.btnGhost }, '+ 여러 유닛 한꺼번에'),
             // 단어만 — 부가
             activeTab === 'words' && React.createElement('button', { onClick:function(){ setShowImport(true); }, style:STYLES.btnGhost }, '단어만 추가')
           )
@@ -485,8 +488,19 @@
         existingWords: words,
         existingStudy: studySets.find(function(s){ return s.unit_index === studyUploadUnit; }) || null,
         user: props.user,
+        list: list,
         onClose: function(){ setStudyUploadUnit(null); },
         onSaved: function(){ setStudyUploadUnit(null); load(); },
+      }),
+      studyMultiOpen && React.createElement(VocabStudySetMultiUploadModal, {
+        listId: props.listId,
+        list: list,
+        unitSize: list.unit_size || 20,
+        existingWords: words,
+        existingStudy: studySets,
+        user: props.user,
+        onClose: function(){ setStudyMultiOpen(false); },
+        onSaved: function(){ setStudyMultiOpen(false); load(); },
       }),
       studyViewUnit !== null && React.createElement(VocabStudySetViewModal, {
         study: studySets.find(function(s){ return s.unit_index === studyViewUnit; }) || null,
@@ -534,59 +548,77 @@
       if (mode === 'paste') setParsed(parsePasted(pasteWords, pasteMeanings));
     }, [pasteWords, pasteMeanings, mode]);
 
-    async function handleExcel(file) {
-      if (!file) return;
+    async function parseOneExcel(file) {
+      var buf = await file.arrayBuffer();
+      var wb = window.XLSX.read(buf, { type:'array' });
+      var sheet = wb.Sheets[wb.SheetNames[0]];
+      var rows = window.XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+      // 헤더 행 자동 감지 + 컬럼 위치 자동 결정
+      // 케이스 1: "단어 / 뜻" (2열) — wordCol=0, meaningCol=1
+      // 케이스 2: "번호 / 단어 / 뜻" (3열) — wordCol=1, meaningCol=2 (번호 컬럼 skip)
+      // 케이스 3: 그 외 / 헤더 없음 — 기본 wordCol=0, meaningCol=1
+      var wordCol = 0, meaningCol = 1, exampleCol = 2;
+      var startIdx = 0;
+      if (rows.length && Array.isArray(rows[0])) {
+        var hr = rows[0].map(function(x){ return String(x||'').trim(); });
+        var hasHeader = false;
+        var wIdx = -1, mIdx = -1, eIdx = -1;
+        for (var c = 0; c < hr.length; c++) {
+          var h = hr[c];
+          if (/단어|word|영단|어휘|vocabulary/i.test(h)) { if (wIdx < 0) wIdx = c; hasHeader = true; }
+          else if (/^뜻$|^의미$|^한국어$|meaning|korean|definition/i.test(h)) { if (mIdx < 0) mIdx = c; hasHeader = true; }
+          else if (/예문|문장|example|sentence/i.test(h)) { if (eIdx < 0) eIdx = c; hasHeader = true; }
+          else if (/번호|순번|^no\.?$|^#$|^index$|^id$/i.test(h)) { hasHeader = true; }
+        }
+        if (hasHeader) {
+          startIdx = 1;
+          if (wIdx >= 0) wordCol = wIdx;
+          if (mIdx >= 0) meaningCol = mIdx;
+          if (eIdx >= 0) exampleCol = eIdx;
+          // 단어/뜻 헤더가 명시 안 됐고 첫 컬럼이 "번호"면 한 칸씩 밀어서 추정
+          if (wIdx < 0 && mIdx < 0 && /번호|순번|^no\.?$|^#$|^index$|^id$/i.test(hr[0])) {
+            wordCol = 1; meaningCol = 2; exampleCol = 3;
+          }
+        }
+      }
+      var out = [];
+      for (var i = startIdx; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r) continue;
+        var w = String(r[wordCol] || '').trim();
+        var m = String(r[meaningCol] || '').trim();
+        if (!w || !m) continue;
+        out.push({
+          word: w, meaning: m,
+          example: String(r[exampleCol] || '').trim() || null,
+        });
+      }
+      return out;
+    }
+
+    async function handleExcels(files) {
+      var list = Array.from(files || []);
+      if (!list.length) return;
       if (!window.XLSX) { alert('엑셀 라이브러리가 로드되지 않았습니다.'); return; }
-      try {
-        var buf = await file.arrayBuffer();
-        var wb = window.XLSX.read(buf, { type:'array' });
-        var sheet = wb.Sheets[wb.SheetNames[0]];
-        var rows = window.XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
-        // 헤더 행 자동 감지 + 컬럼 위치 자동 결정
-        // 케이스 1: "단어 / 뜻" (2열) — wordCol=0, meaningCol=1
-        // 케이스 2: "번호 / 단어 / 뜻" (3열) — wordCol=1, meaningCol=2 (번호 컬럼 skip)
-        // 케이스 3: 그 외 / 헤더 없음 — 기본 wordCol=0, meaningCol=1
-        var wordCol = 0, meaningCol = 1, exampleCol = 2;
-        var startIdx = 0;
-        if (rows.length && Array.isArray(rows[0])) {
-          var hr = rows[0].map(function(x){ return String(x||'').trim(); });
-          var hasHeader = false;
-          var wIdx = -1, mIdx = -1, eIdx = -1;
-          for (var c = 0; c < hr.length; c++) {
-            var h = hr[c];
-            if (/단어|word|영단|어휘|vocabulary/i.test(h)) { if (wIdx < 0) wIdx = c; hasHeader = true; }
-            else if (/^뜻$|^의미$|^한국어$|meaning|korean|definition/i.test(h)) { if (mIdx < 0) mIdx = c; hasHeader = true; }
-            else if (/예문|문장|example|sentence/i.test(h)) { if (eIdx < 0) eIdx = c; hasHeader = true; }
-            else if (/번호|순번|^no\.?$|^#$|^index$|^id$/i.test(h)) { hasHeader = true; }
-          }
-          if (hasHeader) {
-            startIdx = 1;
-            if (wIdx >= 0) wordCol = wIdx;
-            if (mIdx >= 0) meaningCol = mIdx;
-            if (eIdx >= 0) exampleCol = eIdx;
-            // 단어/뜻 헤더가 명시 안 됐고 첫 컬럼이 "번호"면 한 칸씩 밀어서 추정
-            if (wIdx < 0 && mIdx < 0 && /번호|순번|^no\.?$|^#$|^index$|^id$/i.test(hr[0])) {
-              wordCol = 1; meaningCol = 2; exampleCol = 3;
-            }
-          }
+      var all = [];
+      var fileSummary = [];
+      var errors = [];
+      for (var k = 0; k < list.length; k++) {
+        try {
+          var rows = await parseOneExcel(list[k]);
+          all = all.concat(rows);
+          fileSummary.push(list[k].name + ' (' + rows.length + '개)');
+        } catch (e) {
+          errors.push(list[k].name + ': ' + (e.message || e));
         }
-        var out = [];
-        for (var i = startIdx; i < rows.length; i++) {
-          var r = rows[i];
-          if (!r) continue;
-          var w = String(r[wordCol] || '').trim();
-          var m = String(r[meaningCol] || '').trim();
-          if (!w || !m) continue;
-          out.push({
-            word: w, meaning: m,
-            example: String(r[exampleCol] || '').trim() || null,
-          });
-        }
-        setParsed(out);
-        setMode('paste'); // 미리보기 화면 공유
-        setPasteWords(out.map(function(r){ return r.word; }).join('\n'));
-        setPasteMeanings(out.map(function(r){ return r.meaning; }).join('\n'));
-      } catch (e) { alert('엑셀 파싱 실패: ' + (e.message || e)); }
+      }
+      if (errors.length) alert('일부 파일 파싱 실패:\n' + errors.join('\n'));
+      if (!all.length) return;
+      setParsed(all);
+      setMode('paste'); // 미리보기 화면 공유
+      setPasteWords(all.map(function(r){ return r.word; }).join('\n'));
+      setPasteMeanings(all.map(function(r){ return r.meaning; }).join('\n'));
+      if (list.length > 1) alert(list.length + '개 파일 합쳐서 ' + all.length + '개 단어 인식:\n' + fileSummary.join('\n'));
     }
 
     async function saveBulk() {
@@ -686,12 +718,13 @@
 
         mode === 'excel' && React.createElement('div', null,
           React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'10px', lineHeight:'1.6', fontFamily:'Manrope, sans-serif' } },
-            '엑셀 파일(.xlsx, .xls)을 업로드하세요. 단어 + 뜻 (+ 예문 선택). 첫 줄에 헤더("번호"/"단어"/"뜻")가 있으면 자동으로 건너뛰고 컬럼 위치도 자동으로 맞춥니다 — 단어/뜻 2열, 번호/단어/뜻 3열 모두 OK.'
+            '엑셀 파일(.xlsx, .xls)을 한 개 또는 여러 개 한 번에 업로드하세요. 여러 파일은 모두 합쳐서 이 단어장에 추가됩니다. 단어 + 뜻 (+ 예문 선택). 첫 줄에 헤더("번호"/"단어"/"뜻")가 있으면 자동으로 건너뛰고 컬럼 위치도 자동으로 맞춥니다 — 단어/뜻 2열, 번호/단어/뜻 3열 모두 OK.'
           ),
           React.createElement('input', {
             type:'file',
             accept:'.xlsx,.xls,.csv',
-            onChange: function(e){ var f = e.target.files && e.target.files[0]; if (f) handleExcel(f); },
+            multiple: true,
+            onChange: function(e){ if (e.target.files && e.target.files.length) handleExcels(e.target.files); },
             style: Object.assign({}, STYLES.input, { padding:'12px', cursor:'pointer' })
           })
         ),
@@ -1624,6 +1657,336 @@
         React.createElement('div', { style:{ display:'flex', gap:'8px', justifyContent:'flex-end' } },
           React.createElement('button', { onClick:props.onClose, style:STYLES.btnGhost }, '취소'),
           React.createElement('button', { onClick:save, disabled:!parsed || saving, style:Object.assign({}, STYLES.btnPrimary, (!parsed || saving) ? { background:'#9ca3af', cursor:'not-allowed' } : null) }, saving ? '저장 중...' : '저장')
+        )
+      )
+    );
+  }
+
+  // ── 5단계 학습 세트 일괄 업로드 모달 (여러 유닛 한꺼번에) ─────────────────
+  // 파일명에서 UNIT/Day/단원/유닛 + 숫자 패턴을 자동 추출해서 유닛별로 매핑.
+  // 추출 실패 시 사용자가 수동으로 유닛 번호 입력 가능.
+  function VocabStudySetMultiUploadModal(props) {
+    var sb = window.supabase;
+    var [items, setItems] = React.useState([]); // [{ name, file, unit, parsed, error }]
+    var [parsing, setParsing] = React.useState(false);
+    var [saving, setSaving] = React.useState(false);
+    var [progress, setProgress] = React.useState(null); // { done, total }
+
+    function extractUnitFromName(name) {
+      var n = String(name || '').replace(/\.(xlsx|xls|csv)$/i, '');
+      var patterns = [
+        /(?:UNIT|Unit|unit)[\s_\-]*(\d+)/,
+        /(?:DAY|Day|day)[\s_\-]*(\d+)/,
+        /(?:단원|유닛|차시)[\s_\-]*(\d+)/,
+        /(\d+)[\s_\-]*(?:단원|유닛|차시|일차)/,
+        /\b[uU][\s_\-]*(\d+)\b/,
+      ];
+      for (var i = 0; i < patterns.length; i++) {
+        var m = n.match(patterns[i]);
+        if (m) {
+          var v = parseInt(m[1], 10);
+          if (v >= 1 && v <= 999) return v;
+        }
+      }
+      return null;
+    }
+
+    function findSheetX(wb, keys) {
+      for (var i = 0; i < wb.SheetNames.length; i++) {
+        var nm = String(wb.SheetNames[i]);
+        for (var k = 0; k < keys.length; k++) if (nm.indexOf(keys[k]) >= 0) return wb.Sheets[nm];
+      }
+      return null;
+    }
+    function rowsOfX(sheet) { if (!sheet) return []; return window.XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' }); }
+    function skipHeaderX(rows) {
+      if (!rows.length) return rows;
+      var f = String(rows[0][0] || '').trim();
+      if (/번호|항목|단어|예문|문장|한국어/.test(f)) return rows.slice(1);
+      return rows;
+    }
+    function parseStage1X(sheet) {
+      var rows = skipHeaderX(rowsOfX(sheet));
+      var out = [];
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r || !r[1]) continue;
+        var num = r[0] === '' || r[0] == null ? (i+1) : r[0];
+        var wrong = [r[3], r[4], r[5], r[6]].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+        out.push({ num: num, word: String(r[1]||'').trim(), correct: String(r[2]||'').trim(), wrong: wrong });
+      }
+      return out;
+    }
+    function parseMcqX(sheet) {
+      var rows = skipHeaderX(rowsOfX(sheet));
+      var out = [];
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r || !r[1]) continue;
+        var num = r[0] === '' || r[0] == null ? (i+1) : r[0];
+        var wrong = [r[3], r[4], r[5], r[6]].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+        out.push({ num: num, sentence: String(r[1]||'').trim(), correct: String(r[2]||'').trim(), wrong: wrong });
+      }
+      return out;
+    }
+    function parseStage3X(sheet) {
+      var rows = skipHeaderX(rowsOfX(sheet));
+      var out = [];
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r || !r[1] || !r[2]) continue;
+        var num = r[0] === '' || r[0] == null ? (i+1) : r[0];
+        var answers = String(r[3]||'').split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean);
+        out.push({ num: num, korean: String(r[1]||'').trim(), sentence: String(r[2]||'').trim(), answers: answers });
+      }
+      return out;
+    }
+    function parseGrammarX(sheet) {
+      var rows = skipHeaderX(rowsOfX(sheet));
+      var out = [];
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r || !r[1]) continue;
+        var num = r[0] === '' || r[0] == null ? (i+1) : r[0];
+        var options = [r[2], r[3], r[4], r[5], r[6]].map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+        var correct = parseInt(r[7], 10);
+        if (isNaN(correct) || correct < 1 || correct > options.length) correct = 1;
+        out.push({ num: num, sentence: String(r[1]||'').trim(), options: options, correct: correct });
+      }
+      return out;
+    }
+    function parseMetaX(sheet) {
+      var rows = skipHeaderX(rowsOfX(sheet));
+      var meta = { title:'', description:'' };
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r || !r[0]) continue;
+        var k = String(r[0]||'').trim();
+        var v = String(r[1]||'').trim();
+        if (/세트명|제목/.test(k)) meta.title = v;
+        else if (/설명/.test(k)) meta.description = v;
+      }
+      return meta;
+    }
+
+    async function handleFiles(fileList) {
+      var arr = Array.from(fileList || []);
+      if (!arr.length) return;
+      if (!window.XLSX) { alert('엑셀 라이브러리가 로드되지 않았습니다.'); return; }
+      setParsing(true);
+      var nextItems = [];
+      for (var k = 0; k < arr.length; k++) {
+        var f = arr[k];
+        var row = { name: f.name, file: f, unit: extractUnitFromName(f.name), parsed: null, error: '' };
+        try {
+          var buf = await f.arrayBuffer();
+          var wb = window.XLSX.read(buf, { type:'array' });
+          var s1 = findSheetX(wb, ['1단계','단어 객']) || wb.Sheets[wb.SheetNames[0]];
+          var s2 = findSheetX(wb, ['2단계_해석','해석']);
+          var s25 = findSheetX(wb, ['2_5','2.5','빈칸']);
+          var s3 = findSheetX(wb, ['3단계','영작']);
+          var sg = findSheetX(wb, ['어법','문법']);
+          var sm = findSheetX(wb, ['메타']);
+          row.parsed = {
+            stage1: parseStage1X(s1),
+            stage2: parseMcqX(s2),
+            stage25: parseMcqX(s25),
+            stage3: parseStage3X(s3),
+            grammar: parseGrammarX(sg),
+            meta: parseMetaX(sm),
+          };
+        } catch (e) {
+          row.error = '파싱 실패: ' + (e.message || e);
+        }
+        nextItems.push(row);
+      }
+      // 기존 항목 뒤에 누적
+      setItems(function(prev){ return prev.concat(nextItems); });
+      setParsing(false);
+    }
+
+    function updateUnit(idx, val) {
+      var v = parseInt(val, 10);
+      setItems(function(prev){
+        return prev.map(function(it, i){ return i === idx ? Object.assign({}, it, { unit: (isNaN(v) || v < 1) ? null : v }) : it; });
+      });
+    }
+    function removeItem(idx) {
+      setItems(function(prev){ return prev.filter(function(_, i){ return i !== idx; }); });
+    }
+
+    async function saveOne(it) {
+      // 한 항목 저장 — 기존 단일 모달의 save() 로직과 동일
+      var sourcePath = null;
+      if (it.file) {
+        try {
+          var ext = (it.file.name.split('.').pop() || 'xlsx').toLowerCase();
+          sourcePath = 'materials/study_sets/' + props.listId + '_u' + it.unit + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
+          var up = await sb.storage.from('attachments').upload(sourcePath, it.file, { cacheControl:'3600', upsert:false });
+          if (up.error) { console.warn('원본 파일 업로드 실패:', up.error); sourcePath = null; }
+        } catch (e) { console.warn('원본 파일 업로드 예외:', e); sourcePath = null; }
+      }
+      var row = {
+        list_id: props.listId,
+        unit_index: it.unit,
+        title: (it.parsed.meta && it.parsed.meta.title) || null,
+        description: (it.parsed.meta && it.parsed.meta.description) || null,
+        stage1: it.parsed.stage1,
+        stage2: it.parsed.stage2,
+        stage25: it.parsed.stage25,
+        stage3: it.parsed.stage3,
+        grammar: it.parsed.grammar,
+        source_file_name: it.file ? it.file.name : null,
+        created_by: window.B2Utils.safeUserId(props.user),
+        creator_name: (props.user && props.user.name) || null,
+        updated_at: new Date().toISOString(),
+      };
+      var upsert = await sb.from('vocab_study_sets').upsert(row, { onConflict: 'list_id,unit_index' });
+      if (upsert.error) throw upsert.error;
+
+      if (sourcePath) {
+        try {
+          var listName = (props.list && props.list.name) ? props.list.name : '단어장';
+          var matTitle = listName + ' · UNIT ' + it.unit + ((it.parsed.meta && it.parsed.meta.title) ? (' — ' + it.parsed.meta.title) : '');
+          await sb.from('exams').insert({
+            kind: 'material',
+            material_type: 'vocab_study_set',
+            class_id: null,
+            teacher_id: window.B2Utils.safeUserId(props.user),
+            teacher_name: (props.user && props.user.name) || null,
+            title: matTitle,
+            subject: (props.list && props.list.subject) || null,
+            school_level: (props.list && props.list.school_level) || null,
+            target_grade: (props.list && props.list.grade) || null,
+            description: '5단계 학습 세트 원본 (자동 등록)' + (it.parsed.stage1 ? (' · 단어 ' + it.parsed.stage1.length + '개') : ''),
+            image_paths: [sourcePath],
+            answer_paths: [],
+            answer_key: {},
+            question_count: 0, text_question_count: 0, choices_per_question: 5,
+            status: 'open',
+          });
+        } catch (e) { console.warn('자료실 자동 등록 실패:', e); }
+      }
+
+      // 단어 자동 등록 — 그 유닛이 비었을 때만
+      var unitSize = props.unitSize || 20;
+      var startSort = (it.unit - 1) * unitSize;
+      var endSort = startSort + unitSize - 1;
+      var unitHasWords = (props.existingWords || []).some(function(w){ return w.sort_order >= startSort && w.sort_order <= endSort; });
+      var addedWordCount = 0;
+      if (!unitHasWords && it.parsed.stage1 && it.parsed.stage1.length) {
+        var newWords = it.parsed.stage1
+          .filter(function(s){ return s && s.word && s.correct; })
+          .map(function(s, i){ return {
+            list_id: props.listId,
+            word: String(s.word).trim(),
+            meaning: String(s.correct).trim(),
+            sort_order: startSort + i,
+          }; });
+        if (newWords.length > 0) {
+          var wRes = await sb.from('vocab_words').insert(newWords);
+          if (!wRes.error) addedWordCount = newWords.length;
+        }
+      }
+      return { addedWordCount: addedWordCount };
+    }
+
+    async function saveAll() {
+      // 검증: unit 번호 없는 항목 / 중복 unit
+      var valid = items.filter(function(it){ return it.parsed && it.unit; });
+      var invalid = items.filter(function(it){ return !it.parsed || !it.unit; });
+      if (!valid.length) { alert('저장할 수 있는 항목이 없습니다. 파일 추가 또는 유닛 번호를 입력해 주세요.'); return; }
+      var unitSeen = {};
+      var dups = [];
+      valid.forEach(function(it){ if (unitSeen[it.unit]) dups.push(it.unit); unitSeen[it.unit] = true; });
+      if (dups.length) { alert('같은 유닛 번호가 여러 파일에 중복됩니다: UNIT ' + dups.join(', ') + '\n각 파일의 유닛 번호를 다르게 지정해 주세요.'); return; }
+
+      // 덮어쓰기 경고
+      var existingUnits = (props.existingStudy || []).map(function(s){ return s.unit_index; });
+      var overwriteUnits = valid.map(function(it){ return it.unit; }).filter(function(u){ return existingUnits.indexOf(u) >= 0; });
+      if (overwriteUnits.length && !confirm(overwriteUnits.length + '개 유닛에 이미 학습 세트가 있어요. 덮어쓸까요?\nUNIT: ' + overwriteUnits.join(', '))) return;
+      if (invalid.length && !confirm(invalid.length + '개 파일은 유닛 번호 없음/파싱 실패로 건너뜁니다. 나머지 ' + valid.length + '개를 저장할까요?')) return;
+
+      setSaving(true);
+      setProgress({ done: 0, total: valid.length });
+      var totalWords = 0;
+      var errors = [];
+      for (var k = 0; k < valid.length; k++) {
+        try {
+          var r = await saveOne(valid[k]);
+          totalWords += r.addedWordCount;
+        } catch (e) {
+          errors.push('UNIT ' + valid[k].unit + ' (' + valid[k].name + '): ' + (e.message || e));
+        }
+        setProgress({ done: k + 1, total: valid.length });
+      }
+      setSaving(false);
+      var msg = (valid.length - errors.length) + '개 유닛 저장 완료';
+      if (totalWords > 0) msg += '\n단어 ' + totalWords + '개 자동 등록';
+      if (errors.length) msg += '\n\n실패 ' + errors.length + '건:\n' + errors.join('\n');
+      alert(msg);
+      props.onSaved();
+    }
+
+    var validCount = items.filter(function(it){ return it.parsed && it.unit; }).length;
+
+    return React.createElement('div', { style:STYLES.modalBackdrop },
+      React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(820px, calc(100% - 32px))', maxHeight:'90vh', overflow:'auto' }) },
+        React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
+        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 6px', fontFamily:'Manrope, sans-serif' } }, '여러 유닛 5단계 세트 한꺼번에 업로드'),
+        React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.6)', marginBottom:'14px', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } },
+          '엑셀 파일을 여러 개 선택하면 파일명에서 ', React.createElement('strong', null, 'UNIT/Day/단원/유닛 + 숫자'),
+          ' 패턴을 자동으로 찾아 유닛에 배치합니다. 예) UNIT_01.xlsx, Day1.xlsx, 1단원.xlsx. 자동 추출 실패한 행은 빨갛게 표시되며 유닛 번호를 직접 입력하면 됩니다.'
+        ),
+
+        React.createElement('div', { style:{ marginBottom:'14px' } },
+          React.createElement('input', { type:'file', accept:'.xlsx,.xls', multiple:true, disabled:parsing||saving, onChange:function(e){
+            handleFiles(e.target.files);
+            e.target.value = ''; // 같은 파일 다시 선택 가능하게
+          }, style:{ fontSize:'13px', fontFamily:'Manrope, sans-serif' } }),
+          parsing && React.createElement('span', { style:{ marginLeft:'10px', fontSize:'12px', color:'rgba(0,0,0,0.55)' } }, '파싱 중...')
+        ),
+
+        items.length > 0 && React.createElement('div', { style:{ border:'1px solid #e5e7eb', borderRadius:'8px', overflow:'hidden', marginBottom:'14px' } },
+          React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'80px 1fr 90px 70px 60px', gap:'8px', padding:'10px 12px', background:'#F8FAFC', borderBottom:'1px solid #e5e7eb', fontSize:'11px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } },
+            React.createElement('div', null, 'UNIT'),
+            React.createElement('div', null, '파일명'),
+            React.createElement('div', null, '문항 합계'),
+            React.createElement('div', null, '상태'),
+            React.createElement('div', null, '')
+          ),
+          items.map(function(it, idx){
+            var hasUnit = !!it.unit;
+            var ok = it.parsed && hasUnit;
+            var total = it.parsed ? (it.parsed.stage1.length + it.parsed.stage2.length + it.parsed.stage25.length + it.parsed.stage3.length + it.parsed.grammar.length) : 0;
+            return React.createElement('div', { key:idx, style:{ display:'grid', gridTemplateColumns:'80px 1fr 90px 70px 60px', gap:'8px', padding:'10px 12px', borderBottom: idx === items.length-1 ? 'none' : '1px solid #f3f4f6', fontSize:'12px', fontFamily:'Manrope, sans-serif', alignItems:'center', background: ok ? 'white' : '#FFF7F7' } },
+              React.createElement('input', { type:'number', min:'1', max:'999', value: hasUnit ? it.unit : '', placeholder:'?', onChange:function(e){ updateUnit(idx, e.target.value); }, style:{ width:'70px', padding:'4px 6px', border:'1px solid ' + (hasUnit ? '#d6dbde' : '#FCA5A5'), borderRadius:'4px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } }),
+              React.createElement('div', { style:{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'rgba(0,0,0,0.75)' }, title:it.name }, it.name),
+              React.createElement('div', { style:{ color:'rgba(0,0,0,0.6)' } }, it.error ? '—' : (total + '문항')),
+              React.createElement('div', null,
+                it.error
+                  ? React.createElement('span', { style:{ color:'#991B1B', fontSize:'11px', fontWeight:'700' }, title:it.error }, '오류')
+                  : ok
+                    ? React.createElement('span', { style:{ color:'#047857', fontSize:'11px', fontWeight:'700' } }, 'OK')
+                    : React.createElement('span', { style:{ color:'#B45309', fontSize:'11px', fontWeight:'700' } }, '유닛?')
+              ),
+              React.createElement('button', { onClick:function(){ removeItem(idx); }, disabled:saving, style:{ background:'transparent', color:'rgba(0,0,0,0.5)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'3px 8px', fontSize:'11px', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '제거')
+            );
+          })
+        ),
+
+        progress && React.createElement('div', { style:{ background:'#EFF6FF', color:'#1E40AF', padding:'10px 12px', borderRadius:'6px', fontSize:'12px', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } },
+          '저장 중... ' + progress.done + ' / ' + progress.total
+        ),
+
+        React.createElement('div', { style:{ display:'flex', gap:'8px', justifyContent:'space-between', alignItems:'center' } },
+          React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif' } },
+            items.length > 0 ? ('총 ' + items.length + '개 파일 · 저장 가능 ' + validCount + '개') : '파일을 선택해 주세요.'
+          ),
+          React.createElement('div', { style:{ display:'flex', gap:'8px' } },
+            React.createElement('button', { onClick:props.onClose, disabled:saving, style:STYLES.btnGhost }, '닫기'),
+            React.createElement('button', { onClick:saveAll, disabled:!validCount || saving || parsing, style:Object.assign({}, STYLES.btnPrimary, (!validCount || saving || parsing) ? { background:'#9ca3af', cursor:'not-allowed' } : null) }, saving ? '저장 중...' : ('저장 (' + validCount + '개)'))
+          )
         )
       )
     );
