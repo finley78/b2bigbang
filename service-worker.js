@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260514v120-password-reset-pkce-fix';
+const CACHE_VERSION = 'b2-bigbang-20260514v121-admin-academic-calendar';
 const OFFLINE_URLS = [
   './',
   './index.html',

@@ -257,6 +257,13 @@ const [adminScrMode, setAdminScrMode] = React.useState('change'); // 'change' | 
 const [adminAcademicList, setAdminAcademicList] = React.useState([]);
 const [adminAcademicLoading, setAdminAcademicLoading] = React.useState(false);
 const [adminAcademicCategoryFilter, setAdminAcademicCategoryFilter] = React.useState('전체');
+// 학사일정 달력 (선생님 페이지와 동일 UI)
+const [adminAcademicMonth, setAdminAcademicMonth] = React.useState(function(){ var n = new Date(); return { y: n.getFullYear(), m: n.getMonth() }; });
+const [adminAcademicDayOpen, setAdminAcademicDayOpen] = React.useState(null);
+const [adminAcademicSearch, setAdminAcademicSearch] = React.useState('');
+const [adminAcademicFormOpen, setAdminAcademicFormOpen] = React.useState(false);
+const [adminAcademicSubmitting, setAdminAcademicSubmitting] = React.useState(false);
+const [adminAcademicDraft, setAdminAcademicDraft] = React.useState({ id:'', category:'vacation', title:'', school:'', start_date:'', end_date:'', description:'' });
 const [classManageDrafts, setClassManageDrafts] = React.useState({}); // { teacher_id: { name, grade, subject, level } }
 const [expandedClassId, setExpandedClassId] = React.useState(null);
 const [classStudentSearch, setClassStudentSearch] = React.useState('');
@@ -1173,6 +1180,64 @@ function adminAcademicCategoryColor(c) {
   if (c === 'exam') return '#c87000';
   return '#6b7280';
 }
+// 학사일정 폼 (관리자) — 선생님 페이지와 동일 구조
+function openAdminAcademicForm(dateStr) {
+  setAdminAcademicDraft({ id:'', category:'vacation', title:'', school:'', start_date: dateStr || '', end_date: dateStr || '', description:'' });
+  setAdminAcademicFormOpen(true);
+}
+function openAdminAcademicEditForm(item) {
+  setAdminAcademicDraft({
+    id: item.id || '',
+    category: item.category || 'vacation',
+    title: item.title || '',
+    school: item.school || '',
+    start_date: item.start_date || '',
+    end_date: item.end_date || '',
+    description: item.description || '',
+  });
+  setAdminAcademicFormOpen(true);
+}
+function closeAdminAcademicForm() {
+  setAdminAcademicFormOpen(false);
+  setAdminAcademicSubmitting(false);
+}
+async function submitAdminAcademicSchedule() {
+  var d = adminAcademicDraft;
+  if (!d.category) { alert('분류를 선택해 주세요.'); return; }
+  if (!d.start_date || !d.end_date) { alert('시작일과 종료일을 입력해 주세요.'); return; }
+  if (d.end_date < d.start_date) { alert('종료일이 시작일보다 빠를 수 없습니다.'); return; }
+  if (d.category === 'other' && !(d.title || '').trim()) { alert('제목을 입력해 주세요.'); return; }
+  var sb = window.supabase;
+  setAdminAcademicSubmitting(true);
+  try {
+    var title = (d.category === 'other') ? d.title.trim() : adminAcademicCategoryLabel(d.category);
+    var row = {
+      category: d.category,
+      title: title,
+      school: (d.school || '').trim() || null,
+      start_date: d.start_date,
+      end_date: d.end_date,
+      description: (d.description || '').trim() || null,
+    };
+    if (d.id) {
+      var { error: upErr } = await sb.from('academic_schedules').update(row).eq('id', d.id);
+      if (upErr) throw upErr;
+      alert('학사일정이 수정되었습니다.');
+    } else {
+      var ins = Object.assign({}, row, { creator_name: '관리자' });
+      var { error: insErr } = await sb.from('academic_schedules').insert(ins);
+      if (insErr) throw insErr;
+      alert('학사일정이 등록되었습니다.');
+    }
+    closeAdminAcademicForm();
+    await loadAdminAcademicSchedules();
+  } catch (e) {
+    alert('저장 실패: ' + (e.message || e));
+  } finally {
+    setAdminAcademicSubmitting(false);
+  }
+}
+var ADMIN_NEARBY_SCHOOLS = ['은지초','검암초','간재울초','검암중','간재울중','백석중','서곶중','마전중','대인고','서인천고','백석고'];
 
 async function createTeacherClass(teacher, draft) {
 var _grades = (draft && draft.grades) || [];
@@ -4869,35 +4934,226 @@ tab==='schedule' && React.createElement('div', null,
     );
   })(),
 
-  /* 학사일정 모드 */
+  /* 학사일정 모드 — 달력 + 목록 + 추가/수정 (선생님 페이지와 동일 UI) */
   adminScrMode === 'academic' && (function(){
-    var filtered = adminAcademicCategoryFilter === '전체' ? adminAcademicList : adminAcademicList.filter(function(a){ return a.category === adminAcademicCategoryFilter; });
+    var y = adminAcademicMonth.y, m = adminAcademicMonth.m;
+    var monthLabel = y + '년 ' + (m+1) + '월';
+    var firstDay = new Date(y, m, 1).getDay();
+    var daysInMonth = new Date(y, m+1, 0).getDate();
+    var cells = [];
+    for (var i = 0; i < firstDay; i++) cells.push(null);
+    for (var d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    var _tNow = new Date();
+    var todayStr = _tNow.getFullYear() + '-' + String(_tNow.getMonth()+1).padStart(2,'0') + '-' + String(_tNow.getDate()).padStart(2,'0');
+    function dateStrOf(dd) { return y + '-' + String(m+1).padStart(2,'0') + '-' + String(dd).padStart(2,'0'); }
+    function _localDS(dt) { return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0'); }
+    // 날짜별 학사일정 (기간 펼치기) — 로컬 날짜 (toISOString은 UTC라 KST에서 하루 밀림)
+    var acByDate = {};
+    (adminAcademicList || []).forEach(function(a){
+      if (!a.start_date || !a.end_date || a.end_date < a.start_date) return;
+      var s = new Date(a.start_date + 'T00:00:00');
+      var e = new Date(a.end_date + 'T00:00:00');
+      for (var dt = new Date(s); dt <= e; dt.setDate(dt.getDate()+1)) {
+        var ds2 = _localDS(dt);
+        (acByDate[ds2] = acByDate[ds2] || []).push(a);
+      }
+    });
+    function shiftMonth(delta) {
+      var nm = m + delta;
+      var ny = y + Math.floor(nm / 12);
+      var nmm = ((nm % 12) + 12) % 12;
+      setAdminAcademicMonth({ y: ny, m: nmm });
+    }
+    var monthStartStr = dateStrOf(1);
+    var monthEndStr = dateStrOf(daysInMonth);
+    var academicInMonth = (adminAcademicList || []).filter(function(a){ return !(a.end_date < monthStartStr || a.start_date > monthEndStr); });
+    // 분류 필터
+    if (adminAcademicCategoryFilter !== '전체') {
+      academicInMonth = academicInMonth.filter(function(a){ return a.category === adminAcademicCategoryFilter; });
+      Object.keys(acByDate).forEach(function(k){ acByDate[k] = acByDate[k].filter(function(a){ return a.category === adminAcademicCategoryFilter; }); });
+    }
+    var holidayName = (window.B2Utils && window.B2Utils.holidayName) ? window.B2Utils.holidayName : function(){ return null; };
+
     return React.createElement('div', null,
-      React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'14px', flexWrap:'wrap' } },
+      /* 분류 필터 + 월 네비 */
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'12px', flexWrap:'wrap' } },
         React.createElement('label', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, '분류 필터:'),
         React.createElement('select', { value:adminAcademicCategoryFilter, onChange:function(e){ setAdminAcademicCategoryFilter(e.target.value); }, style:{ ...inputS, width:'auto', minWidth:'120px' } },
           ['전체','vacation','exam','other'].map(function(c){ return React.createElement('option', { key:c, value:c }, c==='전체'?'전체':adminAcademicCategoryLabel(c)); })
         ),
-        React.createElement('div', { style:{ marginLeft:'auto', fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '총 ' + filtered.length + '건')
+        React.createElement('input', { value:adminAcademicSearch, onChange:function(e){ setAdminAcademicSearch(e.target.value); }, placeholder:'학사일정 검색 (제목·학교·분류·내용)', style:{ ...inputS, flex:1, minWidth:'180px' } }),
+        adminAcademicSearch && React.createElement('button', { onClick:function(){ setAdminAcademicSearch(''); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '지우기')
       ),
+      React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' } },
+        React.createElement('button', { onClick:function(){ shiftMonth(-1); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '‹ 이전'),
+        React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, monthLabel),
+        React.createElement('button', { onClick:function(){ shiftMonth(1); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '다음 ›')
+      ),
+
+      /* 달력 */
       adminAcademicLoading ? React.createElement('div', { style:{ color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '불러오는 중...') :
-      filtered.length === 0 ? React.createElement('div', { style:{ background:'#fff', borderRadius:'10px', padding:'40px', textAlign:'center', color:'rgba(0,0,0,0.4)', fontFamily:'Manrope, sans-serif', fontSize:'14px' } }, '등록된 학사일정이 없습니다.') :
-      React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
-        filtered.map(function(a){
-          return React.createElement('div', { key:a.id, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'14px 16px', display:'flex', alignItems:'flex-start', gap:'14px' } },
-            React.createElement('div', { style:{ flex:1, minWidth:0 } },
-              React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'4px' } },
-                React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: adminAcademicCategoryColor(a.category), color:'#fff', borderRadius:'4px', padding:'2px 7px', fontFamily:'Manrope, sans-serif' } }, adminAcademicCategoryLabel(a.category)),
-                a.school && React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, a.school),
-                React.createElement('span', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', fontFamily:'Manrope, sans-serif' } }, a.title)
-              ),
-              React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, String(a.start_date||'') + ' ~ ' + String(a.end_date||'')),
-              a.description && React.createElement('div', { style:{ fontSize:'13px', color:'#374151', marginTop:'4px', whiteSpace:'pre-line', fontFamily:'Manrope, sans-serif' } }, a.description),
-              React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'4px', fontFamily:'Manrope, sans-serif' } }, '등록: ' + (a.creator_name || '-') + ' · ' + String(a.created_at||'').slice(0,10))
-            ),
-            React.createElement('button', { onClick:function(){ deleteAdminAcademicSchedule(a); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
+      React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px', marginBottom:'24px' } },
+        ['일','월','화','수','목','금','토'].map(function(w, wi){
+          return React.createElement('div', { key:w, style:{ textAlign:'center', padding:'8px 0', fontSize:'12px', fontWeight:'700', color: wi===0 ? '#c82014' : wi===6 ? '#1d4ed8' : '#374151', fontFamily:'Manrope, sans-serif' } }, w);
+        }),
+        cells.map(function(dd, ci){
+          if (dd === null) return React.createElement('div', { key:'e'+ci, style:{ minHeight:'88px', background:'transparent' } });
+          var ds = dateStrOf(dd);
+          var acs = acByDate[ds] || [];
+          var holi = holidayName(ds);
+          var isToday = ds === todayStr;
+          var dow = (firstDay + dd - 1) % 7;
+          var dColor = holi ? '#c82014' : (dow === 0 ? '#c82014' : dow === 6 ? '#1d4ed8' : '#111827');
+          return React.createElement('button', { key:dd, onClick:function(){ setAdminAcademicDayOpen(ds); }, style:{
+            minHeight:'88px', textAlign:'left', padding:'6px 8px',
+            background: isToday ? '#fef3c7' : (holi ? '#fef2f2' : '#fff'),
+            border: isToday ? '2px solid #F8B500' : '1px solid #e5e7eb',
+            borderRadius:'8px', cursor:'pointer',
+            display:'flex', flexDirection:'column', gap:'3px',
+            fontFamily:'Manrope, sans-serif', overflow:'hidden'
+          } },
+            React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:dColor } }, String(dd)),
+            holi && React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#fee2e2', color:'#c82014', borderRadius:'4px', padding:'2px 5px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' } }, holi),
+            acs.slice(0,3).map(function(a, ai){
+              return React.createElement('span', { key:ai, style:{
+                fontSize:'10px', fontWeight:'700',
+                background: adminAcademicCategoryColor(a.category),
+                color:'#fff', borderRadius:'4px', padding:'2px 5px',
+                whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+              } }, a.school || ((a.title && a.title !== adminAcademicCategoryLabel(a.category)) ? a.title : adminAcademicCategoryLabel(a.category)));
+            }),
+            acs.length > 3 && React.createElement('span', { style:{ fontSize:'10px', color:'#6b7280' } }, '+' + (acs.length-3) + '건')
           );
         })
+      ),
+
+      /* 하단 안내 + 추가 버튼 + 목록 */
+      (function(){
+        var q = adminAcademicSearch.trim().toLowerCase();
+        var src = q ? (adminAcademicList || []) : academicInMonth;
+        var list = src.filter(function(a){ if (!q) return true; return ((a.title||'') + ' ' + (a.school||'') + ' ' + (a.description||'') + ' ' + adminAcademicCategoryLabel(a.category) + ' ' + (a.start_date||'') + ' ' + (a.end_date||'')).toLowerCase().indexOf(q) >= 0; });
+        var sorted = list.slice().sort(function(a,b){ return String(b.start_date||'').localeCompare(String(a.start_date||'')); });
+        return React.createElement('div', { style:{ marginTop:'8px' } },
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px', flexWrap:'wrap', gap:'8px' } },
+            React.createElement('div', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '달력에서 날짜를 누르면 그 날 일정을 볼 수 있어요.' + (q ? '' : (' 이 달 학사일정 ' + academicInMonth.length + '건.'))),
+            React.createElement('button', { onClick:function(){ openAdminAcademicForm(''); }, style:btnS() }, '+ 학사일정 추가')
+          ),
+          React.createElement('details', { open: !!q },
+            React.createElement('summary', { style:{ cursor:'pointer', fontSize:'13px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif' } }, q ? ('검색 결과 (' + sorted.length + '건)') : ('이 달 학사일정 목록 펼치기 (' + sorted.length + '건)')),
+            React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px', marginTop:'10px' } },
+              sorted.length === 0 ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' } }, q ? '검색 결과가 없습니다.' : '이 달에 등록된 학사일정이 없습니다.') :
+              sorted.map(function(a){
+                return React.createElement('div', { key:a.id, style:{ display:'flex', alignItems:'flex-start', gap:'12px', padding:'10px 12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', fontFamily:'Manrope, sans-serif' } },
+                  React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                    React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' } },
+                      React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: adminAcademicCategoryColor(a.category), color:'#fff', borderRadius:'4px', padding:'2px 7px' } }, adminAcademicCategoryLabel(a.category)),
+                      a.school && React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#111827' } }, a.school),
+                      a.title && a.title !== adminAcademicCategoryLabel(a.category) && React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', color:'#111827' } }, a.title),
+                      React.createElement('span', { style:{ fontSize:'12px', color:'#6b7280' } }, (a.start_date||'') + ' ~ ' + (a.end_date||''))
+                    ),
+                    a.description && React.createElement('div', { style:{ fontSize:'13px', color:'#374151', marginTop:'2px', whiteSpace:'pre-line' } }, a.description),
+                    React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'2px' } }, (a.creator_name || '-') + ' · ' + String(a.created_at||'').slice(0,10))
+                  ),
+                  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'5px', flexShrink:0 } },
+                    React.createElement('button', { onClick:function(){ openAdminAcademicEditForm(a); }, style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '수정'),
+                    React.createElement('button', { onClick:function(){ deleteAdminAcademicSchedule(a); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '삭제')
+                  )
+                );
+              })
+            )
+          )
+        );
+      })(),
+
+      /* 날짜별 일정 보기 팝업 */
+      adminAcademicDayOpen && (function(){
+        var dayItems = (adminAcademicList || []).filter(function(a){ return String(a.start_date||'') <= adminAcademicDayOpen && String(a.end_date||'') >= adminAcademicDayOpen; });
+        if (adminAcademicCategoryFilter !== '전체') dayItems = dayItems.filter(function(a){ return a.category === adminAcademicCategoryFilter; });
+        var dayHoli = holidayName(adminAcademicDayOpen);
+        return React.createElement('div', { onClick:function(){ setAdminAcademicDayOpen(null); }, style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' } },
+          React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'16px', padding:'24px', width:'100%', maxWidth:'460px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'85vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' } },
+            React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px' } },
+              React.createElement('h3', { style:{ fontSize:'16px', fontWeight:'800', color:'#111827', margin:0 } }, adminAcademicDayOpen + ' 학사일정'),
+              React.createElement('button', { onClick:function(){ setAdminAcademicDayOpen(null); }, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' } }, '×')
+            ),
+            dayHoli && React.createElement('div', { style:{ background:'#fee2e2', color:'#c82014', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'700', marginBottom:'12px' } }, '공휴일 — ' + dayHoli),
+            dayItems.length === 0
+              ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', padding:'8px 0 14px' } }, '이 날 등록된 학사일정이 없습니다.')
+              : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'14px' } },
+                  dayItems.map(function(a){
+                    return React.createElement('div', { key:a.id, style:{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'9px 12px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px' } },
+                      React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' } },
+                          React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background: adminAcademicCategoryColor(a.category), color:'#fff', borderRadius:'4px', padding:'2px 7px' } }, adminAcademicCategoryLabel(a.category)),
+                          a.school && React.createElement('span', { style:{ fontSize:'13px', fontWeight:'700', color:'#111827' } }, a.school),
+                          a.title && a.title !== adminAcademicCategoryLabel(a.category) && React.createElement('span', { style:{ fontSize:'13px', fontWeight:'800', color:'#111827' } }, a.title),
+                          React.createElement('span', { style:{ fontSize:'12px', color:'#6b7280' } }, (a.start_date||'') + ' ~ ' + (a.end_date||''))
+                        ),
+                        a.description && React.createElement('div', { style:{ fontSize:'13px', color:'#374151', marginTop:'2px', whiteSpace:'pre-line' } }, a.description),
+                        React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', marginTop:'2px' } }, (a.creator_name || '-') + ' · ' + String(a.created_at||'').slice(0,10))
+                      ),
+                      React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'5px', flexShrink:0 } },
+                        React.createElement('button', { onClick:function(){ openAdminAcademicEditForm(a); }, style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '수정'),
+                        React.createElement('button', { onClick:function(){ deleteAdminAcademicSchedule(a); }, style:{ background:'none', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 12px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '삭제')
+                      )
+                    );
+                  })
+                ),
+            React.createElement('button', { onClick:function(){ var d0 = adminAcademicDayOpen; setAdminAcademicDayOpen(null); openAdminAcademicForm(d0); }, style:{ ...btnS(), width:'100%' } }, '+ 이 날 학사일정 추가'),
+            React.createElement('div', { style:{ marginTop:'8px' } },
+              React.createElement('button', { onClick:function(){ setAdminAcademicDayOpen(null); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'10px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' } }, '닫기')
+            )
+          )
+        );
+      })(),
+
+      /* 학사일정 추가/수정 폼 모달 */
+      adminAcademicFormOpen && React.createElement('div', { onClick:closeAdminAcademicForm, style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' } },
+        React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'16px', padding:'28px', width:'100%', maxWidth:'480px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto', fontFamily:'Manrope, sans-serif' } },
+          React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' } },
+            React.createElement('h3', { style:{ fontSize:'17px', fontWeight:'800', color:'#111827', margin:0 } }, adminAcademicDraft.id ? '학사일정 수정' : '학사일정 추가'),
+            React.createElement('button', { onClick:closeAdminAcademicForm, style:{ background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'#9ca3af' } }, '×')
+          ),
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '분류 *'),
+          React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'14px' } },
+            [{k:'vacation',l:'방학'},{k:'exam',l:'시험기간'},{k:'other',l:'기타'}].map(function(c){
+              return React.createElement('button', { key:c.k, onClick:function(){ setAdminAcademicDraft({ ...adminAcademicDraft, category: c.k }); }, style:{
+                flex:1, padding:'9px 0', borderRadius:'8px', cursor:'pointer', fontSize:'13px', fontWeight:'700', fontFamily:'Manrope, sans-serif',
+                background: adminAcademicDraft.category===c.k ? adminAcademicCategoryColor(c.k) : '#fff',
+                color: adminAcademicDraft.category===c.k ? '#fff' : '#374151',
+                border: '1px solid ' + (adminAcademicDraft.category===c.k ? adminAcademicCategoryColor(c.k) : '#d1d5db'),
+              } }, c.l);
+            })
+          ),
+          adminAcademicDraft.category === 'other'
+            ? React.createElement(React.Fragment, null,
+                React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '제목 *'),
+                React.createElement('input', { value:adminAcademicDraft.title, onChange:function(e){ setAdminAcademicDraft({ ...adminAcademicDraft, title: e.target.value }); }, placeholder:'예: 학교 행사, 개교기념일', style:{ ...inputS, marginBottom:'14px' } })
+              )
+            : React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'14px', fontFamily:'Manrope, sans-serif' } }, '제목은 자동으로 "' + adminAcademicCategoryLabel(adminAcademicDraft.category) + '"으로 표시됩니다. (별도 입력 안 해도 됨)'),
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '학교 (선택)'),
+          React.createElement('select', { value:adminAcademicDraft.school, onChange:function(e){ setAdminAcademicDraft({ ...adminAcademicDraft, school: e.target.value }); }, style:{ ...inputS, marginBottom:'14px' } },
+            React.createElement('option', { value:'' }, '학교 선택 안 함 (전체)'),
+            ADMIN_NEARBY_SCHOOLS.map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+          ),
+          React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px' } },
+            React.createElement('div', { style:{ flex:1 } },
+              React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '시작일 *'),
+              React.createElement('input', { type:'date', value:adminAcademicDraft.start_date, onChange:function(e){ setAdminAcademicDraft({ ...adminAcademicDraft, start_date: e.target.value }); }, style:inputS })
+            ),
+            React.createElement('div', { style:{ flex:1 } },
+              React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '종료일 *'),
+              React.createElement('input', { type:'date', value:adminAcademicDraft.end_date, onChange:function(e){ setAdminAcademicDraft({ ...adminAcademicDraft, end_date: e.target.value }); }, style:inputS })
+            )
+          ),
+          React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '설명 (선택)'),
+          React.createElement('textarea', { value:adminAcademicDraft.description, onChange:function(e){ setAdminAcademicDraft({ ...adminAcademicDraft, description: e.target.value }); }, rows:3, placeholder:'추가 안내사항이 있으면 입력해 주세요.', style:{ ...inputS, resize:'vertical', marginBottom:'8px' } }),
+          React.createElement('div', { style:{ display:'flex', gap:'8px', marginTop:'12px' } },
+            React.createElement('button', { onClick:closeAdminAcademicForm, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'10px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', flex:1 } }, '취소'),
+            React.createElement('button', { onClick:submitAdminAcademicSchedule, disabled:adminAcademicSubmitting, style:{ ...btnS(), flex:1, opacity: adminAcademicSubmitting ? 0.6 : 1, cursor: adminAcademicSubmitting ? 'not-allowed' : 'pointer' } }, adminAcademicSubmitting ? (adminAcademicDraft.id ? '수정 중...' : '등록 중...') : (adminAcademicDraft.id ? '수정' : '등록'))
+          )
+        )
       )
     );
   })()
