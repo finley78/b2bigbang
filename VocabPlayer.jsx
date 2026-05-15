@@ -451,7 +451,7 @@
         setLoading(false);
       })();
     }, []);
-    // 자동 발음 — 1단계(단어) + 2단계(예문 해석) 자동 재생. 답 누설되는 단계는 수동.
+    // 자동 발음 — 1·2·3단계 자동 재생. 듣고 외우는 것도 학습이라 답 누설 허용(영작).
     React.useEffect(function(){
       if (loading || !studyData) return;
       if (phase !== 'answering') return;
@@ -464,6 +464,27 @@
         var s2 = studyData.stage2 || [];
         var cur2 = s2[idx];
         if (cur2 && cur2.sentence) textToSpeak = cur2.sentence;
+      } else if (stage === '25') {
+        var s25 = studyData.stage25 || [];
+        var cur25 = s25[idx];
+        if (cur25 && cur25.sentence) {
+          // 빈칸을 정답 단어로 채운 완전한 문장을 읽어줌
+          textToSpeak = String(cur25.sentence).replace(/___+/g, String(cur25.correct || '').trim());
+        }
+      } else if (stage === '3') {
+        var s3 = studyData.stage3 || [];
+        var cur3 = s3[idx];
+        if (cur3 && cur3.sentence) {
+          // 빈칸을 정답으로 채운 완전한 문장을 읽어줌
+          var parts3 = String(cur3.sentence).split(/___+/);
+          var ans3 = cur3.answers || [];
+          var full = '';
+          for (var pi = 0; pi < parts3.length; pi++) {
+            full += parts3[pi];
+            if (pi < parts3.length - 1) full += (ans3[pi] || '');
+          }
+          textToSpeak = full;
+        }
       }
       if (!textToSpeak) return;
       var t = setTimeout(function(){ speak(textToSpeak); }, 250);
