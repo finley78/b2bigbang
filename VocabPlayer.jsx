@@ -451,25 +451,6 @@
         setLoading(false);
       })();
     }, []);
-    // 자동 발음 — 1·2단계만 자동. 2.5·3단계는 답 누설이라 학생이 "듣기 힌트" 버튼으로 직접 듣기.
-    React.useEffect(function(){
-      if (loading || !studyData) return;
-      if (phase !== 'answering') return;
-      var textToSpeak = null;
-      if (stage === '1') {
-        var s1 = studyData.stage1 || [];
-        var cur1 = s1[idx];
-        if (cur1 && cur1.word) textToSpeak = cur1.word;
-      } else if (stage === '2') {
-        var s2 = studyData.stage2 || [];
-        var cur2 = s2[idx];
-        if (cur2 && cur2.sentence) textToSpeak = cur2.sentence;
-      }
-      // 2.5·3단계는 자동 X — 학생이 "듣기" 힌트 버튼으로 직접 재생
-      if (!textToSpeak) return;
-      var t = setTimeout(function(){ speak(textToSpeak); }, 250);
-      return function(){ clearTimeout(t); };
-    }, [stage, idx, phase, loading, studyData]);
     var STAGE_LABEL = { '1': '1단계 — 단어', '2': '2단계 — 예문 해석', '25': '2.5단계 — 빈칸 채우기', '3': '3단계 — 영작 빈칸', 'grammar': '어법 — 문법 분석' };
     function getStageItems(s) {
       if (!studyData) return [];
@@ -685,13 +666,9 @@
         );
       }
       if (stage === '25') {
-        var spoken25 = String(current.sentence || '').replace(/___+/g, String(current.correct || '').trim());
         return React.createElement('div', null,
           React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '6px', fontFamily: THEME.font } }, '빈칸에 들어갈 단어 고르기'),
-          React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '1.7', marginBottom: '6px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, current.sentence),
-          React.createElement('div', { style: { textAlign: 'right', marginBottom: '8px' } },
-            React.createElement('button', { onClick: function(){ speak(spoken25); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '6px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font } }, '듣기 힌트')
-          ),
+          React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '1.7', marginBottom: '8px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, current.sentence),
           renderChoices(shufChoices(current, '25'))
         );
       }
@@ -760,21 +737,9 @@
       props.onAnswer(inputs.join('|||'));
     }
     var answers = (item.answers || []);
-    // 듣기 힌트: 빈칸을 정답 배열로 채운 완전한 영어 문장
-    var spokenFull = (function(){
-      var full = '';
-      for (var pi = 0; pi < parts.length; pi++) {
-        full += parts[pi];
-        if (pi < parts.length - 1) full += (answers[pi] || '');
-      }
-      return full;
-    })();
     return React.createElement('div', null,
       React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '6px', fontFamily: THEME.font } }, '한국어 해석을 보고 빈칸 채우기'),
       React.createElement('div', { style: { fontSize: '14px', color: THEME.dark, lineHeight: '1.7', marginBottom: '10px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, item.korean),
-      React.createElement('div', { style: { textAlign: 'right', marginBottom: '8px' } },
-        React.createElement('button', { onClick: function(){ speak(spokenFull); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '6px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font } }, '듣기 힌트')
-      ),
       // 영문 + 빈칸 입력
       React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '2.4', fontFamily: THEME.font, padding: '12px 14px', border: '1px solid ' + THEME.border, borderRadius: '8px' } },
         parts.map(function(part, i){
@@ -830,22 +795,13 @@
     var current = qs[idx];
     var total = qs.length;
 
-    // 자동 발음 — 답 누설이 없는 모드만 자동, 쓰기는 정답 공개 후
+    // 듣기 모드: 문제 진입 시 발음 자동 재생
     React.useEffect(function(){
       if (stage !== 'playing' || !current) return;
-      var shouldSpeak = false;
-      if (phase === 'answering') {
-        shouldSpeak = (
-          mode === 'listening' ||
-          mode === 'spelling' ||
-          (mode === 'multiple_choice' && current.direction === 'word_to_meaning')
-        );
-      } else if (phase === 'showing') {
-        shouldSpeak = (mode === 'writing');
+      if (mode === 'listening' && phase === 'answering') {
+        var t = setTimeout(function(){ speak(current.correct); }, 250);
+        return function(){ clearTimeout(t); };
       }
-      if (!shouldSpeak) return;
-      var t = setTimeout(function(){ speak(current.word || current.correct); }, 250);
-      return function(){ clearTimeout(t); };
     }, [idx, stage, phase]);
 
     function handleAnswer(userAns) {
