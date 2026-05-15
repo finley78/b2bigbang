@@ -2619,6 +2619,17 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                                 }
                                 return null;
                               })()}
+                              {/* 녹음 답안 재생 */}
+                              {(() => {
+                                var audioUrl = s.audio_path && window.B2Utils ? window.B2Utils.audioPublicUrl(s.audio_path) : '';
+                                if (!audioUrl) return null;
+                                return (
+                                  <div style={{ marginTop:'8px', padding:'8px 10px', background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:'6px' }}>
+                                    <div style={{ fontSize:'10px', fontWeight:'800', color:'#92400e', marginBottom:'4px', fontFamily:'Manrope, sans-serif' }}>녹음 답안</div>
+                                    <audio controls src={audioUrl} style={{ width:'100%' }} />
+                                  </div>
+                                );
+                              })()}
                               {/* AI 약점 분석 (시험 문항 분석이 된 경우만) */}
                               {ex.analysis && (
                                 <div style={{ marginTop:'8px', display:'flex', gap:'6px', flexWrap:'wrap' }}>

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v157-parent-no-video-tab';
+const CACHE_VERSION = 'b2-bigbang-20260516v158-teacher-play-audio-answer';
 const OFFLINE_URLS = [
   './',
   './index.html',
