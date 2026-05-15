@@ -795,13 +795,22 @@
     var current = qs[idx];
     var total = qs.length;
 
-    // 듣기 모드: 문제 진입 시 발음 자동 재생
+    // 자동 발음 — 답 누설이 없는 모드만 자동, 쓰기는 정답 공개 후
     React.useEffect(function(){
       if (stage !== 'playing' || !current) return;
-      if (mode === 'listening' && phase === 'answering') {
-        var t = setTimeout(function(){ speak(current.correct); }, 250);
-        return function(){ clearTimeout(t); };
+      var shouldSpeak = false;
+      if (phase === 'answering') {
+        shouldSpeak = (
+          mode === 'listening' ||
+          mode === 'spelling' ||
+          (mode === 'multiple_choice' && current.direction === 'word_to_meaning')
+        );
+      } else if (phase === 'showing') {
+        shouldSpeak = (mode === 'writing');
       }
+      if (!shouldSpeak) return;
+      var t = setTimeout(function(){ speak(current.word || current.correct); }, 250);
+      return function(){ clearTimeout(t); };
     }, [idx, stage, phase]);
 
     function handleAnswer(userAns) {
