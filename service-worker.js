@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v156-revert-practice-auto-tts';
+const CACHE_VERSION = 'b2-bigbang-20260516v157-parent-no-video-tab';
 const OFFLINE_URLS = [
   './',
   './index.html',

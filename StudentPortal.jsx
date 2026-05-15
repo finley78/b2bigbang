@@ -1373,9 +1373,8 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   var [parentChildren, setParentChildren] = React.useState([]);
   var [parentSelectedChildId, setParentSelectedChildId] = React.useState(null);
   var [parentChildExams, setParentChildExams] = React.useState([]); // [{ exam, submission }]
-  var [parentChildVideos, setParentChildVideos] = React.useState([]); // [{ video, view }]
   var [parentLoading, setParentLoading] = React.useState(false);
-  var [parentTab, setParentTab] = React.useState('test'); // 'test' | 'homework' | 'video'
+  var [parentTab, setParentTab] = React.useState('test'); // 'test' | 'homework'
   var [examSubmitting, setExamSubmitting] = React.useState(false);
   var [examImgIdx, setExamImgIdx] = React.useState(0);
   var [examTimeLeft, setExamTimeLeft] = React.useState(null); // 남은 초
@@ -1530,9 +1529,9 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     })();
   }, [user]);
 
-  // ── 학부모: 선택한 자녀의 시험·숙제·영상 시청 데이터 로드 ──
+  // ── 학부모: 선택한 자녀의 시험·숙제 데이터 로드 ──
   React.useEffect(function(){
-    if (!parentSelectedChildId) { setParentChildExams([]); setParentChildVideos([]); return; }
+    if (!parentSelectedChildId) { setParentChildExams([]); return; }
     (async function(){
       setParentLoading(true);
       var sb = window.supabase;
@@ -1549,19 +1548,6 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           return { submission: s, exam: exams.find(function(e){ return e.id === s.exam_id; }) || null };
         }).filter(function(x){ return x.exam; });
         setParentChildExams(combined);
-
-        // 영상 시청
-        var { data: vv } = await sb.from('video_views').select('*').eq('student_id', parentSelectedChildId).order('updated_at', { ascending:false });
-        var videoIds = Array.from(new Set((vv || []).map(function(v){ return v.video_id; }).filter(Boolean)));
-        var videos = [];
-        if (videoIds.length > 0) {
-          var { data: vs } = await sb.from('videos').select('*').in('id', videoIds);
-          videos = vs || [];
-        }
-        var combinedVids = (vv || []).map(function(v){
-          return { view: v, video: videos.find(function(vid){ return vid.id === v.video_id; }) || null };
-        }).filter(function(x){ return x.video; });
-        setParentChildVideos(combinedVids);
       } catch (e) { console.error('자녀 데이터 로드 실패:', e); }
       finally { setParentLoading(false); }
     })();
@@ -2404,7 +2390,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           parentChildren.length > 1 && React.createElement('button', { onClick:function(){ setParentSelectedChildId(null); }, style:{ background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '다른 자녀')
         ),
         React.createElement('div', { style:{ display:'inline-flex', background:'#f2f0eb', borderRadius:'8px', padding:'3px', gap:'2px', marginBottom:'14px', flexWrap:'wrap' } },
-          [{v:'test',l:'시험 ' + examItems.length},{v:'homework',l:'숙제 ' + hwItems.length},{v:'video',l:'영상 시청 ' + parentChildVideos.length}].map(function(o){
+          [{v:'test',l:'시험 ' + examItems.length},{v:'homework',l:'숙제 ' + hwItems.length}].map(function(o){
             var on = parentTab === o.v;
             return React.createElement('button', { key:o.v, onClick:function(){ setParentTab(o.v); }, style:{ background: on?'#1A1A1A':'transparent', color: on?'#fff':'rgba(0,0,0,0.55)', border:'none', borderRadius:'6px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, o.l);
           })
@@ -2417,21 +2403,6 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
         !parentLoading && parentTab === 'homework' && (hwItems.length === 0
           ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'30px', textAlign:'center', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '제출한 숙제가 없습니다.')
           : React.createElement('div', null, hwItems.map(renderChildCard))
-        ),
-        !parentLoading && parentTab === 'video' && (parentChildVideos.length === 0
-          ? React.createElement('div', { style:{ background:'#fff', borderRadius:'12px', padding:'30px', textAlign:'center', color:'#9ca3af', fontFamily:'Manrope, sans-serif' } }, '시청한 영상이 없습니다.')
-          : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'10px' } },
-              parentChildVideos.map(function(it){
-                var v = it.video, vw = it.view;
-                var pct = vw.progress != null ? Math.round(parseFloat(vw.progress) * 100) : null;
-                return React.createElement('div', { key: vw.id || v.id, style:{ background:'#fff', borderRadius:'12px', padding:'14px 16px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' } },
-                  React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', color:'#111827', marginBottom:'4px', fontFamily:'Manrope, sans-serif' } }, v.title || '영상'),
-                  React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } },
-                    (pct != null ? ('진도 ' + pct + '%') : '시청 시작') + ' · 마지막 시청 ' + String(vw.updated_at || vw.created_at || '').slice(0,16).replace('T',' ')
-                  )
-                );
-              })
-            )
         )
       )
     );
