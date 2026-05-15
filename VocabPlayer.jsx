@@ -451,14 +451,22 @@
         setLoading(false);
       })();
     }, []);
-    // 자동 발음 — 1단계(단어 보고 뜻 고르기)에서 영어 단어 자동 재생
+    // 자동 발음 — 1단계(단어) + 2단계(예문 해석) 자동 재생. 답 누설되는 단계는 수동.
     React.useEffect(function(){
       if (loading || !studyData) return;
-      if (stage !== '1' || phase !== 'answering') return;
-      var s1 = studyData.stage1 || [];
-      var cur = s1[idx];
-      if (!cur || !cur.word) return;
-      var t = setTimeout(function(){ speak(cur.word); }, 250);
+      if (phase !== 'answering') return;
+      var textToSpeak = null;
+      if (stage === '1') {
+        var s1 = studyData.stage1 || [];
+        var cur1 = s1[idx];
+        if (cur1 && cur1.word) textToSpeak = cur1.word;
+      } else if (stage === '2') {
+        var s2 = studyData.stage2 || [];
+        var cur2 = s2[idx];
+        if (cur2 && cur2.sentence) textToSpeak = cur2.sentence;
+      }
+      if (!textToSpeak) return;
+      var t = setTimeout(function(){ speak(textToSpeak); }, 250);
       return function(){ clearTimeout(t); };
     }, [stage, idx, phase, loading, studyData]);
     var STAGE_LABEL = { '1': '1단계 — 단어', '2': '2단계 — 예문 해석', '25': '2.5단계 — 빈칸 채우기', '3': '3단계 — 영작 빈칸', 'grammar': '어법 — 문법 분석' };
