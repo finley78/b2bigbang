@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v154-study5-all-stages-auto-tts';
+const CACHE_VERSION = 'b2-bigbang-20260516v155-blank-stages-listen-hint';
 const OFFLINE_URLS = [
   './',
   './index.html',

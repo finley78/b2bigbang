@@ -451,7 +451,7 @@
         setLoading(false);
       })();
     }, []);
-    // 자동 발음 — 1·2·3단계 자동 재생. 듣고 외우는 것도 학습이라 답 누설 허용(영작).
+    // 자동 발음 — 1·2단계만 자동. 2.5·3단계는 답 누설이라 학생이 "듣기 힌트" 버튼으로 직접 듣기.
     React.useEffect(function(){
       if (loading || !studyData) return;
       if (phase !== 'answering') return;
@@ -464,28 +464,8 @@
         var s2 = studyData.stage2 || [];
         var cur2 = s2[idx];
         if (cur2 && cur2.sentence) textToSpeak = cur2.sentence;
-      } else if (stage === '25') {
-        var s25 = studyData.stage25 || [];
-        var cur25 = s25[idx];
-        if (cur25 && cur25.sentence) {
-          // 빈칸을 정답 단어로 채운 완전한 문장을 읽어줌
-          textToSpeak = String(cur25.sentence).replace(/___+/g, String(cur25.correct || '').trim());
-        }
-      } else if (stage === '3') {
-        var s3 = studyData.stage3 || [];
-        var cur3 = s3[idx];
-        if (cur3 && cur3.sentence) {
-          // 빈칸을 정답으로 채운 완전한 문장을 읽어줌
-          var parts3 = String(cur3.sentence).split(/___+/);
-          var ans3 = cur3.answers || [];
-          var full = '';
-          for (var pi = 0; pi < parts3.length; pi++) {
-            full += parts3[pi];
-            if (pi < parts3.length - 1) full += (ans3[pi] || '');
-          }
-          textToSpeak = full;
-        }
       }
+      // 2.5·3단계는 자동 X — 학생이 "듣기" 힌트 버튼으로 직접 재생
       if (!textToSpeak) return;
       var t = setTimeout(function(){ speak(textToSpeak); }, 250);
       return function(){ clearTimeout(t); };
@@ -705,9 +685,13 @@
         );
       }
       if (stage === '25') {
+        var spoken25 = String(current.sentence || '').replace(/___+/g, String(current.correct || '').trim());
         return React.createElement('div', null,
           React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '6px', fontFamily: THEME.font } }, '빈칸에 들어갈 단어 고르기'),
-          React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '1.7', marginBottom: '8px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, current.sentence),
+          React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '1.7', marginBottom: '6px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, current.sentence),
+          React.createElement('div', { style: { textAlign: 'right', marginBottom: '8px' } },
+            React.createElement('button', { onClick: function(){ speak(spoken25); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '6px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font } }, '듣기 힌트')
+          ),
           renderChoices(shufChoices(current, '25'))
         );
       }
@@ -776,9 +760,21 @@
       props.onAnswer(inputs.join('|||'));
     }
     var answers = (item.answers || []);
+    // 듣기 힌트: 빈칸을 정답 배열로 채운 완전한 영어 문장
+    var spokenFull = (function(){
+      var full = '';
+      for (var pi = 0; pi < parts.length; pi++) {
+        full += parts[pi];
+        if (pi < parts.length - 1) full += (answers[pi] || '');
+      }
+      return full;
+    })();
     return React.createElement('div', null,
       React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '6px', fontFamily: THEME.font } }, '한국어 해석을 보고 빈칸 채우기'),
       React.createElement('div', { style: { fontSize: '14px', color: THEME.dark, lineHeight: '1.7', marginBottom: '10px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, item.korean),
+      React.createElement('div', { style: { textAlign: 'right', marginBottom: '8px' } },
+        React.createElement('button', { onClick: function(){ speak(spokenFull); }, style: { background: THEME.primaryBg, color: THEME.primary, border: 'none', borderRadius: '50px', padding: '6px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: THEME.font } }, '듣기 힌트')
+      ),
       // 영문 + 빈칸 입력
       React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '2.4', fontFamily: THEME.font, padding: '12px 14px', border: '1px solid ' + THEME.border, borderRadius: '8px' } },
         parts.map(function(part, i){
