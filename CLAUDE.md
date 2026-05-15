@@ -123,7 +123,70 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-14 기준, 최신 ?v=20260514v118-sw-pass-cdn)
+## 현재 진행 (2026-05-15 기준, 최신 ?v=20260515v148-edge-auth-error-boundary)
+
+### ★ DB·Edge Function 보안 무결성 작업 (v147~v148, 2026-05-15 새벽) ★
+**배경**: Supabase 보안/성능 어드바이저 점수가 보안 15 WARN / 성능 237 INFO·WARN까지 쌓여 있어서 한 번에 정리.
+
+- **v147 (완벽 모드, 보안 15→3 WARN / 성능 237→218)**
+  - **RLS 헬퍼 4개를 `private` 스키마로 이전** — `current_role`·`current_student` (SECURITY DEFINER, RLS 재귀 차단용), `is_parent_of`·`teacher_has_student` (SECURITY INVOKER, private의 SD 헬퍼 호출). REST API에서 호출 못 함(OID 참조라 RLS는 정상).
+  - **`pg_net`을 public → `extensions` 스키마로 이전** (DROP CASCADE + CREATE + cron job 재등록). 이전 cron 호출이 깨지지 않게 재예약 완료.
+  - **attachments 버킷 UPDATE/DELETE를 `owner=auth.uid() OR admin OR teacher`로 제한** (전엔 누구나 덮어쓰기 가능했음).
+  - **모든 `auth.uid()` 호출 19개 정책을 `(select auth.uid())`로 감쌈** — Postgres가 행마다 재호출하지 않고 statement 단위로 캐시.
+  - **FK 17개에 인덱스 추가** (조인 성능).
+  - DB 정리: class_students 중복 1건, classes '중2 영어 A반' 중복 1건 제거. students.phone='010' 34건 → NULL.
+  - **Edge Function 회복력**: `analyze-exam`/`analyze-student` 둘 다 429/529/5xx 지수 백오프(1s, 2s) 최대 3회 자동 재시도. Opus 실패 시 Sonnet으로 자동 폴백(응답에 `fallback_to_sonnet: true`). 최종 실패 시 `analyze_status='failed'` + `analyze_error` 기록 → cron 2차 시간으로 재예약 가능.
+  - 코드 중복 정리: `MATERIAL_DRAFT_INIT` → `B2Utils.materialDraftInit()` (Admin+Teacher 공용).
+  - **남은 3 WARN은 의도된 것**:
+    1. `link_family_by_phone` SECURITY DEFINER public (앱 RPC, 내부 검증 있음)
+    2. `link_my_auth_account` SECURITY DEFINER public (앱 RPC, my_id=current_student 매칭)
+    3. `auth_leaked_password_protection` 비활성 (HIBP 연동, 사용자 설정 항목 — 학원 환경에선 미활성 유지)
+
+- **v148 (Edge Function 인증 + Error Boundary + cron health + RLS 분할, 성능 multiple_permissive 185→20)**
+  - **Edge Function 권한 검증 (`checkAuth`)** — `analyze-exam` v11 / `analyze-student` v8 둘 다 동일 패턴.
+    - `x-edge-internal-secret` 헤더 = `public.internal_config.edge_internal_secret`(64자, RLS deny-all)와 일치 → cron 신뢰 채널.
+    - 사용자 JWT는 `role==='authenticated'` + `auth_user_id`로 `students.role` 조회 → `[admin/teacher/administrator/관리자/선생님/강사]`만 통과.
+    - service_role 토큰은 그대로 통과(서버 코드용).
+    - anon JWT 자체 호출은 403 — 외부 attacker가 학원 API 키로 Opus 토큰 무한 트리거 못 함.
+  - **React Error Boundary** (`index.html:1211~1234`) — `class ErrorBoundary extends React.Component`로 App 감쌈. 한 컴포넌트가 throw해도 전체 흰화면 안 되고 "화면을 그리는 중 문제가 발생했어요 / 다시 시도하기" UI(브랜드 빨강 `#E60012`). 에러는 `public.client_errors`에 자동 INSERT(메시지·stack·component_stack·url·user_agent·created_at). 길이 제한 RLS(메시지 2000자/stack·component_stack 10000자/url 2000자/UA 500자)로 스팸 방지. SELECT는 admin/teacher만, DELETE는 admin만.
+  - **`public.cron_health` 뷰** — `cron.job_run_details`를 최근 30분으로 묶어 `recent_failures/recent_successes/last_success/last_run/health(healthy|unhealthy|unknown)`. 마지막 성공 10분 이상 전이면 unhealthy. 현재 `process-scheduled-analyses` 30/30 성공·healthy.
+  - **RLS 'ALL' 정책 분할** — 33개 테이블의 `FOR ALL` 정책을 `INSERT`/`UPDATE`/`DELETE` 3개 정책으로 분리. SELECT는 별도 `_read` 정책만 평가 → `multiple_permissive_policies` 185→20. 남은 20개 WARN은 `enrollments`(staff_all vs student_*) + `teachers`(admin_write vs self_update)의 의도된 staff↔student 중복(각각 다른 행에 적용되므로 OR 평가 자체가 의도).
+  - 남은 `FOR ALL` 정책은 `public.internal_config.internal_config_deny_all` 하나뿐(시크릿 테이블이라 모두 막는 게 맞음).
+
+### ★ 차량 운행/탑승 시스템 대대적 확장 (v125~v146, 2026-05-15 새벽) ★
+v109(BusTracking 신설) + v116(차량 위치 관리) 이후, 정류장·탑승·신청·승인까지 운영 흐름 전체 구축.
+- **v126**: 차량 정류장 + 학생 탑승 선택 — `bus_stops` 테이블, 학생이 정류장 선택해서 탑승 신청.
+- **v127**: 차량 이용 신청·승인 흐름 — 학생 신청 → 관리자/선생님 승인/거절. 차량 수정 버튼 스크롤 버그 수정.
+- **v128**: 다중 정차시간 + 다음 운행만 표시 + 좌석 기본 12석.
+- **v129**: PC 정류장 폼 — 이름 옆에 시간 칸 6개 인라인 입력 한 줄로.
+- **v131**: 정류장 추가는 이름만, 시간은 목록에서 선택 후 입력.
+- **v133**: 정류장 행 안에 시간 입력칸 인라인(수정 버튼 없이 그 자리에서 추가).
+- **v135**: 정류장 시간 칩·입력칸 디자인 정리(둥근 사각형 + 실선 테두리).
+- **v136**: 관리자 차량 위치 탭에 '오늘 탑승 명단' 섹션.
+- **v137**: 학생별 수업 시간(5개 고정) + 시간대별 정원 12명 제한.
+- **v138**: 차량 만석 안내 메시지 명확화(다른 시간 선택 불가, 차량 자체 제공 불가).
+- **v139**: 학생 PWA에 본인 수업 시간 + 그 수업의 정류장 픽업 시간 표시.
+- **v140**: 반 시간·요일 + 학생 차량 시간 자동 매칭.
+- **v141**: 반 시간을 요일별로 따로 입력 가능(월수 16:30, 금 15:00 같은 패턴).
+- **v142**: 차량 시간을 오늘 요일+수업 시간으로 자동 계산.
+- **v143~v145**: 중복 코드 정리 (academicCategory/formatBytes/attachmentPublicUrl → `B2Utils`), 미사용 DB 컬럼 제거. 회귀 점검에서 발견된 `dbStudents` 차량 필드 누락 + race 버그 수정.
+- **v146**: 차량 이용 승인/거절 후 학생 카드 즉시 갱신 + `uses_bus` 끄면 신청 상태 리셋.
+- **v125**: '기사 모드' → '차량 운행 모드'로 라벨 변경.
+
+### ★ Claude 분석 예약 시스템 (v130, v132, 2026-05-15 새벽) ★
+- **v130**: 즉시 분석 / 예약 분석 선택 가능. 1차 + 2차 백업 예약. cron `process-scheduled-analyses`가 1분마다 실행(현재 healthy, 30분간 30/30 성공).
+- **v132**: 학생 답안 분석 예약 + 정류장 시간 누적 리스트 단순화.
+
+### ★ 그 외 작업 (v120~v124, 2026-05-15 새벽) ★
+- **v120 (PKCE 버그픽스)**: 비밀번호 재설정 링크가 자동 로그인되어 버리던 PKCE flow 버그 수정 — 이게 5/14 메모리(`project_b2bigbang_resend_smtp`)에서 막혔던 "메일에 링크 없음/링크 동작 이상" 문제의 진짜 원인이었음. Resend SMTP 자체는 정상이었고 클라이언트의 토큰 처리 흐름이 문제.
+- **v121**: 관리자 학사일정에 달력 UI 추가(선생님 페이지와 동일).
+- **v122**: 관리자 강의일정 변경에도 달력 UI 추가.
+- **v123**: 단어장 1000행 한도 우회 + 페이지당 200개 UI 페이지네이션.
+- **v124**: 단어시험: 모든 유닛에 한 번에 일괄 발행 + 마감일 간격 자동 계산.
+- **v134**: 관리자 탭 재배치(시험관리·단어장을 수강생 그룹으로 이동).
+
+---
+
 > **v118 (2026-05-14)**: service-worker가 외부 도메인(카카오 SDK·React CDN·Supabase JS CDN·SheetJS CDN·Google Fonts 등) 요청을 가로채면 opaque 응답이 되어 CORB로 차단되던 문제 수정. fetch 핸들러 앞쪽에 `if (!sameOriginEarly) return;` 추가해 외부 요청은 브라우저 기본 처리에 맡김. 카카오 지도 SDK 로드 실패 해결의 핵심.
 > **v117 (2026-05-14)**: BusTracking 운행 상태 자동 복원 + Wake Lock. 페이지 마운트 시 `vehicle_locations`에 `is_driving=true & driver_user_id=본인 & updated_at < 2분`이면 `driving` 자동 복원 — 기사가 새로고침하거나 통화 후 돌아와도 운행 시작 다시 안 눌러도 됨. Wake Lock API로 운행 중 화면 자동 꺼짐 방지(`visibilitychange` 시 재취득).
 > **v116 (2026-05-14)**: 파일 업로드 multiple 지원 (단어 추가·5단계 세트·학생 명단) + 관리자 차량 위치 관리 탭 신설.
