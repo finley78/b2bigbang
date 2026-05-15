@@ -195,6 +195,12 @@ const [vehicleEditingId, setVehicleEditingId] = React.useState(null);
 const [kakaoKeyInput, setKakaoKeyInput] = React.useState('');
 const [kakaoKeyHasSaved, setKakaoKeyHasSaved] = React.useState(false);
 const [vehicleSaving, setVehicleSaving] = React.useState(false);
+// 메인 팝업 관리
+const [popupsList, setPopupsList] = React.useState([]);
+const [popupDraft, setPopupDraft] = React.useState({ title:'', body:'', image_path:'', link_url:'', sort_order:'0', is_active:true });
+const [popupEditingId, setPopupEditingId] = React.useState(null);
+const [popupSaving, setPopupSaving] = React.useState(false);
+const [popupUploading, setPopupUploading] = React.useState(false);
 const [adminLevelTestRequests, setAdminLevelTestRequests] = React.useState({}); // { exam_id: [requests] }
 const [adminLevelTestSubs, setAdminLevelTestSubs] = React.useState({}); // { exam_id: [submissions] }
 const [adminLevelTestLoading, setAdminLevelTestLoading] = React.useState(false);
@@ -679,6 +685,86 @@ async function deleteVehicle(v) {
     await sb.from('vehicle_locations').delete().eq('vehicle_id', v.id);
     await sb.from('vehicles').delete().eq('id', v.id);
     await loadVehiclesData();
+  } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
+}
+
+// ── 메인 팝업 관리 ──
+async function loadPopups() {
+  try {
+    var res = await sb.from('popups').select('*').order('sort_order', { ascending:false }).order('created_at', { ascending:false });
+    setPopupsList((res && res.data) || []);
+  } catch (e) { console.error('팝업 로드 실패:', e); }
+}
+async function uploadPopupImage(file) {
+  if (!file) return '';
+  var ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  var path = 'popups/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+  setPopupUploading(true);
+  try {
+    var up = await sb.storage.from('attachments').upload(path, file, { cacheControl:'3600', upsert:false });
+    if (up.error) throw up.error;
+    return path;
+  } finally { setPopupUploading(false); }
+}
+function popupImageUrl(path) {
+  if (!path) return '';
+  var d = sb.storage.from('attachments').getPublicUrl(path);
+  return (d && d.data && d.data.publicUrl) || '';
+}
+async function savePopup() {
+  var d = popupDraft;
+  if (!d.title.trim()) { alert('제목을 입력하세요.'); return; }
+  setPopupSaving(true);
+  try {
+    var payload = {
+      title: d.title.trim(),
+      body: d.body || null,
+      image_path: d.image_path || null,
+      link_url: d.link_url ? d.link_url.trim() : null,
+      sort_order: parseInt(d.sort_order, 10) || 0,
+      is_active: !!d.is_active,
+    };
+    if (popupEditingId) {
+      var { error } = await sb.from('popups').update(payload).eq('id', popupEditingId);
+      if (error) throw error;
+    } else {
+      var { error: err2 } = await sb.from('popups').insert(payload);
+      if (err2) throw err2;
+    }
+    setPopupDraft({ title:'', body:'', image_path:'', link_url:'', sort_order:'0', is_active:true });
+    setPopupEditingId(null);
+    await loadPopups();
+  } catch (e) { alert('저장 실패: ' + (e.message || e)); }
+  finally { setPopupSaving(false); }
+}
+function editPopup(p) {
+  setPopupEditingId(p.id);
+  setPopupDraft({
+    title: p.title || '',
+    body: p.body || '',
+    image_path: p.image_path || '',
+    link_url: p.link_url || '',
+    sort_order: String(p.sort_order != null ? p.sort_order : 0),
+    is_active: p.is_active !== false,
+  });
+  try { var el = document.getElementById('popup-form'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); } catch (e) {}
+}
+function cancelPopupEdit() {
+  setPopupEditingId(null);
+  setPopupDraft({ title:'', body:'', image_path:'', link_url:'', sort_order:'0', is_active:true });
+}
+async function togglePopupActive(p) {
+  try {
+    await sb.from('popups').update({ is_active: !p.is_active }).eq('id', p.id);
+    await loadPopups();
+  } catch (e) { alert('변경 실패: ' + (e.message || e)); }
+}
+async function deletePopup(p) {
+  if (!confirm('"' + p.title + '" 팝업을 삭제할까요?')) return;
+  try {
+    await sb.from('popups').delete().eq('id', p.id);
+    if (p.image_path) { try { await sb.storage.from('attachments').remove([p.image_path]); } catch (e) {} }
+    await loadPopups();
   } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
 }
 
@@ -2085,6 +2171,7 @@ const tabs = [
 { id:'leveltest',label:'시험 관리' },
 { id:'vocab',   label:'단어장' },
 { id:'vehicles',label:'차량 위치' },
+{ id:'popups',  label:'메인 팝업' },
 { id:'feature', label:'섹션 편집' },
 { id:'about',   label:'학원안내 편집' },
 { id:'programs',label:'프로그램 편집' },
@@ -2093,7 +2180,7 @@ const tabs = [
 ];
 
 const tabGroups = [
-{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','feature','about','programs','eventbtn','footer'] },
+{ id:'webapp',   label:'웹앱 관리', tabs:['banner','notice','popups','feature','about','programs','eventbtn','footer'] },
 { id:'teachers', label:'강사',      tabs:['teacher','course','records'] },
 { id:'students', label:'수강생',    tabs:['enrollee','classmgmt','views','analysis','leveltest','vocab'] },
 { id:'academy',  label:'학원 관리', tabs:['member','schedule','files','vehicles'] },
@@ -2213,7 +2300,7 @@ tab === 'home' && React.createElement('div', null,
           if (!t) return null;
           var pcStyle = { padding:'16px 18px', fontSize:'15px', display:'inline-flex', alignItems:'center', minHeight:'52px' };
           var mobileStyle = { padding:'14px', fontSize:'14px', display:'block', textAlign:'center' };
-          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadMaterials(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') { loadAdminLevelTests(); loadMaterials(); } if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); if (tid === 'vehicles') loadVehiclesData(); if (tid === 'enrollee') { loadVehiclesData(); } }, style: Object.assign({
+          return React.createElement('button', { key:tid, onClick:function(){ setTab(tid); setTabGroup(g.id); if (tid === 'files') loadMaterials(); if (tid === 'schedule') { loadAdminScheduleRequests(); loadAdminAcademicSchedules(); } if (tid === 'leveltest') { loadAdminLevelTests(); loadMaterials(); } if (tid === 'about') loadAboutContent(); if (tid === 'programs') loadProgramsContent(); if (tid === 'eventbtn') loadEventBtn(); if (tid === 'footer') loadFooterContent(); if (tid === 'vehicles') loadVehiclesData(); if (tid === 'enrollee') { loadVehiclesData(); } if (tid === 'popups') loadPopups(); }, style: Object.assign({
             background:'#fff', border:'1px solid #e5e7eb', borderRadius:'12px',
             cursor:'pointer', fontFamily:'Manrope, sans-serif',
             fontWeight:'700', color:'#111827',
@@ -6558,6 +6645,89 @@ tab==='vehicles' && React.createElement('div', null,
                 })
               ),
               React.createElement('button', { onClick: function(){ deleteBusStop(s); }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer', flexShrink:0 } }, '삭제')
+            );
+          })
+        )
+  )
+),
+
+/* ── 메인 팝업 TAB ── */
+tab==='popups' && React.createElement('div', null,
+  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginBottom:'10px' } }, '메인 팝업'),
+  React.createElement('p', { style:{ fontSize:'12px', color:'#6b7280', marginBottom:'18px', fontFamily:'Manrope, sans-serif', lineHeight:'1.7' } },
+    '학원 홈 메인 화면에 뜨는 공지 팝업을 관리합니다. 활성 팝업은 정렬 순서대로 표시됩니다. 사용자는 팝업을 누르면 자세한 내용을 볼 수 있는 페이지로 이동합니다. ',
+    React.createElement('strong', null, '일주일간 보지 않기'), '를 누르면 그 사용자에겐 7일 동안 같은 팝업이 안 뜹니다.'
+  ),
+
+  /* 등록/수정 폼 */
+  React.createElement('section', { id:'popup-form', style:{ background:'#fff', border: popupEditingId ? '2px solid #E60012' : '1px solid #e5e7eb', borderRadius:'10px', padding:'18px', marginBottom:'14px', scrollMarginTop:'80px' } },
+    React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'10px', color: popupEditingId ? '#E60012' : '#1A1A1A' } }, popupEditingId ? '팝업 수정 중...' : '+ 팝업 등록'),
+    React.createElement('div', { style:{ marginBottom:'10px' } },
+      React.createElement('label', { style:labelS }, '제목 *'),
+      React.createElement('input', { value: popupDraft.title, onChange:function(e){ var v=e.target.value; setPopupDraft(function(p){ return Object.assign({}, p, { title:v }); }); }, placeholder:'예: 여름특강 안내', style: inputS })
+    ),
+    React.createElement('div', { style:{ marginBottom:'10px' } },
+      React.createElement('label', { style:labelS }, '본문 (자세히 보기 페이지에 표시)'),
+      React.createElement('textarea', { value: popupDraft.body, onChange:function(e){ var v=e.target.value; setPopupDraft(function(p){ return Object.assign({}, p, { body:v }); }); }, placeholder:'팝업을 누르면 보일 내용을 입력하세요. 줄바꿈도 인식합니다.', rows:6, style: Object.assign({}, inputS, { fontFamily:'Manrope, sans-serif', resize:'vertical' }) })
+    ),
+    React.createElement('div', { style:{ marginBottom:'10px' } },
+      React.createElement('label', { style:labelS }, '이미지'),
+      popupDraft.image_path && React.createElement('div', { style:{ marginBottom:'8px', display:'flex', alignItems:'center', gap:'10px' } },
+        React.createElement('img', { src: popupImageUrl(popupDraft.image_path), alt:'팝업 미리보기', style:{ width:'100px', height:'100px', objectFit:'cover', borderRadius:'8px', border:'1px solid #e5e7eb' } }),
+        React.createElement('button', { onClick:function(){ setPopupDraft(function(p){ return Object.assign({}, p, { image_path:'' }); }); }, style: btnOutS }, '이미지 제거')
+      ),
+      React.createElement('input', { type:'file', accept:'image/*', onChange: async function(e){
+        var f = e.target.files && e.target.files[0];
+        if (!f) return;
+        try {
+          var path = await uploadPopupImage(f);
+          setPopupDraft(function(p){ return Object.assign({}, p, { image_path: path }); });
+        } catch (err) { alert('업로드 실패: ' + (err.message || err)); }
+        finally { e.target.value = ''; }
+      }, disabled: popupUploading, style:{ fontSize:'12px' } }),
+      popupUploading && React.createElement('span', { style:{ marginLeft:'8px', fontSize:'11px', color:'#6b7280' } }, '업로드 중...')
+    ),
+    React.createElement('div', { style:{ marginBottom:'10px' } },
+      React.createElement('label', { style:labelS }, '외부 링크 URL (선택)'),
+      React.createElement('input', { value: popupDraft.link_url, onChange:function(e){ var v=e.target.value; setPopupDraft(function(p){ return Object.assign({}, p, { link_url:v }); }); }, placeholder:'예: https://example.com — 입력하면 팝업 클릭 시 이 주소로 이동 (비우면 자체 자세히 보기 페이지로)', style: inputS })
+    ),
+    React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'120px 1fr', gap:'10px', marginBottom:'14px' } },
+      React.createElement('div', null,
+        React.createElement('label', { style:labelS }, '정렬 순서'),
+        React.createElement('input', { type:'number', value: popupDraft.sort_order, onChange:function(e){ var v=e.target.value; setPopupDraft(function(p){ return Object.assign({}, p, { sort_order:v }); }); }, placeholder:'0', style: inputS })
+      ),
+      React.createElement('div', { style:{ display:'flex', alignItems:'flex-end' } },
+        React.createElement('label', { style:{ fontSize:'13px', fontWeight:'700', color:'#374151', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'8px', cursor:'pointer' } },
+          React.createElement('input', { type:'checkbox', checked: popupDraft.is_active, onChange:function(e){ var v=e.target.checked; setPopupDraft(function(p){ return Object.assign({}, p, { is_active:v }); }); } }),
+          '활성 (메인 화면에 표시)'
+        )
+      )
+    ),
+    React.createElement('div', { style:{ display:'flex', gap:'8px', justifyContent:'flex-end' } },
+      popupEditingId && React.createElement('button', { onClick: cancelPopupEdit, style: btnOutS }, '취소'),
+      React.createElement('button', { onClick: savePopup, disabled: popupSaving || !popupDraft.title.trim(), style: btnS(popupSaving ? '#9ca3af' : '#E60012') }, popupSaving ? '저장 중...' : (popupEditingId ? '수정 저장' : '+ 팝업 등록'))
+    )
+  ),
+
+  /* 등록된 팝업 목록 */
+  React.createElement('section', { style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'18px' } },
+    React.createElement('h3', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'10px', color:'#1A1A1A' } }, '등록된 팝업 (' + popupsList.length + '개)'),
+    popupsList.length === 0
+      ? React.createElement('div', { style:{ color:'#9ca3af', fontSize:'13px', padding:'14px 0', fontFamily:'Manrope, sans-serif' } }, '아직 등록된 팝업이 없습니다.')
+      : React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } },
+          popupsList.map(function(p){
+            return React.createElement('div', { key:p.id, style:{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', background: p.is_active ? '#fff' : '#f9fafb', fontFamily:'Manrope, sans-serif' } },
+              p.image_path
+                ? React.createElement('img', { src: popupImageUrl(p.image_path), alt:'', style:{ width:'52px', height:'52px', objectFit:'cover', borderRadius:'6px', border:'1px solid #e5e7eb', flexShrink:0 } })
+                : React.createElement('div', { style:{ width:'52px', height:'52px', borderRadius:'6px', background:'#f3f4f6', display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af', fontSize:'10px', flexShrink:0 } }, '이미지 없음'),
+              React.createElement('span', { style:{ background: p.is_active ? '#dcfce7' : '#f3f4f6', color: p.is_active ? '#15803d' : '#6b7280', fontSize:'11px', fontWeight:'800', padding:'4px 10px', borderRadius:'999px', flexShrink:0 } }, p.is_active ? '활성' : '비활성'),
+              React.createElement('div', { style:{ flex:1, minWidth:0 } },
+                React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, p.title),
+                React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginTop:'2px' } }, '정렬 ' + (p.sort_order || 0) + (p.link_url ? ' · 외부링크' : ' · 자체 페이지'))
+              ),
+              React.createElement('button', { onClick: function(){ togglePopupActive(p); }, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, p.is_active ? '비활성화' : '활성화'),
+              React.createElement('button', { onClick: function(){ editPopup(p); }, style:{ background:'transparent', color:'rgba(0,0,0,0.65)', border:'1px solid #d6dbde', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '수정'),
+              React.createElement('button', { onClick: function(){ deletePopup(p); }, style:{ background:'transparent', color:'#c82014', border:'1px solid #c82014', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' } }, '삭제')
             );
           })
         )

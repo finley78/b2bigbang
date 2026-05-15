@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260515v148-edge-auth-error-boundary';
+const CACHE_VERSION = 'b2-bigbang-20260515v149-main-popup-and-report-fix';
 const OFFLINE_URLS = [
   './',
   './index.html',

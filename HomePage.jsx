@@ -757,9 +757,127 @@ function LevelTestCTA({ user, onLoginClick, setPage }) {
   );
 }
 
+// ── 메인 팝업 오버레이 + 자세히 보기 페이지 ─────────────────
+// 활성 팝업을 로드해서 첫 번째 안 숨긴 것을 모달로 표시.
+// 일반 닫기 = sessionStorage(이번 세션만), 일주일간 보지 않기 = localStorage(7일).
+function PopupOverlay({ onSelect }) {
+  const isMobile = useIsMobile();
+  const [popups, setPopups] = React.useState([]);
+  const [hiddenIds, setHiddenIds] = React.useState(function(){
+    var s = {};
+    try {
+      Object.keys(sessionStorage).forEach(function(k){ if (k.indexOf('b2_popup_dismiss_') === 0) s[k.slice(17)] = true; });
+      Object.keys(localStorage).forEach(function(k){
+        if (k.indexOf('b2_popup_hide_') === 0) {
+          var until = parseInt(localStorage.getItem(k), 10) || 0;
+          if (until > Date.now()) s[k.slice(14)] = true;
+          else { try { localStorage.removeItem(k); } catch (e) {} }
+        }
+      });
+    } catch (e) {}
+    return s;
+  });
+  React.useEffect(function(){
+    var sb = window.supabase;
+    if (!sb) return;
+    (async function(){
+      try {
+        var res = await sb.from('popups').select('id, title, body, image_path, link_url, sort_order').eq('is_active', true).order('sort_order', { ascending:false }).order('created_at', { ascending:false });
+        setPopups((res && res.data) || []);
+      } catch (e) {}
+    })();
+  }, []);
+  function publicUrl(path) {
+    if (!path) return '';
+    try {
+      var d = window.supabase.storage.from('attachments').getPublicUrl(path);
+      return (d && d.data && d.data.publicUrl) || '';
+    } catch (e) { return ''; }
+  }
+  var current = popups.find(function(p){ return !hiddenIds[p.id]; });
+  if (!current) return null;
+  function dismissOnce() {
+    try { sessionStorage.setItem('b2_popup_dismiss_' + current.id, '1'); } catch (e) {}
+    setHiddenIds(function(s){ var n = Object.assign({}, s); n[current.id] = true; return n; });
+  }
+  function hideWeek() {
+    var until = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    try { localStorage.setItem('b2_popup_hide_' + current.id, String(until)); } catch (e) {}
+    setHiddenIds(function(s){ var n = Object.assign({}, s); n[current.id] = true; return n; });
+  }
+  function openDetail() {
+    if (current.link_url && /^https?:\/\//i.test(current.link_url)) {
+      window.open(current.link_url, '_blank', 'noopener');
+      dismissOnce();
+      return;
+    }
+    onSelect(current);
+    dismissOnce();
+  }
+  var imgUrl = publicUrl(current.image_path);
+  var boxWidth = isMobile ? 'min(86vw, 360px)' : '360px';
+  return React.createElement('div', {
+    role:'dialog', 'aria-modal':'true',
+    style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:9990, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px', fontFamily:'Manrope, sans-serif' },
+    onClick: dismissOnce
+  },
+    React.createElement('div', { onClick:function(e){ e.stopPropagation(); }, style:{ background:'#fff', borderRadius:'12px', width: boxWidth, boxShadow:'0 20px 60px rgba(0,0,0,0.25)', overflow:'hidden', display:'flex', flexDirection:'column' } },
+      // 본체 (클릭 → 상세)
+      React.createElement('button', { onClick: openDetail, style:{ display:'block', background:'transparent', border:'none', padding:0, cursor:'pointer', textAlign:'left', width:'100%', fontFamily:'inherit' } },
+        imgUrl && React.createElement('div', { style:{ width:'100%', aspectRatio:'1/1', background:'#f3f4f6' } },
+          React.createElement('img', { src: imgUrl, alt: current.title, style:{ width:'100%', height:'100%', objectFit:'cover', display:'block' } })
+        ),
+        React.createElement('div', { style:{ padding:'16px 18px' } },
+          React.createElement('div', { style:{ fontSize:'16px', fontWeight:'800', color:'#1A1A1A', lineHeight:'1.4', marginBottom:'4px' } }, current.title),
+          React.createElement('div', { style:{ fontSize:'12px', color:'#6b7280', fontWeight:'700' } }, '자세히 보기 →')
+        )
+      ),
+      // 닫기 버튼 두 개
+      React.createElement('div', { style:{ display:'flex', borderTop:'1px solid #f1f5f9' } },
+        React.createElement('button', { onClick: hideWeek, style:{ flex:1, background:'transparent', border:'none', borderRight:'1px solid #f1f5f9', padding:'12px', fontSize:'13px', fontWeight:'700', color:'#6b7280', cursor:'pointer', fontFamily:'inherit' } }, '일주일간 보지 않기'),
+        React.createElement('button', { onClick: dismissOnce, style:{ flex:1, background:'transparent', border:'none', padding:'12px', fontSize:'13px', fontWeight:'800', color:'#1A1A1A', cursor:'pointer', fontFamily:'inherit' } }, '닫기')
+      )
+    )
+  );
+}
+
+function PopupDetailPage({ popup, onBack, setPage }) {
+  const isMobile = useIsMobile();
+  const PAGE_BG = isMobile ? '#f8fafc' : '#f2f0eb';
+  const ACCENT = isMobile ? '#E60012' : '#006241';
+  function publicUrl(path) {
+    if (!path) return '';
+    try {
+      var d = window.supabase.storage.from('attachments').getPublicUrl(path);
+      return (d && d.data && d.data.publicUrl) || '';
+    } catch (e) { return ''; }
+  }
+  var imgUrl = publicUrl(popup.image_path);
+  function handleCta() {
+    if (popup.link_url && /^https?:\/\//i.test(popup.link_url)) { window.open(popup.link_url, '_blank', 'noopener'); return; }
+    if (popup.link_url && setPage) { setPage(popup.link_url); }
+  }
+  return React.createElement('div', { style:{ background: PAGE_BG, minHeight:'80vh' } },
+    React.createElement('div', { style:{ background:'#fff', borderBottom:'1px solid rgba(0,0,0,0.08)', padding:'12px 20px' } },
+      React.createElement('button', { onClick:onBack, style:{ background:'none', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600', color: ACCENT, fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } }, '← 메인으로')
+    ),
+    React.createElement('div', { style:{ maxWidth:'720px', margin:'0 auto', padding: isMobile ? '24px 16px' : '40px' } },
+      React.createElement('h1', { style:{ fontSize: isMobile ? '22px' : '28px', fontWeight:'800', color:'#1A1A1A', lineHeight:'1.35', marginBottom:'18px', fontFamily:'Manrope, sans-serif' } }, popup.title),
+      imgUrl && React.createElement('div', { style:{ marginBottom:'20px', borderRadius:'12px', overflow:'hidden', background:'#000' } },
+        React.createElement('img', { src: imgUrl, alt: popup.title, style:{ width:'100%', height:'auto', display:'block' } })
+      ),
+      popup.body && React.createElement('div', { style:{ fontSize:'15px', color:'#1A1A1A', lineHeight:'1.85', whiteSpace:'pre-wrap', fontFamily:'Manrope, sans-serif' } }, popup.body),
+      popup.link_url && React.createElement('div', { style:{ marginTop:'28px' } },
+        React.createElement('button', { onClick: handleCta, style:{ background: ACCENT, color:'#fff', border:'none', borderRadius:'10px', padding:'14px 28px', fontSize:'15px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, /^https?:\/\//i.test(popup.link_url) ? '바로가기' : '자세히 보기')
+      )
+    )
+  );
+}
+
 function HomePage({ banners, slides, categories, notices, announcements, setPage, isAdmin, content, onAdminAction, user, onLoginClick, featureLoaded }) {
   const [selectedNotice, setSelectedNotice] = React.useState(null);
   const [selectedBanner, setSelectedBanner] = React.useState(null);
+  const [selectedPopup, setSelectedPopup] = React.useState(null);
 
   if (selectedNotice) {
     return React.createElement(NoticeDetailPage, { notice:selectedNotice, setPage, onBack:()=>setSelectedNotice(null) });
@@ -767,12 +885,16 @@ function HomePage({ banners, slides, categories, notices, announcements, setPage
   if (selectedBanner) {
     return React.createElement(BannerDetailPage, { banner:selectedBanner, setPage, onBack:()=>setSelectedBanner(null) });
   }
+  if (selectedPopup) {
+    return React.createElement(PopupDetailPage, { popup:selectedPopup, setPage, onBack:()=>setSelectedPopup(null) });
+  }
 
   return React.createElement('div', null,
     React.createElement(HeroBanner, { banners, isAdmin, onEdit:()=>onAdminAction('banner'), onSelectBanner:setSelectedBanner }),
     React.createElement(SplitSection, { notices, announcements, isAdmin, onEditNotices:()=>onAdminAction('notice'), onSelectNotice:setSelectedNotice, slides }),
     React.createElement(StatsBand),
-    React.createElement(FeatureBand, { setPage, isAdmin, content, onEdit:()=>onAdminAction('feature'), featureLoaded })
+    React.createElement(FeatureBand, { setPage, isAdmin, content, onEdit:()=>onAdminAction('feature'), featureLoaded }),
+    React.createElement(PopupOverlay, { onSelect:setSelectedPopup })
   );
 }
 
