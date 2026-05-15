@@ -451,6 +451,16 @@
         setLoading(false);
       })();
     }, []);
+    // 자동 발음 — 1단계(단어 보고 뜻 고르기)에서 영어 단어 자동 재생
+    React.useEffect(function(){
+      if (loading || !studyData) return;
+      if (stage !== '1' || phase !== 'answering') return;
+      var s1 = studyData.stage1 || [];
+      var cur = s1[idx];
+      if (!cur || !cur.word) return;
+      var t = setTimeout(function(){ speak(cur.word); }, 250);
+      return function(){ clearTimeout(t); };
+    }, [stage, idx, phase, loading, studyData]);
     var STAGE_LABEL = { '1': '1단계 — 단어', '2': '2단계 — 예문 해석', '25': '2.5단계 — 빈칸 채우기', '3': '3단계 — 영작 빈칸', 'grammar': '어법 — 문법 분석' };
     function getStageItems(s) {
       if (!studyData) return [];
