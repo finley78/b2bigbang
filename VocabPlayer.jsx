@@ -1169,14 +1169,19 @@
       return function(){ clearInterval(timer); };
     }, [idx, started, phase]);
 
-    // 자동 발음 — 듣기 모드는 항상, 객관식은 영어 단어가 보일 때만 (답이 영어인 모드는 힌트 방지)
+    // 자동 발음 — 답 누설이 없는 곳에서는 자동 재생, 쓰기 모드는 정답 공개 후에만
     React.useEffect(function(){
       if (!started || !current) return;
-      if (phase !== 'answering') return;
-      var shouldSpeak = (
-        current.mode === 'listening' ||
-        (current.mode === 'multiple_choice' && current.direction === 'word_to_meaning')
-      );
+      var shouldSpeak = false;
+      if (phase === 'answering') {
+        shouldSpeak = (
+          current.mode === 'listening' ||
+          current.mode === 'spelling' ||
+          (current.mode === 'multiple_choice' && current.direction === 'word_to_meaning')
+        );
+      } else if (phase === 'showing') {
+        shouldSpeak = (current.mode === 'writing');
+      }
       if (!shouldSpeak) return;
       var t = setTimeout(function(){ speak(current.word); }, 200);
       return function(){ clearTimeout(t); };
