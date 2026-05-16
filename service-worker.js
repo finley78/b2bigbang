@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v171-student-pwa-parallel';
+const CACHE_VERSION = 'b2-bigbang-20260516v172-student-vocab-redesign';
 const OFFLINE_URLS = [
   './',
   './index.html',
