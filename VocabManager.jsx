@@ -459,9 +459,13 @@
                   React.createElement('button', { onClick:function(){ setBulkAssignOpen(true); }, style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'7px', padding:'9px 16px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 일괄 발행')
                 );
               })(),
-              React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(240px, 1fr))', gap:'12px', alignItems:'start' } },
-              unitsArray.map(function(unit){
-                return React.createElement('div', { key:unit.unit_index, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px' } },
+              (function(){
+                var unitsWithStudy = unitsArray.filter(function(u){ return !!u.study; });
+                var unitsNoStudy   = unitsArray.filter(function(u){ return !u.study && u.words.length > 0; });
+                return React.createElement(React.Fragment, null,
+                  React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(240px, 1fr))', gap:'12px', alignItems:'start' } },
+                    unitsWithStudy.map(function(unit){
+                      return React.createElement('div', { key:unit.unit_index, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px' } },
                   // 유닛 헤더
                   React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:'5px', paddingBottom:'4px', borderBottom:'1px solid #1A1A1A', gap:'6px' } },
                     React.createElement('div', { style:{ minWidth:0, flex:1 } },
@@ -508,7 +512,19 @@
                   unit.study && unit.words.length > 0 && React.createElement('button', { onClick:function(){ setAssignModalUnit(unit.unit_index); }, style:{ marginTop:'6px', width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'6px', padding:'7px', fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 연습/시험 보내기')
                 );
               })
+            ),
+            // 4단계 학습 세트 없는 유닛은 한 박스로 묶어 표시 (단어는 있는 유닛)
+            unitsNoStudy.length > 0 && React.createElement('div', { style:{ marginTop:'14px', background:'#fafbfc', border:'1px dashed #d6dbde', borderRadius:'10px', padding:'12px 14px', fontFamily:'Manrope, sans-serif' } },
+              React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1A1A1A', marginBottom:'4px' } }, '4단계 학습 세트가 없는 유닛 ' + unitsNoStudy.length + '개'),
+              React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'8px', lineHeight:'1.6' } }, 'UNIT ' + unitsNoStudy.map(function(u){ return u.unit_index; }).join(', ')),
+              React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', marginBottom:'10px' } }, '단어는 채워져 있지만 학습 세트가 아직 없어요. 위쪽 \'+ 4단계 학습 세트 업로드\' 또는 \'+ 여러 유닛 한꺼번에\'로 등록하면 시험을 보낼 수 있습니다.'),
+              React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
+                React.createElement('button', { onClick:function(){ setStudyUploadUnit(unitsNoStudy[0].unit_index); }, style:Object.assign({}, STYLES.btnPrimary, { padding:'7px 12px', fontSize:'12px' }) }, '+ UNIT ' + unitsNoStudy[0].unit_index + '부터 업로드'),
+                React.createElement('button', { onClick:function(){ setStudyMultiOpen(true); }, style:Object.assign({}, STYLES.btnGhost, { padding:'7px 12px', fontSize:'12px' }) }, '+ 여러 유닛 한꺼번에')
+              )
             )
+          );
+          })()
           )
       ),
 
