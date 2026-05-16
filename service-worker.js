@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v165-vocab-card-cleanup';
+const CACHE_VERSION = 'b2-bigbang-20260516v166-vocab-card-remove-title';
 const OFFLINE_URLS = [
   './',
   './index.html',

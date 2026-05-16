@@ -605,7 +605,7 @@
                         React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px' } },
                           React.createElement('input', { type:'checkbox', checked: !!selectedAssignmentIds[a.id], onChange:function(){ toggleAssignmentSelected(a.id); }, title:'이 발행 선택', style:{ width:'13px', height:'13px', cursor:'pointer', accentColor:'#c82014', flexShrink:0 } }),
                           React.createElement('span', { style:{ background: modeBg, color: modeColor, fontWeight:'800', padding:'1px 6px', borderRadius:'3px' } }, modeLabel),
-                          React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, a.title || (a.mode === 'test' ? '시험' : '연습')),
+                          React.createElement('span', { style:{ flex:1 } }),
                           React.createElement('button', { onClick:function(){ deleteAssignment(a); }, title:'발행 취소', style:{ background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'4px', padding:'1px 6px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '× 취소')
                         ),
                         React.createElement('div', { style:{ color:'#0f766e', fontWeight:'700', fontSize:'10px', paddingLeft:'20px' } }, '→ ' + assignmentTargetLabel(a))
