@@ -252,6 +252,8 @@
     var [assignModalUnit, setAssignModalUnit] = React.useState(null); // 연습/시험 보내기 모달 열 유닛 번호
     var [bulkAssignOpen, setBulkAssignOpen] = React.useState(false); // 모든 유닛 한 번에 보내기
     var [assignments, setAssignments] = React.useState([]); // [{id, unit_index, mode, stages, ...}] — 그 단어장의 모든 배정
+    var [classes, setClasses] = React.useState([]); // 반 목록 (대상 라벨용)
+    var [assignmentStudentCounts, setAssignmentStudentCounts] = React.useState({}); // { assignment_id: 개별학생수 }
     var isMobile = window.B2Utils.useIsMobile();
 
     React.useEffect(function(){ load(); }, [props.listId]);
@@ -279,9 +281,35 @@
         var sRes = await sb.from('vocab_study_sets').select('*').eq('list_id', props.listId).order('unit_index', { ascending: true });
         setStudySets((sRes && sRes.data) || []);
         var aRes = await sb.from('vocab_assignments').select('*').eq('list_id', props.listId).order('created_at', { ascending: false });
-        setAssignments((aRes && aRes.data) || []);
+        var aData = (aRes && aRes.data) || [];
+        setAssignments(aData);
+        // 대상 라벨용: 반 목록 + 개별 학생 카운트
+        var cRes = await sb.from('classes').select('id, name');
+        setClasses((cRes && cRes.data) || []);
+        if (aData.length > 0) {
+          var asStud = await sb.from('vocab_assignment_students').select('assignment_id').in('assignment_id', aData.map(function(a){ return a.id; }));
+          var counts = {};
+          (((asStud && asStud.data) || [])).forEach(function(r){ counts[r.assignment_id] = (counts[r.assignment_id] || 0) + 1; });
+          setAssignmentStudentCounts(counts);
+        } else {
+          setAssignmentStudentCounts({});
+        }
       } catch (e) { console.error('단어장 상세 로드 실패:', e); }
       setLoading(false);
+    }
+
+    // assignment 대상 라벨 — 반/학교급+학년/개별학생수 조합
+    function assignmentTargetLabel(a) {
+      var parts = [];
+      if (a.target_class_id) {
+        var c = classes.find(function(x){ return x.id === a.target_class_id; });
+        parts.push(c ? c.name : '반');
+      }
+      var lvlGrade = [a.target_school_level, a.target_grade].filter(Boolean).join(' ');
+      if (lvlGrade) parts.push(lvlGrade);
+      var indCount = assignmentStudentCounts[a.id] || 0;
+      if (indCount > 0) parts.push('개별 ' + indCount + '명');
+      return parts.length ? parts.join(' · ') : '대상 미지정';
     }
 
     async function deleteWord(word) {
@@ -482,7 +510,7 @@
                   React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'6px', fontSize:'10px', fontFamily:'Manrope, sans-serif' } },
                     unit.study
                       ? React.createElement(React.Fragment, null,
-                          React.createElement('span', { style:{ background:'#d4e9e2', color:'#006241', fontWeight:'800', padding:'2px 6px', borderRadius:'3px', letterSpacing:'0.02em' } }, '5단계 세트 있음'),
+                          React.createElement('span', { style:{ background:'#d4e9e2', color:'#006241', fontWeight:'800', padding:'2px 6px', borderRadius:'3px', letterSpacing:'0.02em' } }, '4단계 세트 있음'),
                           React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, unit.study.title || ''),
                           React.createElement('button', { onClick:function(){ setStudyViewUnit(unit.unit_index); }, style:{ background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'2px 7px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '보기'),
                           React.createElement('button', { onClick:function(){ setStudyUploadUnit(unit.unit_index); }, style:{ background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'2px 7px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '교체')
@@ -500,11 +528,14 @@
                       var modeBg = a.mode === 'test' ? '#fef3c7' : '#dbeafe';
                       var modeColor = a.mode === 'test' ? '#92400e' : '#1d4ed8';
                       var modeLabel = a.mode === 'test' ? '시험' : '연습';
-                      return React.createElement('div', { key:a.id, style:{ background:'#fafbfc', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'6px 8px', fontSize:'10px', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } },
-                        React.createElement('span', { style:{ background: modeBg, color: modeColor, fontWeight:'800', padding:'1px 6px', borderRadius:'3px' } }, modeLabel),
-                        React.createElement('span', { style:{ color:'rgba(0,0,0,0.7)' } }, '단계: ' + stagesLabel),
-                        React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, a.title || (a.mode === 'test' ? '시험' : '연습')),
-                        React.createElement('button', { onClick:function(){ deleteAssignment(a); }, title:'발행 취소', style:{ background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'4px', padding:'1px 6px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '× 취소')
+                      return React.createElement('div', { key:a.id, style:{ background:'#fafbfc', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'6px 8px', fontSize:'10px', fontFamily:'Manrope, sans-serif', display:'flex', flexDirection:'column', gap:'2px' } },
+                        React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px' } },
+                          React.createElement('span', { style:{ background: modeBg, color: modeColor, fontWeight:'800', padding:'1px 6px', borderRadius:'3px' } }, modeLabel),
+                          React.createElement('span', { style:{ color:'rgba(0,0,0,0.7)' } }, '단계: ' + stagesLabel),
+                          React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, a.title || (a.mode === 'test' ? '시험' : '연습')),
+                          React.createElement('button', { onClick:function(){ deleteAssignment(a); }, title:'발행 취소', style:{ background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'4px', padding:'1px 6px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '× 취소')
+                        ),
+                        React.createElement('div', { style:{ color:'#0f766e', fontWeight:'700', fontSize:'10px', paddingLeft:'2px' } }, '→ ' + assignmentTargetLabel(a))
                       );
                     })
                   ),
