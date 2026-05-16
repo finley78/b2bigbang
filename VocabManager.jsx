@@ -254,6 +254,8 @@
     var [assignments, setAssignments] = React.useState([]); // [{id, unit_index, mode, stages, ...}] — 그 단어장의 모든 배정
     var [classes, setClasses] = React.useState([]); // 반 목록 (대상 라벨용)
     var [assignmentStudentCounts, setAssignmentStudentCounts] = React.useState({}); // { assignment_id: 개별학생수 }
+    var [selectedAssignmentIds, setSelectedAssignmentIds] = React.useState({}); // 선택한 발행 id들 (일괄 취소용)
+    var [selectedUnitIndexes, setSelectedUnitIndexes] = React.useState({}); // 선택한 유닛 번호들 (일괄 발행용)
     var isMobile = window.B2Utils.useIsMobile();
 
     React.useEffect(function(){ load(); }, [props.listId]);
@@ -331,6 +333,60 @@
       } catch (e) {
         alert('삭제 실패: ' + (e.message || e));
       }
+    }
+
+    // 일괄 발행 묶음 취소 — 같은 시점·같은 설정으로 발행된 N개 한 번에 삭제
+    async function deleteAssignmentBatch(ids, label) {
+      if (!ids || !ids.length) return;
+      if (!confirm((label || ('발행 묶음 ' + ids.length + '개')) + '을 한 번에 취소(삭제)할까요?\n학생 응시 기록과 개별 학생 지정도 같이 사라집니다.')) return;
+      try {
+        await sb.from('vocab_assignment_attempts').delete().in('assignment_id', ids);
+        await sb.from('vocab_assignment_students').delete().in('assignment_id', ids);
+        var d = await sb.from('vocab_assignments').delete().in('id', ids);
+        if (d.error) throw d.error;
+        load();
+      } catch (e) {
+        alert('일괄 취소 실패: ' + (e.message || e));
+      }
+    }
+
+    // 선택한 발행 id들을 한 번에 취소
+    async function deleteSelectedAssignments() {
+      var ids = Object.keys(selectedAssignmentIds).filter(function(id){ return selectedAssignmentIds[id]; });
+      if (!ids.length) { alert('취소할 발행을 먼저 체크하세요.'); return; }
+      if (!confirm('선택한 ' + ids.length + '개 발행을 취소(삭제)할까요?\n학생 응시 기록과 개별 학생 지정도 같이 사라집니다.')) return;
+      try {
+        await sb.from('vocab_assignment_attempts').delete().in('assignment_id', ids);
+        await sb.from('vocab_assignment_students').delete().in('assignment_id', ids);
+        var d = await sb.from('vocab_assignments').delete().in('id', ids);
+        if (d.error) throw d.error;
+        setSelectedAssignmentIds({});
+        load();
+      } catch (e) {
+        alert('일괄 취소 실패: ' + (e.message || e));
+      }
+    }
+    // 이 단어장의 모든 발행을 한 번에 취소
+    async function deleteAllAssignments() {
+      if (!assignments.length) { alert('취소할 발행이 없습니다.'); return; }
+      if (!confirm('이 단어장의 보낸 연습/시험 ' + assignments.length + '개를 모두 취소(삭제)할까요?\n학생 응시 기록과 개별 학생 지정도 같이 사라집니다. 되돌릴 수 없습니다.')) return;
+      var ids = assignments.map(function(a){ return a.id; });
+      try {
+        await sb.from('vocab_assignment_attempts').delete().in('assignment_id', ids);
+        await sb.from('vocab_assignment_students').delete().in('assignment_id', ids);
+        var d = await sb.from('vocab_assignments').delete().in('id', ids);
+        if (d.error) throw d.error;
+        setSelectedAssignmentIds({});
+        load();
+      } catch (e) {
+        alert('전체 취소 실패: ' + (e.message || e));
+      }
+    }
+    function toggleAssignmentSelected(id) {
+      setSelectedAssignmentIds(function(p){ var o = Object.assign({}, p); o[id] = !o[id]; if (!o[id]) delete o[id]; return o; });
+    }
+    function toggleUnitSelected(idx) {
+      setSelectedUnitIndexes(function(p){ var o = Object.assign({}, p); o[idx] = !o[idx]; if (!o[idx]) delete o[idx]; return o; });
     }
 
     // 시험이 없는 모든 유닛에 기본 시험을 한 번에 생성 (준비중 상태)
@@ -475,16 +531,38 @@
         !words.length
           ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '먼저 단어를 추가해야 시험을 만들 수 있어요.')
           : React.createElement(React.Fragment, null,
-              // 일괄 발행 버튼 — 5단계 세트가 있는 유닛이 2개 이상일 때만
+              // 발행/취소 통합 컨트롤 박스
               (function(){
                 var eligible = unitsArray.filter(function(u){ return u.words.length > 0 && u.study; });
-                if (eligible.length < 2) return null;
-                return React.createElement('div', { style:{ marginBottom:'12px', padding:'12px 14px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', fontFamily:'Manrope, sans-serif' } },
-                  React.createElement('div', { style:{ flex:1, minWidth:'200px', fontSize:'13px', color:'rgba(0,0,0,0.7)' } },
-                    React.createElement('strong', { style:{ color:'#1A1A1A' } }, '한 번에 모든 유닛 보내기'),
-                    React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', marginTop:'2px' } }, '5단계 세트가 있는 유닛 ' + eligible.length + '개에 같은 설정으로 연습/시험을 일괄 발행해요. (마감일은 간격대로 자동)')
+                if (eligible.length < 2 && assignments.length === 0) return null;
+                var selUnitCount = Object.keys(selectedUnitIndexes).filter(function(k){ return selectedUnitIndexes[k]; }).length;
+                var selAssignCount = Object.keys(selectedAssignmentIds).filter(function(k){ return selectedAssignmentIds[k]; }).length;
+                var btnPri = { background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'7px', padding:'8px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
+                var btnDanger = { background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'7px', padding:'8px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
+                var btnDisabled = { background:'#f3f4f6', color:'#9ca3af', cursor:'not-allowed' };
+                return React.createElement('div', { style:{ marginBottom:'12px', padding:'12px 14px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', fontFamily:'Manrope, sans-serif' } },
+                  // 발행 행
+                  eligible.length >= 1 && React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom: assignments.length > 0 ? '8px' : 0 } },
+                    React.createElement('div', { style:{ flex:1, minWidth:'180px', fontSize:'12px', color:'rgba(0,0,0,0.7)' } },
+                      React.createElement('strong', { style:{ color:'#1A1A1A' } }, '발행'),
+                      React.createElement('span', { style:{ marginLeft:'8px', fontSize:'11px', color:'rgba(0,0,0,0.5)' } }, '선택한 유닛 ' + selUnitCount + '개 / 전체 가능 ' + eligible.length + '개')
+                    ),
+                    React.createElement('button', { onClick:function(){
+                      var picked = eligible.filter(function(u){ return selectedUnitIndexes[u.unit_index]; });
+                      if (picked.length === 0) { alert('유닛을 1개 이상 체크해주세요.'); return; }
+                      setBulkAssignOpen({ scope: 'selected', units: picked });
+                    }, disabled: selUnitCount === 0, style: selUnitCount === 0 ? Object.assign({}, btnPri, btnDisabled) : btnPri }, '+ 선택 발행 (' + selUnitCount + ')'),
+                    React.createElement('button', { onClick:function(){ setBulkAssignOpen({ scope: 'all', units: eligible }); }, disabled: eligible.length < 2, style: eligible.length < 2 ? Object.assign({}, btnPri, btnDisabled) : btnPri }, '+ 전체 발행 (' + eligible.length + ')')
                   ),
-                  React.createElement('button', { onClick:function(){ setBulkAssignOpen(true); }, style:{ background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'7px', padding:'9px 16px', fontSize:'13px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 일괄 발행')
+                  // 취소 행
+                  assignments.length > 0 && React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+                    React.createElement('div', { style:{ flex:1, minWidth:'180px', fontSize:'12px', color:'rgba(0,0,0,0.7)' } },
+                      React.createElement('strong', { style:{ color:'#1A1A1A' } }, '취소'),
+                      React.createElement('span', { style:{ marginLeft:'8px', fontSize:'11px', color:'rgba(0,0,0,0.5)' } }, '선택한 발행 ' + selAssignCount + '개 / 보낸 발행 ' + assignments.length + '개')
+                    ),
+                    React.createElement('button', { onClick:deleteSelectedAssignments, disabled: selAssignCount === 0, style: selAssignCount === 0 ? Object.assign({}, btnDanger, btnDisabled) : btnDanger }, '× 선택 취소 (' + selAssignCount + ')'),
+                    React.createElement('button', { onClick:deleteAllAssignments, style:btnDanger }, '× 전체 취소 (' + assignments.length + ')')
+                  )
                 );
               })(),
               (function(){
@@ -495,8 +573,9 @@
                     unitsWithStudy.map(function(unit){
                       return React.createElement('div', { key:unit.unit_index, style:{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px' } },
                   // 유닛 헤더
-                  React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:'5px', paddingBottom:'4px', borderBottom:'1px solid #1A1A1A', gap:'6px' } },
-                    React.createElement('div', { style:{ minWidth:0, flex:1 } },
+                  React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'5px', paddingBottom:'4px', borderBottom:'1px solid #1A1A1A', gap:'6px' } },
+                    React.createElement('div', { style:{ minWidth:0, flex:1, display:'flex', alignItems:'center', gap:'6px' } },
+                      unit.study && unit.words.length > 0 && React.createElement('input', { type:'checkbox', checked: !!selectedUnitIndexes[unit.unit_index], onChange:function(){ toggleUnitSelected(unit.unit_index); }, title:'이 유닛 선택', style:{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#E60012', flexShrink:0 } }),
                       React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', color: unit.words.length===0 ? 'rgba(0,0,0,0.4)' : '#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } }, 'UNIT ' + unit.unit_index),
                       React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginLeft:'8px' } },
                         unit.words.length > 0
@@ -528,14 +607,15 @@
                       var modeBg = a.mode === 'test' ? '#fef3c7' : '#dbeafe';
                       var modeColor = a.mode === 'test' ? '#92400e' : '#1d4ed8';
                       var modeLabel = a.mode === 'test' ? '시험' : '연습';
-                      return React.createElement('div', { key:a.id, style:{ background:'#fafbfc', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'6px 8px', fontSize:'10px', fontFamily:'Manrope, sans-serif', display:'flex', flexDirection:'column', gap:'2px' } },
+                      return React.createElement('div', { key:a.id, style:{ background: selectedAssignmentIds[a.id] ? '#fef2f2' : '#fafbfc', border:'1px solid ' + (selectedAssignmentIds[a.id] ? '#f3c5c0' : '#e5e7eb'), borderRadius:'6px', padding:'6px 8px', fontSize:'10px', fontFamily:'Manrope, sans-serif', display:'flex', flexDirection:'column', gap:'2px' } },
                         React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px' } },
+                          React.createElement('input', { type:'checkbox', checked: !!selectedAssignmentIds[a.id], onChange:function(){ toggleAssignmentSelected(a.id); }, title:'이 발행 선택', style:{ width:'13px', height:'13px', cursor:'pointer', accentColor:'#c82014', flexShrink:0 } }),
                           React.createElement('span', { style:{ background: modeBg, color: modeColor, fontWeight:'800', padding:'1px 6px', borderRadius:'3px' } }, modeLabel),
                           React.createElement('span', { style:{ color:'rgba(0,0,0,0.7)' } }, '단계: ' + stagesLabel),
                           React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, a.title || (a.mode === 'test' ? '시험' : '연습')),
                           React.createElement('button', { onClick:function(){ deleteAssignment(a); }, title:'발행 취소', style:{ background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'4px', padding:'1px 6px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '× 취소')
                         ),
-                        React.createElement('div', { style:{ color:'#0f766e', fontWeight:'700', fontSize:'10px', paddingLeft:'2px' } }, '→ ' + assignmentTargetLabel(a))
+                        React.createElement('div', { style:{ color:'#0f766e', fontWeight:'700', fontSize:'10px', paddingLeft:'20px' } }, '→ ' + assignmentTargetLabel(a))
                       );
                     })
                   ),
@@ -630,18 +710,19 @@
         listId: props.listId,
         list: list,
         bulkMode: true,
-        // 5단계 세트가 있고 단어가 있는 유닛만 (정렬은 모달 내부에서 처리)
-        bulkUnits: unitsArray.filter(function(u){ return u.words.length > 0 && u.study; }),
+        // 선택 발행이면 사용자가 체크한 유닛만, 전체 발행이면 5단계 세트 있는 모든 유닛
+        bulkUnits: (bulkAssignOpen && bulkAssignOpen.units) ? bulkAssignOpen.units : unitsArray.filter(function(u){ return u.words.length > 0 && u.study; }),
         // 첫 유닛의 studyData를 디폴트 stage 개수 표시용으로 전달
         studyData: (function(){
-          var first = unitsArray.find(function(u){ return u.words.length > 0 && u.study; });
+          var list2 = (bulkAssignOpen && bulkAssignOpen.units) ? bulkAssignOpen.units : unitsArray;
+          var first = list2.find ? list2.find(function(u){ return u.words.length > 0 && u.study; }) : null;
           return first ? first.study : null;
         })(),
         // bulk에서는 unitIndex 안 씀 — 빈 값 방지용
         unitIndex: 0,
         user: props.user,
         onClose: function(){ setBulkAssignOpen(false); },
-        onSaved: function(){ setBulkAssignOpen(false); load(); },
+        onSaved: function(){ setBulkAssignOpen(false); setSelectedUnitIndexes({}); load(); },
       })
     );
   }
