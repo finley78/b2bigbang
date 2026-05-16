@@ -54,13 +54,15 @@
     React.useEffect(function(){
       (async function(){
         try {
-          // 내가 받은 연습/시험: target_class_id 에 속한 반 + target_school_level/grade 매칭 + 개별 지정
-          var clsRes = await sb.from('class_students').select('class_id').eq('student_id', user.id);
-          var myClassIds = ((clsRes && clsRes.data) || []).map(function(r){ return r.class_id; });
-          var indRes = await sb.from('vocab_assignment_students').select('assignment_id').eq('student_id', user.id);
-          var myIndIds = ((indRes && indRes.data) || []).map(function(r){ return r.assignment_id; });
-          var aRes = await sb.from('vocab_assignments').select('*, vocab_lists(name)').eq('status', 'open').order('created_at', { ascending: false });
-          var all = (aRes && aRes.data) || [];
+          // 내가 받은 연습/시험 — 3쿼리 모두 user.id로만 의존, 서로 독립 → 병렬
+          var trio = await Promise.all([
+            sb.from('class_students').select('class_id').eq('student_id', user.id),
+            sb.from('vocab_assignment_students').select('assignment_id').eq('student_id', user.id),
+            sb.from('vocab_assignments').select('*, vocab_lists(name)').eq('status', 'open').order('created_at', { ascending: false })
+          ]);
+          var myClassIds = ((trio[0] && trio[0].data) || []).map(function(r){ return r.class_id; });
+          var myIndIds = ((trio[1] && trio[1].data) || []).map(function(r){ return r.assignment_id; });
+          var all = (trio[2] && trio[2].data) || [];
           var myGrade = String(user.grade || '');
           var myLevel = (myGrade.indexOf('초') === 0) ? '초' : (myGrade.indexOf('중') === 0) ? '중' : (myGrade.indexOf('고') === 0) ? '고' : '';
           var myGradeNum = myGrade.replace(/[^0-9]/g, '');
@@ -157,13 +159,16 @@
     React.useEffect(function(){
       (async function(){
         try {
-          var lRes = await sb.from('vocab_lists').select('*').eq('id', a.list_id).maybeSingle();
-          var lst = lRes && lRes.data;
+          // list, words 둘 다 list_id에만 의존 → 병렬. unit_size 결합은 클라이언트에서.
+          var pair = await Promise.all([
+            sb.from('vocab_lists').select('*').eq('id', a.list_id).maybeSingle(),
+            sb.from('vocab_words').select('*').eq('list_id', a.list_id).order('sort_order', { ascending: true }).order('created_at', { ascending: true })
+          ]);
+          var lst = pair[0] && pair[0].data;
           setList(lst);
           if (lst) {
             var us = lst.unit_size || 20;
-            var wRes = await sb.from('vocab_words').select('*').eq('list_id', a.list_id).order('sort_order', { ascending: true }).order('created_at', { ascending: true });
-            var allWords = (wRes && wRes.data) || [];
+            var allWords = (pair[1] && pair[1].data) || [];
             var startIdx = (a.unit_index - 1) * us;
             setWords(allWords.slice(startIdx, startIdx + us));
           }
@@ -214,9 +219,10 @@
         var rows = (res && res.data) || [];
         if (rows.length) {
           var ids = rows.map(function(r){ return r.id; });
-          var wRes = await sb.from('vocab_words').select('list_id').in('list_id', ids);
+          // RPC group by 한 쿼리 — 단어장 단어 합계가 1000개를 넘어도 정확
+          var cRes = await sb.rpc('vocab_word_counts', { list_ids: ids });
           var counts = {};
-          ((wRes && wRes.data) || []).forEach(function(w){ counts[w.list_id] = (counts[w.list_id] || 0) + 1; });
+          (((cRes && cRes.data) || [])).forEach(function(x){ counts[x.list_id] = parseInt(x.cnt, 10) || 0; });
           rows.forEach(function(r){ r._wordCount = counts[r.id] || 0; r._unitCount = Math.ceil((r._wordCount || 0) / (r.unit_size || 20)); });
         }
         setLists(rows);

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v170-vocab-counts-rpc';
+const CACHE_VERSION = 'b2-bigbang-20260516v171-student-pwa-parallel';
 const OFFLINE_URLS = [
   './',
   './index.html',

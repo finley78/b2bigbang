@@ -1415,21 +1415,28 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     (async function(){
       var sb = window.supabase;
       try {
-        // 반 단위 테스트 (반 시험 + 선생님 발행 주간/월말/숙제/레벨 — 반에 직접 배포된 것)
-        var classExams = [];
-        if (user.classIds && user.classIds.length > 0) {
-          var { data: ce } = await sb.from('exams').select('*').in('kind', ['class','weekly','monthly','homework','level']).in('class_id', user.classIds).eq('status', 'open').order('created_at', { ascending: false });
-          classExams = ce || [];
-        }
-        // 학원 전체 발행 (관리자가 class_id 없이 발행한 주간/월말/숙제 모두 응시 가능)
-        var { data: globalExams } = await sb.from('exams').select('*').in('kind', ['weekly','monthly','homework']).is('class_id', null).eq('status', 'open').order('created_at', { ascending: false });
-        var combinedClassExams = classExams.concat(globalExams || []);
+        // 라운드 1: 서로 의존 없는 4개 쿼리 병렬
+        var hasClass = user.classIds && user.classIds.length > 0;
+        var round1 = await Promise.all([
+          hasClass
+            ? sb.from('exams').select('*').in('kind', ['class','weekly','monthly','homework','level']).in('class_id', user.classIds).eq('status', 'open').order('created_at', { ascending: false })
+            : Promise.resolve({ data: [] }),
+          sb.from('exams').select('*').in('kind', ['weekly','monthly','homework']).is('class_id', null).eq('status', 'open').order('created_at', { ascending: false }),
+          sb.from('exams').select('*').eq('kind','level').is('class_id', null).eq('status', 'open').order('created_at', { ascending: false }),
+          sb.from('level_test_requests').select('*').eq('student_id', user.id)
+        ]);
+        var classExams = (round1[0] && round1[0].data) || [];
+        var globalExams = (round1[1] && round1[1].data) || [];
+        var lt = (round1[2] && round1[2].data) || [];
+        var reqs = (round1[3] && round1[3].data) || [];
+        var combinedClassExams = classExams.concat(globalExams);
         setAvailableExams(combinedClassExams);
-        // 레벨테스트 신청용 — 관리자가 반 없이 발행한 것만 (반에 배포된 레벨테스트는 위 classExams로 바로 응시)
-        var { data: lt } = await sb.from('exams').select('*').eq('kind','level').is('class_id', null).eq('status', 'open').order('created_at', { ascending: false });
-        setLevelTests(lt || []);
-        // 본인 신청·답안
-        var allIds = combinedClassExams.map(function(e){ return e.id; }).concat((lt || []).map(function(e){ return e.id; }));
+        setLevelTests(lt);
+        var rmap = {};
+        reqs.forEach(function(r){ rmap[r.exam_id] = r; });
+        setMyLevelRequests(rmap);
+        // 라운드 2: exam_submissions (allIds 의존)
+        var allIds = combinedClassExams.map(function(e){ return e.id; }).concat(lt.map(function(e){ return e.id; }));
         if (allIds.length > 0) {
           var { data: subs } = await sb.from('exam_submissions').select('*').eq('student_id', user.id).in('exam_id', allIds);
           var map = {};
@@ -1438,11 +1445,6 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
         } else {
           setMySubmissions({});
         }
-        // 레벨테스트 신청 내역
-        var { data: reqs } = await sb.from('level_test_requests').select('*').eq('student_id', user.id);
-        var rmap = {};
-        (reqs || []).forEach(function(r){ rmap[r.exam_id] = r; });
-        setMyLevelRequests(rmap);
 
         // 레벨테스트 페이지에서 넘어온 자동 응시 (sessionStorage)
         try {
