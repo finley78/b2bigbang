@@ -325,6 +325,41 @@
     try { if (examId) await window.supabase.from('test_scores').delete().eq('exam_id', examId); } catch (e) {}
   }
 
+  // 단어시험 응시(vocab_assignment_attempts) → test_scores 동기화 (학생 1명당 최고점 1행)
+  async function syncVocabAssignmentScore(assignmentId, studentId) {
+    if (!assignmentId || !studentId) return;
+    try {
+      var sb = window.supabase;
+      var aRes = await sb.from('vocab_assignments').select('id, list_id, unit_index, title, mode, vocab_lists(name, subject)').eq('id', assignmentId).maybeSingle();
+      var a = aRes && aRes.data;
+      if (!a || a.mode !== 'test') return;
+      var atRes = await sb.from('vocab_assignment_attempts').select('percentage, submitted_at')
+        .eq('assignment_id', assignmentId).eq('student_id', studentId)
+        .order('percentage', { ascending: false }).order('submitted_at', { ascending: false }).limit(1);
+      var best = atRes && atRes.data && atRes.data[0];
+      if (!best || best.percentage == null) return;
+      var listName = (a.vocab_lists && a.vocab_lists.name) || '단어장';
+      var testName = listName + ' · ' + (a.title || ('UNIT ' + a.unit_index + ' 시험'));
+      var subject = (a.vocab_lists && a.vocab_lists.subject) || '영어';
+      var testDate = (best.submitted_at || new Date().toISOString()).slice(0, 10);
+      await sb.from('test_scores').upsert({
+        vocab_assignment_id: assignmentId,
+        student_id: studentId,
+        test_type: '단어시험',
+        test_name: testName,
+        test_date: testDate,
+        subject: subject,
+        score: best.percentage,
+        total: 100,
+      }, { onConflict: 'vocab_assignment_id,student_id' });
+    } catch (e) { console.error('단어시험 성적 동기화 실패:', e); }
+  }
+
+  // 단어시험 발행 삭제 시 자동 생성된 성적도 정리
+  async function removeVocabAssignmentScores(assignmentId) {
+    try { if (assignmentId) await window.supabase.from('test_scores').delete().eq('vocab_assignment_id', assignmentId); } catch (e) {}
+  }
+
   // ── 학생 약점 분석 리포트 HTML (인쇄/PDF용) ─────────────────────────────
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function buildStudentReportHtml(a, studentName, examTitle, opts) {
@@ -605,5 +640,5 @@
     return s;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle, CLASS_TIMES, BUS_CAPACITY, todayKstDay, todayKstDateStr, normalizeTimeStr, academicCategoryLabel, academicCategoryColor, attachmentPublicUrl, formatBytes, materialDraftInit, materialFolderKey, materialUnitNum, groupMaterialsByName };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, syncVocabAssignmentScore, removeVocabAssignmentScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle, CLASS_TIMES, BUS_CAPACITY, todayKstDay, todayKstDateStr, normalizeTimeStr, academicCategoryLabel, academicCategoryColor, attachmentPublicUrl, formatBytes, materialDraftInit, materialFolderKey, materialUnitNum, groupMaterialsByName };
 })();

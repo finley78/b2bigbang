@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v175-todo-by-unattempted';
+const CACHE_VERSION = 'b2-bigbang-20260516v176-vocab-score-sync-and-report-rank-migrate';
 const OFFLINE_URLS = [
   './',
   './index.html',

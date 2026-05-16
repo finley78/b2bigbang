@@ -583,6 +583,10 @@
               time_taken_seconds: Math.floor((Date.now() - startedAt) / 1000),
               attempt_number: attemptNumber,
             });
+            // 학부모·관리자 '성적' 화면에 단어시험 점수 반영 (학생 최고점 1행)
+            if (window.B2Utils && window.B2Utils.syncVocabAssignmentScore) {
+              try { await window.B2Utils.syncVocabAssignmentScore(assignment.id, props.user.id); } catch (e) {}
+            }
           } catch (e) { console.error('응시 결과 저장 실패:', e); }
         })();
       }
@@ -1494,9 +1498,12 @@
       if (!user.id) return;
       (async function(){
         try {
-          var aRes = await sb.from('vocab_test_attempts').select('*, vocab_tests(title, list_id, pass_score, vocab_lists(name))').eq('student_id', user.id).order('submitted_at', { ascending: false });
+          var aRes = await sb.from('vocab_assignment_attempts')
+            .select('*, vocab_assignments(id, title, unit_index, list_id, pass_score, vocab_lists(name))')
+            .eq('student_id', user.id)
+            .order('submitted_at', { ascending: false });
           setAttempts((aRes && aRes.data) || []);
-        } catch (e) {}
+        } catch (e) { console.error('내 응시 기록 로드 실패:', e); }
         setLoading(false);
       })();
     }, []);
@@ -1512,17 +1519,17 @@
             ? React.createElement('div', { style: Object.assign({}, S.card, { textAlign: 'center', padding: '40px', color: THEME.textMid }) }, '아직 응시한 시험이 없습니다.')
             : React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
                 attempts.map(function(a){
-                  var t = a.vocab_tests || {};
-                  var listInfo = t.vocab_lists || {};
-                  var pct = a.percentage || (a.total > 0 ? Math.round((a.score / a.total) * 100) : 0);
+                  var asg = a.vocab_assignments || {};
+                  var listInfo = asg.vocab_lists || {};
+                  var pct = Math.round(a.percentage || 0);
                   var color = pct >= 80 ? THEME.success : pct >= 60 ? '#c87000' : THEME.fail;
-                  var cut = parseInt(t.pass_score, 10) || 0;
+                  var cut = parseInt(asg.pass_score, 10) || 0;
                   return React.createElement('div', { key: a.id, onClick: function(){ setSelected(a); }, style: Object.assign({}, S.card, { cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px' }) },
                     React.createElement('div', { style: { fontSize: '24px', fontWeight: '800', color: color, minWidth: '60px', textAlign: 'center' } }, pct + '점'),
                     React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                      React.createElement('div', { style: { fontSize: '14px', fontWeight: '800', color: THEME.dark, fontFamily: THEME.font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, t.title || '시험'),
+                      React.createElement('div', { style: { fontSize: '14px', fontWeight: '800', color: THEME.dark, fontFamily: THEME.font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, asg.title || ('UNIT ' + asg.unit_index + ' 시험')),
                       React.createElement('div', { style: { fontSize: '12px', color: THEME.textMid, marginTop: '2px', fontFamily: THEME.font } },
-                        [listInfo.name, 'UNIT ' + a.unit_index, a.score + '/' + a.total, '응시 ' + a.attempt_number + '회차', cut > 0 ? '커트라인 ' + cut + '점' : null].filter(Boolean).join(' · ')
+                        [listInfo.name, 'UNIT ' + asg.unit_index, (a.total_correct || 0) + '/' + (a.total_questions || 0), '응시 ' + (a.attempt_number || 1) + '회차', cut > 0 ? '커트라인 ' + cut + '점' : null].filter(Boolean).join(' · ')
                       ),
                       React.createElement('div', { style: { fontSize: '11px', color: THEME.textLight, marginTop: '2px' } }, String(a.submitted_at || '').slice(0,16).replace('T',' '))
                     ),
@@ -1535,35 +1542,41 @@
     );
   }
 
+  // 응시 결과 상세 — 단계별 점수 표시 (4단계 학습 세트 기준)
   function AttemptDetail(props) {
     var a = props.attempt;
-    var t = a.vocab_tests || {};
-    var pct = a.percentage || (a.total > 0 ? Math.round((a.score / a.total) * 100) : 0);
+    var asg = a.vocab_assignments || {};
+    var pct = Math.round(a.percentage || 0);
     var color = pct >= 80 ? THEME.success : pct >= 60 ? '#c87000' : THEME.fail;
-    var cut = parseInt(t.pass_score, 10) || 0;
-    var qs = a.questions || [];
-    var ans = a.answers || {};
+    var cut = parseInt(asg.pass_score, 10) || 0;
+    var stageScores = a.stage_scores || {};
+    var STAGE_LABEL = { '1': '1단계 — 단어', '2': '2단계 — 예문 해석', '3': '3단계 — 영작', 'grammar': '어법' };
+    var stageKeys = Object.keys(stageScores).filter(function(k){ return STAGE_LABEL[k]; }).sort(function(a, b){
+      var order = { '1': 1, '2': 2, '3': 3, 'grammar': 4 };
+      return (order[a] || 99) - (order[b] || 99);
+    });
     return React.createElement('div', { style: S.page },
-      React.createElement(StudentHeader, { title: t.title || '시험 결과', subtitle: '응시 ' + a.attempt_number + '회차', onBack: props.onBack }),
+      React.createElement(StudentHeader, { title: asg.title || ('UNIT ' + asg.unit_index + ' 시험'), subtitle: '응시 ' + (a.attempt_number || 1) + '회차', onBack: props.onBack }),
       React.createElement('div', { style: { padding: '16px', maxWidth: '720px', margin: '0 auto' } },
         React.createElement('div', { style: Object.assign({}, S.card, { padding: '24px', textAlign: 'center', marginBottom: '14px' }, cut > 0 ? { border: '2px solid ' + (pct >= cut ? THEME.success : THEME.fail) } : null) },
           React.createElement('div', { style: { fontSize: '46px', fontWeight: '800', color: color } }, pct + '점'),
-          React.createElement('div', { style: { fontSize: '13px', color: THEME.textMid, marginTop: '4px' } }, a.score + ' / ' + a.total + ' 정답 · ' + (a.time_taken_seconds || 0) + '초 소요'),
+          React.createElement('div', { style: { fontSize: '13px', color: THEME.textMid, marginTop: '4px' } }, (a.total_correct || 0) + ' / ' + (a.total_questions || 0) + ' 정답 · ' + (a.time_taken_seconds || 0) + '초 소요'),
           cut > 0 && React.createElement('div', { style: { marginTop: '10px' } },
             React.createElement('span', { style: { display: 'inline-block', fontSize: '13px', fontWeight: '800', borderRadius: '999px', padding: '4px 14px', background: pct >= cut ? THEME.successBg : THEME.failBg, color: pct >= cut ? THEME.success : THEME.fail } }, (pct >= cut ? '합격' : '불합격') + ' · 커트라인 ' + cut + '점')
           )
         ),
-        React.createElement('div', { style: { fontSize: '13px', fontWeight: '700', color: THEME.dark, marginBottom: '8px', fontFamily: THEME.font } }, '문제별'),
+        stageKeys.length > 0 && React.createElement('div', { style: { fontSize: '13px', fontWeight: '700', color: THEME.dark, marginBottom: '8px', fontFamily: THEME.font } }, '단계별 점수'),
         React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-          qs.map(function(q, i){
-            var ua = ans[i];
-            var ok = isAnswerCorrect(q, ua);
-            return React.createElement('div', { key: i, style: { padding: '10px 14px', background: ok ? THEME.successBg : THEME.failBg, borderRadius: '8px', borderLeft: '3px solid ' + (ok ? THEME.success : THEME.fail), display: 'flex', alignItems: 'center', gap: '10px' } },
-              React.createElement('span', { style: { fontSize: '13px', fontWeight: '700', color: ok ? THEME.success : THEME.fail, minWidth: '20px' } }, ok ? '✓' : '✗'),
-              React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                React.createElement('div', { style: { fontSize: '14px', fontWeight: '700', color: THEME.dark, fontFamily: THEME.font } }, q.word + ' — ' + q.meaning),
-                !ok && React.createElement('div', { style: { fontSize: '11px', color: THEME.textMid, marginTop: '2px' } }, '내 답: ' + (ua == null ? '(미응답)' : ua) + ' · 정답: ' + q.correct)
-              )
+          stageKeys.map(function(k){
+            var sc = stageScores[k] || {};
+            var sPct = sc.total > 0 ? Math.round(sc.correct * 100 / sc.total) : 0;
+            var sColor = sPct >= 80 ? THEME.success : sPct >= 60 ? '#c87000' : THEME.fail;
+            return React.createElement('div', { key: k, style: { padding: '12px 14px', background: '#fff', borderRadius: '8px', border: '1px solid ' + THEME.border, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' } },
+              React.createElement('div', null,
+                React.createElement('div', { style: { fontSize: '14px', fontWeight: '700', color: THEME.dark, fontFamily: THEME.font } }, STAGE_LABEL[k]),
+                React.createElement('div', { style: { fontSize: '11px', color: THEME.textMid, marginTop: '2px' } }, (sc.correct || 0) + ' / ' + (sc.total || 0) + ' 정답')
+              ),
+              React.createElement('div', { style: { fontSize: '20px', fontWeight: '800', color: sColor } }, sPct + '점')
             );
           })
         )
@@ -1585,18 +1598,21 @@
       if (!user.id) return;
       (async function(){
         try {
-          // 본인이 응시한 시험 목록
-          var aRes = await sb.from('vocab_test_attempts').select('test_id, vocab_tests(id, title, unit_index, list_id, pass_score, vocab_lists(name))').eq('student_id', user.id);
+          // 본인이 응시한 단어시험(vocab_assignments mode='test') 목록
+          var aRes = await sb.from('vocab_assignment_attempts')
+            .select('assignment_id, vocab_assignments(id, title, unit_index, list_id, pass_score, mode, vocab_lists(name))')
+            .eq('student_id', user.id);
           var seen = {};
           var list = [];
           ((aRes && aRes.data) || []).forEach(function(a){
-            if (a.vocab_tests && !seen[a.test_id]) {
-              seen[a.test_id] = true;
-              list.push(a.vocab_tests);
+            var asg = a.vocab_assignments;
+            if (asg && asg.mode === 'test' && !seen[a.assignment_id]) {
+              seen[a.assignment_id] = true;
+              list.push(asg);
             }
           });
           setTests(list);
-        } catch (e) {}
+        } catch (e) { console.error('랭킹 시험 목록 로드 실패:', e); }
         setLoading(false);
       })();
     }, []);
@@ -1605,8 +1621,8 @@
       setSelectedTest(test);
       setLoadingRank(true);
       try {
-        // 모든 응시자 — 학생별 최고 점수 1개만 (attempt_number 가장 높은 것 또는 최고 percentage)
-        var aRes = await sb.from('vocab_test_attempts').select('student_id, student_name, score, total, percentage, attempt_number, time_taken_seconds, submitted_at').eq('test_id', test.id).order('percentage', { ascending: false }).order('time_taken_seconds', { ascending: true });
+        // 모든 응시자 — vocab_assignment_attempts에서 학생별 최고 percentage 1개만
+        var aRes = await sb.from('vocab_assignment_attempts').select('student_id, student_name, percentage, total_correct, total_questions, attempt_number, time_taken_seconds, submitted_at').eq('assignment_id', test.id).order('percentage', { ascending: false }).order('time_taken_seconds', { ascending: true });
         var rows = (aRes && aRes.data) || [];
         // 학생당 최고만 추리기
         var best = {};

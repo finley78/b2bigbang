@@ -329,9 +329,10 @@
     // 보낸 연습/시험 발행 취소(삭제) — 학생 응시 기록도 함께 정리
     async function deleteAssignment(a) {
       var name = a.title || (a.mode === 'test' ? '시험' : '연습');
-      if (!confirm('"' + name + '" 발행을 취소(삭제)할까요?\n학생 응시 기록이 있으면 같이 사라집니다.')) return;
+      if (!confirm('"' + name + '" 발행을 취소(삭제)할까요?\n학생 응시 기록과 성적이 있으면 같이 사라집니다.')) return;
       try {
         await sb.from('vocab_assignment_attempts').delete().eq('assignment_id', a.id);
+        await sb.from('test_scores').delete().eq('vocab_assignment_id', a.id);
         var d = await sb.from('vocab_assignments').delete().eq('id', a.id);
         if (d.error) throw d.error;
         load();
@@ -343,10 +344,11 @@
     // 일괄 발행 묶음 취소 — 같은 시점·같은 설정으로 발행된 N개 한 번에 삭제
     async function deleteAssignmentBatch(ids, label) {
       if (!ids || !ids.length) return;
-      if (!confirm((label || ('발행 묶음 ' + ids.length + '개')) + '을 한 번에 취소(삭제)할까요?\n학생 응시 기록과 개별 학생 지정도 같이 사라집니다.')) return;
+      if (!confirm((label || ('발행 묶음 ' + ids.length + '개')) + '을 한 번에 취소(삭제)할까요?\n학생 응시 기록과 성적도 같이 사라집니다.')) return;
       try {
         await sb.from('vocab_assignment_attempts').delete().in('assignment_id', ids);
         await sb.from('vocab_assignment_students').delete().in('assignment_id', ids);
+        await sb.from('test_scores').delete().in('vocab_assignment_id', ids);
         var d = await sb.from('vocab_assignments').delete().in('id', ids);
         if (d.error) throw d.error;
         load();
@@ -359,10 +361,11 @@
     async function deleteSelectedAssignments() {
       var ids = Object.keys(selectedAssignmentIds).filter(function(id){ return selectedAssignmentIds[id]; });
       if (!ids.length) { alert('취소할 발행을 먼저 체크하세요.'); return; }
-      if (!confirm('선택한 ' + ids.length + '개 발행을 취소(삭제)할까요?\n학생 응시 기록과 개별 학생 지정도 같이 사라집니다.')) return;
+      if (!confirm('선택한 ' + ids.length + '개 발행을 취소(삭제)할까요?\n학생 응시 기록과 성적도 같이 사라집니다.')) return;
       try {
         await sb.from('vocab_assignment_attempts').delete().in('assignment_id', ids);
         await sb.from('vocab_assignment_students').delete().in('assignment_id', ids);
+        await sb.from('test_scores').delete().in('vocab_assignment_id', ids);
         var d = await sb.from('vocab_assignments').delete().in('id', ids);
         if (d.error) throw d.error;
         setSelectedAssignmentIds({});
@@ -374,11 +377,12 @@
     // 이 단어장의 모든 발행을 한 번에 취소
     async function deleteAllAssignments() {
       if (!assignments.length) { alert('취소할 발행이 없습니다.'); return; }
-      if (!confirm('이 단어장의 보낸 연습/시험 ' + assignments.length + '개를 모두 취소(삭제)할까요?\n학생 응시 기록과 개별 학생 지정도 같이 사라집니다. 되돌릴 수 없습니다.')) return;
+      if (!confirm('이 단어장의 보낸 연습/시험 ' + assignments.length + '개를 모두 취소(삭제)할까요?\n학생 응시 기록과 성적도 같이 사라집니다. 되돌릴 수 없습니다.')) return;
       var ids = assignments.map(function(a){ return a.id; });
       try {
         await sb.from('vocab_assignment_attempts').delete().in('assignment_id', ids);
         await sb.from('vocab_assignment_students').delete().in('assignment_id', ids);
+        await sb.from('test_scores').delete().in('vocab_assignment_id', ids);
         var d = await sb.from('vocab_assignments').delete().in('id', ids);
         if (d.error) throw d.error;
         setSelectedAssignmentIds({});
