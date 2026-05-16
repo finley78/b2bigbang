@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v174-vocab-both-mode-and-study-restore';
+const CACHE_VERSION = 'b2-bigbang-20260516v175-todo-by-unattempted';
 const OFFLINE_URLS = [
   './',
   './index.html',

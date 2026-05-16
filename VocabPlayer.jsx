@@ -49,20 +49,25 @@
     var user = props.user || {};
     var [view, setView] = React.useState('home'); // 'home' | 'study' | 'test' | 'report' | 'ranking' | 'assignment'
     var [assignments, setAssignments] = React.useState([]); // 받은 연습/시험
+    var [attemptedIds, setAttemptedIds] = React.useState({}); // { assignment_id: true } — 본인이 응시한 발행
     var [selectedAssignment, setSelectedAssignment] = React.useState(null);
 
     React.useEffect(function(){
       (async function(){
         try {
-          // 내가 받은 연습/시험 — 3쿼리 모두 user.id로만 의존, 서로 독립 → 병렬
-          var trio = await Promise.all([
+          // 내가 받은 연습/시험 + 내 응시 기록 — 모두 user.id 의존, 서로 독립 → 병렬
+          var quad = await Promise.all([
             sb.from('class_students').select('class_id').eq('student_id', user.id),
             sb.from('vocab_assignment_students').select('assignment_id').eq('student_id', user.id),
-            sb.from('vocab_assignments').select('*, vocab_lists(name)').eq('status', 'open').order('created_at', { ascending: false })
+            sb.from('vocab_assignments').select('*, vocab_lists(name)').eq('status', 'open').order('created_at', { ascending: false }),
+            sb.from('vocab_assignment_attempts').select('assignment_id').eq('student_id', user.id)
           ]);
-          var myClassIds = ((trio[0] && trio[0].data) || []).map(function(r){ return r.class_id; });
-          var myIndIds = ((trio[1] && trio[1].data) || []).map(function(r){ return r.assignment_id; });
-          var all = (trio[2] && trio[2].data) || [];
+          var myClassIds = ((quad[0] && quad[0].data) || []).map(function(r){ return r.class_id; });
+          var myIndIds = ((quad[1] && quad[1].data) || []).map(function(r){ return r.assignment_id; });
+          var all = (quad[2] && quad[2].data) || [];
+          var atMap = {};
+          (((quad[3] && quad[3].data) || [])).forEach(function(r){ atMap[r.assignment_id] = true; });
+          setAttemptedIds(atMap);
           var myGrade = String(user.grade || '');
           var myLevel = (myGrade.indexOf('초') === 0) ? '초' : (myGrade.indexOf('중') === 0) ? '중' : (myGrade.indexOf('고') === 0) ? '고' : '';
           var myGradeNum = myGrade.replace(/[^0-9]/g, '');
@@ -94,11 +99,17 @@
     if (view === 'ranking') return React.createElement(Ranking, { user: user, onBack: back });
     if (view === 'assignment' && selectedAssignment) return React.createElement(AssignmentRunner, { user: user, assignment: selectedAssignment, onBack: back });
 
-    // 마감 7일 이내 시험 카운트 ('오늘 할 일' 배지)
+    // '오늘 할 일' = 본인 미응시 시험 N개 (마감 지난 건 제외). 마감 임박(7일 이내) 있으면 강조.
     var now = Date.now();
     var dayMs = 86400000;
-    var urgentCount = assignments.filter(function(a){
-      if (a.mode !== 'test' || !a.due_at) return false;
+    var todoTests = assignments.filter(function(a){
+      if (a.mode !== 'test') return false;
+      if (a.due_at && new Date(a.due_at).getTime() < now) return false;
+      return !attemptedIds[a.id];
+    });
+    var todoCount = todoTests.length;
+    var urgentInTodo = todoTests.filter(function(a){
+      if (!a.due_at) return false;
       var due = new Date(a.due_at).getTime();
       return due >= now && due <= now + 7 * dayMs;
     }).length;
@@ -115,12 +126,14 @@
         React.createElement('h1', { style: { fontSize: '22px', fontWeight: '800', color: THEME.dark, fontFamily: THEME.font, margin: 0, marginBottom: '6px' } }, '단어장'),
         React.createElement('p', { style: { fontSize: '13px', color: THEME.textMid, fontFamily: THEME.font, marginBottom: '14px' } }, '학습·시험·결과·순위를 여기서 확인하세요'),
 
-        // 오늘 할 일 N개 배지 — 마감 7일 이내 시험. 누르면 TEST 메뉴로.
-        urgentCount > 0 && React.createElement('button', { onClick: function(){ setView('test'); },
+        // 오늘 할 일 배지 — 미응시 시험 카운트(마감 지난 건 제외). 마감 임박 있으면 강조.
+        todoCount > 0 && React.createElement('button', { onClick: function(){ setView('test'); },
           style: { background: '#fef3c7', border: '1.5px solid #fbbf24', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', textAlign: 'left', fontFamily: THEME.font, marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: '100%' } },
           React.createElement('div', null,
             React.createElement('div', { style: { fontSize: '11px', color: '#92400e', fontWeight: '800', letterSpacing: '0.04em' } }, '오늘 할 일'),
-            React.createElement('div', { style: { fontSize: '14px', color: '#1A1A1A', fontWeight: '800', marginTop: '2px' } }, '마감 임박 시험 ' + urgentCount + '개')
+            React.createElement('div', { style: { fontSize: '14px', color: '#1A1A1A', fontWeight: '800', marginTop: '2px' } },
+              '미응시 시험 ' + todoCount + '개' + (urgentInTodo > 0 ? ' (마감 임박 ' + urgentInTodo + ')' : '')
+            )
           ),
           React.createElement('span', { style: { fontSize: '18px', color: '#92400e', fontWeight: '800' } }, '›')
         ),
