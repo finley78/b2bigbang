@@ -67,6 +67,8 @@
           var myLevel = (myGrade.indexOf('초') === 0) ? '초' : (myGrade.indexOf('중') === 0) ? '중' : (myGrade.indexOf('고') === 0) ? '고' : '';
           var myGradeNum = myGrade.replace(/[^0-9]/g, '');
           var mine = all.filter(function(a){
+            // 안전망: 비활성/삭제된 단어장은 학생 RLS로 vocab_lists 조인이 null → 화면에서 숨김
+            if (!a.vocab_lists) return false;
             if (a.target_class_id && myClassIds.indexOf(a.target_class_id) >= 0) return true;
             if (myIndIds.indexOf(a.id) >= 0) return true;
             // 초중고+학년 매칭 (둘 다 NULL이면 안 잡힘 — 반/개별로만)
