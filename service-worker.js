@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v158-teacher-play-audio-answer';
+const CACHE_VERSION = 'b2-bigbang-20260516v165-vocab-card-cleanup';
 const OFFLINE_URLS = [
   './',
   './index.html',

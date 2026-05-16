@@ -577,11 +577,7 @@
                     React.createElement('div', { style:{ minWidth:0, flex:1, display:'flex', alignItems:'center', gap:'6px' } },
                       unit.study && unit.words.length > 0 && React.createElement('input', { type:'checkbox', checked: !!selectedUnitIndexes[unit.unit_index], onChange:function(){ toggleUnitSelected(unit.unit_index); }, title:'이 유닛 선택', style:{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#E60012', flexShrink:0 } }),
                       React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', color: unit.words.length===0 ? 'rgba(0,0,0,0.4)' : '#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } }, 'UNIT ' + unit.unit_index),
-                      React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginLeft:'8px' } },
-                        unit.words.length > 0
-                          ? (unit.words.length + '단어 · ' + unit.words[0].word + (unit.words.length > 1 ? ' ~ ' + unit.words[unit.words.length-1].word : ''))
-                          : '단어 없음 — 5단계 세트 업로드해서 시작'
-                      )
+                      unit.words.length === 0 && React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginLeft:'8px' } }, '단어 없음 — 4단계 세트 업로드해서 시작')
                     ),
                     unit.words.length > 0 && unit.assignments.length > 0 && React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', fontWeight:'700', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, unit.assignments.length + '개 보냄')
                   ),
@@ -589,8 +585,7 @@
                   React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'6px', fontSize:'10px', fontFamily:'Manrope, sans-serif' } },
                     unit.study
                       ? React.createElement(React.Fragment, null,
-                          React.createElement('span', { style:{ background:'#d4e9e2', color:'#006241', fontWeight:'800', padding:'2px 6px', borderRadius:'3px', letterSpacing:'0.02em' } }, '4단계 세트 있음'),
-                          React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, unit.study.title || ''),
+                          React.createElement('span', { style:{ flex:1 } }),
                           React.createElement('button', { onClick:function(){ setStudyViewUnit(unit.unit_index); }, style:{ background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'2px 7px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '보기'),
                           React.createElement('button', { onClick:function(){ setStudyUploadUnit(unit.unit_index); }, style:{ background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'2px 7px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '교체')
                         )
@@ -603,7 +598,6 @@
                   // 보낸 연습/시험 목록 (vocab_assignments)
                   unit.assignments.length > 0 && React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px', marginTop:'6px' } },
                     unit.assignments.map(function(a){
-                      var stagesLabel = (a.stages || []).map(function(s){ return ({ '1':'1', '2':'2', '3':'3', 'grammar':'어' })[s] || (s==='25' ? null : s); }).filter(Boolean).join('·');
                       var modeBg = a.mode === 'test' ? '#fef3c7' : '#dbeafe';
                       var modeColor = a.mode === 'test' ? '#92400e' : '#1d4ed8';
                       var modeLabel = a.mode === 'test' ? '시험' : '연습';
@@ -611,7 +605,6 @@
                         React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px' } },
                           React.createElement('input', { type:'checkbox', checked: !!selectedAssignmentIds[a.id], onChange:function(){ toggleAssignmentSelected(a.id); }, title:'이 발행 선택', style:{ width:'13px', height:'13px', cursor:'pointer', accentColor:'#c82014', flexShrink:0 } }),
                           React.createElement('span', { style:{ background: modeBg, color: modeColor, fontWeight:'800', padding:'1px 6px', borderRadius:'3px' } }, modeLabel),
-                          React.createElement('span', { style:{ color:'rgba(0,0,0,0.7)' } }, '단계: ' + stagesLabel),
                           React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, a.title || (a.mode === 'test' ? '시험' : '연습')),
                           React.createElement('button', { onClick:function(){ deleteAssignment(a); }, title:'발행 취소', style:{ background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'4px', padding:'1px 6px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '× 취소')
                         ),
