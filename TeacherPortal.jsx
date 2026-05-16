@@ -97,6 +97,8 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
   const [analyzingMaterialId, setAnalyzingMaterialId] = React.useState(null);
   const [materialAnalysisOpenId, setMaterialAnalysisOpenId] = React.useState(null);
   const [materialFilters, setMaterialFilters] = React.useState({ search:'', subject:'', level:'', grade:'', view:'all' });
+  const [materialFolderOpen, setMaterialFolderOpen] = React.useState({});
+  const [pickerFolderOpen, setPickerFolderOpen] = React.useState({});
   function gradeOptsForLevel(lvl) {
     if (lvl === '초등') return ['1학년','2학년','3학년','4학년','5학년','6학년'];
     if (lvl === '중등') return ['중1','중2','중3'];
@@ -2930,21 +2932,40 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                     return true;
                   });
                   if (list.length === 0) return <div style={{ padding:'18px', textAlign:'center', color:'#9ca3af', fontSize:'13px' }}>불러올 수 있는 분석 자료가 없습니다.</div>;
+                  function renderPickerRow(m) {
+                    var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
+                    return (
+                      <button key={m.id} onClick={() => loadMaterialIntoExam(m)} style={{ textAlign:'left', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px', cursor:'pointer', fontFamily:'Manrope, sans-serif', width:'100%' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                          <span style={window.B2Utils.materialTypeBadgeStyle(m.material_type)}>{window.B2Utils.materialTypeLabel(m.material_type)}</span>
+                          {m.subject && <span style={{ fontSize:'11px', fontWeight:'700', color:'#374151' }}>{m.subject}</span>}
+                          {(m.school_level || m.target_grade) && <span style={{ fontSize:'11px', color:'#6b7280' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
+                          <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>{m.title}</span>
+                        </div>
+                        <div style={{ fontSize:'11px', color:'#6b7280', marginTop:'2px' }}>객관식 {qc}문항{tqc>0?' · 서술형 '+tqc+'문항':''}{m.teacher_name?' · '+m.teacher_name:''}{m.created_at?' · '+String(m.created_at).slice(0,10):''}</div>
+                        {m.description && <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px', whiteSpace:'pre-line' }}>{m.description}</div>}
+                      </button>
+                    );
+                  }
+                  var grouped = window.B2Utils.groupMaterialsByName(list);
                   return (
                     <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-                      {list.map(function(m){
-                        var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
+                      {grouped.map(function(g, gi){
+                        if (g.type === 'item') return renderPickerRow(g.m);
+                        var fopen = !!pickerFolderOpen[g.name];
                         return (
-                          <button key={m.id} onClick={() => loadMaterialIntoExam(m)} style={{ textAlign:'left', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'10px 12px', cursor:'pointer', fontFamily:'Manrope, sans-serif' }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
-                              <span style={window.B2Utils.materialTypeBadgeStyle(m.material_type)}>{window.B2Utils.materialTypeLabel(m.material_type)}</span>
-                              {m.subject && <span style={{ fontSize:'11px', fontWeight:'700', color:'#374151' }}>{m.subject}</span>}
-                              {(m.school_level || m.target_grade) && <span style={{ fontSize:'11px', color:'#6b7280' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
-                              <span style={{ fontSize:'14px', fontWeight:'800', color:'#111827' }}>{m.title}</span>
+                          <div key={'pf-'+gi} style={{ border:'1px solid #e5e7eb', borderRadius:'10px', overflow:'hidden' }}>
+                            <div onClick={() => setPickerFolderOpen({ ...pickerFolderOpen, [g.name]: !fopen })} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 12px', background: fopen ? '#f0fdfa' : '#fafbfc', cursor:'pointer', fontFamily:'Manrope, sans-serif', userSelect:'none' }}>
+                              <span style={{ fontSize:'13px', color:'#0f766e', fontWeight:'800', width:'14px' }}>{fopen ? '▼' : '▶'}</span>
+                              <span style={{ fontSize:'13px', fontWeight:'800', color:'#0f766e', flex:1 }}>{g.name}</span>
+                              <span style={{ fontSize:'11px', color:'#0f766e', fontWeight:'700' }}>{g.items.length}개</span>
                             </div>
-                            <div style={{ fontSize:'11px', color:'#6b7280', marginTop:'2px' }}>객관식 {qc}문항{tqc>0?' · 서술형 '+tqc+'문항':''}{m.teacher_name?' · '+m.teacher_name:''}{m.created_at?' · '+String(m.created_at).slice(0,10):''}</div>
-                            {m.description && <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px', whiteSpace:'pre-line' }}>{m.description}</div>}
-                          </button>
+                            {fopen && (
+                              <div style={{ display:'flex', flexDirection:'column', gap:'6px', padding:'8px 8px 8px 22px', borderTop:'1px solid #ccfbf1', background:'#fff' }}>
+                                {g.items.map(function(m){ return renderPickerRow(m); })}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
@@ -4153,42 +4174,62 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             });
             if (list.length === 0) return <div style={{ padding:'20px', textAlign:'center', color:'#9ca3af', fontSize:'13px', fontFamily:'Manrope, sans-serif' }}>{(materials||[]).length === 0 ? '아직 등록된 분석 자료가 없습니다. "+ 새 자료 분석"으로 시험지를 올려보세요.' : '검색 결과가 없습니다.'}</div>;
             var btnS = { fontSize:'11px', fontWeight:'700', borderRadius:'6px', padding:'3px 8px', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap', border:'1px solid' };
+            function renderRow(m) {
+              var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
+              var imgs = Array.isArray(m.image_paths) ? m.image_paths : [];
+              var ans = Array.isArray(m.answer_paths) ? m.answer_paths : [];
+              var open = materialAnalysisOpenId === m.id;
+              var busy = analyzingMaterialId === m.id;
+              return (
+                <div key={m.id} style={{ borderBottom:'1px solid #eef2f7', padding:'8px 2px', fontFamily:'Manrope, sans-serif' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                    <span style={window.B2Utils.materialTypeBadgeStyle(m.material_type)}>{window.B2Utils.materialTypeLabel(m.material_type)}</span>
+                    {m.analysis ? <span style={{ fontSize:'10px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'1px 6px' }}>분석완료</span> : <span style={{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'1px 6px' }}>분석전</span>}
+                    {m.subject && <span style={{ fontSize:'11px', fontWeight:'700', color:'#374151' }}>{m.subject}</span>}
+                    {(m.school_level || m.target_grade) && <span style={{ fontSize:'11px', color:'#9ca3af' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#111827', flex:1, minWidth:'110px' }}>{m.title}</span>
+                    <span style={{ fontSize:'11px', color:'#9ca3af', whiteSpace:'nowrap' }}>{m.analysis ? '객'+qc+(tqc>0?(' 서'+tqc):'') : ('시험지 '+imgs.length)}{m.teacher_name ? (' · '+m.teacher_name) : ''}{m.created_at ? (' · '+String(m.created_at).slice(5,10)) : ''}</span>
+                    <span style={{ display:'flex', gap:'4px', flexShrink:0 }}>
+                      <button onClick={() => setMaterialAnalysisOpenId(open ? null : m.id)} style={{ ...btnS, color:'#1d4ed8', borderColor:'#bfdbfe', background: open ? '#eff6ff' : '#fff' }}>{open ? '접기' : '자세히'}</button>
+                      <button onClick={() => openMaterialFormForEdit(m)} style={{ ...btnS, color:'#E60012', borderColor:'#E60012', background:'#fff' }}>수정</button>
+                      <button onClick={() => reanalyzeMaterial(m)} disabled={busy} style={{ ...btnS, color:'#fff', borderColor: busy ? '#9ca3af' : '#0f766e', background: busy ? '#9ca3af' : '#0f766e', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '분석중' : (m.analysis ? '재분석' : '분석')}</button>
+                      <button onClick={() => deleteMaterial(m)} style={{ ...btnS, color:'#c82014', borderColor:'#f3c5c0', background:'#fff' }}>삭제</button>
+                    </span>
+                  </div>
+                  {m.description && <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px', whiteSpace:'pre-line' }}>{m.description}</div>}
+                  {open && (
+                    <div style={{ marginTop:'6px' }}>
+                      <div style={{ background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'8px 10px', marginBottom:'8px' }}>
+                        <div style={{ fontSize:'11px', fontWeight:'800', color:'#1e40af', marginBottom:'4px' }}>원본 파일 (눌러서 열기)</div>
+                        <div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'2px' }}>시험지 {imgs.length}개{imgs.length===0?' (없음)':''}</div>
+                        {renderFileList(imgs, '시험지', '')}
+                        {ans.length > 0 && <><div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginTop:'8px', marginBottom:'2px' }}>답안지·해설 {ans.length}개</div>{renderFileList(ans, '답안지·해설', '')}</>}
+                      </div>
+                      {m.analysis ? renderExamAnalysis(m.analysis) : <div style={{ fontSize:'11px', color:'#92400e', background:'#fef3c7', borderRadius:'8px', padding:'8px 10px', fontFamily:'Manrope, sans-serif' }}>아직 Claude 문항 분석이 안 됐어요. 오른쪽 "분석" 버튼을 누르면 분석합니다.</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            var grouped = window.B2Utils.groupMaterialsByName(list);
+            var folderCount = grouped.filter(function(g){ return g.type === 'folder'; }).length;
             return (
               <div>
-                <div style={{ fontSize:'11px', color:'#9ca3af', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>총 {list.length}개</div>
+                <div style={{ fontSize:'11px', color:'#9ca3af', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>총 {list.length}개{folderCount > 0 ? ' · 폴더 ' + folderCount + '개' : ''}</div>
                 <div style={{ borderTop:'1px solid #eef2f7' }}>
-                {list.map(function(m){
-                  var qc = m.question_count || 0; var tqc = m.text_question_count || 0;
-                  var imgs = Array.isArray(m.image_paths) ? m.image_paths : [];
-                  var ans = Array.isArray(m.answer_paths) ? m.answer_paths : [];
-                  var open = materialAnalysisOpenId === m.id;
-                  var busy = analyzingMaterialId === m.id;
+                {grouped.map(function(g, gi){
+                  if (g.type === 'item') return renderRow(g.m);
+                  var fopen = !!materialFolderOpen[g.name];
                   return (
-                    <div key={m.id} style={{ borderBottom:'1px solid #eef2f7', padding:'8px 2px', fontFamily:'Manrope, sans-serif' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
-                        <span style={window.B2Utils.materialTypeBadgeStyle(m.material_type)}>{window.B2Utils.materialTypeLabel(m.material_type)}</span>
-                        {m.analysis ? <span style={{ fontSize:'10px', fontWeight:'800', background:'#dcfce7', color:'#15803d', borderRadius:'4px', padding:'1px 6px' }}>분석완료</span> : <span style={{ fontSize:'10px', fontWeight:'800', background:'#fef3c7', color:'#92400e', borderRadius:'4px', padding:'1px 6px' }}>분석전</span>}
-                        {m.subject && <span style={{ fontSize:'11px', fontWeight:'700', color:'#374151' }}>{m.subject}</span>}
-                        {(m.school_level || m.target_grade) && <span style={{ fontSize:'11px', color:'#9ca3af' }}>{[m.school_level, m.target_grade].filter(Boolean).join(' ')}</span>}
-                        <span style={{ fontSize:'13px', fontWeight:'700', color:'#111827', flex:1, minWidth:'110px' }}>{m.title}</span>
-                        <span style={{ fontSize:'11px', color:'#9ca3af', whiteSpace:'nowrap' }}>{m.analysis ? '객'+qc+(tqc>0?(' 서'+tqc):'') : ('시험지 '+imgs.length)}{m.teacher_name ? (' · '+m.teacher_name) : ''}{m.created_at ? (' · '+String(m.created_at).slice(5,10)) : ''}</span>
-                        <span style={{ display:'flex', gap:'4px', flexShrink:0 }}>
-                          <button onClick={() => setMaterialAnalysisOpenId(open ? null : m.id)} style={{ ...btnS, color:'#1d4ed8', borderColor:'#bfdbfe', background: open ? '#eff6ff' : '#fff' }}>{open ? '접기' : '자세히'}</button>
-                          <button onClick={() => openMaterialFormForEdit(m)} style={{ ...btnS, color:'#E60012', borderColor:'#E60012', background:'#fff' }}>수정</button>
-                          <button onClick={() => reanalyzeMaterial(m)} disabled={busy} style={{ ...btnS, color:'#fff', borderColor: busy ? '#9ca3af' : '#0f766e', background: busy ? '#9ca3af' : '#0f766e', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '분석중' : (m.analysis ? '재분석' : '분석')}</button>
-                          <button onClick={() => deleteMaterial(m)} style={{ ...btnS, color:'#c82014', borderColor:'#f3c5c0', background:'#fff' }}>삭제</button>
-                        </span>
+                    <div key={'folder-'+gi} style={{ borderBottom:'1px solid #eef2f7' }}>
+                      <div onClick={() => setMaterialFolderOpen({ ...materialFolderOpen, [g.name]: !fopen })} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 8px', background: fopen ? '#f0fdfa' : '#fafbfc', cursor:'pointer', fontFamily:'Manrope, sans-serif', userSelect:'none' }}>
+                        <span style={{ fontSize:'13px', color:'#0f766e', fontWeight:'800', width:'14px' }}>{fopen ? '▼' : '▶'}</span>
+                        <span style={{ fontSize:'13px', fontWeight:'800', color:'#0f766e', flex:1 }}>{g.name}</span>
+                        <span style={{ fontSize:'11px', color:'#0f766e', fontWeight:'700' }}>{g.items.length}개</span>
                       </div>
-                      {m.description && <div style={{ fontSize:'11px', color:'#9ca3af', marginTop:'2px', whiteSpace:'pre-line' }}>{m.description}</div>}
-                      {open && (
-                        <div style={{ marginTop:'6px' }}>
-                          <div style={{ background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:'8px', padding:'8px 10px', marginBottom:'8px' }}>
-                            <div style={{ fontSize:'11px', fontWeight:'800', color:'#1e40af', marginBottom:'4px' }}>원본 파일 (눌러서 열기)</div>
-                            <div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginBottom:'2px' }}>시험지 {imgs.length}개{imgs.length===0?' (없음)':''}</div>
-                            {renderFileList(imgs, '시험지', '')}
-                            {ans.length > 0 && <><div style={{ fontSize:'11px', fontWeight:'700', color:'#374151', marginTop:'8px', marginBottom:'2px' }}>답안지·해설 {ans.length}개</div>{renderFileList(ans, '답안지·해설', '')}</>}
-                          </div>
-                          {m.analysis ? renderExamAnalysis(m.analysis) : <div style={{ fontSize:'11px', color:'#92400e', background:'#fef3c7', borderRadius:'8px', padding:'8px 10px', fontFamily:'Manrope, sans-serif' }}>아직 Claude 문항 분석이 안 됐어요. 오른쪽 "분석" 버튼을 누르면 분석합니다.</div>}
+                      {fopen && (
+                        <div style={{ paddingLeft:'18px', borderLeft:'2px solid #ccfbf1', background:'#fff' }}>
+                          {g.items.map(function(m){ return renderRow(m); })}
                         </div>
                       )}
                     </div>

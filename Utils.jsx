@@ -543,6 +543,39 @@
     if (v < 1024*1024) return (v/1024).toFixed(1) + ' KB';
     return (v/1024/1024).toFixed(1) + ' MB';
   }
+  // 자료 이름의 첫 ' · ' 또는 '·' 앞 부분을 폴더 키로 사용 (예: "능률보카 · UNIT 1 — ..." → "능률보카")
+  function materialFolderKey(m) {
+    var t = String((m && m.title) || '').trim();
+    var idx = t.indexOf('·');
+    return idx >= 0 ? t.slice(0, idx).trim() : t;
+  }
+  // 자료 이름에서 UNIT/Day 번호 추출 (정렬용; 없으면 9999)
+  function materialUnitNum(m) {
+    var t = String((m && m.title) || '');
+    var match = t.match(/(?:UNIT|Unit|unit|DAY|Day|day|단원|유닛|차시)[\s_\-]*(\d+)/);
+    return match ? parseInt(match[1], 10) : 9999;
+  }
+  // 자료 리스트를 같은 이름 prefix로 그룹핑. 2개 이상이면 폴더, 1개면 평면.
+  // 반환: [{ type:'folder', name, items:[...] } | { type:'item', m }]
+  function groupMaterialsByName(list) {
+    var byKey = {}; var order = [];
+    (list || []).forEach(function(m){
+      var k = materialFolderKey(m);
+      if (!byKey[k]) { byKey[k] = []; order.push(k); }
+      byKey[k].push(m);
+    });
+    var out = [];
+    order.forEach(function(k){
+      if (byKey[k].length >= 2) {
+        var items = byKey[k].slice().sort(function(a, b){ return materialUnitNum(a) - materialUnitNum(b); });
+        out.push({ type:'folder', name:k, items:items });
+      } else {
+        out.push({ type:'item', m: byKey[k][0] });
+      }
+    });
+    return out;
+  }
+
   // 자료 폼 초기값 (AdminPanel + TeacherPortal 공용 베이스)
   function materialDraftInit(extra) {
     var base = { title:'', subject:'', school_level:'', target_grade:'', target_semester:'', description:'', material_type:'exam', files:[], answer_files:[], existing_paths:[], answer_existing_paths:[], analyze_page_range:'', selected_questions_text:'', precise:false, precise_student:false, analysis:null };
@@ -572,5 +605,5 @@
     return s;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle, CLASS_TIMES, BUS_CAPACITY, todayKstDay, todayKstDateStr, normalizeTimeStr, academicCategoryLabel, academicCategoryColor, attachmentPublicUrl, formatBytes, materialDraftInit };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle, CLASS_TIMES, BUS_CAPACITY, todayKstDay, todayKstDateStr, normalizeTimeStr, academicCategoryLabel, academicCategoryColor, attachmentPublicUrl, formatBytes, materialDraftInit, materialFolderKey, materialUnitNum, groupMaterialsByName };
 })();

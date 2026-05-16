@@ -291,6 +291,20 @@
       load();
     }
 
+    // 보낸 연습/시험 발행 취소(삭제) — 학생 응시 기록도 함께 정리
+    async function deleteAssignment(a) {
+      var name = a.title || (a.mode === 'test' ? '시험' : '연습');
+      if (!confirm('"' + name + '" 발행을 취소(삭제)할까요?\n학생 응시 기록이 있으면 같이 사라집니다.')) return;
+      try {
+        await sb.from('vocab_assignment_attempts').delete().eq('assignment_id', a.id);
+        var d = await sb.from('vocab_assignments').delete().eq('id', a.id);
+        if (d.error) throw d.error;
+        load();
+      } catch (e) {
+        alert('삭제 실패: ' + (e.message || e));
+      }
+    }
+
     // 시험이 없는 모든 유닛에 기본 시험을 한 번에 생성 (준비중 상태)
     async function createTestsForAllUnits() {
       var missing = unitsArray.filter(function(x){ return x.tests.length === 0 && x.words.length > 0; });
@@ -485,7 +499,8 @@
                       return React.createElement('div', { key:a.id, style:{ background:'#fafbfc', border:'1px solid #e5e7eb', borderRadius:'6px', padding:'6px 8px', fontSize:'10px', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'6px' } },
                         React.createElement('span', { style:{ background: modeBg, color: modeColor, fontWeight:'800', padding:'1px 6px', borderRadius:'3px' } }, modeLabel),
                         React.createElement('span', { style:{ color:'rgba(0,0,0,0.7)' } }, '단계: ' + stagesLabel),
-                        React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, a.title || (a.mode === 'test' ? '시험' : '연습'))
+                        React.createElement('span', { style:{ color:'rgba(0,0,0,0.45)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, a.title || (a.mode === 'test' ? '시험' : '연습')),
+                        React.createElement('button', { onClick:function(){ deleteAssignment(a); }, title:'발행 취소', style:{ background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'4px', padding:'1px 6px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '× 취소')
                       );
                     })
                   ),
