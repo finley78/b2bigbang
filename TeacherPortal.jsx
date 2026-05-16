@@ -4216,7 +4216,7 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
                   <option value="exam">시험·문제집</option>
                   <option value="other">기타</option>
                 </select>
-                <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif', marginBottom:'14px' }}>단어장·5단계 학습 세트는 이제 단어장 메뉴에서 직접 업로드하세요.</div>
+                <div style={{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif', marginBottom:'14px' }}>단어장·4단계 학습 세트는 이제 단어장 메뉴에서 직접 업로드하세요.</div>
 
                 <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
                   <div style={{ flex:1 }}>

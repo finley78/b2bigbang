@@ -329,7 +329,7 @@
     var unitSize = list.unit_size || 20;
     var maxWordUnit = Math.ceil(words.length / unitSize);
     var maxStudyUnit = studySets.reduce(function(m, s){ return Math.max(m, s.unit_index || 0); }, 0);
-    // 채워진 유닛만 표시 — 다음 유닛은 상단의 '+ 5단계 학습 세트 업로드' 버튼이 자동 배치.
+    // 채워진 유닛만 표시 — 다음 유닛은 상단의 '+ 4단계 학습 세트 업로드' 버튼이 자동 배치.
     // 단, 단어가 하나도 없으면 최소 UNIT 1은 보여주어 어디 시작할지 알게 함.
     var unitCount = Math.max(maxWordUnit, maxStudyUnit, 1);
     // 유닛별 단어 그룹화
@@ -358,11 +358,11 @@
             )
           ),
           React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap' } },
-            // 메인 버튼: 5단계 학습 세트 업로드 (다음 빈 유닛에 자동 등록)
+            // 메인 버튼: 4단계 학습 세트 업로드 (다음 빈 유닛에 자동 등록)
             React.createElement('button', { onClick:function(){
               var nextUnit = Math.max(maxWordUnit, maxStudyUnit) + 1;
               setStudyUploadUnit(nextUnit);
-            }, style:STYLES.btnPrimary }, '+ 5단계 학습 세트 업로드'),
+            }, style:STYLES.btnPrimary }, '+ 4단계 학습 세트 업로드'),
             // 여러 유닛 한꺼번에 (파일명에서 UNIT 번호 자동 추출)
             React.createElement('button', { onClick:function(){ setStudyMultiOpen(true); }, style:STYLES.btnGhost }, '+ 여러 유닛 한꺼번에'),
             // 단어만 — 부가
@@ -380,7 +380,7 @@
 
       // 단어 탭
       activeTab === 'words' && (function(){
-        if (!words.length) return React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 단어가 없습니다. 위의 "+ 5단계 학습 세트 업로드" 버튼으로 한 번에 등록하세요. (단어만 따로 넣으려면 "단어만 추가")');
+        if (!words.length) return React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 단어가 없습니다. 위의 "+ 4단계 학습 세트 업로드" 버튼으로 한 번에 등록하세요. (단어만 따로 넣으려면 "단어만 추가")');
         var PER_PAGE = 200;
         var totalPages = Math.max(1, Math.ceil(words.length / PER_PAGE));
         var safePage = Math.min(Math.max(1, wordPage), totalPages);
@@ -460,7 +460,7 @@
                     ),
                     unit.words.length > 0 && unit.assignments.length > 0 && React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.45)', fontWeight:'700', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, unit.assignments.length + '개 보냄')
                   ),
-                  // 5단계 학습 세트 행: 업로드 상태 + 버튼
+                  // 4단계 학습 세트 행: 업로드 상태 + 버튼
                   React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'6px', fontSize:'10px', fontFamily:'Manrope, sans-serif' } },
                     unit.study
                       ? React.createElement(React.Fragment, null,
@@ -470,7 +470,7 @@
                           React.createElement('button', { onClick:function(){ setStudyUploadUnit(unit.unit_index); }, style:{ background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'2px 7px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '교체')
                         )
                       : React.createElement(React.Fragment, null,
-                          React.createElement('span', { style:{ color:'rgba(0,0,0,0.4)', flex:1 } }, '5단계 학습 세트 없음'),
+                          React.createElement('span', { style:{ color:'rgba(0,0,0,0.4)', flex:1 } }, '4단계 학습 세트 없음'),
                           React.createElement('button', { onClick:function(){ setStudyUploadUnit(unit.unit_index); }, style:{ background:'#FFEBED', color:'#E60012', border:'none', borderRadius:'4px', padding:'2px 8px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 업로드')
                         )
                   ),
@@ -478,7 +478,7 @@
                   // 보낸 연습/시험 목록 (vocab_assignments)
                   unit.assignments.length > 0 && React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'4px', marginTop:'6px' } },
                     unit.assignments.map(function(a){
-                      var stagesLabel = (a.stages || []).map(function(s){ return ({ '1':'1', '2':'2', '25':'2.5', '3':'3', 'grammar':'어' })[s] || s; }).join('·');
+                      var stagesLabel = (a.stages || []).map(function(s){ return ({ '1':'1', '2':'2', '3':'3', 'grammar':'어' })[s] || (s==='25' ? null : s); }).filter(Boolean).join('·');
                       var modeBg = a.mode === 'test' ? '#fef3c7' : '#dbeafe';
                       var modeColor = a.mode === 'test' ? '#92400e' : '#1d4ed8';
                       var modeLabel = a.mode === 'test' ? '시험' : '연습';
@@ -1462,11 +1462,10 @@
     );
   }
 
-  // ── 5단계 학습 세트 업로드 모달 (6시트 엑셀 파싱) ─────────────────
+  // ── 4단계 학습 세트 업로드 모달 (5시트 엑셀 파싱) ─────────────────
   // 시트 구조 (이름은 부분 일치로 찾음 — 사용자가 시트명 살짝 바꿔도 동작):
   //   "1단계" 또는 "단어"         → stage1 [{num,word,correct,wrong:[..]}]
   //   "2단계" 또는 "해석"          → stage2 [{num,sentence,correct,wrong:[..]}]
-  //   "2_5" 또는 "2.5" 또는 "빈칸" → stage25 [{num,sentence,correct,wrong:[..]}]
   //   "3단계" 또는 "영작"          → stage3 [{num,korean,sentence,answers:[..]}]
   //   "어법"                       → grammar [{num,sentence,options:[..],correct:<숫자>}]
   //   "메타"                       → {title,description}
@@ -1582,14 +1581,12 @@
         var wb = window.XLSX.read(buf, { type:'array' });
         var s1 = findSheet(wb, ['1단계','단어 객']) || wb.Sheets[wb.SheetNames[0]];
         var s2 = findSheet(wb, ['2단계_해석','해석']);
-        var s25 = findSheet(wb, ['2_5','2.5','빈칸']);
         var s3 = findSheet(wb, ['3단계','영작']);
         var sg = findSheet(wb, ['어법','문법']);
         var sm = findSheet(wb, ['메타']);
         var p = {
           stage1: parseStage1(s1),
           stage2: parseMcq(s2),
-          stage25: parseMcq(s25),
           stage3: parseStage3(s3),
           grammar: parseGrammar(sg),
           meta: parseMeta(sm),
@@ -1623,7 +1620,6 @@
           description: (parsed.meta && parsed.meta.description) || null,
           stage1: parsed.stage1,
           stage2: parsed.stage2,
-          stage25: parsed.stage25,
           stage3: parsed.stage3,
           grammar: parsed.grammar,
           source_file_name: file ? file.name : null,
@@ -1649,7 +1645,7 @@
               subject: (props.list && props.list.subject) || null,
               school_level: (props.list && props.list.school_level) || null,
               target_grade: (props.list && props.list.grade) || null,
-              description: '5단계 학습 세트 원본 (자동 등록)' + (parsed.stage1 ? (' · 단어 ' + parsed.stage1.length + '개') : ''),
+              description: '4단계 학습 세트 원본 (자동 등록)' + (parsed.stage1 ? (' · 단어 ' + parsed.stage1.length + '개') : ''),
               image_paths: [sourcePath],
               answer_paths: [],
               answer_key: {},
@@ -1680,7 +1676,7 @@
             addedWordCount = newWords.length;
           }
         }
-        var msg = '5단계 학습 세트 저장 완료!';
+        var msg = '4단계 학습 세트 저장 완료!';
         if (addedWordCount > 0) msg += '\n단어 ' + addedWordCount + '개 자동 등록.';
         if (sourcePath) msg += '\n원본 파일은 자료실에서 검색해서 찾을 수 있어요.';
         alert(msg);
@@ -1696,9 +1692,9 @@
     return React.createElement('div', { style:STYLES.modalBackdrop },
       React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(640px, calc(100% - 32px))' }) },
         React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
-        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 6px', fontFamily:'Manrope, sans-serif' } }, 'UNIT ' + props.unitIndex + ' — 5단계 학습 세트 ' + (existing ? '교체' : '업로드')),
+        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 6px', fontFamily:'Manrope, sans-serif' } }, 'UNIT ' + props.unitIndex + ' — 4단계 학습 세트 ' + (existing ? '교체' : '업로드')),
         React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'14px', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } },
-          '엑셀 파일 1개 (6시트: 1단계_단어 / 2단계_해석 / 2_5단계_빈칸 / 3단계_영작 / 어법 / 메타). 형식이 맞으면 자동 파싱돼서 미리보기 숫자가 보입니다.'
+          '엑셀 파일 1개 (5시트: 1단계_단어 / 2단계_해석 / 3단계_영작 / 어법 / 메타). 형식이 맞으면 자동 파싱돼서 미리보기 숫자가 보입니다.'
         ),
 
         React.createElement('div', { style:{ marginBottom:'14px' } },
@@ -1712,7 +1708,6 @@
           React.createElement('div', null, '· 세트명: ', React.createElement('strong', null, (parsed.meta && parsed.meta.title) || '(메타 없음)')),
           React.createElement('div', null, '· 1단계 단어 객관식: ', React.createElement('strong', null, parsed.stage1.length), '문항'),
           React.createElement('div', null, '· 2단계 예문 해석: ', React.createElement('strong', null, parsed.stage2.length), '문항'),
-          React.createElement('div', null, '· 2.5단계 빈칸 객관식: ', React.createElement('strong', null, parsed.stage25.length), '문항'),
           React.createElement('div', null, '· 3단계 영작 빈칸: ', React.createElement('strong', null, parsed.stage3.length), '문항'),
           React.createElement('div', null, '· 어법 객관식: ', React.createElement('strong', null, parsed.grammar.length), '문항')
         ),
@@ -1727,7 +1722,7 @@
     );
   }
 
-  // ── 5단계 학습 세트 일괄 업로드 모달 (여러 유닛 한꺼번에) ─────────────────
+  // ── 4단계 학습 세트 일괄 업로드 모달 (여러 유닛 한꺼번에) ─────────────────
   // 파일명에서 UNIT/Day/단원/유닛 + 숫자 패턴을 자동 추출해서 유닛별로 매핑.
   // 추출 실패 시 사용자가 수동으로 유닛 번호 입력 가능.
   function VocabStudySetMultiUploadModal(props) {
@@ -1848,14 +1843,12 @@
           var wb = window.XLSX.read(buf, { type:'array' });
           var s1 = findSheetX(wb, ['1단계','단어 객']) || wb.Sheets[wb.SheetNames[0]];
           var s2 = findSheetX(wb, ['2단계_해석','해석']);
-          var s25 = findSheetX(wb, ['2_5','2.5','빈칸']);
           var s3 = findSheetX(wb, ['3단계','영작']);
           var sg = findSheetX(wb, ['어법','문법']);
           var sm = findSheetX(wb, ['메타']);
           row.parsed = {
             stage1: parseStage1X(s1),
             stage2: parseMcqX(s2),
-            stage25: parseMcqX(s25),
             stage3: parseStage3X(s3),
             grammar: parseGrammarX(sg),
             meta: parseMetaX(sm),
@@ -1898,7 +1891,6 @@
         description: (it.parsed.meta && it.parsed.meta.description) || null,
         stage1: it.parsed.stage1,
         stage2: it.parsed.stage2,
-        stage25: it.parsed.stage25,
         stage3: it.parsed.stage3,
         grammar: it.parsed.grammar,
         source_file_name: it.file ? it.file.name : null,
@@ -1923,7 +1915,7 @@
             subject: (props.list && props.list.subject) || null,
             school_level: (props.list && props.list.school_level) || null,
             target_grade: (props.list && props.list.grade) || null,
-            description: '5단계 학습 세트 원본 (자동 등록)' + (it.parsed.stage1 ? (' · 단어 ' + it.parsed.stage1.length + '개') : ''),
+            description: '4단계 학습 세트 원본 (자동 등록)' + (it.parsed.stage1 ? (' · 단어 ' + it.parsed.stage1.length + '개') : ''),
             image_paths: [sourcePath],
             answer_paths: [],
             answer_key: {},
@@ -2023,7 +2015,7 @@
           items.map(function(it, idx){
             var hasUnit = !!it.unit;
             var ok = it.parsed && hasUnit;
-            var total = it.parsed ? (it.parsed.stage1.length + it.parsed.stage2.length + it.parsed.stage25.length + it.parsed.stage3.length + it.parsed.grammar.length) : 0;
+            var total = it.parsed ? (it.parsed.stage1.length + it.parsed.stage2.length + it.parsed.stage3.length + it.parsed.grammar.length) : 0;
             return React.createElement('div', { key:idx, style:{ display:'grid', gridTemplateColumns:'80px 1fr 90px 70px 60px', gap:'8px', padding:'10px 12px', borderBottom: idx === items.length-1 ? 'none' : '1px solid #f3f4f6', fontSize:'12px', fontFamily:'Manrope, sans-serif', alignItems:'center', background: ok ? 'white' : '#FFF7F7' } },
               React.createElement('input', { type:'number', min:'1', max:'999', value: hasUnit ? it.unit : '', placeholder:'?', onChange:function(e){ updateUnit(idx, e.target.value); }, style:{ width:'70px', padding:'4px 6px', border:'1px solid ' + (hasUnit ? '#d6dbde' : '#FCA5A5'), borderRadius:'4px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } }),
               React.createElement('div', { style:{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'rgba(0,0,0,0.75)' }, title:it.name }, it.name),
@@ -2057,7 +2049,7 @@
     );
   }
 
-  // ── 5단계 학습 세트 미리보기 모달 ─────────────────
+  // ── 4단계 학습 세트 미리보기 모달 ─────────────────
   function VocabStudySetViewModal(props) {
     var s = props.study;
     if (!s) return null;
@@ -2074,11 +2066,10 @@
     return React.createElement('div', { style:STYLES.modalBackdrop, onClick:props.onClose },
       React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(640px, calc(100% - 32px))' }), onClick:function(e){ e.stopPropagation(); } },
         React.createElement('button', { onClick:props.onClose, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)', lineHeight:1 } }, '×'),
-        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 4px', fontFamily:'Manrope, sans-serif' } }, 'UNIT ' + props.unitIndex + ' — 5단계 학습 세트'),
+        React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 4px', fontFamily:'Manrope, sans-serif' } }, 'UNIT ' + props.unitIndex + ' — 4단계 학습 세트'),
         s.title && React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'12px', fontFamily:'Manrope, sans-serif' } }, s.title),
         section('1단계 단어 객관식', (s.stage1||[]).length, firstStage1(s.stage1)),
         section('2단계 예문 해석', (s.stage2||[]).length, firstMcq(s.stage2)),
-        section('2.5단계 빈칸 객관식', (s.stage25||[]).length, firstMcq(s.stage25)),
         section('3단계 영작 빈칸', (s.stage3||[]).length, firstStage3(s.stage3)),
         section('어법 객관식', (s.grammar||[]).length, firstGrammar(s.grammar)),
         s.source_file_name && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif', marginTop:'8px' } }, '원본 파일: ' + s.source_file_name)
@@ -2092,10 +2083,10 @@
     var sb = window.supabase;
     var [mode, setMode] = React.useState('practice'); // 'practice' | 'test'
     // 연습과 시험은 체크박스 상태를 따로 기억 — 모드 바꿔도 안 흔들림
-    // 기본값: 연습 = 1단계만, 시험 = 5단계 다 (보통 시험은 전체 평가하니까)
+    // 기본값: 연습 = 1단계만, 시험 = 4단계 다 (보통 시험은 전체 평가하니까)
     var [stagesByMode, setStagesByMode] = React.useState({
-      practice: { '1': true,  '2': false, '25': false, '3': false, 'grammar': false },
-      test:     { '1': true,  '2': true,  '25': true,  '3': true,  'grammar': true  },
+      practice: { '1': true,  '2': false, '3': false, 'grammar': false },
+      test:     { '1': true,  '2': true,  '3': true,  'grammar': true  },
     });
     var stages = stagesByMode[mode];
     // 대상
@@ -2133,7 +2124,6 @@
     var stageInfo = [
       { key: '1',       label: '1단계 단어 객관식', count: (studyData.stage1 || []).length },
       { key: '2',       label: '2단계 예문 해석',   count: (studyData.stage2 || []).length },
-      { key: '25',      label: '2.5단계 빈칸',      count: (studyData.stage25 || []).length },
       { key: '3',       label: '3단계 영작',        count: (studyData.stage3 || []).length },
       { key: 'grammar', label: '어법',              count: (studyData.grammar || []).length },
     ];
@@ -2179,12 +2169,12 @@
           if (!u.study) return false;
           for (var i=0; i<stagesArr.length; i++) {
             var k = stagesArr[i];
-            var arr = (k==='1') ? u.study.stage1 : (k==='2') ? u.study.stage2 : (k==='25') ? u.study.stage25 : (k==='3') ? u.study.stage3 : (k==='grammar') ? u.study.grammar : [];
+            var arr = (k==='1') ? u.study.stage1 : (k==='2') ? u.study.stage2 : (k==='3') ? u.study.stage3 : (k==='grammar') ? u.study.grammar : [];
             if (!arr || arr.length === 0) return false;
           }
           return true;
         });
-        if (validUnits.length === 0) { alert('선택한 단계의 데이터가 있는 유닛이 없습니다. 5단계 학습 세트를 먼저 업로드해주세요.'); return; }
+        if (validUnits.length === 0) { alert('선택한 단계의 데이터가 있는 유닛이 없습니다. 4단계 학습 세트를 먼저 업로드해주세요.'); return; }
         if (individualIds.length > 0) { alert('일괄 발행은 개별 학생 지정을 지원하지 않습니다. 반/학년으로 지정해주세요.'); return; }
         var msg = validUnits.length + '개 유닛에 ' + (mode==='test'?'시험':'연습') + '을(를) 한 번에 보냅니다.';
         if (mode === 'test' && dueAt) { msg += '\n첫 마감일: ' + dueAt + '\n간격: ' + intervalDays + '일'; }
@@ -2230,7 +2220,7 @@
 
       // 단일 유닛 모드
       var noData = stagesArr.filter(function(k){ var info = stageInfo.find(function(i){ return i.key === k; }); return !info || info.count === 0; });
-      if (noData.length > 0) { alert('선택한 단계 중 데이터가 없는 게 있어요. (5단계 학습 세트를 먼저 업로드해주세요)'); return; }
+      if (noData.length > 0) { alert('선택한 단계 중 데이터가 없는 게 있어요. (4단계 학습 세트를 먼저 업로드해주세요)'); return; }
 
       setSaving(true);
       try {

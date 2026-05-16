@@ -123,7 +123,12 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-15 기준, 최신 ?v=20260515v148-edge-auth-error-boundary)
+## 현재 진행 (2026-05-16 기준, 최신 ?v=20260516v159-vocab-4stage)
+
+### ★ 단어 학습 세트 5단계 → 4단계 축소 (v159, 2026-05-16) ★
+- 2.5단계 빈칸 객관식을 제거 — 학습 흐름은 `1단계 단어 → 2단계 해석 → 3단계 영작 → 어법` 4단계로 단순화.
+- VocabPlayer/VocabManager에서 `stage25` 분기 모두 제거. 엑셀 업로드 안내 `6시트 → 5시트` (2_5단계_빈칸 시트 빠짐). practice/test 기본 토글에서 `'25'` 키 제거. Utils.jsx 자료실 라벨, TeacherPortal·AdminPanel 안내 문구도 '4단계 학습 세트'.
+- 호환: DB `vocab_study_sets.stage25` 컬럼은 그대로 둠(데이터 손실 방지). 기존 발행된 assignment에 `stages` 안에 `'25'`가 들어 있으면 UI에서 조용히 필터링.
 
 ### ★ DB·Edge Function 보안 무결성 작업 (v147~v148, 2026-05-15 새벽) ★
 **배경**: Supabase 보안/성능 어드바이저 점수가 보안 15 WARN / 성능 237 INFO·WARN까지 쌓여 있어서 한 번에 정리.

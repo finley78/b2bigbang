@@ -5233,7 +5233,7 @@ tab==='files' && React.createElement('div', null,
         React.createElement('option', { value:'exam' }, '시험·문제집'),
         React.createElement('option', { value:'other' }, '기타')
       ),
-      React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '단어장·5단계 학습 세트는 이제 단어장 메뉴에서 직접 업로드하세요.'),
+      React.createElement('div', { style:{ fontSize:'11px', color:'#9ca3af', fontFamily:'Manrope, sans-serif', marginBottom:'14px' } }, '단어장·4단계 학습 세트는 이제 단어장 메뉴에서 직접 업로드하세요.'),
       React.createElement('div', { style:{ display:'flex', gap:'10px', marginBottom:'14px' } },
         React.createElement('div', { style:{ flex:1 } },
           React.createElement('label', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px' } }, '과목'),

@@ -110,7 +110,7 @@
               var badgeBg = isTest ? '#fef3c7' : '#dbeafe';
               var badgeColor = isTest ? '#92400e' : '#1d4ed8';
               var borderColor = isTest ? '#fbbf24' : '#93c5fd';
-              var stages = (a.stages || []).map(function(s){ return ({ '1':'1단계','2':'2단계','25':'2.5단계','3':'3단계','grammar':'어법' })[s] || s; }).join(' · ');
+              var stages = (a.stages || []).map(function(s){ return ({ '1':'1단계','2':'2단계','3':'3단계','grammar':'어법' })[s] || (s==='25' ? null : s); }).filter(Boolean).join(' · ');
               var listName = (a.vocab_lists && a.vocab_lists.name) || '';
               var due = a.due_at ? new Date(a.due_at) : null;
               var dueStr = due ? (due.getFullYear() + '.' + (due.getMonth()+1) + '.' + due.getDate() + ' ' + String(due.getHours()).padStart(2,'0') + ':' + String(due.getMinutes()).padStart(2,'0')) : '';
@@ -145,7 +145,7 @@
     );
   }
 
-  // ── 받은 연습/시험 풀기 — assignment 객체 받아서 5단계 학습 세트 player 호출 ─────
+  // ── 받은 연습/시험 풀기 — assignment 객체 받아서 4단계 학습 세트 player 호출 ─────
   function AssignmentRunner(props) {
     var sb = window.supabase;
     var a = props.assignment;
@@ -303,7 +303,7 @@
               ),
               React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr', gap: '10px' } },
                 [
-                  { id: 'study5', label: '5단계 학습 세트', desc: '단어 → 예문 해석 → 빈칸 → 영작 → 어법 순서로 풀기', emoji: '', highlight: true },
+                  { id: 'study5', label: '4단계 학습 세트', desc: '단어 → 예문 해석 → 영작 → 어법 순서로 풀기', emoji: '', highlight: true },
                   { id: 'flashcard', label: 'Flash Card', desc: '단어를 보고 외우기 (자동 진행, 발음 자동)', emoji: '' },
                   { id: 'multiple_choice', label: '객관식', desc: '4지선다로 뜻 맞추기', emoji: '' },
                   { id: 'spelling', label: '스펠링 채우기', desc: '일부 빈칸을 채우기', emoji: '' },
@@ -421,8 +421,8 @@
     );
   }
 
-  // ── STUDY 5단계 학습 세트 (1단계 단어 → 2단계 해석 → 2.5단계 빈칸 → 3단계 영작 → 어법) ─────
-  // vocab_study_sets 행에 저장된 stage1/stage2/stage25/stage3/grammar 를 순서대로 푸는 학습 흐름.
+  // ── STUDY 4단계 학습 세트 (1단계 단어 → 2단계 해석 → 3단계 영작 → 어법) ─────
+  // vocab_study_sets 행에 저장된 stage1/stage2/stage3/grammar 를 순서대로 푸는 학습 흐름.
   // 점수 저장 안 함 — 자유 학습.
   function StudySet5Player(props) {
     var sb = window.supabase;
@@ -431,7 +431,7 @@
     var [studyData, setStudyData] = React.useState(null);
     var [loading, setLoading] = React.useState(true);
     // 첫 단계 — stagesFilter 가 있으면 그 안 첫 번째
-    var FULL_ORDER = ['1', '2', '25', '3', 'grammar'];
+    var FULL_ORDER = ['1', '2', '3', 'grammar'];
     var STAGE_ORDER = stagesFilter ? FULL_ORDER.filter(function(s){ return stagesFilter.indexOf(s) >= 0; }) : FULL_ORDER;
     var initialStage = STAGE_ORDER[0] || '1';
     var [stage, setStage] = React.useState(initialStage);
@@ -451,12 +451,11 @@
         setLoading(false);
       })();
     }, []);
-    var STAGE_LABEL = { '1': '1단계 — 단어', '2': '2단계 — 예문 해석', '25': '2.5단계 — 빈칸 채우기', '3': '3단계 — 영작 빈칸', 'grammar': '어법 — 문법 분석' };
+    var STAGE_LABEL = { '1': '1단계 — 단어', '2': '2단계 — 예문 해석', '3': '3단계 — 영작 빈칸', 'grammar': '어법 — 문법 분석' };
     function getStageItems(s) {
       if (!studyData) return [];
       if (s === '1') return studyData.stage1 || [];
       if (s === '2') return studyData.stage2 || [];
-      if (s === '25') return studyData.stage25 || [];
       if (s === '3') return studyData.stage3 || [];
       if (s === 'grammar') return studyData.grammar || [];
       return [];
@@ -534,15 +533,15 @@
 
     if (loading) {
       return React.createElement('div', { style: S.page },
-        React.createElement(StudentHeader, { title: '5단계 학습 세트', onBack: props.onBack }),
+        React.createElement(StudentHeader, { title: '4단계 학습 세트', onBack: props.onBack }),
         React.createElement('div', { style: { padding: '40px', textAlign: 'center', color: THEME.textMid } }, '학습 자료 불러오는 중...')
       );
     }
     if (!studyData) {
       return React.createElement('div', { style: S.page },
-        React.createElement(StudentHeader, { title: '5단계 학습 세트', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
+        React.createElement(StudentHeader, { title: '4단계 학습 세트', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
         React.createElement('div', { style: { padding: '40px 20px', textAlign: 'center', color: THEME.textMid, fontFamily: THEME.font, lineHeight: '1.7' } },
-          React.createElement('div', { style: { fontSize: '15px', fontWeight: '700', color: THEME.dark, marginBottom: '10px' } }, '이 유닛엔 아직 5단계 학습 세트가 없어요'),
+          React.createElement('div', { style: { fontSize: '15px', fontWeight: '700', color: THEME.dark, marginBottom: '10px' } }, '이 유닛엔 아직 4단계 학습 세트가 없어요'),
           '선생님이 학습 세트를 등록하면 풀 수 있습니다.'
         )
       );
@@ -578,7 +577,7 @@
       }
       var assignmentBadge = assignment ? React.createElement('div', { style: { background: assignment.mode === 'test' ? '#fef3c7' : '#dbeafe', color: assignment.mode === 'test' ? '#92400e' : '#1d4ed8', fontSize: '12px', fontWeight: '800', padding: '4px 10px', borderRadius: '999px', display: 'inline-block', marginBottom: '8px' } }, assignment.mode === 'test' ? '시험 응시 완료 — 결과 저장됨' : '연습 완료 — 점수 기록 안 함') : null;
       return React.createElement('div', { style: S.page },
-        React.createElement(StudentHeader, { title: '5단계 학습 — 결과', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: function(){ props.onDone && props.onDone(); } }),
+        React.createElement(StudentHeader, { title: '4단계 학습 — 결과', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: function(){ props.onDone && props.onDone(); } }),
         React.createElement('div', { style: { padding: '20px 16px', maxWidth: '600px', margin: '0 auto' } },
           React.createElement('div', { style: Object.assign({}, S.card, { padding: '32px 20px', textAlign: 'center', marginBottom: '14px' }) },
             assignmentBadge,
@@ -665,13 +664,6 @@
           renderChoices(shufChoices(current, '2'))
         );
       }
-      if (stage === '25') {
-        return React.createElement('div', null,
-          React.createElement('div', { style: { fontSize: '12px', color: THEME.textLight, marginBottom: '6px', fontFamily: THEME.font } }, '빈칸에 들어갈 단어 고르기'),
-          React.createElement('div', { style: { fontSize: '15px', color: THEME.dark, lineHeight: '1.7', marginBottom: '8px', fontFamily: THEME.font, padding: '12px 14px', background: '#f8fafc', borderRadius: '8px' } }, current.sentence),
-          renderChoices(shufChoices(current, '25'))
-        );
-      }
       if (stage === '3') {
         return React.createElement(Stage3Question, {
           item: current,
@@ -691,7 +683,7 @@
     }
 
     return React.createElement('div', { style: S.page },
-      React.createElement(StudentHeader, { title: '5단계 학습 세트', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
+      React.createElement(StudentHeader, { title: '4단계 학습 세트', subtitle: props.list.name + ' · UNIT ' + props.unitIndex, onBack: props.onBack }),
       // 단계 + 진행률
       React.createElement('div', { style: { background: THEME.cardBg, borderBottom: '1px solid ' + THEME.border, padding: '10px 16px', position: 'sticky', top: 0, zIndex: 10 } },
         React.createElement('div', { style: { maxWidth: '600px', margin: '0 auto' } },

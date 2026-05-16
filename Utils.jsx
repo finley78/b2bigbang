@@ -504,7 +504,7 @@
   function materialTypeLabel(t) {
     var k = t || 'exam';
     if (k === 'vocab_list') return '단어장 원본';
-    if (k === 'vocab_study_set') return '5단계 학습 세트';
+    if (k === 'vocab_study_set') return '4단계 학습 세트';
     if (k === 'other') return '기타';
     return '시험·문제집';
   }
