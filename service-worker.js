@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v169-vocab-load-parallel';
+const CACHE_VERSION = 'b2-bigbang-20260516v170-vocab-counts-rpc';
 const OFFLINE_URLS = [
   './',
   './index.html',

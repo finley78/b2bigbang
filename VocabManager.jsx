@@ -34,15 +34,13 @@
           .eq('is_active', true)
           .order('created_at', { ascending: false });
         var rows = (res && res.data) || [];
-        // 단어 수 — N개 단어장마다 카운트 쿼리를 병렬로 발사 (이전: 순차 N번)
+        // 단어 수 — 단어장 N개 카운트를 RPC 한 쿼리로 (group by). N+1 회피.
         if (rows.length) {
-          var countResults = await Promise.all(rows.map(function(r){
-            return sb.from('vocab_words').select('id', { count:'exact', head:true }).eq('list_id', r.id);
-          }));
-          rows.forEach(function(r, i){
-            var cRes = countResults[i];
-            r._wordCount = (cRes && typeof cRes.count === 'number') ? cRes.count : 0;
-          });
+          var ids = rows.map(function(r){ return r.id; });
+          var cRes = await sb.rpc('vocab_word_counts', { list_ids: ids });
+          var counts = {};
+          (((cRes && cRes.data) || [])).forEach(function(x){ counts[x.list_id] = parseInt(x.cnt, 10) || 0; });
+          rows.forEach(function(r){ r._wordCount = counts[r.id] || 0; });
         }
         setLists(rows);
       } catch (e) { console.error('단어장 로드 실패:', e); setLists([]); }
