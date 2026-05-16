@@ -34,17 +34,16 @@
           .eq('is_active', true)
           .order('created_at', { ascending: false });
         var rows = (res && res.data) || [];
-        // 단어 수 별도 조회 (count 쿼리)
-        var counts = {};
+        // 단어 수 — N개 단어장마다 카운트 쿼리를 병렬로 발사 (이전: 순차 N번)
         if (rows.length) {
-          var ids = rows.map(function(r){ return r.id; });
-          // 1000행 한도 우회 — count 머리(head)만 받아서 정확한 개수만 조회
-          for (var ci = 0; ci < ids.length; ci++) {
-            var cRes = await sb.from('vocab_words').select('id', { count:'exact', head:true }).eq('list_id', ids[ci]);
-            counts[ids[ci]] = (cRes && typeof cRes.count === 'number') ? cRes.count : 0;
-          }
+          var countResults = await Promise.all(rows.map(function(r){
+            return sb.from('vocab_words').select('id', { count:'exact', head:true }).eq('list_id', r.id);
+          }));
+          rows.forEach(function(r, i){
+            var cRes = countResults[i];
+            r._wordCount = (cRes && typeof cRes.count === 'number') ? cRes.count : 0;
+          });
         }
-        rows.forEach(function(r){ r._wordCount = counts[r.id] || 0; });
         setLists(rows);
       } catch (e) { console.error('단어장 로드 실패:', e); setLists([]); }
       setLoading(false);
@@ -260,34 +259,42 @@
 
     React.useEffect(function(){ load(); }, [props.listId]);
 
+    async function loadAllWords(listId) {
+      var allWords = [];
+      var pageSize = 1000;
+      for (var p = 0; ; p++) {
+        var wRes = await sb.from('vocab_words').select('*').eq('list_id', listId)
+          .order('sort_order', { ascending: true }).order('created_at', { ascending: true })
+          .range(p * pageSize, p * pageSize + pageSize - 1);
+        var batch = (wRes && wRes.data) || [];
+        if (!batch.length) break;
+        allWords = allWords.concat(batch);
+        if (batch.length < pageSize) break;
+      }
+      return allWords;
+    }
+
     async function load() {
       setLoading(true);
       try {
-        var lRes = await sb.from('vocab_lists').select('*').eq('id', props.listId).maybeSingle();
+        // 1단계: 6개 쿼리 병렬 (서로 의존 없음)
+        var results = await Promise.all([
+          sb.from('vocab_lists').select('*').eq('id', props.listId).maybeSingle(),
+          loadAllWords(props.listId),
+          sb.from('vocab_tests').select('*').eq('list_id', props.listId).eq('is_active', true).order('unit_index', { ascending: true }).order('created_at', { ascending: false }),
+          sb.from('vocab_study_sets').select('*').eq('list_id', props.listId).order('unit_index', { ascending: true }),
+          sb.from('vocab_assignments').select('*').eq('list_id', props.listId).order('created_at', { ascending: false }),
+          sb.from('classes').select('id, name')
+        ]);
+        var lRes = results[0], allWords = results[1], tRes = results[2], sRes = results[3], aRes = results[4], cRes = results[5];
         setList(lRes.data || null);
-        // Supabase PostgREST 기본 1000행 한도를 우회 — .range()로 페이지네이션해서 모두 가져옴
-        var allWords = [];
-        var pageSize = 1000;
-        for (var p = 0; ; p++) {
-          var wRes = await sb.from('vocab_words').select('*').eq('list_id', props.listId)
-            .order('sort_order', { ascending: true }).order('created_at', { ascending: true })
-            .range(p * pageSize, p * pageSize + pageSize - 1);
-          var batch = (wRes && wRes.data) || [];
-          if (!batch.length) break;
-          allWords = allWords.concat(batch);
-          if (batch.length < pageSize) break;
-        }
         setWords(allWords);
-        var tRes = await sb.from('vocab_tests').select('*').eq('list_id', props.listId).eq('is_active', true).order('unit_index', { ascending: true }).order('created_at', { ascending: false });
         setTests((tRes && tRes.data) || []);
-        var sRes = await sb.from('vocab_study_sets').select('*').eq('list_id', props.listId).order('unit_index', { ascending: true });
         setStudySets((sRes && sRes.data) || []);
-        var aRes = await sb.from('vocab_assignments').select('*').eq('list_id', props.listId).order('created_at', { ascending: false });
         var aData = (aRes && aRes.data) || [];
         setAssignments(aData);
-        // 대상 라벨용: 반 목록 + 개별 학생 카운트
-        var cRes = await sb.from('classes').select('id, name');
         setClasses((cRes && cRes.data) || []);
+        // 2단계: assignment_students 카운트 (assignments id 의존)
         if (aData.length > 0) {
           var asStud = await sb.from('vocab_assignment_students').select('assignment_id').in('assignment_id', aData.map(function(a){ return a.id; }));
           var counts = {};
