@@ -1428,6 +1428,24 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
       await loadMaterials();
     } catch (e) { alert('삭제 실패: ' + (e.message || e)); }
   }
+  async function bulkDeleteMaterialFolder(folderName, items) {
+    if (!items || !items.length) return;
+    if (!confirm('"' + folderName + '" 폴더의 자료 ' + items.length + '개를 모두 삭제할까요?\n이 자료들로 만든 시험·숙제가 있으면 자료 기록만 지우고 시험지 파일·시험·숙제는 그대로 둡니다.')) return;
+    try {
+      for (var i = 0; i < items.length; i++) {
+        var m = items[i];
+        try {
+          var { data: dep } = await sb.from('exams').select('id').eq('material_id', m.id);
+          if (!dep || dep.length === 0) {
+            var allPaths = (Array.isArray(m.image_paths)?m.image_paths:[]).concat(Array.isArray(m.answer_paths)?m.answer_paths:[]);
+            if (allPaths.length) { try { await sb.storage.from('attachments').remove(allPaths); } catch(e){} }
+          }
+          await sb.from('exams').delete().eq('id', m.id);
+        } catch (e) { console.warn('일괄 삭제 중 실패 (' + (m.title||m.id) + '):', e); }
+      }
+      await loadMaterials();
+    } catch (e) { alert('일괄 삭제 실패: ' + (e.message || e)); }
+  }
   // 시험·숙제 발행 폼에 자료 불러오기
   function loadMaterialIntoExam(m) {
     setExamDraft(function(p){
@@ -4213,19 +4231,21 @@ function TeacherPortal({ user, onLogout, isAdmin, adminAuthed }) {
             }
             var grouped = window.B2Utils.groupMaterialsByName(list);
             var folderCount = grouped.filter(function(g){ return g.type === 'folder'; }).length;
+            var filterActive = !!(materialFilters.search || materialFilters.subject || materialFilters.level || materialFilters.grade || materialFilters.view === 'analyzed');
             return (
               <div>
-                <div style={{ fontSize:'11px', color:'#9ca3af', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>총 {list.length}개{folderCount > 0 ? ' · 폴더 ' + folderCount + '개' : ''}</div>
+                <div style={{ fontSize:'11px', color:'#9ca3af', marginBottom:'6px', fontFamily:'Manrope, sans-serif' }}>총 {list.length}개{folderCount > 0 ? ' · 폴더 ' + folderCount + '개' : ''}{filterActive ? ' · 필터 적용 중 (폴더 자동 펼침)' : ''}</div>
                 <div style={{ borderTop:'1px solid #eef2f7' }}>
                 {grouped.map(function(g, gi){
                   if (g.type === 'item') return renderRow(g.m);
-                  var fopen = !!materialFolderOpen[g.name];
+                  var fopen = filterActive || !!materialFolderOpen[g.name];
                   return (
                     <div key={'folder-'+gi} style={{ borderBottom:'1px solid #eef2f7' }}>
                       <div onClick={() => setMaterialFolderOpen({ ...materialFolderOpen, [g.name]: !fopen })} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 8px', background: fopen ? '#f0fdfa' : '#fafbfc', cursor:'pointer', fontFamily:'Manrope, sans-serif', userSelect:'none' }}>
                         <span style={{ fontSize:'13px', color:'#0f766e', fontWeight:'800', width:'14px' }}>{fopen ? '▼' : '▶'}</span>
                         <span style={{ fontSize:'13px', fontWeight:'800', color:'#0f766e', flex:1 }}>{g.name}</span>
                         <span style={{ fontSize:'11px', color:'#0f766e', fontWeight:'700' }}>{g.items.length}개</span>
+                        <button onClick={(e) => { e.stopPropagation(); bulkDeleteMaterialFolder(g.name, g.items); }} title="폴더 전체 삭제" style={{ background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' }}>× 폴더 삭제</button>
                       </div>
                       {fopen && (
                         <div style={{ paddingLeft:'18px', borderLeft:'2px solid #ccfbf1', background:'#fff' }}>
