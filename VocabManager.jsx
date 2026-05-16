@@ -586,6 +586,7 @@
                     unit.study
                       ? React.createElement(React.Fragment, null,
                           React.createElement('span', { style:{ flex:1 } }),
+                          unit.words.length > 0 && React.createElement('button', { onClick:function(){ setAssignModalUnit(unit.unit_index); }, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'4px', padding:'2px 8px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 보내기'),
                           React.createElement('button', { onClick:function(){ setStudyViewUnit(unit.unit_index); }, style:{ background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'2px 7px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '보기'),
                           React.createElement('button', { onClick:function(){ setStudyUploadUnit(unit.unit_index); }, style:{ background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'2px 7px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '교체')
                         )
@@ -612,8 +613,7 @@
                       );
                     })
                   ),
-                  // 연습/시험 보내기 버튼 — 5단계 세트 있고 단어가 있을 때만
-                  unit.study && unit.words.length > 0 && React.createElement('button', { onClick:function(){ setAssignModalUnit(unit.unit_index); }, style:{ marginTop:'6px', width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'6px', padding:'7px', fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 연습/시험 보내기')
+                  // 연습/시험 보내기 버튼은 위쪽 학습세트 행에 통합됨 ('+ 보내기')
                 );
               })
             ),

@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 
 // ⬇⬇ 배포할 때 여기만 갱신하세요. index.html ?v=... 와 service-worker.js CACHE_VERSION이 자동 동기화됩니다.
-const BUILD_VERSION = '20260516v166-vocab-card-remove-title';
+const BUILD_VERSION = '20260516v167-vocab-card-buttons-align';
 
 const FILES = [
   'Utils.jsx',
