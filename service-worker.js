@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v173-vocab-deactivate-safety';
+const CACHE_VERSION = 'b2-bigbang-20260516v174-vocab-both-mode-and-study-restore';
 const OFFLINE_URLS = [
   './',
   './index.html',

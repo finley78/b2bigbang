@@ -2229,7 +2229,8 @@
       practice: { '1': true,  '2': false, '3': false, 'grammar': false },
       test:     { '1': true,  '2': true,  '3': true,  'grammar': true  },
     });
-    var stages = stagesByMode[mode];
+    // 'both'는 'test' 단계 설정을 재활용 (시험·연습 동일 단계)
+    var stages = stagesByMode[mode === 'both' ? 'test' : mode];
     // 대상
     var [targetLevel, setTargetLevel] = React.useState('');
     var [targetGrade, setTargetGrade] = React.useState('');
@@ -2301,7 +2302,11 @@
       if (stagesArr.length === 0) { alert('단계를 1개 이상 체크해주세요.'); return; }
       var hasTarget = !!targetClassId || !!targetLevel || !!targetGrade || individualIds.length > 0;
       if (!hasTarget) { alert('대상을 1명 이상 지정해주세요 (반·학년·개별 학생 중 하나).'); return; }
-      if (mode === 'test' && !title.trim()) { alert('시험 제목을 입력해주세요.'); return; }
+      var hasTest = (mode === 'test' || mode === 'both');
+      var hasPractice = (mode === 'practice' || mode === 'both');
+      if (hasTest && !title.trim()) { alert('시험 제목을 입력해주세요.'); return; }
+      var modesToInsert = mode === 'both' ? ['test', 'practice'] : [mode];
+      var modeLabel = mode === 'both' ? '시험+연습' : (mode === 'test' ? '시험' : '연습');
 
       if (isBulk) {
         // 일괄 모드: 단계 데이터 검사를 유닛별로
@@ -2317,42 +2322,45 @@
         });
         if (validUnits.length === 0) { alert('선택한 단계의 데이터가 있는 유닛이 없습니다. 4단계 학습 세트를 먼저 업로드해주세요.'); return; }
         if (individualIds.length > 0) { alert('일괄 발행은 개별 학생 지정을 지원하지 않습니다. 반/학년으로 지정해주세요.'); return; }
-        var msg = validUnits.length + '개 유닛에 ' + (mode==='test'?'시험':'연습') + '을(를) 한 번에 보냅니다.';
-        if (mode === 'test' && dueAt) { msg += '\n첫 마감일: ' + dueAt + '\n간격: ' + intervalDays + '일'; }
+        var msg = validUnits.length + '개 유닛에 ' + modeLabel + '을(를) 한 번에 보냅니다.';
+        if (hasTest && dueAt) { msg += '\n첫 마감일: ' + dueAt + '\n간격: ' + intervalDays + '일'; }
         if (!confirm(msg + '\n\n계속할까요?')) return;
         setSaving(true);
         try {
           var iv = Math.max(0, parseInt(intervalDays, 10) || 0);
-          var firstMs = (mode === 'test' && dueAt) ? new Date(dueAt).getTime() : null;
-          // unit_index 오름차순으로 정렬해서 빠른 유닛이 먼저 마감되게
+          var firstMs = (hasTest && dueAt) ? new Date(dueAt).getTime() : null;
           var sortedUnits = validUnits.slice().sort(function(a,b){ return a.unit_index - b.unit_index; });
-          var rows = sortedUnits.map(function(u, idx){
-            var thisDueIso = null;
-            if (firstMs !== null) {
-              var ms = firstMs + idx * iv * 24 * 60 * 60 * 1000;
-              thisDueIso = new Date(ms).toISOString();
-            }
-            var thisTitle = mode === 'test' ? title.trim().replace(/\{N\}/g, String(u.unit_index)) : null;
-            return {
-              list_id: props.listId,
-              unit_index: u.unit_index,
-              mode: mode,
-              stages: stagesArr,
-              target_class_id: targetClassId || null,
-              target_school_level: targetLevel || null,
-              target_grade: targetGrade || null,
-              title: thisTitle,
-              due_at: thisDueIso,
-              pass_score: mode === 'test' ? (parseInt(passScore, 10) || 0) : 0,
-              attempts_allowed: mode === 'test' ? (parseInt(attempts, 10) || 1) : 999999,
-              status: 'open',
-              created_by: window.B2Utils.safeUserId(props.user),
-              creator_name: (props.user && props.user.name) || null,
-            };
+          var allRows = [];
+          modesToInsert.forEach(function(m) {
+            var isTestMode = (m === 'test');
+            sortedUnits.forEach(function(u, idx) {
+              var thisDueIso = null;
+              if (isTestMode && firstMs !== null) {
+                var ms = firstMs + idx * iv * 24 * 60 * 60 * 1000;
+                thisDueIso = new Date(ms).toISOString();
+              }
+              var thisTitle = isTestMode ? title.trim().replace(/\{N\}/g, String(u.unit_index)) : null;
+              allRows.push({
+                list_id: props.listId,
+                unit_index: u.unit_index,
+                mode: m,
+                stages: stagesArr,
+                target_class_id: targetClassId || null,
+                target_school_level: targetLevel || null,
+                target_grade: targetGrade || null,
+                title: thisTitle,
+                due_at: thisDueIso,
+                pass_score: isTestMode ? (parseInt(passScore, 10) || 0) : 0,
+                attempts_allowed: isTestMode ? (parseInt(attempts, 10) || 1) : 999999,
+                status: 'open',
+                created_by: window.B2Utils.safeUserId(props.user),
+                creator_name: (props.user && props.user.name) || null,
+              });
+            });
           });
-          var insAll = await sb.from('vocab_assignments').insert(rows);
+          var insAll = await sb.from('vocab_assignments').insert(allRows);
           if (insAll.error) throw insAll.error;
-          alert(validUnits.length + '개 유닛 ' + (mode === 'test' ? '시험' : '연습') + '을(를) 모두 보냈어요.');
+          alert(validUnits.length + '개 유닛 ' + modeLabel + '을(를) 모두 보냈어요.');
           props.onSaved();
         } catch (e) { alert('저장 실패: ' + (e.message || e)); }
         setSaving(false);
@@ -2365,30 +2373,41 @@
 
       setSaving(true);
       try {
-        var row = {
-          list_id: props.listId,
-          unit_index: props.unitIndex,
-          mode: mode,
-          stages: stagesArr,
-          target_class_id: targetClassId || null,
-          target_school_level: targetLevel || null,
-          target_grade: targetGrade || null,
-          title: mode === 'test' ? title.trim() : null,
-          due_at: (mode === 'test' && dueAt) ? new Date(dueAt).toISOString() : null,
-          pass_score: mode === 'test' ? (parseInt(passScore, 10) || 0) : 0,
-          attempts_allowed: mode === 'test' ? (parseInt(attempts, 10) || 1) : 999999, // 연습은 사실상 무제한
-          status: 'open',
-          created_by: window.B2Utils.safeUserId(props.user),
-          creator_name: (props.user && props.user.name) || null,
-        };
-        var ins = await sb.from('vocab_assignments').insert(row).select('id').single();
-        if (ins.error) throw ins.error;
+        var insertedIds = [];
+        for (var mi = 0; mi < modesToInsert.length; mi++) {
+          var m = modesToInsert[mi];
+          var isTestMode = (m === 'test');
+          var row = {
+            list_id: props.listId,
+            unit_index: props.unitIndex,
+            mode: m,
+            stages: stagesArr,
+            target_class_id: targetClassId || null,
+            target_school_level: targetLevel || null,
+            target_grade: targetGrade || null,
+            title: isTestMode ? title.trim() : null,
+            due_at: (isTestMode && dueAt) ? new Date(dueAt).toISOString() : null,
+            pass_score: isTestMode ? (parseInt(passScore, 10) || 0) : 0,
+            attempts_allowed: isTestMode ? (parseInt(attempts, 10) || 1) : 999999,
+            status: 'open',
+            created_by: window.B2Utils.safeUserId(props.user),
+            creator_name: (props.user && props.user.name) || null,
+          };
+          var ins = await sb.from('vocab_assignments').insert(row).select('id').single();
+          if (ins.error) throw ins.error;
+          insertedIds.push(ins.data.id);
+        }
         if (individualIds.length > 0) {
-          var rows = individualIds.map(function(sid){ return { assignment_id: ins.data.id, student_id: sid }; });
-          var sIns = await sb.from('vocab_assignment_students').insert(rows);
+          var sRows = [];
+          insertedIds.forEach(function(aid) {
+            individualIds.forEach(function(sid) {
+              sRows.push({ assignment_id: aid, student_id: sid });
+            });
+          });
+          var sIns = await sb.from('vocab_assignment_students').insert(sRows);
           if (sIns.error) throw sIns.error;
         }
-        alert((mode === 'test' ? '시험' : '연습') + '이(가) 학생에게 보내졌어요.');
+        alert(modeLabel + '이(가) 학생에게 보내졌어요.');
         props.onSaved();
       } catch (e) { alert('저장 실패: ' + (e.message || e)); }
       setSaving(false);
@@ -2411,7 +2430,7 @@
         React.createElement('div', { style:{ marginBottom:'16px' } },
           React.createElement('div', { style: sectionLabel }, '1. 종류'),
           React.createElement('div', { style:{ display:'flex', gap:'8px' } },
-            [['practice','연습','점수 기록 안 함, 반복 가능'], ['test','시험','점수 기록, 마감일까지 응시']].map(function(o){
+            [['practice','연습','점수 기록 안 함, 반복 가능'], ['test','시험','점수 기록, 마감일까지 응시'], ['both','둘 다','시험+연습을 한 번에']].map(function(o){
               var on = mode === o[0];
               return React.createElement('button', { key:o[0], onClick:function(){ setMode(o[0]); }, style:{ flex:1, background: on ? '#FFEBED' : '#fff', color: on ? '#E60012' : '#374151', border:'1.5px solid ' + (on ? '#E60012' : '#d6dbde'), borderRadius:'8px', padding:'10px 12px', cursor:'pointer', fontFamily:'Manrope, sans-serif', textAlign:'center' } },
                 React.createElement('div', { style:{ fontSize:'14px', fontWeight:'800', marginBottom:'2px' } }, o[1]),
@@ -2482,8 +2501,8 @@
           isBulk && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontStyle:'italic', padding:'8px 12px', background:'#f9fafb', borderRadius:'6px', fontFamily:'Manrope, sans-serif' } }, '일괄 발행은 반·학년만 지정할 수 있어요. (개별 학생 지정은 유닛별로 따로)')
         ),
 
-        // 4) 시험 옵션 (mode === 'test')
-        mode === 'test' && React.createElement('div', { style:{ marginBottom:'16px', background:'#fef3c7', border:'1px solid #fbbf24', borderRadius:'8px', padding:'12px' } },
+        // 4) 시험 옵션 (mode === 'test' 또는 'both' — 시험에만 적용, 연습엔 무시됨)
+        (mode === 'test' || mode === 'both') && React.createElement('div', { style:{ marginBottom:'16px', background:'#fef3c7', border:'1px solid #fbbf24', borderRadius:'8px', padding:'12px' } },
           React.createElement('div', { style: Object.assign({}, sectionLabel, { color:'#92400e', marginBottom:'10px' }) }, '4. 시험 옵션'),
           React.createElement('label', { style:{ fontSize:'11px', fontWeight:'700', color:'#92400e', display:'block', marginBottom:'2px' } }, '시험 제목' + (isBulk ? ' — {N} 자리에 유닛 번호가 자동 들어가요' : '')),
           React.createElement('input', { type:'text', value: title, onChange:function(e){ setTitle(e.target.value); }, placeholder: isBulk ? '예: UNIT {N} 시험' : '', style:Object.assign({}, inputStyleS, { width:'100%', marginBottom:'8px' }) }),
