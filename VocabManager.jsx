@@ -537,10 +537,10 @@
                 if (eligible.length < 2 && assignments.length === 0) return null;
                 var selUnitCount = Object.keys(selectedUnitIndexes).filter(function(k){ return selectedUnitIndexes[k]; }).length;
                 var selAssignCount = Object.keys(selectedAssignmentIds).filter(function(k){ return selectedAssignmentIds[k]; }).length;
-                var btnPri = { background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'7px', padding:'8px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
-                var btnDanger = { background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'7px', padding:'8px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
+                var btnPri = { background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'5px', padding:'4px 9px', fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
+                var btnDanger = { background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'5px', padding:'4px 9px', fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
                 var btnDisabled = { background:'#f3f4f6', color:'#9ca3af', cursor:'not-allowed' };
-                return React.createElement('div', { style:{ marginBottom:'12px', padding:'12px 14px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'10px', fontFamily:'Manrope, sans-serif' } },
+                return React.createElement('div', { style:{ marginBottom:'10px', padding:'8px 10px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } },
                   // 발행 행
                   eligible.length >= 1 && React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom: assignments.length > 0 ? '8px' : 0 } },
                     React.createElement('div', { style:{ flex:1, minWidth:'180px', fontSize:'12px', color:'rgba(0,0,0,0.7)' } },

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v167-vocab-card-buttons-align';
+const CACHE_VERSION = 'b2-bigbang-20260516v168-vocab-bulk-buttons-smaller';
 const OFFLINE_URLS = [
   './',
   './index.html',
