@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260516v176-vocab-score-sync-and-report-rank-migrate';
+const CACHE_VERSION = 'b2-bigbang-20260518v177-vocab-list-draft-status';
 const OFFLINE_URLS = [
   './',
   './index.html',

@@ -131,7 +131,15 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-16 기준, 최신 ?v=20260516v159-vocab-4stage)
+## 현재 진행 (2026-05-18 기준, 최신 ?v=20260518v177-vocab-list-draft-status)
+
+### ★ 단어장 '준비중/공개' 상태 추가 (v177, 2026-05-18) ★
+- 사용자 요청: 단어장을 만들어두기만 하고 아직 발행 안 하는 잠금 상태 필요. 클래스 드롭다운엔 '학원 전체 공유'와 '특정 반'만 있어서 표현 길이 없었음.
+- DB: `vocab_lists.status text NOT NULL DEFAULT 'published' CHECK (status IN ('draft','published'))` 추가 (`migrations/2026-05-18_add_vocab_lists_status.sql`). 기존 행은 DEFAULT로 모두 'published' 채워짐.
+- VocabManager.jsx 단어장 편집 모달: '상태' 드롭다운(공개/준비중)을 클래스 행 위에 단독 행으로 추가. draft 기본값 처리 + save() row에 status 포함. 클래스는 별도 행으로 분리.
+- 단어장 목록 카드(`loadLists`): select에 status/class_id/school_level 추가. status='draft'이면 카드 배경 회색(#f3f4f6), 단어 수 빨강 뱃지 자리에 회색 '준비중' 뱃지.
+- 단어장 상세(VocabListDetail): status='draft'이면 상단에 주황 안내 배너 + 헤더 타이틀 옆 '준비중' 회색 칩. 발행 버튼 3개(+ 선택 발행 / + 전체 발행 / 유닛별 + 보내기) 모두 disabled + 클릭 시 alert. 유닛 카드 버튼 라벨은 '잠금'으로 바뀜.
+- 학생 화면엔 영향 없음(발행되지 않은 단어장은 원래 학생에게 안 보임).
 
 ### ★ 단어 학습 세트 5단계 → 4단계 축소 (v159, 2026-05-16) ★
 - 2.5단계 빈칸 객관식을 제거 — 학습 흐름은 `1단계 단어 → 2단계 해석 → 3단계 영작 → 어법` 4단계로 단순화.

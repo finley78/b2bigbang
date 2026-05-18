@@ -30,7 +30,7 @@
       setLoading(true);
       try {
         var res = await sb.from('vocab_lists')
-          .select('id, name, description, subject, grade, unit_size, creator_name, created_at, updated_at')
+          .select('id, name, description, subject, grade, unit_size, creator_name, created_at, updated_at, status, class_id, school_level')
           .eq('is_active', true)
           .order('created_at', { ascending: false });
         var rows = (res && res.data) || [];
@@ -79,10 +79,16 @@
           ? React.createElement('div', { style:Object.assign({}, STYLES.card, { textAlign:'center', padding:'40px', color:'#9ca3af' }) }, '아직 단어장이 없습니다. "+ 새 단어장" 버튼으로 만들어 주세요.')
           : React.createElement('div', { style:{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px' } },
               lists.map(function(L){
-                return React.createElement('div', { key:L.id, style:Object.assign({}, STYLES.card, { cursor:'pointer', transition:'all 0.15s', padding:'12px' }), onClick:function(){ setSelectedListId(L.id); } },
+                var isDraft = (L.status === 'draft');
+                var cardStyle = Object.assign({}, STYLES.card, { cursor:'pointer', transition:'all 0.15s', padding:'12px' });
+                if (isDraft) cardStyle = Object.assign(cardStyle, { background:'#f3f4f6', borderColor:'#d1d5db' });
+                var titleColor = isDraft ? 'rgba(0,0,0,0.55)' : '#1A1A1A';
+                return React.createElement('div', { key:L.id, style:cardStyle, onClick:function(){ setSelectedListId(L.id); } },
                   React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'6px', marginBottom:'6px' } },
-                    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, L.name),
-                    React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'1px 6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, L._wordCount + '단어')
+                    React.createElement('div', { style:{ fontSize:'13px', fontWeight:'800', color:titleColor, fontFamily:'Manrope, sans-serif', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, L.name),
+                    isDraft
+                      ? React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#e5e7eb', color:'rgba(0,0,0,0.6)', borderRadius:'4px', padding:'1px 6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '준비중')
+                      : React.createElement('span', { style:{ fontSize:'10px', fontWeight:'700', background:'#FFEBED', color:'#E60012', borderRadius:'4px', padding:'1px 6px', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, L._wordCount + '단어')
                   ),
                   React.createElement('div', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.5)', fontFamily:'Manrope, sans-serif', marginBottom:'6px' } },
                     [L.subject, L.grade, L._wordCount > 0 ? 'UNIT ' + Math.ceil(L._wordCount / (L.unit_size || 20)) + '개' : null].filter(Boolean).join(' · ')
@@ -116,7 +122,8 @@
   // ── 단어장 만들기/편집 모달 ─────────────────────────
   function VocabListEditModal(props) {
     var sb = window.supabase;
-    var initial = props.list || { name:'', description:'', subject:'', school_level:'', grade:'', class_id:'', unit_size: 20 };
+    var initial = props.list || { name:'', description:'', subject:'', school_level:'', grade:'', class_id:'', unit_size: 20, status: 'published' };
+    if (initial && !initial.status) initial = Object.assign({}, initial, { status: 'published' });
     var [draft, setDraft] = React.useState(initial);
     var [saving, setSaving] = React.useState(false);
     var [classes, setClasses] = React.useState([]);
@@ -146,6 +153,7 @@
           grade: draft.grade || null,
           class_id: draft.class_id || null,
           unit_size: unitSize,
+          status: (draft.status === 'draft') ? 'draft' : 'published',
           updated_at: new Date().toISOString(),
         };
         if (props.list && props.list.id) {
@@ -198,18 +206,26 @@
             )
           )
         ),
-        // 2행: 클래스 + 유닛 단위
+        // 2행: 상태 + 유닛 단위
         React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'10px', marginBottom:'12px' } },
           React.createElement('div', null,
-            React.createElement('div', { style:STYLES.label }, '클래스 (특정 반 전용으로 만들 때)'),
-            React.createElement('select', { value:draft.class_id||'', onChange:function(e){ set('class_id', e.target.value); }, style:STYLES.input },
-              React.createElement('option', { value:'' }, '학원 전체 공유 (모든 반)'),
-              classes.map(function(c){ return React.createElement('option', { key:c.id, value:c.id }, c.name + (c.grade ? (' — ' + c.grade) : '')); })
+            React.createElement('div', { style:STYLES.label }, '상태'),
+            React.createElement('select', { value:draft.status||'published', onChange:function(e){ set('status', e.target.value); }, style:STYLES.input },
+              React.createElement('option', { value:'published' }, '공개 — 시험·연습으로 내보낼 수 있음'),
+              React.createElement('option', { value:'draft' }, '준비중 — 만드는 중 (시험·연습 발행 잠금)')
             )
           ),
           React.createElement('div', null,
             React.createElement('div', { style:STYLES.label }, '유닛 단위'),
             React.createElement('input', { type:'number', min:1, max:200, value:draft.unit_size, onChange:function(e){ set('unit_size', window.B2Utils.stripLeadingZero(e.target.value)); }, placeholder:'20', style:STYLES.input })
+          )
+        ),
+        // 3행: 클래스
+        React.createElement('div', { style:{ marginBottom:'12px' } },
+          React.createElement('div', { style:STYLES.label }, '클래스 (특정 반 전용으로 만들 때)'),
+          React.createElement('select', { value:draft.class_id||'', onChange:function(e){ set('class_id', e.target.value); }, style:STYLES.input },
+            React.createElement('option', { value:'' }, '학원 전체 공유 (모든 반)'),
+            classes.map(function(c){ return React.createElement('option', { key:c.id, value:c.id }, c.name + (c.grade ? (' — ' + c.grade) : '')); })
           )
         ),
         React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', marginBottom:'12px', fontFamily:'Manrope, sans-serif', lineHeight:'1.5' } },
@@ -456,10 +472,16 @@
     return React.createElement('div', null,
       // 헤더 (뒤로가기 + 단어장 정보)
       React.createElement('button', { onClick:props.onBack, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'800', fontFamily:'Manrope, sans-serif', marginBottom:'12px', padding:0 } }, '← 단어장 목록'),
+      (list && list.status === 'draft') && React.createElement('div', { style:{ marginBottom:'10px', padding:'10px 14px', background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:'10px', color:'#9a3412', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } },
+        '준비중 단어장 — 학생에게 연습/시험으로 보낼 수 없습니다. 단어장 목록에서 "편집"을 눌러 상태를 "공개"로 바꾸면 발행 가능.'
+      ),
       React.createElement('div', { style:Object.assign({}, STYLES.card, { marginBottom:'14px' }) },
         React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'10px' } },
           React.createElement('div', null,
-            React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif' } }, list.name),
+            React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#1A1A1A', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+              list.name,
+              (list && list.status === 'draft') && React.createElement('span', { style:{ fontSize:'11px', fontWeight:'800', background:'#e5e7eb', color:'rgba(0,0,0,0.6)', borderRadius:'4px', padding:'2px 8px', fontFamily:'Manrope, sans-serif' } }, '준비중')
+            ),
             React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginTop:'4px' } },
               [list.subject, list.grade, words.length + '단어', words.length > 0 ? '유닛 ' + maxWordUnit + '개 (' + unitSize + '/유닛)' : null].filter(Boolean).join(' · ')
             )
@@ -549,19 +571,24 @@
                 var btnPri = { background:'#1A1A1A', color:'#fff', border:'none', borderRadius:'5px', padding:'4px 9px', fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
                 var btnDanger = { background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'5px', padding:'4px 9px', fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
                 var btnDisabled = { background:'#f3f4f6', color:'#9ca3af', cursor:'not-allowed' };
+                var isDraftList = list && list.status === 'draft';
                 return React.createElement('div', { style:{ marginBottom:'10px', padding:'8px 10px', background:'#f9fafb', border:'1px solid #e5e7eb', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } },
                   // 발행 행
                   eligible.length >= 1 && React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom: assignments.length > 0 ? '8px' : 0 } },
                     React.createElement('div', { style:{ flex:1, minWidth:'180px', fontSize:'12px', color:'rgba(0,0,0,0.7)' } },
                       React.createElement('strong', { style:{ color:'#1A1A1A' } }, '발행'),
-                      React.createElement('span', { style:{ marginLeft:'8px', fontSize:'11px', color:'rgba(0,0,0,0.5)' } }, '선택한 유닛 ' + selUnitCount + '개 / 전체 가능 ' + eligible.length + '개')
+                      React.createElement('span', { style:{ marginLeft:'8px', fontSize:'11px', color:'rgba(0,0,0,0.5)' } }, isDraftList ? '준비중 단어장은 발행할 수 없습니다.' : ('선택한 유닛 ' + selUnitCount + '개 / 전체 가능 ' + eligible.length + '개'))
                     ),
                     React.createElement('button', { onClick:function(){
+                      if (isDraftList) { alert('준비중 단어장은 발행할 수 없습니다. 먼저 단어장 편집에서 상태를 "공개"로 바꿔주세요.'); return; }
                       var picked = eligible.filter(function(u){ return selectedUnitIndexes[u.unit_index]; });
                       if (picked.length === 0) { alert('유닛을 1개 이상 체크해주세요.'); return; }
                       setBulkAssignOpen({ scope: 'selected', units: picked });
-                    }, disabled: selUnitCount === 0, style: selUnitCount === 0 ? Object.assign({}, btnPri, btnDisabled) : btnPri }, '+ 선택 발행 (' + selUnitCount + ')'),
-                    React.createElement('button', { onClick:function(){ setBulkAssignOpen({ scope: 'all', units: eligible }); }, disabled: eligible.length < 2, style: eligible.length < 2 ? Object.assign({}, btnPri, btnDisabled) : btnPri }, '+ 전체 발행 (' + eligible.length + ')')
+                    }, disabled: (selUnitCount === 0) || isDraftList, style: ((selUnitCount === 0) || isDraftList) ? Object.assign({}, btnPri, btnDisabled) : btnPri }, '+ 선택 발행 (' + selUnitCount + ')'),
+                    React.createElement('button', { onClick:function(){
+                      if (isDraftList) { alert('준비중 단어장은 발행할 수 없습니다. 먼저 단어장 편집에서 상태를 "공개"로 바꿔주세요.'); return; }
+                      setBulkAssignOpen({ scope: 'all', units: eligible });
+                    }, disabled: (eligible.length < 2) || isDraftList, style: ((eligible.length < 2) || isDraftList) ? Object.assign({}, btnPri, btnDisabled) : btnPri }, '+ 전체 발행 (' + eligible.length + ')')
                   ),
                   // 취소 행
                   assignments.length > 0 && React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
@@ -595,7 +622,15 @@
                     unit.study
                       ? React.createElement(React.Fragment, null,
                           React.createElement('span', { style:{ flex:1 } }),
-                          unit.words.length > 0 && React.createElement('button', { onClick:function(){ setAssignModalUnit(unit.unit_index); }, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'4px', padding:'2px 8px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '+ 보내기'),
+                          unit.words.length > 0 && (function(){
+                            var locked = list && list.status === 'draft';
+                            var st = { background:'#E60012', color:'#fff', border:'none', borderRadius:'4px', padding:'2px 8px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' };
+                            if (locked) st = Object.assign({}, st, { background:'#f3f4f6', color:'#9ca3af', cursor:'not-allowed' });
+                            return React.createElement('button', { onClick:function(){
+                              if (locked) { alert('준비중 단어장은 발행할 수 없습니다. 먼저 단어장 편집에서 상태를 "공개"로 바꿔주세요.'); return; }
+                              setAssignModalUnit(unit.unit_index);
+                            }, disabled: locked, style: st }, locked ? '잠금' : '+ 보내기');
+                          })(),
                           React.createElement('button', { onClick:function(){ setStudyViewUnit(unit.unit_index); }, style:{ background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'2px 7px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '보기'),
                           React.createElement('button', { onClick:function(){ setStudyUploadUnit(unit.unit_index); }, style:{ background:'transparent', color:'rgba(0,0,0,0.6)', border:'1px solid #d6dbde', borderRadius:'4px', padding:'2px 7px', fontSize:'10px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '교체')
                         )
