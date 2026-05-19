@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260519v185-rename-todo-to-test';
+const CACHE_VERSION = 'b2-bigbang-20260519v186-excel-cols-subject-filter-no-emoji';
 const OFFLINE_URLS = [
   './',
   './index.html',

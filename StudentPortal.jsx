@@ -477,7 +477,7 @@ function SignupPage({ onBack, onComplete, prefill }) {
   if (step === 3) return React.createElement('div', { style:{ minHeight:'100vh', background:'#f8fafc' } },
     header,
     React.createElement('div', { style:{ maxWidth:'480px', margin:'0 auto', padding:'60px 20px', textAlign:'center' } },
-      React.createElement('div', { style:{ fontSize:'64px', marginBottom:'20px' } }, needsEmailConfirm ? '📧' : '완료'),
+      React.createElement('div', { style:{ fontSize:'18px', fontWeight:'800', color:'#1A1A1A', marginBottom:'20px', fontFamily:'Manrope, sans-serif' } }, needsEmailConfirm ? '이메일 인증 필요' : '완료'),
       React.createElement('h2', { style:{ fontSize:'24px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', marginBottom:'12px' } }, roleType === 'teacher' ? '가입 신청 완료' : (needsEmailConfirm ? '이메일 인증만 남았어요' : '가입 완료!')),
       React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif', lineHeight:'1.8', whiteSpace:'pre-line' } },
         (function(){
@@ -785,7 +785,7 @@ function StudentAudioRecorder({ examId, studentId, existingPath, isLocked, onPat
     !isLocked && path && !previewBlob && React.createElement('div', null,
       React.createElement('div', { style:{ fontSize:'13px', color:'#16a34a', fontWeight:'800', marginBottom:'10px', fontFamily:'Manrope, sans-serif' } }, '✓ 녹음 제출 완료'),
       React.createElement('audio', { controls:true, src: window.B2Utils.audioPublicUrl(path), style:{ width:'100%', marginBottom:'12px' } }),
-      React.createElement('button', { onClick:deleteAndRedo, style:{ width:'100%', background:'#fff', color:'#dc2626', border:'2px solid #dc2626', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minHeight:'52px' } }, '🗑 녹음 삭제하고 다시')
+      React.createElement('button', { onClick:deleteAndRedo, style:{ width:'100%', background:'#fff', color:'#dc2626', border:'2px solid #dc2626', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', minHeight:'52px' } }, '× 녹음 삭제하고 다시')
     )
   );
 }
@@ -1981,7 +1981,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
   // 비로그인 상태
   if (!user) {
     return React.createElement('div', { style:{ minHeight:'60vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'20px', background:'#f8fafc', padding:'40px' } },
-      React.createElement('div', { style:{ width:'72px', height:'72px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'32px' } }, '\uD83C\uDF93'),
+      React.createElement('div', { style:{ width:'72px', height:'72px', borderRadius:'50%', background:'#FFEBED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif' } }, '\uD559\uC6D0'),
       React.createElement('h2', { style:{ fontSize:'28px', fontWeight:'800', color:'#E60012', fontFamily:'Manrope, sans-serif', letterSpacing:'-0.16px' } }, '로그인이 필요합니다'),
       React.createElement('p', { style:{ fontSize:'15px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', textAlign:'center', lineHeight:'1.7' } }, '수강 중인 강의를 보려면 로그인해 주세요.\nGoogle 또는 카카오톡으로 간편하게 로그인할 수 있습니다.'),
       React.createElement('button', { onClick:onLoginClick, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'14px 32px', fontSize:'15px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' },
@@ -2000,7 +2000,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
           )
         ),
         React.createElement('div', { style:{ display:'flex', gap:'8px', alignItems:'center' } },
-          !adminMode && !isTeacherMode && React.createElement('button', { onClick:function(){ setPortalView('mypage'); setProfileDraft(null); }, style:{ background:'rgba(255,255,255,0.15)', color:'#fff', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 12px':'8px 16px', fontSize: small?'12px':'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '👤 마이페이지'),
+          !adminMode && !isTeacherMode && React.createElement('button', { onClick:function(){ setPortalView('mypage'); setProfileDraft(null); }, style:{ background:'rgba(255,255,255,0.15)', color:'#fff', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 12px':'8px 16px', fontSize: small?'12px':'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '마이페이지'),
           isTeacherMode && React.createElement('div', { style:{ background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', padding: small?'5px 14px':'8px 20px' } },
             React.createElement('span', { style:{ fontSize: small?'12px':'14px', fontWeight:'700', color:'#fff', fontFamily:'Manrope, sans-serif' } }, '선생님')
           )

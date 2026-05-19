@@ -83,6 +83,7 @@ const [editingMember, setEditingMember] = React.useState(null);
 const [filterSchool, setFilterSchool] = React.useState('전체');
 const [filterLevel, setFilterLevel] = React.useState('전체');
 const [filterGrade, setFilterGrade] = React.useState('전체');
+const [filterSubject, setFilterSubject] = React.useState('전체');
 const [filterTeacher, setFilterTeacher] = React.useState('전체');
 const [studentNameSearch, setStudentNameSearch] = React.useState('');
 const [sortStudentBy, setSortStudentBy] = React.useState('created_desc');
@@ -1641,9 +1642,10 @@ return (teacherClasses || []).filter(function(cls){
 }
 
 /* ── 수강생 엑셀 가져오기/내보내기 ─────────────────── */
-// 가져오기/템플릿: 기본 6개 필드 (이름·학생전화·학부모전화·주소·최초 등원일·퇴원일)
-const STUDENT_IMPORT_HEADERS = ['이름','학생전화','학부모전화','주소','최초 등원일','퇴원일'];
-const STUDENT_IMPORT_COLS = [{wch:10},{wch:16},{wch:16},{wch:30},{wch:14},{wch:14}];
+// 가져오기/템플릿: 이름·학생전화·학부모전화·주소·학교급·학년·학교·수강 과목·최초 등원일·퇴원일
+// (10개) — 학교급·학년·학교·수강 과목까지 받아서 import 직후 학생 카드가 완성된 상태가 되게 함
+const STUDENT_IMPORT_HEADERS = ['이름','학생전화','학부모전화','주소','학교급','학년','학교','수강 과목','최초 등원일','퇴원일'];
+const STUDENT_IMPORT_COLS = [{wch:10},{wch:16},{wch:16},{wch:30},{wch:8},{wch:8},{wch:14},{wch:20},{wch:14},{wch:14}];
 // 내보내기: 기본 6개 + 배정 정보 (학교급·학년·학교·수강 과목·담당 선생님(반))
 const STUDENT_EXPORT_HEADERS = ['이름','학생전화','학부모전화','주소','학교급','학년','학교','수강 과목','담당 선생님(반)','최초 등원일','퇴원일'];
 const STUDENT_EXPORT_COLS = [{wch:10},{wch:16},{wch:16},{wch:30},{wch:8},{wch:8},{wch:14},{wch:30},{wch:30},{wch:14},{wch:14}];
@@ -1717,6 +1719,10 @@ function downloadStudentTemplate() {
     '학생전화':'01012345678',
     '학부모전화':'01098765432',
     '주소':'인천 서구 ...',
+    '학교급':'고등',
+    '학년':'고1',
+    '학교':'대인고',
+    '수강 과목':'영어, 수학',
     '최초 등원일':'2025-03-15',
     '퇴원일':''
   }];
@@ -1787,6 +1793,31 @@ async function importStudentsExcel(file) {
       var hasWithdrawnInput = rawWithdrawn !== '' && rawWithdrawn != null && rawWithdrawn !== undefined;
       if (hasCreatedInput && !createdAt) errors.push(rowNum + '행: 최초 등원일 형식 오류 (예: 2025-03-15)');
       if (hasWithdrawnInput && !withdrawnAt) errors.push(rowNum + '행: 퇴원일 형식 오류 (예: 2025-03-15)');
+      // 학교급(초등/중등/고등) + 학년('1학년','중1','고1' 등) + 학교 + 수강 과목
+      var schoolLevel = String(pickField(r, '학교급', '학교 급', '교급')||'').trim();
+      // 학교급 표기 정규화: '초'/'초등학교'/'초등' 다 '초등'으로
+      if (/^초/.test(schoolLevel)) schoolLevel = '초등';
+      else if (/^중/.test(schoolLevel)) schoolLevel = '중등';
+      else if (/^고/.test(schoolLevel)) schoolLevel = '고등';
+      else schoolLevel = '';
+      var gradeRaw = String(pickField(r, '학년', '학년수준', '학년 수준')||'').trim();
+      var grade = '';
+      if (gradeRaw) {
+        // 이미 '중1','고1','1학년' 형식이면 그대로
+        if (/^(중[1-3]|고[1-3]|[1-6]학년)$/.test(gradeRaw)) grade = gradeRaw;
+        // '1','2','3' 같은 단순 숫자면 학교급과 결합
+        else if (/^[1-6]$/.test(gradeRaw)) {
+          if (schoolLevel === '초등') grade = gradeRaw + '학년';
+          else if (schoolLevel === '중등' && parseInt(gradeRaw,10) <= 3) grade = '중' + gradeRaw;
+          else if (schoolLevel === '고등' && parseInt(gradeRaw,10) <= 3) grade = '고' + gradeRaw;
+          else errors.push(rowNum + '행: 학년/학교급 조합 오류 — 학교급을 함께 적어주세요');
+        }
+        else errors.push(rowNum + '행: 학년 형식 오류 — "고1", "중2", "5학년", 또는 "1"(학교급 필수) 형식');
+      }
+      var school = String(pickField(r, '학교', '재학중인 학교', '재학중 학교')||'').trim();
+      var subjects = parseSubjectsCell(pickField(r, '수강 과목', '수강과목', '과목', '수강 중 과목'));
+      // 과목 정규화 — '국어','영어','수학','과학' 만 허용
+      subjects = subjects.filter(function(s){ return ['국어','영어','수학','과학'].indexOf(s) >= 0; });
       valid.push({
         name: name,
         phone: phone,
@@ -1796,6 +1827,9 @@ async function importStudentsExcel(file) {
         withdrawn_at: withdrawnAt,
         has_withdrawn_input: hasWithdrawnInput,
         has_created_input: hasCreatedInput,
+        grade: grade || null,
+        school: school || null,
+        subjects: subjects,
       });
     });
 
@@ -1827,6 +1861,10 @@ async function importStudentsExcel(file) {
         name: v.name, phone: v.phone,
         address: v.address, parent_phone: v.parent_phone,
       };
+      // 학교급/학년/학교/수강 과목 — 입력된 경우만 채움 (기존 값 덮지 않게 비어있으면 생략)
+      if (v.grade) payload.grade = v.grade;
+      if (v.school) payload.school = v.school;
+      if (v.subjects && v.subjects.length > 0) payload.subjects = v.subjects;
       // 최초등록일: 입력된 값이 있고 파싱 성공한 경우만 덮어씀
       if (v.has_created_input && v.created_at) payload.created_at = v.created_at;
       // 퇴원일: 입력 시 → withdrawn_at + is_active=false. 빈칸 → 기존값 유지(건드리지 않음).
@@ -1841,6 +1879,7 @@ async function importStudentsExcel(file) {
         } else {
           payload.role = 'student';
           if (payload.is_active == null) payload.is_active = true;
+          payload.is_approved = true; // 관리자가 import한 학생은 즉시 승인 — 일반회원 단계 안 거침
           payload.privacy_agreed = true;
           payload.agreed_at = new Date().toISOString();
           if (!payload.created_at) payload.created_at = new Date().toISOString();
@@ -3080,12 +3119,20 @@ React.createElement('option', { value:'고등' }, '고등')
 React.createElement('select', {
 value: filterGrade,
 onChange: function(e) { setFilterGrade(e.target.value); setSelectedIds([]); },
+disabled: filterLevel === '전체',
+style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background: filterLevel === '전체' ? '#f3f4f6' : '#fff', outline:'none', cursor: filterLevel === '전체' ? 'not-allowed' : 'pointer' }
+},
+React.createElement('option', { value:'전체' }, filterLevel === '전체' ? '먼저 초중고' : '학년 전체'),
+(filterLevel === '전체' ? [] : SCHOOL_LEVELS[filterLevel].grades).map(function(g){ return React.createElement('option',{key:g,value:g},g); })
+),
+// 과목 필터 — 학생의 students.subjects 배열에서 매칭
+React.createElement('select', {
+value: filterSubject,
+onChange: function(e) { setFilterSubject(e.target.value); setSelectedIds([]); },
 style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
 },
-React.createElement('option', { value:'전체' }, '학년'),
-filterLevel === '전체'
-? ['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'].map(function(g){ return React.createElement('option',{key:g,value:g},g); })
-: SCHOOL_LEVELS[filterLevel].grades.map(function(g){ return React.createElement('option',{key:g,value:g},g); })
+React.createElement('option', { value:'전체' }, '과목'),
+SUBJECTS.map(function(sub){ return React.createElement('option', { key:sub, value:sub }, sub); })
 ),
 
 React.createElement('select', {
@@ -3166,7 +3213,7 @@ await importStudentsExcel(files[i]);
 })
 ),
 React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } },
-'※ 필수: 이름만 / 학생전화 있으면 기존 학생 업데이트, 없으면 신규 · 여러 파일 한꺼번에 선택 가능(파일별로 미리보기·확인)'
+'※ 필수: 이름만. 선택: 학년·학교·수강 과목·연락처 등. 학생전화 있으면 기존 학생 업데이트. 여러 파일 한꺼번에 선택 가능.'
 )
 ),
 
@@ -3399,6 +3446,7 @@ if (!lvGrades.includes(st.grade)) return false;
 }
 if (filterSchool !== '전체' && st.school !== filterSchool) return false;
 if (filterGrade !== '전체' && st.grade !== filterGrade) return false;
+if (filterSubject !== '전체' && (st.subjects || []).indexOf(filterSubject) < 0) return false;
 if (filterTeacher !== '전체') {
 var teacher = dbTeachers.find(function(t) { return String(t.id) === String(filterTeacher); });
 var assignedCourseIds = teacher ? getAssignedCourseIdsForTeacher(teacher) : [];
