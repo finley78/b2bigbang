@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260519v186-excel-cols-subject-filter-no-emoji';
+const CACHE_VERSION = 'b2-bigbang-20260519v187-filtered-count-in-header';
 const OFFLINE_URLS = [
   './',
   './index.html',

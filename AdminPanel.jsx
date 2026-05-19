@@ -3066,6 +3066,26 @@ React.createElement('input', { value:lec.youtubeId||'', onChange:function(e){ va
 /* ── 수강생 관리 TAB ── */
 tab==='enrollee' && (function() {
 var studentSource = studentViewMode === 'withdrawn' ? dbWithdrawnStudents : dbStudents;
+// 필터 적용 학생 수 — 헤더 카운트에 사용 (아래 그리드의 filtered 로직과 동일한 술어)
+var _nameQ = (studentNameSearch || '').trim().toLowerCase();
+var _filteredCount = studentSource.filter(function(st){
+  if (_nameQ && !(st.name || '').toLowerCase().includes(_nameQ)) return false;
+  if (filterLevel !== '전체') {
+    var _lvGrades = SCHOOL_LEVELS[filterLevel].grades;
+    if (!_lvGrades.includes(st.grade)) return false;
+  }
+  if (filterSchool !== '전체' && st.school !== filterSchool) return false;
+  if (filterGrade !== '전체' && st.grade !== filterGrade) return false;
+  if (filterSubject !== '전체' && (st.subjects || []).indexOf(filterSubject) < 0) return false;
+  if (filterTeacher !== '전체') {
+    var _t = dbTeachers.find(function(t) { return String(t.id) === String(filterTeacher); });
+    var _cids = _t ? getAssignedCourseIdsForTeacher(_t) : [];
+    var _sc = st.enrolledCourses || [];
+    if (!_cids.some(function(cid) { return _sc.includes(cid); })) return false;
+  }
+  return true;
+}).length;
+var _isFiltered = _filteredCount !== studentSource.length;
 return React.createElement('div', null,
 
 // 수강 신청 대기 (학생이 프로그램 페이지에서 직접 신청 → 승인 필요)
@@ -3091,7 +3111,9 @@ React.createElement('div', { style:{ marginBottom:'20px' } },
 
 React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'16px' } },
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginRight:'8px', flexShrink:0 } },
-studentViewMode === 'withdrawn' ? `퇴원 학생 (${dbWithdrawnStudents.length}명)` : `수강생 관리 (${dbStudents.length}명)`),
+studentViewMode === 'withdrawn'
+  ? '퇴원 학생 (' + (_isFiltered ? _filteredCount + ' / ' : '') + dbWithdrawnStudents.length + '명)'
+  : '수강생 관리 (' + (_isFiltered ? _filteredCount + ' / ' : '') + dbStudents.length + '명)'),
 
 /* 활성/퇴원 토글 */
 React.createElement('div', { style:{ display:'inline-flex', background:'#f2f0eb', borderRadius:'8px', padding:'3px', gap:'2px' } },
