@@ -131,7 +131,87 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-18 기준, 최신 ?v=20260518v177-vocab-list-draft-status)
+## 현재 진행 (2026-05-19 기준, 최신 ?v=20260519v182-todo-merge-and-inline-class-assign)
+
+### ★ 학생 PWA 시험+숙제 = "할 일" 통합 + 학생 카드 반 배정 인라인 (v182, 2026-05-19) ★
+사용자가 "UI나 기능을 합할 수 있는 거 없나? 너무 분산돼서 직관적이지 못해" — 분산된 UI 묶기.
+
+**A. 학생 PWA: "테스트" + "숙제" → "할 일"** (StudentPortal.jsx)
+- 강의실 홈 4카드(영상강의·테스트·숙제·단어장) → 3카드(영상강의·**할 일**·단어장).
+- 'test' studentMode를 통합 "할 일" 화면으로 재구성. 'homework' studentMode도 같은 블록으로 redirect.
+- 화면 상단에 **필터 칩 3개** [전체 N · 시험 N · 숙제 N] — 색상 다르게(검정/빨강/파랑) 클릭 시 종류별 필터링.
+- 카드 정렬: **안 푼 것 먼저, 그 안에서 최신 발행순**. 각 카드 좌상단에 종류 뱃지(시험=빨강/숙제=파랑) + 상태 뱃지(미응시·응시중·완료·시간 종료 등).
+- state: `todoFilter` 추가. setStudentMode('test') 시 setTodoFilter('all').
+- 빈 상태 안내문: "할 일이 없어요" 한 줄로 통일.
+
+**B. 관리자: 학생 카드 펼침에 반 배정 인라인** (AdminPanel.jsx)
+- 학생 카드 펼침 영역 진단 줄(받은 단어장·소속 반·수강 강좌) 바로 아래에 **빨강 박스 한 줄** 추가:
+  - 라벨: "반 배정"
+  - 현재 소속 반들이 칩으로 표시 (선생님 이름 + 반 이름 형식, `B2Utils.classLabel` 사용). 각 칩 우측에 × 버튼(`removeStudentFromClass` 호출).
+  - 우측에 **"+ 반 추가"** 드롭다운 — 학생이 아직 안 든 반들 목록. 선택 즉시 `addStudentToClass` 호출.
+- 이제 "클래스 관리" 탭 안 들어가도 학생 카드만 펼치면 반 배정 한 곳에서 끝.
+
+**C. 시험·숙제·레벨테스트 발행 폼 통합** — 이미 v76 + v66 + v68에서 대부분 완료된 상태. AdminPanel '시험 관리' 탭(`leveltest` id, line 2291)이 `kind` 드롭다운(level/weekly/monthly/homework) 한 폼으로 통합돼 있음. TeacherPortal '테스트' 탭도 동일. 추가 작업 없음.
+
+### ★ 수강 과목·영상 강의 권한 분리 + 카드 진단 + 단어장 공개 전환 + 클래스 중복 경고 (v181, 2026-05-19) ★
+v180 한 시간 뒤. 사용자가 "수강생 처리하는 거를 쉽게 만들면 어떻까?" — 모델 자체를 정리. 핵심: **"영어 수강생이다"는 선언과 "이 영상 강의를 볼 수 있다"는 권한이 같은 컬럼에 묶여 있던 문제**를 분리.
+
+**모델 정리**:
+- **`students.subjects`** = "수강 과목 선언" (학원에서 이 과목을 듣는다). 단어장·시험·약점분석 메뉴 노출 조건. 관리자 학생 카드에서 토글 가능.
+- **`enrollments`** = "이 영상 강의 시청 권한". 선생님이 본인 강의를 임의 학생에게 줄 수 있음.
+- **`courses.class_id`** = "이 강의는 이 클래스 멤버 자동 시청". byClass 로직 그대로.
+- **관리자** = 모든 강의 + 모든 과목 (전지전능).
+
+**핵심 1줄 수정** — StudentPortal.jsx 1928~1937 `studentSubjects` useMemo:
+- 전: `courses.filter(c => enrolledIds.includes(c.id)).map(c => c.subject)` (영상 강의 등록한 과목만 = "강좌 등록 1개 이상 있어야 수강생" 정의)
+- 후: `adminMode || isTeacherMode ? 모든 과목 : (user.subjects || [])` (선언 기반)
+- 영향: 단어장 메뉴 노출은 이제 `students.subjects` 만 봄. 강좌 enrollment 없어도 영어 체크돼 있으면 단어장 보임. 영상 강의 페이지(`enrolledIds` 사용)는 그대로.
+
+**부수 작업**:
+- **B (학생 카드 진단 한 줄)** — AdminPanel 학생 카드 펼침 영역에 파란 박스 한 줄: '받은 단어장 N · 소속 반 N · 수강 강좌 N'. SQL 안 봐도 학생 상태 즉시 파악. state `vocabReceivedByStudent` 추가, 로드 시 vocab_assignment_students 전체 fetch → student_id로 그룹 카운트.
+- **C (단어장 공개 전환 버튼)** — VocabManager 단어장 상세 헤더의 '준비중' 경고 배너에 우측 빨강 **"공개로 전환"** 버튼 추가. 확인창 → `vocab_lists.status='published'` UPDATE → load(). 단어장 목록으로 안 돌아가도 됨 (클릭 4→1).
+- **D (클래스 중복 경고)** — AdminPanel `createTeacherClass`에 INSERT 전 사전 체크. 같은 선생님·학년·과목 반이 이미 있으면 기존 반 목록 보여주며 confirm. 막지는 않음 — 의도된 분반 가능.
+- **+ 학생 직접 추가 모달 옵션 라벨 수정** — '자동 강좌 등록' → '체크한 과목의 첫 영상 강의 시청 권한도 같이 부여 (선택 — 안 해도 단어장·시험은 됨)'. 기본값 false로 (이제 우회 아님).
+
+### ★ UX 단순화 3종 (v180, 2026-05-19) ★
+사용자가 이상협 샘플 학생 추가 → 단어 보내기까지 테스트하다 단계마다 막힌 지점들을 한 번에 정리. (1) 학생 추가 통합 폼, (2) 일괄 발행에 개별 학생 허용, (3) 클래스 동명이인 표시.
+
+- **(1) 수강생 관리 "+ 학생 직접 추가" 버튼** (AdminPanel.jsx) — 엑셀 import만 있던 자리에 빨강 버튼 추가. 모달 한 화면에서:
+  - 이름·학생전화·학부모전화
+  - 초중고 + 학년 (계단식 select — 초중고 선택해야 학년 옵션 열림)
+  - 학교 (초중고에 매칭되는 학교만)
+  - 수강 과목 체크박스 4개 (국어/영어/수학/과학)
+  - 반 배정 드롭다운 (선택 — 학생 학년과 매칭되는 반만)
+  - **"선택한 수강 과목 강좌에 자동 등록" 체크박스** (기본 ON) — 영어 체크하면 첫 active 영어 강좌에 enrollments INSERT까지. 학생 만든 즉시 단어장 메뉴 보임.
+  - 함수: `openQuickAddStudent / closeQuickAddStudent / toggleQuickAddSubject / submitQuickAddStudent`. state: `quickAddOpen / quickAddDraft / quickAddSaving`.
+  - students INSERT + class_students INSERT(선택 시) + enrollments INSERT(자동등록 시) 한 트랜잭션. auth.users는 만들지 않음 — 학생/학부모가 나중에 같은 email로 회원가입하면 handle_new_user 트리거가 자동 link.
+
+- **(2) 일괄 발행에 개별 학생 지정 허용** (VocabManager.jsx VocabAssignmentModal) — 사용자가 "+ 보내기"와 "+ 선택 발행" 버튼 2개 차이를 외울 필요 없게.
+  - 기존 line 2378의 `if (individualIds.length > 0) { alert('일괄 발행은 개별 학생 지정을 지원하지 않습니다...'); return; }` 가드 제거.
+  - 기존 line 2531의 `!isBulk &&` 가드 제거 — bulk 모드에서도 개별 학생 직접 지정 섹션 노출.
+  - 안내문 교체: "일괄 발행은 반·학년만..." → "일괄 발행: N명 개별 학생이 N개 유닛 전체에 동일하게 등록됩니다" (체크 시에만 표시).
+  - 저장 로직: `vocab_assignments.insert(allRows).select('id')`로 ID 받아서, 각 assignment마다 `vocab_assignment_students` rows를 individualIds × insertedIds 카티전 곱으로 생성.
+
+- **(3) 클래스 동명이인 표시** — 같은 학년 같은 과목 클래스 여러 개 허용. 모든 클래스 표시에 "선생님 이름 + 클래스명" 형식 사용.
+  - **`B2Utils.classLabel(cls, teacherById?)`** 헬퍼 (Utils.jsx line 114~) — `cls.teachers.name`(Supabase JOIN) 우선, 없으면 `teacherById[cls.teacher_id]` lookup, 최종적으로 `teacherName + ' ' + clsName` 반환.
+  - **VocabManager 클래스 쿼리** (load + VocabAssignmentModal) — `select('id, name')` → `select('id, name, class_name, grade, subject, teacher_id, teachers(name)')`로 확장.
+  - **`assignmentTargetLabel`** + 모든 class 드롭다운 → `window.B2Utils.classLabel(c)` 사용.
+  - AdminPanel "+ 학생 직접 추가" 모달의 반 드롭다운도 동일 형식: `"샘플 김도영 고1 영어"`.
+  - 클래스 생성 제한은 안 거는 게 의도 — 사용자가 "같은 학년 같은 과목이 있을수 있어"라고 명시.
+
+### ★ 유닛 체크박스 = 발행+취소 마스터 (v179, 2026-05-19) ★
+- 증상: 단어장 시험 탭에서 유닛 하나 체크해도 '× 선택 취소' 버튼이 회색으로 남아 있어 작동 안 하는 것처럼 보임.
+- 원인: 유닛 체크박스(`selectedUnitIndexes`)는 '+ 선택 발행'만 보고, '× 선택 취소'는 유닛 안의 보낸 발행 카드 체크박스(`selectedAssignmentIds`)만 봤음. 사용자가 유닛만 체크하면 발행 카드 선택은 비어 있어서 취소 버튼이 안 열림.
+- 수정: `toggleUnitSelected(idx, unit.assignments)` — 유닛 체크 시 그 유닛의 모든 보낸 발행도 같이 자동 체크. 해제 시 같이 해제. 발행 카드 체크박스(개별)는 그대로 동작 — 일부만 골라 취소하는 흐름도 유지.
+- UI 라벨: 유닛 체크박스 title 도 '이 유닛 선택 — 발행/취소 모두에 사용'으로.
+
+### ★ 수강생 카드에 초중고 선택 추가 (v178, 2026-05-19) ★
+- 사용자 요청: 관리자 수강생 관리에서 학생 카드를 펼치면 학년·학교만 있고 초중고 선택이 없어서, 학년 드롭다운에 12개(초1~고3)가 다 섞여 나오고 학교도 11개 다 섞여 나옴.
+- AdminPanel.jsx 학생 카드 펼침 영역(3272행대) 상단에 **초중고 select 추가** — 학년·학교 앞쪽에 위치. 선택지: 초등/중등/고등.
+- **state `expandedLevel`** (line 65 옆) — 펼칠 때 `levelFromGrade(st.grade)`로 자동 채움(이미 학년 있으면 그게 가리키는 초중고). 접으면 ''로 리셋.
+- 초중고가 정해져야 학년·학교 드롭다운 활성화 — 그 전엔 회색·"먼저 초중고" 안내, 활성화되면 `SCHOOL_LEVELS[lv].grades`/`.schools`만 옵션으로(섞이지 않음).
+- 초중고 바꿨을 때 기존 학년/학교가 새 초중고에 안 맞으면 자동으로 비움(DB students 행 grade/school NULL update + UI 갱신).
+- 동작은 카드 펼침 단위 — 한 번에 한 학생만 펼치므로(single `expandedStudent`) 단일 state로 충분.
 
 ### ★ 단어장 '준비중/공개' 상태 추가 (v177, 2026-05-18) ★
 - 사용자 요청: 단어장을 만들어두기만 하고 아직 발행 안 하는 잠금 상태 필요. 클래스 드롭다운엔 '학원 전체 공유'와 '특정 반'만 있어서 표현 길이 없었음.

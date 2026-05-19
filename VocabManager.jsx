@@ -131,7 +131,7 @@
     React.useEffect(function(){
       (async function(){
         try {
-          var c = await sb.from('classes').select('id, name, grade, subject').order('name');
+          var c = await sb.from('classes').select('id, name, class_name, grade, subject, teacher_id, teachers(name)').order('name');
           setClasses((c && c.data) || []);
         } catch (e) {}
       })();
@@ -298,7 +298,7 @@
           sb.from('vocab_tests').select('*').eq('list_id', props.listId).eq('is_active', true).order('unit_index', { ascending: true }).order('created_at', { ascending: false }),
           sb.from('vocab_study_sets').select('*').eq('list_id', props.listId).order('unit_index', { ascending: true }),
           sb.from('vocab_assignments').select('*').eq('list_id', props.listId).order('created_at', { ascending: false }),
-          sb.from('classes').select('id, name')
+          sb.from('classes').select('id, name, class_name, grade, subject, teacher_id, teachers(name)')
         ]);
         var lRes = results[0], allWords = results[1], tRes = results[2], sRes = results[3], aRes = results[4], cRes = results[5];
         setList(lRes.data || null);
@@ -326,7 +326,7 @@
       var parts = [];
       if (a.target_class_id) {
         var c = classes.find(function(x){ return x.id === a.target_class_id; });
-        parts.push(c ? c.name : '반');
+        parts.push(c ? window.B2Utils.classLabel(c) : '반');
       }
       var lvlGrade = [a.target_school_level, a.target_grade].filter(Boolean).join(' ');
       if (lvlGrade) parts.push(lvlGrade);
@@ -410,8 +410,23 @@
     function toggleAssignmentSelected(id) {
       setSelectedAssignmentIds(function(p){ var o = Object.assign({}, p); o[id] = !o[id]; if (!o[id]) delete o[id]; return o; });
     }
-    function toggleUnitSelected(idx) {
-      setSelectedUnitIndexes(function(p){ var o = Object.assign({}, p); o[idx] = !o[idx]; if (!o[idx]) delete o[idx]; return o; });
+    function toggleUnitSelected(idx, assignmentsToToggle) {
+      // 유닛 체크 = 발행/취소 양쪽 모두에 쓰는 마스터 체크. 그 유닛의 보낸 발행 카드도 같이 토글.
+      var willBeSelected = !selectedUnitIndexes[idx];
+      setSelectedUnitIndexes(function(p){
+        var o = Object.assign({}, p);
+        if (willBeSelected) o[idx] = true; else delete o[idx];
+        return o;
+      });
+      if (assignmentsToToggle && assignmentsToToggle.length > 0) {
+        setSelectedAssignmentIds(function(p){
+          var o = Object.assign({}, p);
+          assignmentsToToggle.forEach(function(a){
+            if (willBeSelected) o[a.id] = true; else delete o[a.id];
+          });
+          return o;
+        });
+      }
     }
 
     // 시험이 없는 모든 유닛에 기본 시험을 한 번에 생성 (준비중 상태)
@@ -472,8 +487,16 @@
     return React.createElement('div', null,
       // 헤더 (뒤로가기 + 단어장 정보)
       React.createElement('button', { onClick:props.onBack, style:{ background:'none', border:'none', color:'#E60012', cursor:'pointer', fontSize:'13px', fontWeight:'800', fontFamily:'Manrope, sans-serif', marginBottom:'12px', padding:0 } }, '← 단어장 목록'),
-      (list && list.status === 'draft') && React.createElement('div', { style:{ marginBottom:'10px', padding:'10px 14px', background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:'10px', color:'#9a3412', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } },
-        '준비중 단어장 — 학생에게 연습/시험으로 보낼 수 없습니다. 단어장 목록에서 "편집"을 눌러 상태를 "공개"로 바꾸면 발행 가능.'
+      (list && list.status === 'draft') && React.createElement('div', { style:{ marginBottom:'10px', padding:'10px 14px', background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:'10px', color:'#9a3412', fontSize:'12px', fontWeight:'700', fontFamily:'Manrope, sans-serif', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', flexWrap:'wrap' } },
+        React.createElement('span', { style:{ flex:1, minWidth:'200px' } }, '준비중 단어장 — 학생에게 연습/시험으로 보낼 수 없습니다. 공개로 바꾸면 바로 발행 가능.'),
+        React.createElement('button', { onClick: async function(){
+          if (!confirm('이 단어장을 "공개"로 바꿀까요? 학생에게 연습/시험을 보낼 수 있게 됩니다.')) return;
+          try {
+            var r = await sb.from('vocab_lists').update({ status: 'published' }).eq('id', list.id);
+            if (r.error) throw r.error;
+            load();
+          } catch (e) { alert('상태 변경 실패: ' + (e.message || e)); }
+        }, style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '공개로 전환')
       ),
       React.createElement('div', { style:Object.assign({}, STYLES.card, { marginBottom:'14px' }) },
         React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'10px' } },
@@ -611,7 +634,7 @@
                   // 유닛 헤더
                   React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'5px', paddingBottom:'4px', borderBottom:'1px solid #1A1A1A', gap:'6px' } },
                     React.createElement('div', { style:{ minWidth:0, flex:1, display:'flex', alignItems:'center', gap:'6px' } },
-                      unit.study && unit.words.length > 0 && React.createElement('input', { type:'checkbox', checked: !!selectedUnitIndexes[unit.unit_index], onChange:function(){ toggleUnitSelected(unit.unit_index); }, title:'이 유닛 선택', style:{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#E60012', flexShrink:0 } }),
+                      unit.study && unit.words.length > 0 && React.createElement('input', { type:'checkbox', checked: !!selectedUnitIndexes[unit.unit_index], onChange:function(){ toggleUnitSelected(unit.unit_index, unit.assignments); }, title:'이 유닛 선택 — 발행/취소 모두에 사용', style:{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#E60012', flexShrink:0 } }),
                       React.createElement('span', { style:{ fontSize:'12px', fontWeight:'800', color: unit.words.length===0 ? 'rgba(0,0,0,0.4)' : '#1A1A1A', fontFamily:'Manrope, sans-serif', letterSpacing:'0.04em' } }, 'UNIT ' + unit.unit_index),
                       unit.words.length === 0 && React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', fontFamily:'Manrope, sans-serif', marginLeft:'8px' } }, '단어 없음 — 4단계 세트 업로드해서 시작')
                     ),
@@ -2293,7 +2316,7 @@
     React.useEffect(function(){
       (async function(){
         try {
-          var c = await sb.from('classes').select('id, name, grade, subject').order('name');
+          var c = await sb.from('classes').select('id, name, class_name, grade, subject, teacher_id, teachers(name)').order('name');
           setClasses((c && c.data) || []);
           var s = await sb.from('students').select('id, name, grade, school').eq('is_active', true).order('name');
           setStudents((s && s.data) || []);
@@ -2360,8 +2383,8 @@
           return true;
         });
         if (validUnits.length === 0) { alert('선택한 단계의 데이터가 있는 유닛이 없습니다. 4단계 학습 세트를 먼저 업로드해주세요.'); return; }
-        if (individualIds.length > 0) { alert('일괄 발행은 개별 학생 지정을 지원하지 않습니다. 반/학년으로 지정해주세요.'); return; }
         var msg = validUnits.length + '개 유닛에 ' + modeLabel + '을(를) 한 번에 보냅니다.';
+        if (individualIds.length > 0) msg += '\n개별 학생: ' + individualIds.length + '명';
         if (hasTest && dueAt) { msg += '\n첫 마감일: ' + dueAt + '\n간격: ' + intervalDays + '일'; }
         if (!confirm(msg + '\n\n계속할까요?')) return;
         setSaving(true);
@@ -2397,8 +2420,20 @@
               });
             });
           });
-          var insAll = await sb.from('vocab_assignments').insert(allRows);
+          var insAll = await sb.from('vocab_assignments').insert(allRows).select('id');
           if (insAll.error) throw insAll.error;
+          // 개별 학생 지정 — 일괄 생성된 모든 assignment에 같은 학생 명단 적용
+          if (individualIds.length > 0) {
+            var insertedIds = ((insAll && insAll.data) || []).map(function(r){ return r.id; });
+            if (insertedIds.length > 0) {
+              var sRows = [];
+              insertedIds.forEach(function(aid){
+                individualIds.forEach(function(sid){ sRows.push({ assignment_id: aid, student_id: sid }); });
+              });
+              var sIns = await sb.from('vocab_assignment_students').insert(sRows);
+              if (sIns.error) throw sIns.error;
+            }
+          }
           alert(validUnits.length + '개 유닛 ' + modeLabel + '을(를) 모두 보냈어요.');
           props.onSaved();
         } catch (e) { alert('저장 실패: ' + (e.message || e)); }
@@ -2510,11 +2545,11 @@
             ),
             React.createElement('select', { value: targetClassId, onChange:function(e){ setTargetClassId(e.target.value); }, style:Object.assign({}, inputStyleS, { flex:'1.4', minWidth:'120px' }) },
               React.createElement('option', { value:'' }, '클래스 (선택)'),
-              classes.map(function(c){ return React.createElement('option', { key:c.id, value:c.id }, c.name + (c.grade ? (' — ' + c.grade) : '')); })
+              classes.map(function(c){ return React.createElement('option', { key:c.id, value:c.id }, window.B2Utils.classLabel(c)); })
             )
           ),
-          // 개별 학생 추가 — 일괄 모드에서는 숨김 (반/학년만 지원)
-          !isBulk && React.createElement(React.Fragment, null,
+          // 개별 학생 추가 — 단일·일괄 모두 지원 (일괄이면 같은 명단이 모든 유닛에 적용)
+          React.createElement(React.Fragment, null,
             React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', marginBottom:'4px', fontFamily:'Manrope, sans-serif', display:'flex', justifyContent:'space-between', alignItems:'center' } },
               React.createElement('span', null, '개별 학생 직접 지정 (선택)' + (individualIds.length > 0 ? ' — ' + individualIds.length + '명 선택' : '')),
               filteredStudents.length > 0 && React.createElement('button', { onClick: function(){
@@ -2537,7 +2572,7 @@
                   })
             )
           ),
-          isBulk && React.createElement('div', { style:{ fontSize:'11px', color:'#6b7280', fontStyle:'italic', padding:'8px 12px', background:'#f9fafb', borderRadius:'6px', fontFamily:'Manrope, sans-serif' } }, '일괄 발행은 반·학년만 지정할 수 있어요. (개별 학생 지정은 유닛별로 따로)')
+          isBulk && individualIds.length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'#0f766e', padding:'6px 10px', background:'#ecfdf5', borderRadius:'6px', fontFamily:'Manrope, sans-serif', marginTop:'4px' } }, '일괄 발행: ' + individualIds.length + '명 개별 학생이 ' + bulkUnits.length + '개 유닛 전체에 동일하게 등록됩니다.')
         ),
 
         // 4) 시험 옵션 (mode === 'test' 또는 'both' — 시험에만 적용, 연습엔 무시됨)

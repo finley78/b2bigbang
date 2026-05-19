@@ -111,6 +111,18 @@
     return !!(navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof MediaRecorder !== 'undefined');
   }
 
+  // ── 클래스 라벨: "선생님 이름 + 클래스명" ─────────────────────────
+  // 같은 학년·과목 클래스가 여러 개 있을 때 어느 선생님 반인지 구분.
+  // cls.teachers.name (Supabase JOIN 결과)이 있으면 우선, 없으면 teacherById로 lookup.
+  function classLabel(cls, teacherById) {
+    if (!cls) return '';
+    var teacherName = '';
+    if (cls.teachers && cls.teachers.name) teacherName = cls.teachers.name;
+    else if (teacherById && cls.teacher_id && teacherById[cls.teacher_id]) teacherName = teacherById[cls.teacher_id].name || '';
+    var clsName = cls.name || cls.class_name || '반';
+    return teacherName ? (teacherName + ' ' + clsName) : clsName;
+  }
+
   // ── 학년 문자열 → 학교급 추출 ──────────────────────────────────
   // '5학년' → '초등' / '중2' → '중등' / '고1' → '고등'
   function levelFromGrade(g) {
@@ -640,5 +652,5 @@
     return s;
   }
 
-  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, syncVocabAssignmentScore, removeVocabAssignmentScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle, CLASS_TIMES, BUS_CAPACITY, todayKstDay, todayKstDateStr, normalizeTimeStr, academicCategoryLabel, academicCategoryColor, attachmentPublicUrl, formatBytes, materialDraftInit, materialFolderKey, materialUnitNum, groupMaterialsByName };
+  window.B2Utils = { extractYoutubeId, lectureVideoUrl, generateComment, formatKakao, uploadAudioBlob, audioPublicUrl, deleteAudio, isAudioRecordingSupported, isMobileViewport, useIsMobile, levelFromGrade, classLabel, scoreGradeBucket, scoreDistBucket, scoreColor, clearAuthStorage, callEdgeFn, parseNumberRange, syncExamScore, removeExamScores, syncVocabAssignmentScore, removeVocabAssignmentScores, holidayName, buildStudentReportHtml, printStudentReport, buildUserFromStudentRow, loadSiteContent, saveSiteContent, EXAM_DATE, stripLeadingZero, safeUserId, formatPhone, materialTypeLabel, materialTypeBadgeStyle, CLASS_TIMES, BUS_CAPACITY, todayKstDay, todayKstDateStr, normalizeTimeStr, academicCategoryLabel, academicCategoryColor, attachmentPublicUrl, formatBytes, materialDraftInit, materialFolderKey, materialUnitNum, groupMaterialsByName };
 })();

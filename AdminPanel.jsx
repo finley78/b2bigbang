@@ -62,6 +62,7 @@ const [courseFilterGrade, setCourseFilterGrade] = React.useState('전체');
 const [courseFilterTeacher, setCourseFilterTeacher] = React.useState('전체');
 const [courseFilterSearch, setCourseFilterSearch] = React.useState('');
 const [expandedStudent, setExpandedStudent] = React.useState(null);
+const [expandedLevel, setExpandedLevel] = React.useState('');
 const [saveToast, setSaveToast] = React.useState(false);
 const saveToastTimer = React.useRef(null);
 const showSaved = React.useCallback(function() {
@@ -97,6 +98,9 @@ const [teacherPicker, setTeacherPicker] = React.useState(null); // { studentId, 
 const [dbStudents, setDbStudents] = React.useState([]);
 const [dbWithdrawnStudents, setDbWithdrawnStudents] = React.useState([]);
 const [studentViewMode, setStudentViewMode] = React.useState('active'); // 'active' | 'withdrawn'
+const [quickAddOpen, setQuickAddOpen] = React.useState(false); // 학생 직접 추가 모달
+const [quickAddDraft, setQuickAddDraft] = React.useState({ name:'', phone:'', parent_phone:'', school_level:'', grade:'', school:'', address:'', subjects:[], class_id:'', auto_enroll:false });
+const [quickAddSaving, setQuickAddSaving] = React.useState(false);
 const [dbMembers, setDbMembers] = React.useState([]);
 const [pendingEnrollments, setPendingEnrollments] = React.useState([]); // 학생 자가 수강신청 — 승인 대기
 const [dbTeachers, setDbTeachers] = React.useState([]);
@@ -122,6 +126,7 @@ const [recordsTeacherFilter, setRecordsTeacherFilter] = React.useState('전체')
 const [recordsTypeFilter, setRecordsTypeFilter] = React.useState('전체');
 const [recordsSearch, setRecordsSearch] = React.useState('');
 const [classStudents, setClassStudents] = React.useState({}); // { class_id: [student_id, ...] }
+const [vocabReceivedByStudent, setVocabReceivedByStudent] = React.useState({}); // { student_id: 받은 단어장 N개 } — 카드 진단용
 const [clsMgmtDraft, setClsMgmtDraft] = React.useState({ teacher_id:'', name:'', levels:[], grades:[], subjects:[] }); // 클래스 관리 탭 — 새 반 추가 폼
 const [clsMgmtTeacherFilter, setClsMgmtTeacherFilter] = React.useState('전체'); // 클래스 관리 탭 — 선생님 필터
 const [adminAnalysis, setAdminAnalysis] = React.useState([]);
@@ -418,6 +423,14 @@ if (clsStudents) {
     grouped[row.class_id].push(row.student_id);
   });
   setClassStudents(grouped);
+}
+
+// 학생별 받은 단어장 수 — 학생 카드 진단용
+const { data: vasRows } = await sb.from('vocab_assignment_students').select('student_id');
+if (vasRows) {
+  var vocabCounts = {};
+  vasRows.forEach(function(r){ vocabCounts[r.student_id] = (vocabCounts[r.student_id] || 0) + 1; });
+  setVocabReceivedByStudent(vocabCounts);
 }
 
 const { data: scores, error: scoresError } = await sb.from('test_scores')
@@ -1545,6 +1558,16 @@ function _levelOfGrade(g) {
   ['초등','중등','고등'].forEach(function(L){ if (SCHOOL_LEVELS[L].grades.indexOf(g) >= 0) lv = L; });
   return lv || '초등';
 }
+// 사전 중복 체크 — 같은 선생님·학년·과목·이름 조합이 이미 있는지
+var _existing = (teacherClasses || []).filter(function(c){
+  if (String(c.teacher_id) !== String(profile.id)) return false;
+  if (String(c.subject || '') !== _subjStr) return false;
+  return _grades.indexOf(c.grade) >= 0;
+});
+if (_existing.length > 0) {
+  var _names = _existing.map(function(c){ return (c.grade || '') + ' ' + (c.name || ''); }).join('\n· ');
+  if (!confirm('같은 선생님·학년·과목 반이 이미 있어요:\n\n· ' + _names + '\n\n그래도 새로 만들까요? (다른 반이면 OK, 실수면 취소)')) return;
+}
 // 1) 고른 학년마다 반 1개씩 생성
 var _created = [];
 for (var _i = 0; _i < _grades.length; _i++) {
@@ -1851,6 +1874,81 @@ async function updateStudentGrade(studentId, grade) {
 await sb.from('students').update({ grade }).eq('id', studentId);
 setDbStudents(s => s.map(st => st.id === studentId ? { ...st, grade } : st));
 showSaved();
+}
+
+// 학생 직접 추가 — 학생 + 반 배정 + 자동 강좌 등록을 한 번에 처리
+function openQuickAddStudent() {
+  setQuickAddDraft({ name:'', phone:'', parent_phone:'', school_level:'', grade:'', school:'', address:'', subjects:[], class_id:'', auto_enroll:false });
+  setQuickAddOpen(true);
+}
+function closeQuickAddStudent() {
+  setQuickAddOpen(false);
+}
+function toggleQuickAddSubject(sub) {
+  setQuickAddDraft(function(d){
+    var arr = (d.subjects || []).slice();
+    var i = arr.indexOf(sub);
+    if (i >= 0) arr.splice(i, 1); else arr.push(sub);
+    return Object.assign({}, d, { subjects: arr });
+  });
+}
+async function submitQuickAddStudent() {
+  var d = quickAddDraft;
+  if (!d.name || !d.name.trim()) { alert('이름을 입력해 주세요.'); return; }
+  if (!d.school_level) { alert('초중고를 선택해 주세요.'); return; }
+  if (!d.grade) { alert('학년을 선택해 주세요.'); return; }
+  setQuickAddSaving(true);
+  try {
+    // 1) students INSERT
+    var stuRow = {
+      name: d.name.trim(),
+      phone: d.phone ? normPhoneDigits(d.phone) : null,
+      parent_phone: d.parent_phone ? normPhoneDigits(d.parent_phone) : null,
+      grade: d.grade,
+      school: d.school || null,
+      address: d.address || null,
+      subjects: d.subjects || [],
+      role: 'student',
+      is_active: true,
+      is_approved: true,
+      privacy_agreed: true,
+      agreed_at: new Date().toISOString(),
+      login_provider: 'manual',
+    };
+    var ins = await sb.from('students').insert(stuRow).select('*').single();
+    if (ins.error) throw ins.error;
+    var newStu = ins.data;
+
+    // 2) 반 배정 (선택 시)
+    if (d.class_id) {
+      try { await sb.from('class_students').insert({ class_id: d.class_id, student_id: newStu.id }); } catch (e) {}
+    }
+
+    // 3) 자동 강좌 등록 — 선택한 수강 과목 각각에 대해 첫 번째 active 강좌에 enroll
+    if (d.auto_enroll && (d.subjects || []).length > 0) {
+      var enrollRows = [];
+      (d.subjects || []).forEach(function(sub){
+        var match = (state.courses || []).find(function(c){ return c.subject === sub; });
+        if (match) enrollRows.push({ student_id: newStu.id, course_id: match.id, status: 'approved', is_active: true });
+      });
+      if (enrollRows.length > 0) {
+        try { await sb.from('enrollments').insert(enrollRows); } catch (e) {}
+      }
+    }
+
+    // UI 즉시 반영 — dbStudents에 추가
+    setDbStudents(function(prev){
+      return prev.concat([Object.assign({}, newStu, {
+        enrolledCourses: d.auto_enroll ? (d.subjects||[]).map(function(sub){ var c = (state.courses||[]).find(function(x){ return x.subject===sub; }); return c ? c.id : null; }).filter(Boolean) : [],
+        classIds: d.class_id ? [d.class_id] : [],
+      })]);
+    });
+    setQuickAddOpen(false);
+    showSaved();
+  } catch (e) {
+    alert('학생 추가 실패: ' + (e.message || e));
+  }
+  setQuickAddSaving(false);
 }
 async function updateStudentUsesBus(studentId, usesBus) {
   var payload = { uses_bus: !!usesBus };
@@ -2286,6 +2384,120 @@ saveToast && React.createElement('div', { style:{ position:'fixed', bottom:'24px
   React.createElement('span', { style:{ fontSize:'16px' } }, '✓'),
   React.createElement('span', null, '저장됨')
 ),
+
+// 학생 직접 추가 모달
+quickAddOpen && (function(){
+  var d = quickAddDraft;
+  var labelS = { fontSize:'11px', fontWeight:'800', color:'#374151', display:'block', marginBottom:'4px', fontFamily:'Manrope, sans-serif' };
+  var inputS = { width:'100%', border:'1px solid #d6dbde', borderRadius:'8px', padding:'8px 10px', fontSize:'13px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', boxSizing:'border-box' };
+  var lvlGrades = d.school_level ? SCHOOL_LEVELS[d.school_level].grades : [];
+  var lvlSchools = d.school_level ? SCHOOL_LEVELS[d.school_level].schools : [];
+  // 학생 학년/과목 매칭 + class.subject가 colon-joined일 수도 — 단순 포함 매칭
+  var classOptions = (teacherClasses || []).filter(function(c){
+    if (!c.grade) return true; // 학년 미지정 클래스는 항상 보임
+    return c.grade === d.grade;
+  });
+  // 선택된 수강 과목 → 자동 enroll 강좌 미리보기
+  var autoCourses = (d.subjects || []).map(function(sub){
+    var c = (state.courses || []).find(function(x){ return x.subject === sub; });
+    return { subject: sub, course: c };
+  });
+  return React.createElement('div', {
+    onClick: function(e){ if (e.target === e.currentTarget) closeQuickAddStudent(); },
+    style:{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:99998, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px', overflowY:'auto' }
+  },
+    React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', width:'min(560px, calc(100% - 32px))', maxHeight:'92vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', fontFamily:'Manrope, sans-serif', position:'relative' } },
+      React.createElement('button', { onClick: closeQuickAddStudent, style:{ position:'absolute', top:'16px', right:'16px', background:'none', border:'none', fontSize:'20px', cursor:'pointer', color:'rgba(0,0,0,0.4)' } }, '×'),
+      React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 4px' } }, '학생 직접 추가'),
+      React.createElement('div', { style:{ fontSize:'12px', color:'rgba(0,0,0,0.55)', marginBottom:'16px' } }, '학생을 만들면서 수강 과목·반·강좌 등록까지 한 번에 처리합니다.'),
+
+      // 이름
+      React.createElement('div', { style:{ marginBottom:'12px' } },
+        React.createElement('label', { style: labelS }, '이름 *'),
+        React.createElement('input', { type:'text', value: d.name, onChange:function(e){ setQuickAddDraft(Object.assign({}, d, { name: e.target.value })); }, placeholder:'예: 이상협', style: inputS })
+      ),
+      // 학생 전화 + 학부모 전화
+      React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'12px' } },
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style: labelS }, '학생 전화'),
+          React.createElement('input', { type:'tel', value: d.phone, onChange:function(e){ setQuickAddDraft(Object.assign({}, d, { phone: e.target.value })); }, placeholder:'01012345678', style: inputS })
+        ),
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style: labelS }, '학부모 전화'),
+          React.createElement('input', { type:'tel', value: d.parent_phone, onChange:function(e){ setQuickAddDraft(Object.assign({}, d, { parent_phone: e.target.value })); }, placeholder:'01098765432', style: inputS })
+        )
+      ),
+      // 초중고 + 학년
+      React.createElement('div', { style:{ display:'flex', gap:'8px', marginBottom:'12px' } },
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style: labelS }, '초중고 *'),
+          React.createElement('select', { value: d.school_level, onChange:function(e){ setQuickAddDraft(Object.assign({}, d, { school_level: e.target.value, grade:'', school:'' })); }, style: inputS },
+            React.createElement('option', { value:'' }, '선택'),
+            ['초등','중등','고등'].map(function(lv){ return React.createElement('option', { key:lv, value:lv }, lv); })
+          )
+        ),
+        React.createElement('div', { style:{ flex:1 } },
+          React.createElement('label', { style: labelS }, '학년 *'),
+          React.createElement('select', { value: d.grade, onChange:function(e){ setQuickAddDraft(Object.assign({}, d, { grade: e.target.value })); }, disabled: !d.school_level, style: Object.assign({}, inputS, { background: d.school_level?'#fff':'#f3f4f6' }) },
+            React.createElement('option', { value:'' }, d.school_level ? '선택' : '먼저 초중고'),
+            lvlGrades.map(function(g){ return React.createElement('option', { key:g, value:g }, g); })
+          )
+        )
+      ),
+      // 학교
+      React.createElement('div', { style:{ marginBottom:'12px' } },
+        React.createElement('label', { style: labelS }, '학교'),
+        React.createElement('select', { value: d.school, onChange:function(e){ setQuickAddDraft(Object.assign({}, d, { school: e.target.value })); }, disabled: !d.school_level, style: Object.assign({}, inputS, { background: d.school_level?'#fff':'#f3f4f6' }) },
+          React.createElement('option', { value:'' }, d.school_level ? '선택' : '먼저 초중고'),
+          lvlSchools.map(function(s){ return React.createElement('option', { key:s, value:s }, s); })
+        )
+      ),
+      // 수강 과목 (체크박스 4개)
+      React.createElement('div', { style:{ marginBottom:'12px' } },
+        React.createElement('label', { style: labelS }, '수강 과목'),
+        React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap' } },
+          SUBJECTS.map(function(sub){
+            var on = (d.subjects || []).indexOf(sub) >= 0;
+            return React.createElement('button', { key: sub, type:'button', onClick: function(){ toggleQuickAddSubject(sub); }, style:{ background: on?'#FFEBED':'#fff', color: on?'#E60012':'#374151', border:'1.5px solid '+(on?'#E60012':'#d6dbde'), borderRadius:'8px', padding:'7px 14px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, sub);
+          })
+        )
+      ),
+      // 반 배정 (선택)
+      React.createElement('div', { style:{ marginBottom:'12px' } },
+        React.createElement('label', { style: labelS }, '반 배정 (선택)'),
+        React.createElement('select', { value: d.class_id, onChange:function(e){ setQuickAddDraft(Object.assign({}, d, { class_id: e.target.value })); }, style: inputS },
+          React.createElement('option', { value:'' }, '반 없음'),
+          classOptions.map(function(c){
+            var t = (dbTeachers || []).find(function(x){ return String(x.id) === String(c.teacher_id); });
+            var tName = t ? t.name : '선생님';
+            var label = tName + ' ' + (c.grade || '') + ' ' + (c.name || c.class_name || '');
+            return React.createElement('option', { key: c.id, value: c.id }, label.replace(/\s+/g, ' ').trim());
+          })
+        )
+      ),
+      // 자동 강좌 등록 안내
+      React.createElement('div', { style:{ marginBottom:'14px', padding:'10px 12px', background:'#f8fafc', borderRadius:'8px', border:'1px dashed #d6dbde', fontSize:'12px', color:'#374151' } },
+        React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer', fontWeight:'800', marginBottom: (d.subjects||[]).length>0 ? '6px' : 0 } },
+          React.createElement('input', { type:'checkbox', checked: !!d.auto_enroll, onChange:function(e){ setQuickAddDraft(Object.assign({}, d, { auto_enroll: e.target.checked })); }, style:{ width:'14px', height:'14px', cursor:'pointer', accentColor:'#E60012' } }),
+          React.createElement('span', null, '체크한 과목의 첫 영상 강의 시청 권한도 같이 부여 (선택 — 안 해도 단어장·시험은 됨)')
+        ),
+        (d.subjects || []).length > 0 && React.createElement('div', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.55)', paddingLeft:'20px' } },
+          autoCourses.map(function(ac, i){
+            return React.createElement('div', { key: ac.subject, style:{ marginTop:'2px' } },
+              '· ' + ac.subject + ': ' + (ac.course ? ('"' + ac.course.name + '" 자동 등록') : '해당 과목 강좌 없음 — 등록 생략')
+            );
+          })
+        )
+      ),
+
+      // 액션
+      React.createElement('div', { style:{ display:'flex', gap:'8px', marginTop:'8px' } },
+        React.createElement('button', { onClick: closeQuickAddStudent, disabled: quickAddSaving, style:{ flex:1, background:'#f3f4f6', color:'#111827', border:'1px solid #e5e7eb', borderRadius:'10px', padding:'11px', fontSize:'13px', fontWeight:'700', cursor: quickAddSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif' } }, '취소'),
+        React.createElement('button', { onClick: submitQuickAddStudent, disabled: quickAddSaving, style:{ flex:2, background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'11px', fontSize:'13px', fontWeight:'800', cursor: quickAddSaving?'not-allowed':'pointer', fontFamily:'Manrope, sans-serif', opacity: quickAddSaving?0.6:1 } }, quickAddSaving ? '저장 중...' : '학생 추가')
+      )
+    )
+  );
+})(),
 
 React.createElement('div', { style:{ background:'#1A1A1A', padding:'24px 40px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
 React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } },
@@ -2922,8 +3134,12 @@ React.createElement('option', { value:'subject_asc' }, '↓ 과목순 (국·영�
 )
 ),
 
-/* 엑셀 가져오기/내보내기 */
+/* 학생 직접 추가 + 엑셀 가져오기/내보내기 */
 React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'14px' } },
+React.createElement('button', {
+onClick: function(){ openQuickAddStudent(); },
+style:{ background:'#E60012', color:'#fff', border:'none', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
+}, '+ 학생 직접 추가'),
 React.createElement('button', {
 onClick: function(){ downloadStudentTemplate(); },
 style:{ background:'#fff', color:'#374151', border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'Manrope, sans-serif' }
@@ -3258,28 +3474,52 @@ isSelected && React.createElement('svg', { width:'11', height:'11', viewBox:'0 0
 React.createElement('path', { d:'M2 6l3 3 5-5', stroke:'#fff', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round' })
 )
 ),
-React.createElement('div', { style:{ flex:1, minWidth:0, cursor:'pointer', display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }, onClick:function(){ var __nx = expandedStudent===st.id?null:st.id; setExpandedStudent(__nx); if (__nx) { setTimeout(function(){ var el = document.getElementById('student-grid-top'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); } } },
+React.createElement('div', { style:{ flex:1, minWidth:0, cursor:'pointer', display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }, onClick:function(){ var __nx = expandedStudent===st.id?null:st.id; setExpandedStudent(__nx); setExpandedLevel(__nx ? (levelFromGrade(st.grade) || '') : ''); if (__nx) { setTimeout(function(){ var el = document.getElementById('student-grid-top'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); } } },
 st.grade && React.createElement('span', { style:{ background:'#1A1A1A', color:'#fff', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, st.grade),
 React.createElement('span', { style:{ fontSize:'15px', fontWeight:'700', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', textDecoration: isWithdrawn?'line-through':'none' } }, st.name),
 (st.subjects||[]).map(function(sub){ return React.createElement('span', { key:sub, style:{ background:'#FFEBED', color:'#E60012', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, sub); }),
 isWithdrawn && st.withdrawn_at && React.createElement('span', { style:{ background:'#f0f0f0', color:'#5a5a5a', borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } }, '퇴원 ' + String(st.withdrawn_at).slice(0,10))
 ),
 React.createElement('span', {
-onClick: function() { var __nx = expandedStudent===st.id?null:st.id; setExpandedStudent(__nx); if (__nx) { setTimeout(function(){ var el = document.getElementById('student-grid-top'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); } },
+onClick: function() { var __nx = expandedStudent===st.id?null:st.id; setExpandedStudent(__nx); setExpandedLevel(__nx ? (levelFromGrade(st.grade) || '') : ''); if (__nx) { setTimeout(function(){ var el = document.getElementById('student-grid-top'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); } },
 style:{ fontSize:'18px', color:'rgba(0,0,0,0.3)', cursor:'pointer', transition:'transform 0.2s', transform: expandedStudent===st.id?'rotate(180deg)':'none', flexShrink:0 }
 }, '▾')
 ),
 expandedStudent===st.id && React.createElement('div', { style:{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid rgba(0,0,0,0.08)', display:'grid', gridTemplateColumns:'minmax(0,1fr) minmax(0,1fr)', gap:'18px' } },
 React.createElement('div', { style:{ minWidth:0 } },
 React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px' } },
+React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '초중고'),
+React.createElement('select', {
+value: expandedLevel,
+onChange: async function(e) {
+var lv = e.target.value;
+setExpandedLevel(lv);
+// 현재 학년/학교가 새 초중고에 안 맞으면 비워서 다시 고르게 함
+var curGradeFits = lv && SCHOOL_LEVELS[lv] && SCHOOL_LEVELS[lv].grades.indexOf(st.grade) >= 0;
+var curSchoolFits = lv && SCHOOL_LEVELS[lv] && SCHOOL_LEVELS[lv].schools.indexOf(st.school) >= 0;
+var upd = {};
+if (!curGradeFits && st.grade) upd.grade = null;
+if (!curSchoolFits && st.school) upd.school = null;
+if (Object.keys(upd).length > 0) {
+  await sb.from('students').update(upd).eq('id', st.id);
+  setDbStudents(function(prev){ return prev.map(function(s){ return s.id===st.id?Object.assign({},s,upd):s; }); });
+  showSaved();
+}
+},
+style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+React.createElement('option', { value:'' }, '선택'),
+['초등','중등','고등'].map(function(lv){ return React.createElement('option',{key:lv,value:lv},lv); })
+),
 React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '학년'),
 React.createElement('select', {
 value: st.grade || '',
 onChange: function(e) { updateStudentGrade(st.id, e.target.value || null); },
-style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+disabled: !expandedLevel,
+style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background: expandedLevel?'#fff':'#f3f4f6', outline:'none', cursor: expandedLevel?'pointer':'not-allowed' }
 },
-React.createElement('option', { value:'' }, '선택'),
-['1학년','2학년','3학년','4학년','5학년','6학년','중1','중2','중3','고1','고2','고3'].map(function(g){ return React.createElement('option',{key:g,value:g},g); })
+React.createElement('option', { value:'' }, expandedLevel ? '선택' : '먼저 초중고'),
+(expandedLevel && SCHOOL_LEVELS[expandedLevel] ? SCHOOL_LEVELS[expandedLevel].grades : []).map(function(g){ return React.createElement('option',{key:g,value:g},g); })
 ),
 React.createElement('span', { style:{ fontSize:'11px', fontWeight:'700', color:'rgba(0,0,0,0.45)', fontFamily:'Manrope, sans-serif' } }, '학교'),
 React.createElement('select', {
@@ -3290,10 +3530,11 @@ await sb.from('students').update({ school }).eq('id', st.id);
 setDbStudents(function(prev){ return prev.map(function(s){ return s.id===st.id?Object.assign({},s,{school}):s; }); });
 showSaved();
 },
-style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+disabled: !expandedLevel,
+style:{ border:'1px solid #d6dbde', borderRadius:'6px', padding:'4px 8px', fontSize:'12px', fontFamily:'Manrope, sans-serif', background: expandedLevel?'#fff':'#f3f4f6', outline:'none', cursor: expandedLevel?'pointer':'not-allowed' }
 },
-React.createElement('option', { value:'' }, '선택'),
-SCHOOLS.filter(function(s){ return s!=='전체'; }).map(function(s){ return React.createElement('option',{key:s,value:s},s); })
+React.createElement('option', { value:'' }, expandedLevel ? '선택' : '먼저 초중고'),
+(expandedLevel && SCHOOL_LEVELS[expandedLevel] ? SCHOOL_LEVELS[expandedLevel].schools : []).map(function(s){ return React.createElement('option',{key:s,value:s},s); })
 )
 ),
 React.createElement('div', { style:{ display:'flex', gap:'18px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px', padding:'6px 10px', background:'#f9f9f9', borderRadius:'6px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } },
@@ -3306,6 +3547,48 @@ React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.45)'
 React.createElement('span', { style:{ fontWeight:'700', color:'rgba(0,0,0,0.87)' } }, B2Utils.formatPhone(st.parent_phone) || '미입력')
 )
 ),
+// 진단용 한 줄 — 받은 단어장 · 소속 반 · 수강 강좌
+(function(){
+var vCount = vocabReceivedByStudent[st.id] || 0;
+var stClassIds = Object.keys(classStudents || {}).filter(function(cid){ return (classStudents[cid] || []).indexOf(st.id) >= 0; });
+var clsCount = stClassIds.length;
+var crCount = (st.enrolledCourses || []).length;
+return React.createElement('div', { style:{ display:'flex', gap:'12px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px', padding:'6px 10px', background:'#eff6ff', borderRadius:'6px', fontSize:'11px', fontWeight:'700', fontFamily:'Manrope, sans-serif' } },
+React.createElement('span', { style:{ color:'#1d4ed8' } }, '받은 단어장 ' + vCount + '개'),
+React.createElement('span', { style:{ color:'rgba(0,0,0,0.25)' } }, '·'),
+React.createElement('span', { style:{ color:'#1d4ed8' } }, '소속 반 ' + clsCount + '개'),
+React.createElement('span', { style:{ color:'rgba(0,0,0,0.25)' } }, '·'),
+React.createElement('span', { style:{ color:'#1d4ed8' } }, '수강 강좌 ' + crCount + '개')
+);
+})(),
+// 반 배정 인라인 — 현재 소속 반 칩(×) + "+ 반 추가" 드롭다운
+(function(){
+var stClassIds = Object.keys(classStudents || {}).filter(function(cid){ return (classStudents[cid] || []).indexOf(st.id) >= 0; });
+var myClasses = (teacherClasses || []).filter(function(c){ return stClassIds.indexOf(String(c.id)) >= 0; });
+var addableClasses = (teacherClasses || []).filter(function(c){ return stClassIds.indexOf(String(c.id)) < 0; });
+return React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px', padding:'8px 10px', background:'#fef2f2', borderRadius:'6px', fontSize:'11px', fontFamily:'Manrope, sans-serif' } },
+React.createElement('span', { style:{ fontWeight:'800', color:'rgba(0,0,0,0.55)', marginRight:'4px' } }, '반 배정'),
+myClasses.length === 0
+  ? React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.4)', fontStyle:'italic' } }, '아직 배정된 반 없음')
+  : myClasses.map(function(c){
+    return React.createElement('span', { key:c.id, style:{ display:'inline-flex', alignItems:'center', gap:'5px', background:'#fff', border:'1px solid #fecaca', borderRadius:'999px', padding:'2px 4px 2px 10px', fontSize:'11px', fontWeight:'700' } },
+      window.B2Utils.classLabel(c, (dbTeachers || []).reduce(function(o, t){ o[t.id] = t; return o; }, {})),
+      React.createElement('button', { onClick: async function(){
+        if (!confirm('이 학생을 "' + window.B2Utils.classLabel(c, (dbTeachers||[]).reduce(function(o,t){o[t.id]=t;return o;},{})) + '" 반에서 빼시겠어요?')) return;
+        await removeStudentFromClass(c.id, st.id);
+      }, title:'반에서 제거', style:{ background:'#fff', color:'#c82014', border:'none', borderRadius:'50%', width:'18px', height:'18px', cursor:'pointer', fontSize:'13px', fontWeight:'700', lineHeight:1, padding:0 } }, '×')
+    );
+  }),
+addableClasses.length > 0 && React.createElement('select', {
+  value: '',
+  onChange: function(e){ if (e.target.value) { addStudentToClass(e.target.value, st.id); e.target.value = ''; } },
+  style:{ border:'1px solid #fecaca', borderRadius:'6px', padding:'3px 8px', fontSize:'11px', fontFamily:'Manrope, sans-serif', background:'#fff', outline:'none', cursor:'pointer' }
+},
+  React.createElement('option', { value:'' }, '+ 반 추가'),
+  addableClasses.map(function(c){ return React.createElement('option', { key:c.id, value:c.id }, window.B2Utils.classLabel(c, (dbTeachers||[]).reduce(function(o,t){o[t.id]=t;return o;},{}))); })
+)
+);
+})(),
 // 차량 이용 설정
 React.createElement('div', { style:{ display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center', marginBottom:'8px', padding:'6px 10px', background:'#eff6ff', borderRadius:'6px', fontSize:'12px', fontFamily:'Manrope, sans-serif' } },
 React.createElement('label', { style:{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer' } },
