@@ -3112,8 +3112,8 @@ React.createElement('div', { style:{ marginBottom:'20px' } },
 React.createElement('div', { style:{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center', marginBottom:'16px' } },
 React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'rgba(0,0,0,0.87)', fontFamily:'Manrope, sans-serif', marginRight:'8px', flexShrink:0 } },
 studentViewMode === 'withdrawn'
-  ? '퇴원 학생 (' + (_isFiltered ? _filteredCount + ' / ' : '') + dbWithdrawnStudents.length + '명)'
-  : '수강생 관리 (' + (_isFiltered ? _filteredCount + ' / ' : '') + dbStudents.length + '명)'),
+  ? '퇴원 학생 (' + _filteredCount + '명)'
+  : '수강생 관리 (' + _filteredCount + '명)'),
 
 /* 활성/퇴원 토글 */
 React.createElement('div', { style:{ display:'inline-flex', background:'#f2f0eb', borderRadius:'8px', padding:'3px', gap:'2px' } },

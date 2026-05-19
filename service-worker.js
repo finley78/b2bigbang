@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260519v188-grade-label-simplify';
+const CACHE_VERSION = 'b2-bigbang-20260519v189-header-count-filtered-only';
 const OFFLINE_URLS = [
   './',
   './index.html',
