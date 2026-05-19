@@ -3144,8 +3144,14 @@ onChange: function(e) { setFilterGrade(e.target.value); setSelectedIds([]); },
 disabled: filterLevel === '전체',
 style:{ border:'1px solid #d6dbde', borderRadius:'8px', padding:'7px 12px', fontSize:'13px', fontWeight:'600', fontFamily:'Manrope, sans-serif', background: filterLevel === '전체' ? '#f3f4f6' : '#fff', outline:'none', cursor: filterLevel === '전체' ? 'not-allowed' : 'pointer' }
 },
-React.createElement('option', { value:'전체' }, filterLevel === '전체' ? '먼저 초중고' : '학년 전체'),
-(filterLevel === '전체' ? [] : SCHOOL_LEVELS[filterLevel].grades).map(function(g){ return React.createElement('option',{key:g,value:g},g); })
+React.createElement('option', { value:'전체' }, filterLevel === '전체' ? '먼저 초중고' : '학년'),
+(filterLevel === '전체' ? [] : SCHOOL_LEVELS[filterLevel].grades).map(function(g){
+  // 학교급 이미 위에서 정했으니 학년 옵션엔 prefix 떼고 "N학년"만 표시. value는 원본 유지.
+  var label = g;
+  if (/^중([1-3])$/.test(g)) label = g.charAt(1) + '학년';
+  else if (/^고([1-3])$/.test(g)) label = g.charAt(1) + '학년';
+  return React.createElement('option',{key:g,value:g},label);
+})
 ),
 // 과목 필터 — 학생의 students.subjects 배열에서 매칭
 React.createElement('select', {
