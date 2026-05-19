@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260519v183-realtime-user-refresh';
+const CACHE_VERSION = 'b2-bigbang-20260519v184-exam-autosave-and-publish-result';
 const OFFLINE_URLS = [
   './',
   './index.html',

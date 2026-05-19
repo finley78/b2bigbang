@@ -2312,6 +2312,8 @@
     var [classes, setClasses] = React.useState([]);
     var [students, setStudents] = React.useState([]);
     var [saving, setSaving] = React.useState(false);
+    // 발행 완료 후 결과 요약 — null이면 아직 작성 중, 객체면 결과 화면 표시
+    var [publishedResult, setPublishedResult] = React.useState(null);
 
     React.useEffect(function(){
       (async function(){
@@ -2434,8 +2436,19 @@
               if (sIns.error) throw sIns.error;
             }
           }
-          alert(validUnits.length + '개 유닛 ' + modeLabel + '을(를) 모두 보냈어요.');
-          props.onSaved();
+          // 발행 결과 화면으로 전환 (모달은 닫지 않음 — 사용자가 확인 후 닫기)
+          var indNames = (individualIds || []).map(function(sid){ var s = students.find(function(x){ return x.id === sid; }); return s ? s.name : null; }).filter(Boolean);
+          var clsLabel = '';
+          if (targetClassId) { var cc = classes.find(function(x){ return x.id === targetClassId; }); clsLabel = cc ? window.B2Utils.classLabel(cc) : ''; }
+          setPublishedResult({
+            mode: modeLabel,
+            count: validUnits.length * modesToInsert.length,
+            unitCount: validUnits.length,
+            classLabel: clsLabel,
+            levelGrade: [targetLevel, targetGrade ? targetGrade + '학년' : null].filter(Boolean).join(' '),
+            indNames: indNames,
+            isBulk: true,
+          });
         } catch (e) { alert('저장 실패: ' + (e.message || e)); }
         setSaving(false);
         return;
@@ -2481,14 +2494,60 @@
           var sIns = await sb.from('vocab_assignment_students').insert(sRows);
           if (sIns.error) throw sIns.error;
         }
-        alert(modeLabel + '이(가) 학생에게 보내졌어요.');
-        props.onSaved();
+        var indNames2 = (individualIds || []).map(function(sid){ var s = students.find(function(x){ return x.id === sid; }); return s ? s.name : null; }).filter(Boolean);
+        var clsLabel2 = '';
+        if (targetClassId) { var cc2 = classes.find(function(x){ return x.id === targetClassId; }); clsLabel2 = cc2 ? window.B2Utils.classLabel(cc2) : ''; }
+        setPublishedResult({
+          mode: modeLabel,
+          count: insertedIds.length,
+          unitCount: 1,
+          classLabel: clsLabel2,
+          levelGrade: [targetLevel, targetGrade ? targetGrade + '학년' : null].filter(Boolean).join(' '),
+          indNames: indNames2,
+          isBulk: false,
+        });
       } catch (e) { alert('저장 실패: ' + (e.message || e)); }
       setSaving(false);
     }
 
     var inputStyleS = Object.assign({}, STYLES.input, { padding:'7px 10px', fontSize:'13px' });
     var sectionLabel = { fontSize:'12px', fontWeight:'800', color:'#374151', marginBottom:'8px', letterSpacing:'0.04em', fontFamily:'Manrope, sans-serif' };
+
+    // 발행 완료 결과 화면 — 폼 대신 표시
+    if (publishedResult) {
+      var pr = publishedResult;
+      var targetBits = [];
+      if (pr.classLabel) targetBits.push(pr.classLabel + ' 반');
+      if (pr.levelGrade) targetBits.push(pr.levelGrade);
+      var targetSummary = targetBits.length > 0 ? targetBits.join(' + ') : '';
+      return React.createElement('div', { style:STYLES.modalBackdrop },
+        React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(500px, calc(100% - 32px))' }) },
+          React.createElement('div', { style:{ textAlign:'center', padding:'8px 0 16px' } },
+            React.createElement('div', { style:{ width:'56px', height:'56px', borderRadius:'50%', background:'#dcfce7', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px' } },
+              React.createElement('span', { style:{ fontSize:'28px', color:'#16a34a', fontWeight:'800', lineHeight:1 } }, '✓')
+            ),
+            React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 4px', fontFamily:'Manrope, sans-serif' } }, '발행 완료'),
+            React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.6)', fontFamily:'Manrope, sans-serif' } }, pr.mode + ' ' + pr.count + '개 발행됨' + (pr.isBulk ? (' (' + pr.unitCount + '개 유닛)') : ''))
+          ),
+          // 대상 요약
+          React.createElement('div', { style:{ marginBottom:'14px', padding:'12px 14px', background:'#f8fafc', borderRadius:'10px', border:'1px solid #e5e7eb', fontFamily:'Manrope, sans-serif' } },
+            React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#374151', marginBottom:'8px' } }, '받을 학생'),
+            targetSummary && React.createElement('div', { style:{ fontSize:'13px', color:'#1d4ed8', fontWeight:'700', marginBottom: pr.indNames.length > 0 ? '6px' : 0 } }, '· ' + targetSummary + ' 학생 전체'),
+            pr.indNames.length > 0 && React.createElement('div', { style:{ fontSize:'13px', color:'#1A1A1A', fontWeight:'700' } },
+              '· 개별 학생 ' + pr.indNames.length + '명: ',
+              React.createElement('span', { style:{ fontWeight:'400', color:'rgba(0,0,0,0.7)' } }, pr.indNames.join(', '))
+            ),
+            !targetSummary && pr.indNames.length === 0 && React.createElement('div', { style:{ fontSize:'13px', color:'rgba(0,0,0,0.45)', fontStyle:'italic' } }, '대상 없음 (이상 — 디버그 필요)')
+          ),
+          // 안내
+          React.createElement('div', { style:{ marginBottom:'14px', padding:'10px 12px', background:'#eff6ff', borderRadius:'8px', fontSize:'12px', color:'#1e40af', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } },
+            '학생 PWA의 "할 일"에 자동으로 표시됩니다. ',
+            React.createElement('span', { style:{ fontWeight:'800' } }, '학생이 화면을 켜둔 채로도 바로 나타나요.')
+          ),
+          React.createElement('button', { onClick: function(){ props.onSaved(); }, style:{ width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '확인')
+        )
+      );
+    }
 
     return React.createElement('div', { style:STYLES.modalBackdrop },
       React.createElement('div', { style:Object.assign({}, STYLES.modalCard, { width:'min(580px, calc(100% - 32px))' }) },

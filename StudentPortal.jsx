@@ -1638,6 +1638,18 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     var { data } = sb.storage.from('attachments').getPublicUrl(path);
     return data?.publicUrl || '';
   }
+  // 시험 응시 중 임시 저장 — localStorage 키별 격리 (학생×시험)
+  function _examDraftKey(uid, eid) { return 'b2_examdraft_' + uid + '_' + eid; }
+  function _loadExamDraft(uid, eid) {
+    try { var raw = localStorage.getItem(_examDraftKey(uid, eid)); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  function _saveExamDraft(uid, eid, data) {
+    try { localStorage.setItem(_examDraftKey(uid, eid), JSON.stringify(data)); } catch (e) {}
+  }
+  function _clearExamDraft(uid, eid) {
+    try { localStorage.removeItem(_examDraftKey(uid, eid)); } catch (e) {}
+  }
+
   function openExam(exam) {
     if (!user) {
       alert('로그인 후 이용할 수 있습니다.');
@@ -1650,17 +1662,28 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     }
     setActiveExam(exam);
     var existing = mySubmissions[exam.id];
-    setExamAnswers(existing && existing.answers ? existing.answers : {});
-    var ta = existing && existing.text_answers && typeof existing.text_answers === 'object' ? existing.text_answers : {};
-    if ((!ta || Object.keys(ta).length === 0) && existing && existing.text_answer) {
-      ta = { '1': existing.text_answer };
+    // 임시 저장(draft) 우선 — 새로고침/앱 종료 후 돌아왔을 때 답이 안 사라짐. 단, 마감된 시험은 무효.
+    var draft = _loadExamDraft(user.id, exam.id);
+    var useDraft = !!(draft && !(existing && existing.locked));
+    setExamAnswers(useDraft ? (draft.answers || {}) : (existing && existing.answers ? existing.answers : {}));
+    var ta;
+    if (useDraft) {
+      ta = draft.text_answers || {};
+    } else {
+      ta = existing && existing.text_answers && typeof existing.text_answers === 'object' ? existing.text_answers : {};
+      if ((!ta || Object.keys(ta).length === 0) && existing && existing.text_answer) {
+        ta = { '1': existing.text_answer };
+      }
     }
     setExamTextAnswers(ta);
-    setExamTextAnswer(existing && existing.text_answer ? existing.text_answer : '');
+    setExamTextAnswer(useDraft ? (draft.text_answer || '') : (existing && existing.text_answer ? existing.text_answer : ''));
     setExamAudioPath(existing && existing.audio_path ? existing.audio_path : null);
     setExamImgIdx(0);
     autoSubmitDoneRef.current = false;
     setPortalView('exam');
+    if (useDraft && (Object.keys(draft.answers || {}).length > 0 || (draft.text_answer && draft.text_answer.trim()) || Object.keys(draft.text_answers || {}).length > 0)) {
+      setTimeout(function(){ alert('이전에 풀던 답이 복원되었어요. 이어서 풀고 제출하시면 됩니다.'); }, 200);
+    }
   }
   function closeExam() {
     var wasLevelTest = !!(activeExam && activeExam.kind === 'level' && !activeExam.class_id);
@@ -1827,6 +1850,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       setMySubmissions(map);
       // 객관식 자동채점이 끝났으면 성적(test_scores)에도 반영 (서술형 있으면 선생님 채점 후 반영됨)
       try { if (subs && subs[0] && subs[0].id) window.B2Utils.syncExamScore(activeExam.id, subs[0].id); } catch (e) {}
+      try { _clearExamDraft(user.id, activeExam.id); } catch (e) {}
       alert(existing ? '답안이 수정되었습니다.' : '답안이 제출되었습니다.');
       closeExam();
     } catch (e) {
@@ -1835,6 +1859,17 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       setExamSubmitting(false);
     }
   }
+
+  // 응시 중 자동 저장 — 답 입력할 때마다 localStorage 갱신. 새로고침해도 답 안 사라짐.
+  React.useEffect(function(){
+    if (!user || !activeExam || portalView !== 'exam') return;
+    _saveExamDraft(user.id, activeExam.id, {
+      answers: examAnswers,
+      text_answers: examTextAnswers,
+      text_answer: examTextAnswer,
+      saved_at: Date.now(),
+    });
+  }, [activeExam, examAnswers, examTextAnswers, examTextAnswer, portalView, user]);
 
   React.useEffect(function(){
     if (portalView === 'mypage' && user && !profileDraft) {

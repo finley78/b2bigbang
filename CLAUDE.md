@@ -131,7 +131,33 @@ DDL은 `apply_migration` 사용.
 
 ---
 
-## 현재 진행 (2026-05-19 기준, 최신 ?v=20260519v182-todo-merge-and-inline-class-assign)
+## 현재 진행 (2026-05-19 기준, 최신 ?v=20260519v184-exam-autosave-and-publish-result)
+
+### ★ 응시 자동 저장 + 단어장 발행 완료 화면 (v184, 2026-05-19) ★
+사용자가 v183 후 "해" — 1번(Realtime)·2번(자동 저장)·3번(발행 후 follow-up) 묶음 마지막 두 개.
+
+**2. 시험 응시 자동 저장 + 새로고침 복구** (StudentPortal.jsx)
+- 헬퍼: `_examDraftKey/_loadExamDraft/_saveExamDraft/_clearExamDraft` — localStorage 키 `b2_examdraft_${userId}_${examId}`.
+- `openExam`: 기존 submission보다 localStorage draft를 우선 (마감되지 않은 경우). 복원 시 "이전에 풀던 답이 복원되었어요" 알림.
+- `useEffect`: `[activeExam, examAnswers, examTextAnswers, examTextAnswer, portalView, user]` 변경 시 localStorage에 즉시 저장.
+- `submitExamAnswer` 성공 직후 `_clearExamDraft` — 깔끔 마무리.
+- 시험 중 앱·브라우저 꺼져도 답 안 사라짐. 학원 컴플레인 원천 차단.
+
+**3. 단어장 발행 후 완료 화면** (VocabManager.jsx VocabAssignmentModal)
+- 기존: alert 띄우고 모달 닫음 → 발행자가 "잘 갔나" 확인 불가.
+- 새: state `publishedResult` — 저장 성공 시 폼 대신 결과 화면 렌더.
+  - 초록 체크 아이콘 + "발행 완료" + "{모드} {N}개 발행됨"
+  - **받을 학생 박스**: 클래스/학년 매칭(예: "샘플 김도영 고1 영어 반 학생 전체") + 개별 학생 이름들 명단
+  - 안내문: "학생 PWA의 '할 일'에 자동 표시됩니다. 학생이 화면을 켜둔 채로도 바로 나타나요." (v183 Realtime 활용)
+  - `[확인]` 버튼이 `props.onSaved()` 호출 → 모달 닫기.
+- 일괄·단일 모드 양쪽에서 동일하게 작동.
+
+### ★ Realtime로 학생 정보 변경 즉시 반영 (v183, 2026-05-19) ★
+관리자가 학생의 students/enrollments/class_students 행을 바꾸면 학생 PWA가 화면 켜둔 채로 자동 갱신. 다시 로그인 안내 사라짐.
+
+- **DB**: `ALTER PUBLICATION supabase_realtime ADD TABLE public.students, public.enrollments, public.class_students`
+- **index.html**: `user.id`에 대해 3개 테이블 `postgres_changes` 구독 (filter: 본인 행만). 변경 감지 시 `refreshUser()` 호출 → `buildUserFromStudentRow` 재실행 → setUser. 메뉴 노출 조건·수강 과목·반 변경 등 즉시 반영.
+- 동작 검증: RLS SELECT 정책이 본인 행 통과(`students_self_read`/`enrollments_read`/`class_students_read`) → Realtime 정상 전달.
 
 ### ★ 학생 PWA 시험+숙제 = "할 일" 통합 + 학생 카드 반 배정 인라인 (v182, 2026-05-19) ★
 사용자가 "UI나 기능을 합할 수 있는 거 없나? 너무 분산돼서 직관적이지 못해" — 분산된 UI 묶기.
