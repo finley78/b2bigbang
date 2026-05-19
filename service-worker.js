@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260519v184-exam-autosave-and-publish-result';
+const CACHE_VERSION = 'b2-bigbang-20260519v185-rename-todo-to-test';
 const OFFLINE_URLS = [
   './',
   './index.html',

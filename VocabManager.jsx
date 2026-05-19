@@ -2541,7 +2541,7 @@
           ),
           // 안내
           React.createElement('div', { style:{ marginBottom:'14px', padding:'10px 12px', background:'#eff6ff', borderRadius:'8px', fontSize:'12px', color:'#1e40af', fontFamily:'Manrope, sans-serif', lineHeight:'1.6' } },
-            '학생 PWA의 "할 일"에 자동으로 표시됩니다. ',
+            '학생 PWA의 "테스트"에 자동으로 표시됩니다. ',
             React.createElement('span', { style:{ fontWeight:'800' } }, '학생이 화면을 켜둔 채로도 바로 나타나요.')
           ),
           React.createElement('button', { onClick: function(){ props.onSaved(); }, style:{ width:'100%', background:'#E60012', color:'#fff', border:'none', borderRadius:'10px', padding:'12px', fontSize:'14px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif' } }, '확인')

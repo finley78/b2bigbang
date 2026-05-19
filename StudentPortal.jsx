@@ -2457,7 +2457,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
       var todoPending = pendingExams.length + pendingHomework.length;
       var classroomItems = [
         { id:'video',    color:'#E60012', title:'영상 강의', sub:'수강 과목 ' + studentSubjects.length + '개', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
-        { id:'test',     color:'#E60012', title:'할 일', sub:'시험·숙제 ' + todoTotal + '건' + (todoPending > 0 ? ' · 안 푼 것 ' + todoPending : ''), onClick:function(){ setStudentMode('test'); setTodoFilter('all'); } },
+        { id:'test',     color:'#E60012', title:'테스트', sub:'시험·숙제 ' + todoTotal + '건' + (todoPending > 0 ? ' · 안 푼 것 ' + todoPending : ''), onClick:function(){ setStudentMode('test'); setTodoFilter('all'); } },
         { id:'vocab',    color:'#E60012', title:'단어장', sub:'학습·시험·결과·순위', requiresEnglish:true, onClick:function(){ setStudentMode('vocab'); } },
       ].filter(function(it){ return !it.requiresEnglish || studentSubjects.indexOf('영어') >= 0; });
       return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
@@ -2490,7 +2490,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
     var todoPendingPC = pendingExams.length + pendingHomework.length;
     var classroomItemsPC = [
       { id:'video',    color:'#E60012', title:'영상 강의', sub:'수강 과목 ' + studentSubjects.length + '개', onClick:function(){ setStudentMode('video'); setSelectedSubject(null); } },
-      { id:'test',     color:'#E60012', title:'할 일', sub:'시험·숙제 ' + todoTotalPC + '건' + (todoPendingPC > 0 ? ' · 안 푼 것 ' + todoPendingPC : ''), onClick:function(){ setStudentMode('test'); setTodoFilter('all'); } },
+      { id:'test',     color:'#E60012', title:'테스트', sub:'시험·숙제 ' + todoTotalPC + '건' + (todoPendingPC > 0 ? ' · 안 푼 것 ' + todoPendingPC : ''), onClick:function(){ setStudentMode('test'); setTodoFilter('all'); } },
       { id:'vocab',    color:'#E60012', title:'단어장', sub:'학습·시험·결과·순위', requiresEnglish:true, onClick:function(){ setStudentMode('vocab'); } },
     ].filter(function(it){ return !it.requiresEnglish || studentSubjects.indexOf('영어') >= 0; });
     return React.createElement('div', { style:{ background:'#f8fafc', minHeight:'80vh' } },
@@ -2638,7 +2638,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
         /* 통합 "할 일" 화면 — 필터 칩 + 시험·숙제 한 그리드 */
         !anyTest
           ? React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'40px', textAlign:'center', boxShadow:'0 10px 30px rgba(0,0,0,0.05)' } },
-              React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 8px', fontFamily:'Manrope, sans-serif' } }, '할 일이 없어요'),
+              React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:'0 0 8px', fontFamily:'Manrope, sans-serif' } }, '테스트가 없어요'),
               React.createElement('p', { style:{ fontSize:'13px', color:'#6b7280', fontFamily:'Manrope, sans-serif' } }, '선생님이 시험·숙제를 발행하면 여기에 표시됩니다.')
             )
           : (function(){
@@ -2662,7 +2662,7 @@ function StudentPortal({ user, courses, onLoginClick, isAdmin, adminAuthed }) {
               };
               return React.createElement('div', { style:{ background:'#fff', borderRadius:'14px', padding:'24px', boxShadow:'0 10px 30px rgba(0,0,0,0.05)', border:'2px solid #1A1A1A' } },
                 React.createElement('div', { style:{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', flexWrap:'wrap', gap:'8px' } },
-                  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:0, fontFamily:'Manrope, sans-serif' } }, '할 일'),
+                  React.createElement('h2', { style:{ fontSize:'18px', fontWeight:'800', color:'#111827', margin:0, fontFamily:'Manrope, sans-serif' } }, '테스트'),
                   React.createElement('span', { style:{ fontSize:'12px', fontWeight:'700', color:'#fff', background: totalPending > 0 ? '#E60012' : '#16a34a', borderRadius:'999px', padding:'4px 12px', fontFamily:'Manrope, sans-serif' } }, totalPending > 0 ? ('안 푼 것 ' + totalPending + '건') : '모두 완료')
                 ),
                 React.createElement('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'14px' } },
