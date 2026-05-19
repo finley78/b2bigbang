@@ -624,6 +624,43 @@
                   )
                 );
               })(),
+              // 발행 대상별 요약 — 반/학년/개별 그룹별로 한 줄씩, 각 줄마다 일괄 취소 버튼
+              (function(){
+                if (!assignments || assignments.length === 0) return null;
+                var groups = {};
+                assignments.forEach(function(a){
+                  var label = assignmentTargetLabel(a);
+                  if (!groups[label]) groups[label] = { label: label, all: [], test: 0, study: 0, units: {} };
+                  groups[label].all.push(a);
+                  if (a.mode === 'test') groups[label].test++; else groups[label].study++;
+                  groups[label].units[a.unit_index] = true;
+                });
+                var groupList = Object.keys(groups).map(function(k){ return groups[k]; });
+                groupList.sort(function(a, b){ return b.all.length - a.all.length; });
+                var btnDangerSm = { background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'5px', padding:'4px 10px', fontSize:'11px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' };
+                return React.createElement('div', { style:{ marginBottom:'10px', padding:'10px 12px', background:'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontFamily:'Manrope, sans-serif' } },
+                  React.createElement('div', { style:{ fontSize:'12px', fontWeight:'800', color:'#1A1A1A', marginBottom:'8px', display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' } },
+                    React.createElement('span', null, '발행 대상별 정리'),
+                    React.createElement('span', { style:{ fontSize:'11px', color:'rgba(0,0,0,0.5)', fontWeight:'600' } }, '대상 ' + groupList.length + '개 · 발행 ' + assignments.length + '개')
+                  ),
+                  React.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:'5px' } },
+                    groupList.map(function(g, i){
+                      var unitNums = Object.keys(g.units).map(function(n){ return parseInt(n, 10); }).filter(function(n){ return !isNaN(n); }).sort(function(a,b){ return a-b; });
+                      var unitRange = unitNums.length === 0 ? '' : (unitNums.length === 1 ? ('UNIT ' + unitNums[0]) : ('UNIT ' + unitNums[0] + '~' + unitNums[unitNums.length-1] + ' 중 ' + unitNums.length + '개'));
+                      return React.createElement('div', { key:i, style:{ display:'flex', alignItems:'center', gap:'8px', padding:'7px 10px', background:'#fafbfc', border:'1px solid #e5e7eb', borderRadius:'6px', flexWrap:'wrap' } },
+                        React.createElement('span', { style:{ flex:'1 1 140px', minWidth:0, fontSize:'12px', fontWeight:'800', color:'#0f766e' } }, '→ ' + g.label),
+                        React.createElement('span', { style:{ fontSize:'10px', color:'rgba(0,0,0,0.55)', fontWeight:'700' } }, unitRange),
+                        g.test > 0 && React.createElement('span', { style:{ fontSize:'10px', background:'#fef3c7', color:'#92400e', fontWeight:'800', padding:'2px 6px', borderRadius:'3px' } }, '시험 ' + g.test),
+                        g.study > 0 && React.createElement('span', { style:{ fontSize:'10px', background:'#dbeafe', color:'#1d4ed8', fontWeight:'800', padding:'2px 6px', borderRadius:'3px' } }, '연습 ' + g.study),
+                        React.createElement('button', { onClick:function(){
+                          var ids = g.all.map(function(a){ return a.id; });
+                          deleteAssignmentBatch(ids, '"' + g.label + '"에 보낸 발행 ' + ids.length + '개');
+                        }, style:btnDangerSm }, '× ' + g.all.length + '개 한꺼번에 취소')
+                      );
+                    })
+                  )
+                );
+              })(),
               (function(){
                 var unitsWithStudy = unitsArray.filter(function(u){ return !!u.study; });
                 var unitsNoStudy   = unitsArray.filter(function(u){ return !u.study && u.words.length > 0; });
@@ -676,7 +713,9 @@
                           React.createElement('span', { style:{ flex:1 } }),
                           React.createElement('button', { onClick:function(){ deleteAssignment(a); }, title:'발행 취소', style:{ background:'#fff', color:'#c82014', border:'1px solid #f3c5c0', borderRadius:'4px', padding:'1px 6px', fontSize:'10px', fontWeight:'800', cursor:'pointer', fontFamily:'Manrope, sans-serif', whiteSpace:'nowrap' } }, '× 취소')
                         ),
-                        React.createElement('div', { style:{ color:'#0f766e', fontWeight:'700', fontSize:'10px', paddingLeft:'20px' } }, '→ ' + assignmentTargetLabel(a))
+                        React.createElement('div', { style:{ paddingLeft:'20px', display:'flex', alignItems:'center', gap:'4px' } },
+                          React.createElement('span', { style:{ display:'inline-block', background:'#ecfdf5', color:'#065f46', border:'1px solid #a7f3d0', fontWeight:'800', fontSize:'10px', padding:'2px 7px', borderRadius:'10px', letterSpacing:'0.02em' } }, '→ ' + assignmentTargetLabel(a))
+                        )
                       );
                     })
                   ),
