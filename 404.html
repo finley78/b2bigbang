@@ -484,16 +484,16 @@ if ('serviceWorker' in navigator) {
 
 <!-- 사전 컴파일된 JS 파일들 (소스는 같은 이름의 .jsx, npm run build로 생성) -->
 <!-- 캐시 버스팅: 배포할 때마다 ?v= 값을 모든 스크립트 태그에서 동일하게 올려 주세요 -->
-<script src="Utils.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
-<script src="TopNav.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
-<script src="HomePage.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
-<script src="Pages.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
-<script src="VocabManager.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
-<script src="VocabPlayer.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
-<script src="BusTracking.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
-<script src="StudentPortal.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
-<script src="TeacherPortal.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
-<script src="AdminPanel.js?v=20260519v182-todo-merge-and-inline-class-assign"></script>
+<script src="Utils.js?v=20260519v183-realtime-user-refresh"></script>
+<script src="TopNav.js?v=20260519v183-realtime-user-refresh"></script>
+<script src="HomePage.js?v=20260519v183-realtime-user-refresh"></script>
+<script src="Pages.js?v=20260519v183-realtime-user-refresh"></script>
+<script src="VocabManager.js?v=20260519v183-realtime-user-refresh"></script>
+<script src="VocabPlayer.js?v=20260519v183-realtime-user-refresh"></script>
+<script src="BusTracking.js?v=20260519v183-realtime-user-refresh"></script>
+<script src="StudentPortal.js?v=20260519v183-realtime-user-refresh"></script>
+<script src="TeacherPortal.js?v=20260519v183-realtime-user-refresh"></script>
+<script src="AdminPanel.js?v=20260519v183-realtime-user-refresh"></script>
 
 <script>
 // Supabase 클라이언트 초기화
@@ -936,6 +936,20 @@ try { localStorage.setItem('b2_user', JSON.stringify(u)); } catch (e) {}
 React.useEffect(() => { loadFromDB(); }, []);
 // 학생이 강의실(portal)에 들어올 때마다 본인 수강 목록 갱신 (승인 즉시 반영)
 React.useEffect(() => { if (page === 'portal' && user) { refreshUser(); } }, [page]);
+
+// Realtime: 관리자가 학생의 students/enrollments/class_students 변경 시 즉시 refreshUser 호출
+// → 학생이 화면을 켜둔 채로 수강 과목·반·강좌 변경이 자동 반영 (다시 로그인 안 해도 됨)
+React.useEffect(() => {
+  if (!user || !user.id) return;
+  var sb = window.supabase;
+  if (!sb) return;
+  var ch = sb.channel('user_data_' + user.id)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'students', filter: 'id=eq.' + user.id }, function(){ refreshUser(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'enrollments', filter: 'student_id=eq.' + user.id }, function(){ refreshUser(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'class_students', filter: 'student_id=eq.' + user.id }, function(){ refreshUser(); })
+    .subscribe();
+  return function(){ try { sb.removeChannel(ch); } catch (e) {} };
+}, [user && user.id]);
 
 // 브라우저 뒤로가기 지원 + 폰 뒤로가기 앱 내 처리
 React.useEffect(() => {

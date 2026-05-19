@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'b2-bigbang-20260519v182-todo-merge-and-inline-class-assign';
+const CACHE_VERSION = 'b2-bigbang-20260519v183-realtime-user-refresh';
 const OFFLINE_URLS = [
   './',
   './index.html',
